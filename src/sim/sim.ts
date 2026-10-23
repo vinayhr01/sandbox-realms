@@ -28,6 +28,7 @@ import { startFire } from './terrain/fire.ts';
 import { stepBeings, killBeing } from './beings/system.ts';
 import { settlementsStep } from './settlements/adapter.ts';
 import { stepDominions } from './dominions/adapter.ts';
+import { cultureTick, createCultureState, type CultureState } from './culture/adapter.ts';
 
 export { TICK_MS };
 
@@ -59,6 +60,7 @@ export class Sim {
   readonly guard = new ExplosionGuard();
   readonly projectiles: Projectile[] = [];
   weather: WeatherState = createWeatherState();
+  readonly culture: CultureState = createCultureState();
   ages: AgeState;
   tick = 0;
   private queue: Command[] = [];
@@ -147,6 +149,7 @@ export class Sim {
     this.runTerrain();
     this.runBehaviours();
     settlementsStep(this);
+    cultureTick(this);
     stepBeings(this);
     this.runCombatAndWeather();
     stepDominions(this);

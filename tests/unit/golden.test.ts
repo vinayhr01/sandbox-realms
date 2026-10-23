@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import { Cmd, type Command } from '../../src/shared/protocol.ts';
-import { Sim } from '../../src/sim/sim.ts';
+import { generateRealm } from '../../src/sim/worldgen.ts';
 
 /**
  * Golden replay (17 section 7.3, acceptance test 10 in CI form): a fixed seed and command script
  * must always produce the same checkpoint hash. If this fails after an intentional sim change,
  * update GOLDEN_HASH and say so in the commit message.
  */
-const GOLDEN_HASH = 3538745459;
+const GOLDEN_HASH = 50599943;
 
 function replay(): number[] {
-  const sim = new Sim(20240601, 2);
+  const sim = generateRealm({ seed: 20240601, sizeStep: 2, template: 'continent' }).sim;
   const checkpoints: number[] = [];
   const script: Command[] = [];
   for (let k = 0; k < 40; k++) {

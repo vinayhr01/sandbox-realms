@@ -38,8 +38,8 @@ export class SimClient {
     return this.request({ kind: Cmd.Init, protocolVersion: 1 });
   }
 
-  newRealm(seed: number, sizeStep: number): Promise<Event> {
-    return this.request({ kind: Cmd.NewRealm, seed, sizeStep });
+  newRealm(seed: number, sizeStep: number, template = 'continent'): Promise<Event> {
+    return this.request({ kind: Cmd.NewRealm, seed, sizeStep, template });
   }
 
   setSpeed(speed: Speed): void {

@@ -6,7 +6,8 @@
  */
 import { PROTOCOL_VERSION, Cmd, Ev, type Command, type Event, type FrameRows, type FrameStats, type Speed } from '../shared/protocol.ts';
 import { DEFAULT_SIZE_STEP } from '../shared/constants.ts';
-import { Sim } from './sim.ts';
+import type { Sim } from './sim.ts';
+import { generateRealm } from './worldgen.ts';
 import { planPump } from './scheduler.ts';
 
 /** Sim time budget per pump in ms (17 section 3.1; 8 ms desktop, 6 ms phones TUNE). Desktop default. */
@@ -114,7 +115,8 @@ function handle(cmd: Command): void {
       return;
     case Cmd.NewRealm: {
       const sizeStep = cmd.sizeStep || DEFAULT_SIZE_STEP;
-      sim = new Sim(cmd.seed, sizeStep);
+      const built = generateRealm({ seed: cmd.seed, sizeStep, template: cmd.template });
+      sim = built.sim;
       accMs = 0;
       lastPublishedTick = -1;
       lastHash = sim.stateHash();

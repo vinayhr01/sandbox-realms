@@ -28,12 +28,10 @@ describe('realm grid', () => {
     expect(r.ground.length).toBe(256 * 256);
   });
 
-  it('generation is deterministic for a seed and differs between seeds', () => {
-    const a = new Realm(42, 2);
-    const b = new Realm(42, 2);
-    const c = new Realm(43, 2);
-    expect(a.elevation).toEqual(b.elevation);
-    expect(a.elevation).not.toEqual(c.elevation);
+  it('a new realm is blank: sea everywhere until worldgen runs', () => {
+    const r = new Realm(42, 2);
+    expect(r.elevation.every((e) => e === 0)).toBe(true);
+    expect(r.ground.every((g) => g === 0)).toBe(true);
   });
 
   it('ground always matches the elevation table', () => {
@@ -159,7 +157,7 @@ describe('sim core', () => {
 
   it('calendar is derived from ticks', () => {
     const s = new Sim(1, 1);
-    expect(s.calendar).toEqual({ year: 1, month: 1 });
+    expect(s.calendar).toEqual({ year: 1, month: 1, day: 1 });
   });
 });
 

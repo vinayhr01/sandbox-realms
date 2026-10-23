@@ -28,7 +28,7 @@ export type BrushShape = 'circle' | 'square' | 'diamond';
 
 export type Command =
   | { kind: Cmd.Init; seq: number; protocolVersion: number }
-  | { kind: Cmd.NewRealm; seq: number; seed: number; sizeStep: number }
+  | { kind: Cmd.NewRealm; seq: number; seed: number; sizeStep: number; template: string }
   | { kind: Cmd.SetSpeed; seq: number; speed: Speed }
   /** Dabs along the line (x0,y0)->(x1,y1). includeStart=false skips the first tile, which an earlier segment already painted. */
   | { kind: Cmd.Stroke; seq: number; op: BrushOp; shape: BrushShape; size: number; x0: number; y0: number; x1: number; y1: number; includeStart: boolean }

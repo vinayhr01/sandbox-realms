@@ -29,6 +29,7 @@ import { stepBeings, killBeing } from './beings/system.ts';
 import { settlementsStep } from './settlements/adapter.ts';
 import { stepDominions } from './dominions/adapter.ts';
 import { cultureTick, createCultureState, type CultureState } from './culture/adapter.ts';
+import { rollAndRunCalamity, usePowerById } from './powers/handlers.ts';
 
 export { TICK_MS };
 
@@ -68,6 +69,8 @@ export class Sim {
   private readonly runners = new Map<string, Runner>();
   /** Behaviour timers: tick at which each behaviour next runs (02 section 7). */
   private readonly timers = new Map<string, number>();
+  /** Calamity cooldowns: calamity id -> tick it may next occur (02 section 8.1; saved in the Chronicle). */
+  readonly calamityCooldowns = new Map<string, number>();
 
   constructor(seed: number, sizeStep: number) {
     this.realm = new Realm(seed, sizeStep);
@@ -131,6 +134,11 @@ export class Sim {
 
   enqueue(command: Command): void {
     this.queue.push(command);
+  }
+
+  /** Applies one power (content/powers.ts id) at tile (x,y) now. Returns true when it ran; direct call, between ticks. */
+  usePower(id: string, x: number, y: number): boolean {
+    return usePowerById(this, id, x, y);
   }
 
   /** Applies queued commands without advancing the clock (paused edit mode, 17 section 3.1). */
@@ -265,6 +273,7 @@ export class Sim {
 
   private runBehaviours(): void {
     const age = this.ageDef();
+    this.behaviour('calamity', 80, 0, () => rollAndRunCalamity(this));
     this.behaviour('scarFade', 3, 5, () => scarFade(this));
     this.behaviour('summitFreeze', 10, 50, () => {
       if (age.id !== 'scorch') summitFreeze(this);

@@ -14,8 +14,9 @@ import { culturePayload, cultureFromPayload, type CulturePayload } from './cultu
  *
  * Covered: clock, realm arrays, ages, rules, stats, beings (with generations and exact list and
  * free-stack order), RNG streams, behaviour timers, tile runners, combat state, status effects and
- * weather (clouds, blast guard, projectiles). A save continued to any later tick matches an
- * uninterrupted run (tests/unit/chronicle.test.ts). The pending command queue is empty between
+ * weather (clouds, blast guard, projectiles), and the lifetime stats with the unlocked achievements
+ * (optional section: saves written before it existed still load, with empty stats). A save
+ * continued to any later tick matches an uninterrupted run (tests/unit/chronicle.test.ts). The pending command queue is empty between
  * ticks by construction, so it is not written.
  */
 export const CHRONICLE_MAGIC = 'SRCH';
@@ -23,9 +24,9 @@ export const FORMAT_VERSION = 1;
 export const SCHEMA_VERSION = 2;
 const HEADER_BYTES = 16;
 
-const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13 } as const;
+const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14 } as const;
 /** Sections a save may lack (written by later builds); absent means the empty default. */
-const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity];
+const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity, TAG.lifetime];
 const REALM_ARRAYS = [
   'elevation',
   'ground',
@@ -278,6 +279,11 @@ export function encodeChronicle(sim: Sim): Uint8Array {
     w.bytes(new TextEncoder().encode(JSON.stringify(payload)));
   });
 
+  section(body, TAG.lifetime, (w) => {
+    const payload = { counters: sim.lifetime.counters, sets: sim.lifetime.sets, unlocked: [...sim.unlocked] };
+    w.bytes(new TextEncoder().encode(JSON.stringify(payload)));
+  });
+
   const bodyBytes = body.finish();
   const header = new Writer();
   for (let k = 0; k < CHRONICLE_MAGIC.length; k++) header.u8(CHRONICLE_MAGIC.charCodeAt(k));
@@ -382,6 +388,12 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
     sim.calamityCooldowns.clear();
     for (const [id, tick] of cooldowns) sim.calamityCooldowns.set(id, tick);
   }
+  if (sections.has(TAG.lifetime)) {
+    const life = parseLifetime(decoder, sections.get(TAG.lifetime) ?? new Uint8Array());
+    sim.lifetime = { counters: life.counters, sets: life.sets };
+    sim.unlocked.clear();
+    for (const id of life.unlocked) sim.unlocked.add(id);
+  }
 
   realm.rebuildSets();
   realm.markAllDirty();
@@ -395,6 +407,19 @@ function parseJson<T>(decoder: TextDecoder, payload: Uint8Array | undefined, nam
   } catch {
     throw new Error(`chronicle: ${name} section is not valid`);
   }
+}
+
+/** Checks the shape of the lifetime section before any of it is applied. */
+function parseLifetime(decoder: TextDecoder, payload: Uint8Array): { counters: Record<string, number>; sets: Record<string, string[]>; unlocked: string[] } {
+  const raw = parseJson<{ counters?: unknown; sets?: unknown; unlocked?: unknown }>(decoder, payload, 'lifetime');
+  const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+  const isStrings = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
+  if (!isRecord(raw.counters) || !Object.values(raw.counters).every((v) => typeof v === 'number' && Number.isFinite(v))) {
+    throw new Error('chronicle: lifetime counters are not valid');
+  }
+  if (!isRecord(raw.sets) || !Object.values(raw.sets).every(isStrings)) throw new Error('chronicle: lifetime sets are not valid');
+  if (!isStrings(raw.unlocked)) throw new Error('chronicle: unlocked achievements are not valid');
+  return { counters: raw.counters as Record<string, number>, sets: raw.sets as Record<string, string[]>, unlocked: raw.unlocked };
 }
 
 function decodeBeings(sim: Sim, r: Reader): void {

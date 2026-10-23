@@ -5,7 +5,9 @@ import { groundKey } from '../content/grounds.ts';
 import { biomeOfCover, BIOMES } from '../content/biomes.ts';
 import { applyStroke } from './brush.ts';
 import { ageDef, newAgeState, tickAge, type AgeState, type AgeDef, AGE_BY_ID } from './ages.ts';
-import { calendar, ssToTicks, type Calendar } from './clock.ts';
+import { calendar, ssToTicks, SS_TICKS, type Calendar } from './clock.ts';
+import { emptyStats, type StatsRecord } from './stats.ts';
+import { unlockAchievements } from './stats-hooks.ts';
 import { Realm } from './realm.ts';
 import { RuleSet, ageRuleId } from './rules.ts';
 import { Runner } from './runner.ts';
@@ -62,6 +64,10 @@ export class Sim {
   readonly projectiles: Projectile[] = [];
   weather: WeatherState = createWeatherState();
   readonly culture: CultureState = createCultureState();
+  /** Lifetime counters (14 section 3). Counted from events; never read back by the sim. */
+  lifetime: StatsRecord = emptyStats();
+  /** Achievement ids unlocked so far (14 section 2). Each id is added once and never removed. */
+  readonly unlocked = new Set<string>();
   ages: AgeState;
   tick = 0;
   private queue: Command[] = [];
@@ -161,6 +167,7 @@ export class Sim {
     stepBeings(this);
     this.runCombatAndWeather();
     stepDominions(this);
+    if (this.due('achievements', SS_TICKS)) unlockAchievements(this);
   }
 
   /** Combat context for this sim (structural, see combat.ts). */

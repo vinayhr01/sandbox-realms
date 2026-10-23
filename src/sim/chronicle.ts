@@ -2,6 +2,7 @@ import type { AgeState } from './ages.ts';
 import { Sim } from './sim.ts';
 import type { WeatherState } from './weather.ts';
 import type { Projectile } from './combat.ts';
+import { culturePayload, cultureFromPayload, type CulturePayload } from './culture/adapter.ts';
 
 /**
  * Chronicle save codec (15-chronicle-saves, section 3 in spirit): a versioned, sectioned binary
@@ -22,7 +23,9 @@ export const FORMAT_VERSION = 1;
 export const SCHEMA_VERSION = 1;
 const HEADER_BYTES = 16;
 
-const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11 } as const;
+const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12 } as const;
+/** Sections a save may lack (written by later builds); absent means the empty default. */
+const OPTIONAL_TAGS: readonly number[] = [TAG.culture];
 const REALM_ARRAYS = [
   'elevation',
   'ground',
@@ -223,6 +226,7 @@ export function encodeChronicle(sim: Sim): Uint8Array {
   const streamSaved = sim.streamState();
   section(body, TAG.streams, (w) => w.bytes(new TextEncoder().encode(JSON.stringify({ streams: streamSaved.streams, timers: streamSaved.timers }))));
   section(body, TAG.runners, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(streamSaved.runners))));
+  section(body, TAG.culture, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(culturePayload(sim.culture)))));
   section(body, TAG.beings, (w) => {
     const s = sim.beings.store;
     const alive: number[] = [];
@@ -317,7 +321,7 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
     sections.set(tag, payload);
   }
   for (const need of Object.values(TAG)) {
-    if (!sections.has(need)) throw new Error(`chronicle: missing section ${need}`);
+    if (!sections.has(need) && !OPTIONAL_TAGS.includes(need)) throw new Error(`chronicle: missing section ${need}`);
   }
 
   const realmBytes = sections.get(TAG.realm) ?? new Uint8Array();
@@ -369,6 +373,8 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
   const streamPayload = parseJson<{ streams: Record<string, number[]>; timers: Record<string, number> }>(decoder, sections.get(TAG.streams), 'streams');
   const runnerPayload = parseJson<Record<string, { order: number[]; cursor: number }>>(decoder, sections.get(TAG.runners), 'runners');
   sim.loadStreamState({ streams: streamPayload.streams, timers: streamPayload.timers, runners: runnerPayload });
+  const cultureBytes = sections.get(TAG.culture);
+  if (cultureBytes) Object.assign(sim.culture, cultureFromPayload(parseJson<CulturePayload>(decoder, cultureBytes, 'culture')));
 
   realm.rebuildSets();
   realm.markAllDirty();

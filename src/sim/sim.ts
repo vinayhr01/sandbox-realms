@@ -26,6 +26,7 @@ import { rainDrop } from './terrain/water.ts';
 import { freeze, } from './terrain/freeze.ts';
 import { startFire } from './terrain/fire.ts';
 import { stepBeings, killBeing } from './beings/system.ts';
+import { cultureTick, createCultureState, type CultureState } from './culture/adapter.ts';
 
 export { TICK_MS };
 
@@ -57,6 +58,7 @@ export class Sim {
   readonly guard = new ExplosionGuard();
   readonly projectiles: Projectile[] = [];
   weather: WeatherState = createWeatherState();
+  readonly culture: CultureState = createCultureState();
   ages: AgeState;
   tick = 0;
   private queue: Command[] = [];
@@ -144,6 +146,7 @@ export class Sim {
     this.advanceAge();
     this.runTerrain();
     this.runBehaviours();
+    cultureTick(this);
     stepBeings(this);
     this.runCombatAndWeather();
   }

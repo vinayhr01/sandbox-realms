@@ -7,6 +7,10 @@ export interface Rng {
   next(): number;
   /** Uniform integer in [0, n). */
   int(n: number): number;
+  /** The four sfc32 state words, for saving a stream exactly. */
+  state(): [number, number, number, number];
+  /** Restores the state returned by state(). */
+  restore(words: readonly number[]): void;
 }
 
 /** Derives four 32-bit state words from one seed with splitmix32. */
@@ -40,6 +44,13 @@ export function createRng(seed: number): Rng {
   return {
     next: () => nextU32() / 4294967296,
     int: (n: number) => Math.floor((nextU32() / 4294967296) * n),
+    state: () => [a, b, c, d],
+    restore: (words: readonly number[]) => {
+      a = (words[0] ?? 0) >>> 0;
+      b = (words[1] ?? 0) >>> 0;
+      c = (words[2] ?? 0) >>> 0;
+      d = (words[3] ?? 0) >>> 0;
+    },
   };
 }
 

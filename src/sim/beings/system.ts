@@ -4,6 +4,7 @@ import { FLORA_BY_ID } from '../flora.ts';
 import type { Realm } from '../realm.ts';
 import type { Sim } from '../sim.ts';
 import { BeingStore } from './store.ts';
+import { TUNING } from './tuning.ts';
 
 export type { BeingStore };
 
@@ -21,6 +22,8 @@ const HUNGRY_AT = 50;
 export const WORLD_CAP = 4096;
 /** Spatial bucket side in tiles. */
 const BUCKET = 8;
+/** Beasts breed only with fewer than this many other beings in their 16x16 patch (06 section 6.1). */
+const BREEDING_CROWD = 6;
 /** Ticks per simulated Year (02 section 1). */
 const YEAR = 1200;
 
@@ -92,6 +95,22 @@ export class Beings {
     }
   }
 
+  /** Living beings other than `self` inside the 16x16 patch that contains (x,y). */
+  crowdInPatch(self: number, x: number, y: number): number {
+    const s = this.store;
+    const px = Math.floor(x / 16) * 16;
+    const py = Math.floor(y / 16) * 16;
+    let n = 0;
+    for (let k = 0; k < s.size; k++) {
+      const o = s.at(k);
+      if (o === self) continue;
+      const ox = s.x[o] ?? 0;
+      const oy = s.y[o] ?? 0;
+      if (ox >= px && ox < px + 16 && oy >= py && oy < py + 16) n++;
+    }
+    return n;
+  }
+
   /**
    * Nearest living being within `radius` tiles (Chebyshev) that passes `pred`, excluding `self`.
    * Returns the slot or -1. Ties resolve to the lower slot for determinism.
@@ -133,6 +152,7 @@ function walkable(realm: Realm, i: number): boolean {
 /** Spends one movement unit (17 pace: pace/20 tiles per tick accumulates). */
 function takeStep(sim: Sim, slot: number): boolean {
   const s = sim.beings.store;
+  if (sim.effects.flag(slot, 'immobile')) return false;
   if ((s.moveAcc[slot] ?? 0) < 1) return false;
   s.moveAcc[slot] = (s.moveAcc[slot] ?? 0) - 1;
   return true;
@@ -183,8 +203,8 @@ function stepToward(sim: Sim, slot: number, tx: number, ty: number): void {
 function foodAt(sim: Sim, i: number, diet: SpeciesDef['diet']): number {
   const code = sim.realm.flora[i] ?? 0;
   if (code === 0) return 0;
-  if (diet === 'grass') return 30;
-  if (diet === 'nectar') return code === (FLORA_BY_ID.get('fieldflower') ?? -2) + 1 ? 7 : 0;
+  if (diet === 'grass') return TUNING.grazeGain;
+  if (diet === 'nectar') return code === (FLORA_BY_ID.get('fieldflower') ?? -2) + 1 ? TUNING.nectarGain : 0;
   return 0;
 }
 
@@ -199,10 +219,11 @@ function litterRoll(sim: Sim, max: number): number {
 }
 
 /** Removes a being, counting the cause. */
-export function killBeing(sim: Sim, slot: number, cause: 'eaten' | 'starved' | 'age'): void {
+export function killBeing(sim: Sim, slot: number, cause: 'eaten' | 'starved' | 'age' | 'combat'): void {
   const b = sim.beings;
   if (b.store.alive[slot] !== 1) return;
   b.store.kill(slot);
+  sim.effects.clear(slot);
   b.stats.deaths++;
   if (cause === 'eaten') b.stats.eaten++;
   if (cause === 'starved') b.stats.starved++;
@@ -238,7 +259,7 @@ function decide(sim: Sim, slot: number): void {
   const def = rt.def;
   const realm = sim.realm;
   const adult = (tick - (s.born[slot] ?? 0)) / YEAR >= rt.adultYears;
-  const hungry = (s.fuel[slot] ?? 0) <= HUNGRY_AT;
+  const hungry = (s.fuel[slot] ?? 0) <= TUNING.hungryAt;
 
   // Flee the nearest hunter within four tiles.
   const hunter = b.nearest(slot, (o) => rt.hunters.includes(s.species[o] ?? -1), 4);
@@ -251,7 +272,7 @@ function decide(sim: Sim, slot: number): void {
   }
 
   if (hungry && def.diet === 'flesh') {
-    const prey = b.nearest(slot, (o) => rt.prey.includes(s.species[o] ?? -1), 10);
+    const prey = b.nearest(slot, (o) => rt.prey.includes(s.species[o] ?? -1), TUNING.huntRadius);
     if (prey >= 0) {
       const adjacent = Math.abs((s.x[prey] ?? 0) - (s.x[slot] ?? 0)) <= 1 && Math.abs((s.y[prey] ?? 0) - (s.y[slot] ?? 0)) <= 1;
       if (adjacent) {
@@ -279,7 +300,7 @@ function decide(sim: Sim, slot: number): void {
       s.nextDecision[slot] = tick + 4;
       return;
     }
-    const r = 8;
+    const r = TUNING.forageRadius;
     const x0 = s.x[slot] ?? 0;
     const y0 = s.y[slot] ?? 0;
     let found = -1;
@@ -299,7 +320,8 @@ function decide(sim: Sim, slot: number): void {
   }
 
   // Mating: adult, fed, not in a lull, not already expecting, and the rule allows births.
-  if (adult && (s.fuel[slot] ?? 0) >= 50 && tick >= (s.lull[slot] ?? 0) && !(s.expecting[slot] ?? 0) && sim.rules.isOn('beast_births')) {
+  const crowded = b.crowdInPatch(slot, s.x[slot] ?? 0, s.y[slot] ?? 0) >= BREEDING_CROWD;
+  if (adult && !crowded && (s.fuel[slot] ?? 0) >= TUNING.matingFuel && tick >= (s.lull[slot] ?? 0) && !(s.expecting[slot] ?? 0) && sim.rules.isOn('beast_births') && !sim.effects.flag(slot, 'noBreed')) {
     const sp = s.species[slot] ?? 0;
     const mate = b.nearest(
       slot,
@@ -308,7 +330,7 @@ function decide(sim: Sim, slot: number): void {
         s.female[o] !== s.female[slot] &&
         (tick - (s.born[o] ?? 0)) / YEAR >= rt.adultYears &&
         tick >= (s.lull[o] ?? 0) &&
-        (s.fuel[o] ?? 0) >= 50,
+        (s.fuel[o] ?? 0) >= TUNING.matingFuel,
       8,
     );
     if (mate >= 0) {
@@ -358,11 +380,11 @@ export function stepBeings(sim: Sim): void {
     const rt = b.runtime[s.species[slot] ?? 0];
     if (!rt) continue;
     const def = rt.def;
-    s.moveAcc[slot] = Math.min(2, (s.moveAcc[slot] ?? 0) + def.pace / 20);
+    s.moveAcc[slot] = Math.min(2, (s.moveAcc[slot] ?? 0) + (def.pace * sim.effects.multiplier(slot, 'speed')) / 20);
 
     if (fuelPass) {
       if ((s.fuel[slot] ?? 0) > 0) {
-        s.fuel[slot] = (s.fuel[slot] ?? 0) - 1;
+        s.fuel[slot] = Math.max(0, (s.fuel[slot] ?? 0) - (def.diet === 'flesh' ? TUNING.predatorMetabolism : 1));
       } else if (hungerRule) {
         s.vit[slot] = (s.vit[slot] ?? 0) - Math.max(1, Math.floor((s.maxVit[slot] ?? 0) * 0.05));
         if ((s.vit[slot] ?? 0) <= 0) {

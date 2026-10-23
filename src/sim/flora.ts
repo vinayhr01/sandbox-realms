@@ -4,6 +4,7 @@ import { FLAG } from './realm.ts';
 import { n8 } from './grid.ts';
 import type { Sim } from './sim.ts';
 import type { Rng } from '../shared/rng.ts';
+import { TUNING } from './beings/tuning.ts';
 
 /**
  * Flora (18d, subset): kinds, the ground they need, growth, spread and environment sensitivity.
@@ -142,7 +143,7 @@ export function floraPass(sim: Sim, budget: number): void {
       realm.setFlora(i, 0, 0);
       continue;
     }
-    if (stage < 2 || rng.next() >= def.spreadChance) continue;
+    if (stage < 2 || rng.next() >= def.spreadChance * TUNING.floraSpread) continue;
     const j = n8(i, realm.side, rng.int(8));
     if (j >= 0 && canPlant(sim, j, def)) realm.setFlora(j, code, sim.tick);
   }

@@ -111,6 +111,33 @@ export class BeingStore {
     this.freeStack[this.freeTop++] = slot;
   }
 
+  /** Saved layout: the alive list in iteration order and the free-slot stack (bottom to top). */
+  layout(): { list: number[]; free: number[] } {
+    const list: number[] = [];
+    for (let k = 0; k < this.count; k++) list.push(this.list[k] ?? 0);
+    const free: number[] = [];
+    for (let k = 0; k < this.freeTop; k++) free.push(this.freeStack[k] ?? 0);
+    return { list, free };
+  }
+
+  /**
+   * Restores a layout from layout(). The caller has already set alive[], generation[] and the
+   * per-being fields. Iteration order and future slot allocation then match the saved sim exactly.
+   */
+  restoreLayout(list: readonly number[], free: readonly number[]): void {
+    this.alive.fill(0);
+    this.slotPos.fill(-1);
+    for (let k = 0; k < list.length; k++) {
+      const slot = list[k] ?? 0;
+      this.alive[slot] = 1;
+      this.list[k] = slot;
+      this.slotPos[slot] = k;
+    }
+    this.count = list.length;
+    for (let k = 0; k < free.length; k++) this.freeStack[k] = free[k] ?? 0;
+    this.freeTop = free.length;
+  }
+
   /** True when a stored (slot, generation) pair still names a living being. */
   isCurrent(slot: number, gen: number): boolean {
     return slot >= 0 && this.alive[slot] === 1 && this.generation[slot] === gen;

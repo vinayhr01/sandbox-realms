@@ -17,7 +17,15 @@ import { freezeSweep, summitFreeze, thawSweep } from './terrain/freeze.ts';
 import { biomeSweep } from './terrain/biome-spread.ts';
 import { droughtPass, floraPass, frostPass, wildSeeding } from './flora.ts';
 import { Beings } from './beings/system.ts';
-import { stepBeings } from './beings/system.ts';
+import { TUNING } from './beings/tuning.ts';
+import { EffectStore, MAX_EFFECTS, STATUSES, UNTIL_CLEARED } from './effects.ts';
+import { CombatState, applyDamage, stepProjectiles, type CombatContext, type Projectile } from './combat.ts';
+import { ExplosionGuard, type ExplosionContext } from './explosions.ts';
+import { createWeatherState, weatherStep, type WeatherContext, type WeatherState } from './weather.ts';
+import { rainDrop } from './terrain/water.ts';
+import { freeze, } from './terrain/freeze.ts';
+import { startFire } from './terrain/fire.ts';
+import { stepBeings, killBeing } from './beings/system.ts';
 
 export { TICK_MS };
 
@@ -44,6 +52,11 @@ export class Sim {
   readonly realm: Realm;
   readonly rules = new RuleSet();
   readonly beings: Beings;
+  readonly effects: EffectStore;
+  readonly combat: CombatState;
+  readonly guard = new ExplosionGuard();
+  readonly projectiles: Projectile[] = [];
+  weather: WeatherState = createWeatherState();
   ages: AgeState;
   tick = 0;
   private queue: Command[] = [];
@@ -55,6 +68,8 @@ export class Sim {
   constructor(seed: number, sizeStep: number) {
     this.realm = new Realm(seed, sizeStep);
     this.beings = new Beings(this.realm.side);
+    this.effects = new EffectStore(this.beings.store.capacity);
+    this.combat = new CombatState(this.beings.store.capacity);
     this.ages = newAgeState(this.rng('age'), 0);
   }
 
@@ -76,6 +91,28 @@ export class Sim {
       this.runners.set(name, r);
     }
     return r;
+  }
+
+  /** Saved form of every named RNG stream, behaviour timer and tile runner (for the Chronicle). */
+  streamState(): { streams: Record<string, number[]>; timers: Record<string, number>; runners: Record<string, { order: number[]; cursor: number }> } {
+    const streams: Record<string, number[]> = {};
+    for (const [name, r] of this.streams) streams[name] = r.state();
+    const timers: Record<string, number> = {};
+    for (const [name, t] of this.timers) timers[name] = t;
+    const runners: Record<string, { order: number[]; cursor: number }> = {};
+    for (const [name, r] of this.runners) runners[name] = r.snapshot();
+    return { streams, timers, runners };
+  }
+
+  /** Restores what streamState() saved. Runners must be created before restore (their order is saved). */
+  loadStreamState(saved: { streams: Record<string, number[]>; timers: Record<string, number>; runners: Record<string, { order: number[]; cursor: number }> }): void {
+    // Creating a runner draws from its RNG stream, so runners come first and streams are restored last.
+    this.runners.clear();
+    for (const [name, snap] of Object.entries(saved.runners)) this.runner(name).restore(snap);
+    this.streams.clear();
+    for (const [name, words] of Object.entries(saved.streams)) this.rng(name).restore(words);
+    this.timers.clear();
+    for (const [name, t] of Object.entries(saved.timers)) this.timers.set(name, t);
   }
 
   ageDef(): AgeDef {
@@ -108,6 +145,67 @@ export class Sim {
     this.runTerrain();
     this.runBehaviours();
     stepBeings(this);
+    this.runCombatAndWeather();
+  }
+
+  /** Combat context for this sim (structural, see combat.ts). */
+  combatContext(): CombatContext {
+    return {
+      beings: { store: this.beings.store, kill: (slot, cause) => killBeing(this, slot, cause) },
+      effects: this.effects,
+      combat: this.combat,
+      tick: this.tick,
+      rng: this.rng('combat'),
+      might: (slot) => this.beings.species(this.beings.store.species[slot] ?? 0).might,
+    };
+  }
+
+  explosionContext(): ExplosionContext {
+    return { ...this.combatContext(), realm: this.realm, guard: this.guard, startFire: (tile, force) => startFire(this, tile, force) };
+  }
+
+  /** Being occupying a tile, or -1. Linear scan: only used for projectile impacts. */
+  beingAt(x: number, y: number): number {
+    const s = this.beings.store;
+    for (let k = 0; k < s.size; k++) {
+      const slot = s.at(k);
+      if ((s.x[slot] ?? -1) === x && (s.y[slot] ?? -1) === y) return slot;
+    }
+    return -1;
+  }
+
+  /** Status timers, periodic status damage, projectiles, blast guard and weather (02 section 4, 08). */
+  private runCombatAndWeather(): void {
+    const s = this.beings.store;
+    for (let k = s.size - 1; k >= 0; k--) {
+      const slot = s.at(k);
+      this.effects.expire(slot, this.tick);
+      for (let e = 0; e < MAX_EFFECTS; e++) {
+        const code = this.effects.code[slot * MAX_EFFECTS + e] ?? 0;
+        const def = code > 0 ? STATUSES[code - 1] : undefined;
+        if (!def || def.every <= 0 || this.tick % def.every !== 0) continue;
+        const amount = Math.max(1, Math.floor((s.maxVit[slot] ?? 0) * def.fraction));
+        applyDamage(this.combatContext(), slot, amount, 'Poison', false);
+        if (s.alive[slot] !== 1) break;
+      }
+    }
+    if (this.projectiles.length > 0) {
+      stepProjectiles(this.combatContext(), this.projectiles, (x, y) => this.beingAt(x, y));
+    }
+    this.guard.decay();
+    const weatherCtx: WeatherContext = {
+      realm: this.realm,
+      rng: this.rng('weather'),
+      tick: this.tick,
+      isOn: (id) => this.rules.isOn(id),
+      ageClouds: this.ageDef().clouds,
+      cloudIntervalSs: 15,
+      rainDrop: (tile) => rainDrop(this, tile),
+      freeze: (tile) => freeze(this, tile),
+      startFire: (tile, force) => startFire(this, tile, force),
+      blast: this.explosionContext(),
+    };
+    weatherStep(weatherCtx, this.weather);
   }
 
   private apply(cmd: Command): void {
@@ -165,9 +263,9 @@ export class Sim {
       if (age.id !== 'scorch') summitFreeze(this);
     });
     this.behaviour('wildSeeding', 10, 10, () => {
-      if (this.rules.isOn('wild_seeding') && age.growVegetation) wildSeeding(this, 5);
+      if (this.rules.isOn('wild_seeding') && age.growVegetation) wildSeeding(this, TUNING.wildAttempts);
     });
-    this.behaviour('floraPass', 5, 5, () => floraPass(this, 400));
+    this.behaviour('floraPass', 5, 5, () => floraPass(this, Math.ceil(this.realm.tileCount * TUNING.floraCoverage / 8)));
     this.behaviour('droughtPass', 7, 0, () => {
       if (age.id === 'scorch') droughtPass(this, 5);
     });

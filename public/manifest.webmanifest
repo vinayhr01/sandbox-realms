@@ -1,0 +1,15 @@
+{
+  "name": "Sandbox Realms",
+  "short_name": "Realms",
+  "description": "An original browser god-game sandbox for mouse and touch.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#12141a",
+  "theme_color": "#12141a",
+  "categories": ["games"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "name": "sandbox-realms",
+  "version": "1.0.0",
+  "description": "Sandbox Realms - browser god-game sandbox",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.sim.json --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.sim.json --noEmit",
+    "test": "vitest run",
+    "bench": "vitest run tests/unit/tick-cost.test.ts --reporter=verbose",
+    "test:e2e": "playwright test",
+    "check:determinism": "node scripts/check-determinism.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "pixi.js": "^8.22.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  },
+  "private": true
+}

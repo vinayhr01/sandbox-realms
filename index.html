@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#12141a" />
+    <meta name="description" content="Sandbox Realms: an original browser god-game sandbox for mouse and touch." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+    <title>Sandbox Realms</title>
+  </head>
+  <body>
+    <div id="app" class="app">
+      <header class="topbar">
+        <div class="realm-info">
+          <span id="realm-name" class="realm-name">Realm</span>
+          <span id="calendar" class="calendar">Y1 M1</span>
+        </div>
+        <div class="speed" role="group" aria-label="Simulation speed">
+          <button id="pause" class="btn icon" type="button" aria-label="Pause" aria-pressed="false">&#10074;&#10074;</button>
+          <button class="btn speed-btn" type="button" data-speed="0.5" aria-pressed="false">x0.5</button>
+          <button class="btn speed-btn" type="button" data-speed="1" aria-pressed="true">x1</button>
+          <button class="btn speed-btn" type="button" data-speed="2" aria-pressed="false">x2</button>
+          <button class="btn speed-btn" type="button" data-speed="5" aria-pressed="false">x5</button>
+          <button class="btn speed-btn" type="button" data-speed="10" aria-pressed="false">x10</button>
+        </div>
+      </header>
+
+      <main id="map" class="map" aria-label="Realm map. Drag with an armed tool to paint; drag or pinch to move the camera.">
+        <div id="status" class="status" role="status" aria-live="polite">Tap the map to inspect a tile.</div>
+        <div id="debug" class="debug" hidden></div>
+      </main>
+
+      <nav class="bottombar" aria-label="Powers">
+        <div class="tabs" role="tablist">
+          <button id="tab-terrain" class="tab" type="button" role="tab" aria-selected="true" aria-controls="panel-terrain" data-tab="terrain">Terrain</button>
+          <button id="tab-realm" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-realm" data-tab="realm">Realm</button>
+        </div>
+
+        <section id="panel-terrain" class="panel" role="tabpanel" aria-labelledby="tab-terrain">
+          <div class="tools" role="group" aria-label="Terrain tools">
+            <button class="tool" type="button" data-tool="inspect" aria-pressed="true">Inspect</button>
+            <button class="tool" type="button" data-tool="raise" aria-pressed="false">Raise</button>
+            <button class="tool" type="button" data-tool="lower" aria-pressed="false">Lower</button>
+          </div>
+          <div class="brush" role="group" aria-label="Brush">
+            <label class="brush-size">
+              <span>Size</span>
+              <input id="brush-size" type="range" min="0" max="10" step="1" value="5" />
+              <output id="brush-size-out" for="brush-size">5</output>
+            </label>
+            <div class="shapes" role="radiogroup" aria-label="Brush shape">
+              <button class="shape" type="button" role="radio" data-shape="circle" aria-checked="true">Circle</button>
+              <button class="shape" type="button" role="radio" data-shape="square" aria-checked="false">Square</button>
+              <button class="shape" type="button" role="radio" data-shape="diamond" aria-checked="false">Diamond</button>
+            </div>
+          </div>
+        </section>
+
+        <section id="panel-realm" class="panel" role="tabpanel" aria-labelledby="tab-realm" hidden>
+          <label class="realm-size">
+            <span>Size</span>
+            <select id="realm-size">
+              <option value="3">Small (192)</option>
+              <option value="4" selected>Standard (256)</option>
+              <option value="5">Large (320)</option>
+            </select>
+          </label>
+          <button id="new-realm" class="btn primary" type="button">New Realm</button>
+        </section>
+      </nav>
+    </div>
+
+    <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+
+    <div id="fatal" class="fatal" role="alertdialog" aria-modal="true" aria-labelledby="fatal-title" hidden>
+      <div class="fatal-card">
+        <h2 id="fatal-title">Something went wrong</h2>
+        <p id="fatal-detail"></p>
+        <button id="fatal-reload" class="btn primary" type="button">Reload</button>
+      </div>
+    </div>
+
+    <script type="module" src="/src/app/main.ts"></script>
+  </body>
+</html>

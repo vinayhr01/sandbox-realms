@@ -1,0 +1,350 @@
+/* Theme tokens. Dark by default; high contrast text on every surface (13 section 14). */
+:root {
+  --bg: #12141a;
+  --surface: #1c1f27;
+  --surface-2: #262a35;
+  --text: #eef1f7;
+  --text-dim: #aab2c3;
+  --accent: #f2c14e;
+  --accent-ink: #1a1500;
+  --focus: #7ab8ff;
+  --danger: #ff7a6b;
+  --tap: 44px;
+  --gap: 8px;
+  --radius: 8px;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --bg: #eef1f6;
+    --surface: #ffffff;
+    --surface-2: #e4e8f0;
+    --text: #141821;
+    --text-dim: #4b5365;
+    --accent: #8a5a00;
+    --accent-ink: #ffffff;
+    --focus: #0b57d0;
+    color-scheme: light;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.3 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  overscroll-behavior: none;
+  overflow: hidden;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Portrait (default): header, map, bottom stack in a column. */
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--gap);
+  min-height: 48px;
+  padding: calc(env(safe-area-inset-top) + 4px) var(--gap) 4px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--surface-2);
+}
+
+.realm-info {
+  display: flex;
+  align-items: baseline;
+  gap: var(--gap);
+  min-width: 0;
+}
+
+.realm-name {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.speed {
+  display: flex;
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+.map {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.map canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.status {
+  position: absolute;
+  left: var(--gap);
+  bottom: var(--gap);
+  max-width: calc(100% - 2 * var(--gap));
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  color: var(--text);
+  font-size: 14px;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.debug {
+  position: absolute;
+  top: var(--gap);
+  left: var(--gap);
+  right: var(--gap);
+  padding: 4px 8px;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.6);
+  color: #e6ffe6;
+  font: 12px/1.3 ui-monospace, Menlo, Consolas, monospace;
+  pointer-events: none;
+}
+
+.bottombar {
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--surface);
+  border-top: 1px solid var(--surface-2);
+}
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px var(--gap) 0;
+}
+
+.tab {
+  min-height: var(--tap);
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tab[aria-selected='true'] {
+  background: var(--surface-2);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap);
+  padding: var(--gap);
+  background: var(--surface-2);
+}
+
+.tools,
+.shapes {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.tool,
+.shape,
+.btn {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0 14px;
+  border: 1px solid var(--surface-2);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tool[aria-pressed='true'],
+.shape[aria-checked='true'],
+.speed-btn[aria-pressed='true'],
+#pause[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.btn.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.btn.icon {
+  min-width: var(--tap);
+  letter-spacing: -1px;
+}
+
+.speed-btn {
+  padding: 0 8px;
+  min-width: 40px;
+}
+
+.brush,
+.realm-size {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  flex-wrap: wrap;
+}
+
+.brush-size input[type='range'] {
+  width: min(180px, 40vw);
+  min-height: 28px;
+  accent-color: var(--accent);
+}
+
+.realm-size select {
+  min-height: var(--tap);
+  padding: 0 8px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--surface-2);
+  font: inherit;
+}
+
+.toasts {
+  position: fixed;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.toast {
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  font-size: 14px;
+}
+
+.fatal {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 20;
+}
+
+.fatal-card {
+  width: min(360px, calc(100vw - 32px));
+  padding: 20px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.fatal-card h2 {
+  margin: 0 0 8px;
+  color: var(--danger);
+  font-size: 20px;
+}
+
+.fatal-card p {
+  margin: 0 0 16px;
+  color: var(--text-dim);
+  word-break: break-word;
+}
+
+/* Landscape phones and short windows: tool column on the right, map on the left (13 section 3.2). */
+@media (orientation: landscape) and (max-height: 500px) {
+  .app {
+    display: grid;
+    grid-template-columns: 1fr 240px;
+    grid-template-rows: auto 1fr;
+  }
+
+  .topbar {
+    grid-column: 1 / -1;
+  }
+
+  .map {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .bottombar {
+    grid-column: 2;
+    grid-row: 2;
+    min-height: 0;
+    overflow-y: auto;
+    border-top: 0;
+    border-left: 1px solid var(--surface-2);
+  }
+
+  .panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* Tablet and desktop: the bottom stack stays a row of controls, the map keeps the rest. */
+@media (min-width: 900px) {
+  .bottombar .panel {
+    flex-wrap: nowrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

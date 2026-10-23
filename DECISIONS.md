@@ -78,3 +78,17 @@ Each slice is a standalone module with a structural context (no import of `Sim`)
 ### M3 ecosystem: still not stable
 
 A diagnostic over ten years shows flora falling from about 7,000 tiles to about 440. Grazers then starve, and predators follow. Sweeps of regrowth (spread 4 to 8, coverage 2 to 4) and predator metabolism keep six or seven of eight species alive on three seeds, never all eight. The regrowth rule (spec: a grazed tile is removed) needs a spec-level decision, for example a regrowth delay or a carrying-capacity term, before more tuning helps.
+
+## Merge of the parallel units (main 5a3c90b)
+
+All eight unit branches are merged into `main` with no PRs (no remote, no `gh`). Checks on the merged tree: types on both configs, 188 unit tests, determinism lint, build, budgets (main 83 KB, worker 26 KB gzip), contrast, and 32/32 browser tests.
+
+- **Units wired into `Sim`:** settlements (hamlets, once per sim-second), dominions (ownership in the running sim), culture (creeds spread across land regions), powers and calamities (80-second roll, `usePower`), stats and achievements (events, once per sim-second).
+- **UI:** options dialog (UI scale, reduce motion, saved) and a power bar. Only Raise and Lower work on the map; other powers arm but do nothing yet.
+- **Audio:** pure model with tests, not connected to WebAudio.
+- **Save format:** SCHEMA_VERSION 2. Chronicle sections: culture 12, calamity 13 (optional), stats 14 (optional). Saves from before these sections still load. Saves from before the flora regrowth change (schema 1) are rejected.
+- **Chronicle gaps:** dominion state and hamlet state are not saved, so a resumed game loses them.
+
+### M3 ecosystem: still not met
+
+Regrowth delay (1,200 ticks, TUNE) is in and sweeps show no change in outcome. The species missing on all seeds is nectarbuzz, which only eats fieldflower tiles. Its extinction is a food-supply or predator problem, not a regrowth one, and fixing it is a content and beings-logic change that is still open.

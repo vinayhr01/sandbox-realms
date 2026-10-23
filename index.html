@@ -27,6 +27,7 @@
           <button class="btn speed-btn" type="button" data-speed="5" aria-pressed="false">x5</button>
           <button class="btn speed-btn" type="button" data-speed="10" aria-pressed="false">x10</button>
         </div>
+        <button id="settings-open" class="btn" type="button" aria-haspopup="dialog" aria-controls="options">Settings</button>
       </header>
 
       <main id="map" class="map" aria-label="Realm map. Drag with an armed tool to paint; drag or pinch to move the camera.">
@@ -38,6 +39,7 @@
         <div class="tabs" role="tablist">
           <button id="tab-terrain" class="tab" type="button" role="tab" aria-selected="true" aria-controls="panel-terrain" data-tab="terrain">Terrain</button>
           <button id="tab-realm" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-realm" data-tab="realm">Realm</button>
+          <button id="tab-powers" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-powers" data-tab="powers">Powers</button>
         </div>
 
         <section id="panel-terrain" class="panel" role="tabpanel" aria-labelledby="tab-terrain">
@@ -71,8 +73,29 @@
           </label>
           <button id="new-realm" class="btn primary" type="button">New Realm</button>
         </section>
+
+        <section id="panel-powers" class="panel" role="tabpanel" aria-labelledby="tab-powers" hidden>
+          <div id="power-tabs" class="power-tabs" role="tablist" aria-label="Power groups"></div>
+          <div id="power-list" class="power-list" role="group" aria-label="Powers"></div>
+        </section>
       </nav>
     </div>
+
+    <dialog id="options" class="options" aria-labelledby="options-title">
+      <form method="dialog" class="options-card">
+        <h2 id="options-title">Settings</h2>
+        <label class="option">
+          <span>UI scale <output id="ui-scale-out" for="ui-scale">100%</output></span>
+          <input id="ui-scale" type="range" min="70" max="150" step="5" value="100" aria-label="UI scale" aria-describedby="ui-scale-out" />
+        </label>
+        <label class="option option-check">
+          <input id="reduce-motion" type="checkbox" />
+          <span>Reduce motion</span>
+        </label>
+        <p class="option-note">Saved on this device.</p>
+        <button id="options-close" class="btn primary" type="submit">Done</button>
+      </form>
+    </dialog>
 
     <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 

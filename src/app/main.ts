@@ -4,6 +4,9 @@ import { TerrainRenderer, type CursorState } from '../render/terrain.ts';
 import { Camera } from '../render/camera.ts';
 import { MapInput } from '../ui/input.ts';
 import { setCalendar, setDebug, setStatus, toast } from '../ui/hud.ts';
+import { loadOptions, saveOptions, setOption, type KeyValueStorage, type Options } from '../ui/panels/options.ts';
+import { selectTab, type TabState } from '../ui/panels/powerBar.ts';
+import { POWER_BY_ID, TABS, powersInTab, type PowerDef, type TabId } from '../content/powers.ts';
 import { Ev, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
 import { MONTH_TICKS, YEAR_TICKS, DEFAULT_SIZE_STEP } from '../shared/constants.ts';
 import { SimClient } from './sim-client.ts';
@@ -16,11 +19,18 @@ const SPEED_CHOICES: readonly Speed[] = [0.5, 1, 2, 5, 10];
 /** Keyboard or arrow pan speed in CSS px per millisecond. */
 const KEY_PAN_PX_PER_MS = 0.6;
 
-type Tool = 'inspect' | 'raise' | 'lower';
 type Tile = { x: number; y: number };
 
+/** Brush powers the sim can apply today; every other power arms but does nothing on the map yet. */
+const BRUSH_OPS: Readonly<Record<string, BrushOp>> = { terraform_raise: 'raise', terraform_lower: 'lower' };
+const opOf = (power: PowerDef | null): BrushOp | null => (power ? (BRUSH_OPS[power.handler] ?? null) : null);
+
+/** Terrain tool buttons are shortcuts to the matching power. */
+const TOOL_POWERS: Readonly<Record<string, string>> = { raise: 'shape_raise', lower: 'shape_lower' };
+
 interface UiState {
-  tool: Tool;
+  /** The armed power, or null for inspect. */
+  armed: PowerDef | null;
   shape: BrushShape;
   sizeIndex: number;
   speed: Speed;
@@ -71,7 +81,7 @@ async function boot(): Promise<void> {
   const client = new SimClient();
 
   const state: UiState = {
-    tool: 'inspect',
+    armed: null,
     shape: 'circle',
     sizeIndex: DEFAULT_SIZE_INDEX,
     speed: 1,
@@ -123,12 +133,68 @@ async function boot(): Promise<void> {
     }
   };
 
-  const setTool = (tool: Tool): void => {
-    state.tool = tool;
-    for (const btn of document.querySelectorAll<HTMLButtonElement>('.tool')) {
-      btn.setAttribute('aria-pressed', String(btn.dataset['tool'] === tool));
+  const brushOp = (): BrushOp | null => opOf(state.armed);
+
+  // Power bar: one tab per power group; only the selected group's buttons exist in the DOM.
+  let powerTab: TabState = { active: TABS[0], tabs: TABS };
+  const tabLabel = (tab: TabId): string => tab.charAt(0).toUpperCase() + tab.slice(1);
+  const renderPowers = (): void => {
+    const tabHost = $('power-tabs');
+    tabHost.replaceChildren(
+      ...TABS.map((tab) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'power-tab';
+        btn.setAttribute('role', 'tab');
+        btn.setAttribute('aria-selected', String(tab === powerTab.active));
+        btn.textContent = tabLabel(tab);
+        btn.setAttribute('aria-label', `Powers: ${tabLabel(tab)}`);
+        btn.addEventListener('click', () => {
+          powerTab = selectTab(powerTab, tab);
+          renderPowers();
+        });
+        return btn;
+      }),
+    );
+    $('power-list').replaceChildren(
+      ...powersInTab(powerTab.active as TabId).map((power) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'power';
+        btn.dataset['powerId'] = power.id;
+        btn.setAttribute('aria-pressed', String(state.armed?.id === power.id));
+        btn.textContent = power.name;
+        btn.addEventListener('click', () => setArmed(state.armed?.id === power.id ? null : power));
+        return btn;
+      }),
+    );
+  };
+
+  /** Arms a power (null = inspect). Terrain tool buttons and the power bar both show the same state. */
+  const unsupportedNote = (power: PowerDef): string => `${power.name} is armed. Only Raise and Lower work on the map so far.`;
+  const setArmed = (power: PowerDef | null): void => {
+    // A stroke in progress belongs to the old power: end it before the new one takes over.
+    if (stroke) {
+      flushStroke();
+      stroke = null;
     }
-    setStatus(tool === 'inspect' ? 'Tap a tile to inspect it.' : `${tool === 'raise' ? 'Raise' : 'Lower'}: drag to shape the land.`);
+    state.armed = power;
+    const op = opOf(power);
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('.tool')) {
+      const tool = btn.dataset['tool'];
+      btn.setAttribute('aria-pressed', String(power === null ? tool === 'inspect' : tool === op));
+    }
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('.power')) {
+      btn.setAttribute('aria-pressed', String(btn.dataset['powerId'] === power?.id));
+    }
+    if (!power) setStatus('Tap a tile to inspect it.');
+    else if (op) setStatus(`${op === 'raise' ? 'Raise' : 'Lower'}: drag to shape the land.`);
+    else setStatus(unsupportedNote(power));
+  };
+
+  const toolPower = (tool: string): PowerDef | null => {
+    const id = TOOL_POWERS[tool];
+    return id ? (POWER_BY_ID.get(id) ?? null) : null;
   };
 
   const setShape = (shape: BrushShape): void => {
@@ -148,15 +214,15 @@ async function boot(): Promise<void> {
 
   // Listeners hold the handlers, so the input object needs no reference of its own.
   new MapInput(renderer.app.canvas, {
-    brushArmed: () => state.tool !== 'inspect' && camera !== null,
+    brushArmed: () => brushOp() !== null && camera !== null,
     onPan: (dx, dy) => camera?.panBy(dx, dy),
     onZoom: (factor, sx, sy) => camera?.zoomAt(factor, sx, sy),
     onHover: (sx, sy) => {
       cursorScreen = { x: sx, y: sy };
     },
     onStrokeStart: (sx, sy) => {
-      if (state.tool === 'inspect') return;
-      const op: BrushOp = state.tool === 'raise' ? 'raise' : 'lower';
+      const op = brushOp();
+      if (!op) return;
       const t = tileAt(sx, sy);
       stroke = { op, last: t, target: t };
       cursorScreen = { x: sx, y: sy };
@@ -173,9 +239,10 @@ async function boot(): Promise<void> {
     onTap: (sx, sy) => {
       const t = tileAt(sx, sy);
       cursorScreen = { x: sx, y: sy };
-      if (state.tool !== 'inspect') {
-        const op: BrushOp = state.tool === 'raise' ? 'raise' : 'lower';
-        client.stroke(op, state.shape, brushRadius(), t.x, t.y, t.x, t.y, true);
+      if (state.armed) {
+        const op = brushOp();
+        if (op) client.stroke(op, state.shape, brushRadius(), t.x, t.y, t.x, t.y, true);
+        else setStatus(unsupportedNote(state.armed));
         return;
       }
       void client.query(t.x, t.y).then((r) => {
@@ -228,8 +295,40 @@ async function boot(): Promise<void> {
     });
   }
   for (const btn of document.querySelectorAll<HTMLButtonElement>('.tool')) {
-    btn.addEventListener('click', () => setTool(btn.dataset['tool'] as Tool));
+    btn.addEventListener('click', () => setArmed(toolPower(btn.dataset['tool'] ?? 'inspect')));
   }
+
+  // Options: stored through the options model; storage access can throw, so it is wrapped.
+  const safeStorage = (): KeyValueStorage | null => {
+    try {
+      return window.localStorage;
+    } catch {
+      return null;
+    }
+  };
+  let options: Options = loadOptions(safeStorage());
+  const scaleInput = $<HTMLInputElement>('ui-scale');
+  const motionInput = $<HTMLInputElement>('reduce-motion');
+  const applyOptions = (): void => {
+    document.documentElement.style.setProperty('--ui-scale', String(options.scale / 100));
+    document.documentElement.toggleAttribute('data-reduce-motion', options.reduceMotion);
+    scaleInput.value = String(options.scale);
+    $('ui-scale-out').textContent = `${options.scale}%`;
+    motionInput.checked = options.reduceMotion;
+  };
+  const changeOption = <K extends keyof Options>(key: K, value: Options[K]): void => {
+    options = setOption(options, key, value);
+    saveOptions(safeStorage(), options);
+    applyOptions();
+  };
+  applyOptions();
+  scaleInput.addEventListener('input', () => changeOption('scale', Number(scaleInput.value)));
+  motionInput.addEventListener('change', () => changeOption('reduceMotion', motionInput.checked));
+  const optionsDialog = $<HTMLDialogElement>('options');
+  $('settings-open').addEventListener('click', () => {
+    applyOptions();
+    optionsDialog.showModal();
+  });
   for (const btn of document.querySelectorAll<HTMLButtonElement>('.shape')) {
     btn.addEventListener('click', () => setShape(btn.dataset['shape'] as BrushShape));
   }
@@ -248,8 +347,9 @@ async function boot(): Promise<void> {
       for (const other of document.querySelectorAll<HTMLButtonElement>('.tab')) {
         other.setAttribute('aria-selected', String(other === tab));
       }
-      $('panel-terrain').hidden = name !== 'terrain';
-      $('panel-realm').hidden = name !== 'realm';
+      for (const panel of ['terrain', 'realm', 'powers']) {
+        $(`panel-${panel}`).hidden = name !== panel;
+      }
     });
   }
   $('new-realm').addEventListener('click', () => {
@@ -269,7 +369,7 @@ async function boot(): Promise<void> {
       sizeInput.value = String(Math.max(0, Math.min(BRUSH_RADII.length - 1, state.sizeIndex + step)));
       updateSizeOutput();
     } else if (e.code === 'Escape') {
-      setTool('inspect');
+      setArmed(null);
     }
   });
   window.addEventListener('keyup', (e: KeyboardEvent) => keysDown.delete(e.code));
@@ -295,7 +395,7 @@ async function boot(): Promise<void> {
     flushStroke();
 
     const cursor: CursorState = {
-      tile: state.tool !== 'inspect' && cursorScreen && camera ? tileAt(cursorScreen.x, cursorScreen.y) : null,
+      tile: brushOp() !== null && cursorScreen && camera ? tileAt(cursorScreen.x, cursorScreen.y) : null,
       radius: brushRadius(),
       shape: state.shape,
     };
@@ -331,7 +431,8 @@ async function boot(): Promise<void> {
   await client.init();
   await client.newRealm(seed, sizeStep);
   client.setSpeed(state.paused ? 0 : state.speed);
-  setTool('inspect');
+  renderPowers();
+  setArmed(null);
   setShape('circle');
 
   // Hooks for the Playwright smoke tests; read-only except newRealm/speed through the UI.

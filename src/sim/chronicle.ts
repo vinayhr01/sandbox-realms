@@ -22,7 +22,7 @@ export const FORMAT_VERSION = 1;
 export const SCHEMA_VERSION = 1;
 const HEADER_BYTES = 16;
 
-const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11 } as const;
+const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, calamity: 12 } as const;
 const REALM_ARRAYS = [
   'elevation',
   'ground',
@@ -223,6 +223,7 @@ export function encodeChronicle(sim: Sim): Uint8Array {
   const streamSaved = sim.streamState();
   section(body, TAG.streams, (w) => w.bytes(new TextEncoder().encode(JSON.stringify({ streams: streamSaved.streams, timers: streamSaved.timers }))));
   section(body, TAG.runners, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(streamSaved.runners))));
+  section(body, TAG.calamity, (w) => w.bytes(new TextEncoder().encode(JSON.stringify([...sim.calamityCooldowns]))));
   section(body, TAG.beings, (w) => {
     const s = sim.beings.store;
     const alive: number[] = [];
@@ -369,6 +370,9 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
   const streamPayload = parseJson<{ streams: Record<string, number[]>; timers: Record<string, number> }>(decoder, sections.get(TAG.streams), 'streams');
   const runnerPayload = parseJson<Record<string, { order: number[]; cursor: number }>>(decoder, sections.get(TAG.runners), 'runners');
   sim.loadStreamState({ streams: streamPayload.streams, timers: streamPayload.timers, runners: runnerPayload });
+  const cooldowns = parseJson<[string, number][]>(decoder, sections.get(TAG.calamity), "calamity");
+  sim.calamityCooldowns.clear();
+  for (const [id, tick] of cooldowns) sim.calamityCooldowns.set(id, tick);
 
   realm.rebuildSets();
   realm.markAllDirty();

@@ -300,6 +300,7 @@ export class Sim {
     h = fnvBytes(h, new Uint8Array(this.realm.heat.buffer));
     h = fnvBytes(h, this.realm.scar);
     h = fnvBytes(h, this.realm.flora);
+    h = fnvBytes(h, new Uint8Array(this.realm.floraBlockedUntil.buffer));
     h = fnvBytes(h, new Uint8Array(this.beings.store.x.buffer));
     h = fnvBytes(h, new Uint8Array(this.beings.store.y.buffer));
     h = fnvBytes(h, new Uint8Array(this.beings.store.vit.buffer));

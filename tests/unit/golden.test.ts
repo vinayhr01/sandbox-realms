@@ -7,7 +7,7 @@ import { generateRealm } from '../../src/sim/worldgen.ts';
  * must always produce the same checkpoint hash. If this fails after an intentional sim change,
  * update GOLDEN_HASH and say so in the commit message.
  */
-const GOLDEN_HASH = 583414555;
+const GOLDEN_HASH = 890385179;
 
 function replay(): number[] {
   const sim = generateRealm({ seed: 20240601, sizeStep: 2, template: 'continent' }).sim;

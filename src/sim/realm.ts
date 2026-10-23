@@ -36,6 +36,8 @@ export class Realm {
   readonly flora: Uint8Array;
   /** Tick the flora on the tile was planted; age = now - floraSince. */
   readonly floraSince: Uint32Array;
+  /** Tick before which the tile may not re-seed flora after a grazer cleared it (TUNE regrowDelay). */
+  readonly floraBlockedUntil: Uint32Array;
   readonly region: Uint32Array;
 
   readonly burning: SparseSet;
@@ -67,6 +69,7 @@ export class Realm {
     this.variant = new Uint8Array(n);
     this.flora = new Uint8Array(n);
     this.floraSince = new Uint32Array(n);
+    this.floraBlockedUntil = new Uint32Array(n);
     this.region = new Uint32Array(n);
     this.burning = new SparseSet(n);
     this.molten = new SparseSet(n);

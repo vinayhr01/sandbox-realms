@@ -26,6 +26,7 @@ import { rainDrop } from './terrain/water.ts';
 import { freeze, } from './terrain/freeze.ts';
 import { startFire } from './terrain/fire.ts';
 import { stepBeings, killBeing } from './beings/system.ts';
+import { settlementsStep } from './settlements/adapter.ts';
 
 export { TICK_MS };
 
@@ -144,6 +145,7 @@ export class Sim {
     this.advanceAge();
     this.runTerrain();
     this.runBehaviours();
+    settlementsStep(this);
     stepBeings(this);
     this.runCombatAndWeather();
   }

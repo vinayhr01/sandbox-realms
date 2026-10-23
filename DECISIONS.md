@@ -62,3 +62,19 @@ Choices made while building M0 and M1 (BUILD-PLAN.md). Spec `OPEN` items use the
 - **M4 combat:** melee with reach 1 and the 6-tick hit window; plating for Weapon and Other only, integer math; projectiles that land on their target tile; blasts with falloff, crater, fire and an anti-spam guard; 22 of the 56 roster statuses with their hooks (speed, damage, taken, immobile, periodic damage, immunity, no-breed); weather clouds from age weights, drops mapped to rain, freeze, fire and acid, storm lightning. Not built: AI-driven fights (beasts fight only when hunting), 34 remaining statuses, bolts, spells, gear, boats, dazed/dozing sleep, factions.
 - **M5 saves:** versioned, checksummed format with sections for clock, realm, ages, rules, stats, beings (generations, exact list and free-stack order), RNG streams, timers, tile runners, combat, statuses, weather and projectiles. Resume test: a save at tick N continued to M matches an uninterrupted run. Typed arrays are written raw (little-endian host assumed). Runner orders are JSON, which is large at 512 tiles.
 - **Not yet built:** milestones 6 to 12 (hamlets and economy, dominions and war, customs and intrigue, full powers catalogue, full UI, audio and achievements, performance and accessibility).
+
+## Milestones 6-12 (reduced slices, built in parallel)
+
+Each slice is a standalone module with a structural context (no import of `Sim`), tested in isolation. None is wired into `Sim` or the UI yet.
+
+- **M6 settlements** (`src/sim/settlements`): hamlet with 8x8 parcels, five buildings, stockpile, food-driven growth. No beings query, jobs, or trade.
+- **M7 dominions** (`src/sim/dominions`): relation matrix (peace, tension, war), campaigns, peace pacts, `parley`, `standing_armies`, `border_creep`. Tension has no effect; no recruitment, boats, or settlement borders.
+- **M8 culture** (`src/sim/culture`): customs, creeds that spread on contact, dialects that drift and merge, families, intrigues. `rituals`, `uprisings`, `chaotic_minds` honoured. Tuning values are placeholders.
+- **M9 powers and calamities** (`src/content/powers.ts`, `src/sim/calamity.ts`): about 90 powers across all eight tabs (about 300 in the spec); the 16 calamities of 02 section 8.2 with the 80-tick roll. Powers have no handlers yet.
+- **M10 UI models** (`src/ui/panels`): options with clamped values and injectable storage, list sort/filter/search and a virtual list, tutorial steps, power bar model. The virtual list and the power bar's DOM are not browser-tested.
+- **M11 audio and stats** (`src/audio/model.ts`, `src/sim/stats.ts`, `src/content/achievements.ts`): audio bus model with voice caps and a hidden-tab mute, stats counters, 22 achievements (spec has 63). Nothing calls them yet.
+- **M12 checks** (`scripts/check-budgets.mjs`, `tests/a11y`, `tests/perf`, `docs/release-checklist.md`): gzip budgets (main 80 KB, worker 20 KB against 350 and 250), dark-theme contrast (text 14.6:1, secondary 7.7:1, ink on accent 10.9:1). Device testing, Firefox and WebKit runs, and legal review are not done.
+
+### M3 ecosystem: still not stable
+
+A diagnostic over ten years shows flora falling from about 7,000 tiles to about 440. Grazers then starve, and predators follow. Sweeps of regrowth (spread 4 to 8, coverage 2 to 4) and predator metabolism keep six or seven of eight species alive on three seeds, never all eight. The regrowth rule (spec: a grazed tile is removed) needs a spec-level decision, for example a regrowth delay or a carrying-capacity term, before more tuning helps.

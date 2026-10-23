@@ -11,7 +11,9 @@
     "bench": "vitest run tests/unit/tick-cost.test.ts --reporter=verbose",
     "test:e2e": "playwright test",
     "check:determinism": "node scripts/check-determinism.mjs",
-    "soak": "vitest run --config vitest.soak.config.ts"
+    "soak": "vitest run --config vitest.soak.config.ts",
+    "check:budgets": "node scripts/check-budgets.mjs",
+    "test:a11y": "vitest run --config vitest.a11y.config.ts"
   },
   "keywords": [],
   "author": "",

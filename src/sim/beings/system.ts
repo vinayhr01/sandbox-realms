@@ -3,6 +3,7 @@ import { ground } from '../../content/grounds.ts';
 import { FLORA_BY_ID } from '../flora.ts';
 import type { Realm } from '../realm.ts';
 import type { Sim } from '../sim.ts';
+import { recordStat } from '../stats-hooks.ts';
 import { BeingStore } from './store.ts';
 import { TUNING } from './tuning.ts';
 
@@ -225,6 +226,7 @@ export function killBeing(sim: Sim, slot: number, cause: 'eaten' | 'starved' | '
   b.store.kill(slot);
   sim.effects.clear(slot);
   b.stats.deaths++;
+  recordStat(sim, { kind: 'being.died', cause });
   if (cause === 'eaten') b.stats.eaten++;
   if (cause === 'starved') b.stats.starved++;
   if (cause === 'age') b.stats.aged++;
@@ -245,6 +247,7 @@ export function spawnBeing(sim: Sim, speciesIdx: number, x: number, y: number, a
   if (slot < 0) return -1;
   sim.beings.store.vit[slot] = vit;
   sim.beings.stats.births++;
+  recordStat(sim, adult ? { kind: 'being.spawned', count: 1 } : { kind: 'being.born', count: 1 });
   return slot;
 }
 

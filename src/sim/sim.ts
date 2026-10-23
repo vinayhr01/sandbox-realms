@@ -26,7 +26,11 @@ import { rainDrop } from './terrain/water.ts';
 import { freeze, } from './terrain/freeze.ts';
 import { startFire } from './terrain/fire.ts';
 import { stepBeings, killBeing } from './beings/system.ts';
+<<<<<<< HEAD
 import { settlementsStep } from './settlements/adapter.ts';
+=======
+import { stepDominions } from './dominions/adapter.ts';
+>>>>>>> unit/dominions
 
 export { TICK_MS };
 
@@ -148,6 +152,7 @@ export class Sim {
     settlementsStep(this);
     stepBeings(this);
     this.runCombatAndWeather();
+    stepDominions(this);
   }
 
   /** Combat context for this sim (structural, see combat.ts). */

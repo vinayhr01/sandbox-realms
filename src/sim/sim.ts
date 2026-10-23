@@ -16,6 +16,8 @@ import { fireSweep, scarFade } from './terrain/fire.ts';
 import { freezeSweep, summitFreeze, thawSweep } from './terrain/freeze.ts';
 import { biomeSweep } from './terrain/biome-spread.ts';
 import { droughtPass, floraPass, frostPass, wildSeeding } from './flora.ts';
+import { Beings } from './beings/system.ts';
+import { stepBeings } from './beings/system.ts';
 
 export { TICK_MS };
 
@@ -41,6 +43,7 @@ function streamSeed(seed: number, name: string): number {
 export class Sim {
   readonly realm: Realm;
   readonly rules = new RuleSet();
+  readonly beings: Beings;
   ages: AgeState;
   tick = 0;
   private queue: Command[] = [];
@@ -51,6 +54,7 @@ export class Sim {
 
   constructor(seed: number, sizeStep: number) {
     this.realm = new Realm(seed, sizeStep);
+    this.beings = new Beings(this.realm.side);
     this.ages = newAgeState(this.rng('age'), 0);
   }
 
@@ -103,6 +107,7 @@ export class Sim {
     this.advanceAge();
     this.runTerrain();
     this.runBehaviours();
+    stepBeings(this);
   }
 
   private apply(cmd: Command): void {
@@ -197,6 +202,10 @@ export class Sim {
     h = fnvBytes(h, new Uint8Array(this.realm.heat.buffer));
     h = fnvBytes(h, this.realm.scar);
     h = fnvBytes(h, this.realm.flora);
+    h = fnvBytes(h, new Uint8Array(this.beings.store.x.buffer));
+    h = fnvBytes(h, new Uint8Array(this.beings.store.y.buffer));
+    h = fnvBytes(h, new Uint8Array(this.beings.store.vit.buffer));
+    h = fnvBytes(h, this.beings.store.alive);
     return h >>> 0;
   }
 

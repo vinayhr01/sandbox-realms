@@ -10,7 +10,8 @@
     "test": "vitest run",
     "bench": "vitest run tests/unit/tick-cost.test.ts --reporter=verbose",
     "test:e2e": "playwright test",
-    "check:determinism": "node scripts/check-determinism.mjs"
+    "check:determinism": "node scripts/check-determinism.mjs",
+    "soak": "vitest run --config vitest.soak.config.ts"
   },
   "keywords": [],
   "author": "",

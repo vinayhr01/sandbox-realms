@@ -5,6 +5,7 @@ import { FLAG, Realm } from './realm.ts';
 import { n4 } from './grid.ts';
 import { Sim } from './sim.ts';
 import { wildSeeding } from './flora.ts';
+import { seedStartingBeasts } from './beings/system.ts';
 
 /** Generation parameters (03 section 3), a subset used by the templates. */
 export interface GenParams {
@@ -115,6 +116,7 @@ export interface GenRequest {
   template: string;
   overrides?: Partial<GenParams>;
   startingFlora?: boolean;
+  startingBeasts?: boolean;
 }
 
 /**
@@ -126,11 +128,11 @@ export function generateRealm(req: GenRequest): { sim: Sim; report: GenReport } 
   const params: GenParams = { ...DEFAULT_PARAMS, ...(TEMPLATES[req.template] ?? {}), ...(req.overrides ?? {}) };
   const minLand = req.template === 'blank' ? 0 : 0.06;
   let attempt = 0;
-  let sim = buildOnce(base, req.sizeStep, params, req.startingFlora ?? true);
+  let sim = buildOnce(base, req.sizeStep, params, req.startingFlora ?? true, req.startingBeasts ?? true);
   let land = landFraction(sim.realm);
   while (land < minLand && attempt < 8) {
     attempt++;
-    sim = buildOnce(base + attempt, req.sizeStep, params, req.startingFlora ?? true);
+    sim = buildOnce(base + attempt, req.sizeStep, params, req.startingFlora ?? true, req.startingBeasts ?? true);
     land = landFraction(sim.realm);
   }
   return {
@@ -139,7 +141,7 @@ export function generateRealm(req: GenRequest): { sim: Sim; report: GenReport } 
   };
 }
 
-function buildOnce(seed: number, sizeStep: number, p: GenParams, flora: boolean): Sim {
+function buildOnce(seed: number, sizeStep: number, p: GenParams, flora: boolean, beasts: boolean): Sim {
   const sim = new Sim(seed, sizeStep);
   const realm = sim.realm;
   const rng = createRng(hash3(seed, 0x67656e, 1));
@@ -291,6 +293,11 @@ function buildOnce(seed: number, sizeStep: number, p: GenParams, flora: boolean)
   }
 
   buildRegions(realm);
+  if (beasts) {
+    const landTiles = Math.round(landFraction(realm) * realm.tileCount);
+    const groups = Math.min(40, Math.max(1, Math.round(landTiles / 1500)));
+    seedStartingBeasts(sim, groups);
+  }
   realm.markAllDirty();
   return sim;
 }

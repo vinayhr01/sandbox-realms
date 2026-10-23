@@ -3,6 +3,7 @@ import { BIOMES, biomeOfCover } from '../content/biomes.ts';
 import { FLAG } from './realm.ts';
 import { n8 } from './grid.ts';
 import type { Sim } from './sim.ts';
+import type { Rng } from '../shared/rng.ts';
 
 /**
  * Flora (18d, subset): kinds, the ground they need, growth, spread and environment sensitivity.
@@ -78,16 +79,25 @@ export function wildSeeding(sim: Sim, attempts: number): void {
   const rng = sim.rng('wild');
   const dense = sim.rules.isOn('dense_flora') ? 1.5 : 1;
   for (let a = 0; a < attempts; a++) {
-    const i = rng.int(realm.tileCount);
-    const biome = biomeOfCover(realm.cover[i] ?? 0);
-    if (biome < 0) continue;
-    const candidates = FLORA.filter((f) => !f.beach && f.biomes.includes(BIOMES[biome]?.id ?? ''));
-    if (candidates.length === 0) continue;
-    const def = candidates[rng.int(candidates.length)];
-    if (!def || !canPlant(sim, i, def)) continue;
-    if (def.kind === 'tree' && parcelTrees(sim, i) >= Math.floor(3 * dense)) continue;
-    realm.setFlora(i, floraCode(def.id), sim.tick);
+    // One attempt seeds a small patch: five tiles around a random centre (02 section 7, 03 section 8.1).
+    const cx = rng.int(realm.side);
+    const cy = rng.int(realm.side);
+    for (let p = 0; p < 5; p++) seedTile(sim, rng, cx + rng.int(5) - 2, cy + rng.int(5) - 2, dense);
   }
+}
+
+function seedTile(sim: Sim, rng: Rng, x: number, y: number, dense: number): void {
+  const realm = sim.realm;
+  if (x < 0 || y < 0 || x >= realm.side || y >= realm.side) return;
+  const i = y * realm.side + x;
+    const biome = biomeOfCover(realm.cover[i] ?? 0);
+    if (biome < 0) return;
+    const candidates = FLORA.filter((f) => !f.beach && f.biomes.includes(BIOMES[biome]?.id ?? ''));
+    if (candidates.length === 0) return;
+    const def = candidates[rng.int(candidates.length)];
+    if (!def || !canPlant(sim, i, def)) return;
+    if (def.kind === 'tree' && parcelTrees(sim, i) >= Math.floor(3 * dense)) return;
+    realm.setFlora(i, floraCode(def.id), sim.tick);
 }
 
 /** Trees in the 8x8 parcel containing tile i (03 section 8.1). */

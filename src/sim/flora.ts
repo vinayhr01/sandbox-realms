@@ -61,6 +61,7 @@ function floraAt(code: number): FloraDef | null {
 function canPlant(sim: Sim, i: number, def: FloraDef): boolean {
   const realm = sim.realm;
   if (realm.flora[i] !== 0) return false;
+  if ((realm.floraBlockedUntil[i] ?? 0) > sim.tick) return false;
   if (realm.hasFlag(i, FLAG.burning)) return false;
   const kind = ground(realm.ground[i] ?? 0);
   if (kind.layer !== 'land') return false;
@@ -147,6 +148,16 @@ export function floraPass(sim: Sim, budget: number): void {
     const j = n8(i, realm.side, rng.int(8));
     if (j >= 0 && canPlant(sim, j, def)) realm.setFlora(j, code, sim.tick);
   }
+}
+
+/**
+ * A grazer clears tile i (06 section 2.2): the flora is removed and the tile stays bare for
+ * TUNING.regrowDelay ticks before any seeding may take it again.
+ */
+export function grazeFlora(sim: Sim, i: number): void {
+  const realm = sim.realm;
+  realm.setFlora(i, 0, 0);
+  realm.floraBlockedUntil[i] = sim.tick + TUNING.regrowDelay;
 }
 
 /** Ruins flora of a sensitivity class on up to `max` random tiles (02 section 5.4 drought/frost). */

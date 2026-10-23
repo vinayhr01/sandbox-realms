@@ -23,6 +23,8 @@ export interface Tuning {
   hungryAt: number;
   /** Fuel lost per fuel pass by flesh eaters (06 section 2.1 metabolism stat; grazers use 1). */
   predatorMetabolism: number;
+  /** Ticks a tile stays bare after a grazer clears its flora, before flora may re-seed (1200 = 1 Year). */
+  regrowDelay: number;
 }
 
 export const TUNING: Tuning = {
@@ -36,4 +38,5 @@ export const TUNING: Tuning = {
   matingFuel: 50,
   hungryAt: 50,
   predatorMetabolism: 1,
+  regrowDelay: 1200,
 };

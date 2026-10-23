@@ -1,6 +1,6 @@
 import { SPECIES, speciesIndex, type SpeciesDef } from '../../content/beasts.ts';
 import { ground } from '../../content/grounds.ts';
-import { FLORA_BY_ID } from '../flora.ts';
+import { FLORA_BY_ID, grazeFlora } from '../flora.ts';
 import type { Realm } from '../realm.ts';
 import type { Sim } from '../sim.ts';
 import { BeingStore } from './store.ts';
@@ -296,7 +296,7 @@ function decide(sim: Sim, slot: number): void {
     const food = foodAt(sim, here, def.diet);
     if (food > 0) {
       s.fuel[slot] = Math.min(100, (s.fuel[slot] ?? 0) + food);
-      if (def.diet === 'grass') realm.setFlora(here, 0, 0);
+      if (def.diet === 'grass') grazeFlora(sim, here);
       s.nextDecision[slot] = tick + 4;
       return;
     }

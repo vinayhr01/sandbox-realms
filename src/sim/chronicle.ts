@@ -19,7 +19,7 @@ import type { Projectile } from './combat.ts';
  */
 export const CHRONICLE_MAGIC = 'SRCH';
 export const FORMAT_VERSION = 1;
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 const HEADER_BYTES = 16;
 
 const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11 } as const;
@@ -36,6 +36,7 @@ const REALM_ARRAYS = [
   'variant',
   'flora',
   'floraSince',
+  'floraBlockedUntil',
   'region',
 ] as const;
 

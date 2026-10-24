@@ -18,7 +18,10 @@ export interface FilterChoice<T> {
 export interface ListSpec<T> {
   /** Accessible name of the search box and the list. */
   name: string;
-  items: readonly T[];
+  /** The rows, or a function read on every refresh (live windows read the latest snapshot). */
+  items: readonly T[] | (() => readonly T[]);
+  /** Start with the first sort key in descending order. */
+  startDesc?: boolean;
   rowHeight: number;
   label: (item: T) => string;
   render: (item: T) => HTMLElement;
@@ -42,8 +45,9 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
 export function buildList<T>(root: HTMLElement, spec: ListSpec<T>): ListHandle {
   let query = '';
   let sortKey = spec.sorts[0]?.key ?? '';
-  let desc = false;
+  let desc = spec.startDesc ?? false;
   let filterId = spec.filters?.[0]?.id ?? '';
+  const itemsNow = (): readonly T[] => (typeof spec.items === 'function' ? spec.items() : spec.items);
 
   const toolbar = el('div', 'list-toolbar');
   const search = el('input', 'list-search');
@@ -77,7 +81,7 @@ export function buildList<T>(root: HTMLElement, spec: ListSpec<T>): ListHandle {
 
   const current = (): readonly T[] => {
     const filter = spec.filters?.find((f) => f.id === filterId);
-    return sortFilterSearch(spec.items, {
+    return sortFilterSearch(itemsNow(), {
       sortKey: sortKey as keyof T,
       desc,
       query,
@@ -88,7 +92,7 @@ export function buildList<T>(root: HTMLElement, spec: ListSpec<T>): ListHandle {
 
   const draw = (): void => {
     const shown = current();
-    count.textContent = `${shown.length} of ${spec.items.length}`;
+    count.textContent = `${shown.length} of ${itemsNow().length}`;
     emptyNote.hidden = shown.length > 0;
     vlist.setItems(shown, viewport(), scroll.scrollTop);
   };

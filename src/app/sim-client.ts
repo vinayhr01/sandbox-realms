@@ -1,4 +1,4 @@
-import { Cmd, Ev, type BrushOp, type BrushShape, type Command, type Event, type Speed } from '../shared/protocol.ts';
+import { Cmd, Ev, PROTOCOL_VERSION, type BrushOp, type BrushShape, type Command, type Event, type Speed } from '../shared/protocol.ts';
 
 /** Command shape without the `seq` the client assigns. Distributes over the union. */
 type Draft<T> = T extends unknown ? Omit<T, 'seq'> : never;
@@ -46,7 +46,7 @@ export class SimClient {
   }
 
   init(): Promise<Event> {
-    return this.request({ kind: Cmd.Init, protocolVersion: 1 });
+    return this.request({ kind: Cmd.Init, protocolVersion: PROTOCOL_VERSION });
   }
 
   newRealm(seed: number, sizeStep: number, template = 'continent'): Promise<Event> {
@@ -78,6 +78,11 @@ export class SimClient {
   /** Sets one Realm Rule by id (src/sim/rules.ts). */
   setRule(rule: string, on: boolean): void {
     this.send({ kind: Cmd.SetRule, rule, on });
+  }
+
+  /** Asks the worker for a snapshot now; it arrives as an Ev.Snapshot event. */
+  requestSnapshot(): void {
+    this.send({ kind: Cmd.Snapshot });
   }
 
   query(tileX: number, tileY: number): Promise<QueryResult> {

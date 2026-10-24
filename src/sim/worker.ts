@@ -9,6 +9,7 @@ import { DEFAULT_SIZE_STEP } from '../shared/constants.ts';
 import type { Sim } from './sim.ts';
 import { generateRealm } from './worldgen.ts';
 import { planPump } from './scheduler.ts';
+import { snapshotDue } from './snapshot.ts';
 
 /** Sim time budget per pump in ms (17 section 3.1; 8 ms desktop, 6 ms phones TUNE). Desktop default. */
 const FRAME_BUDGET_MS = 8;
@@ -23,6 +24,7 @@ let avgTickMs = 0;
 let ticksThisPump = 0;
 let lastHash = 0;
 let lastPublishedTick = -1;
+let lastSnapshotTick = -1;
 const bufferPool: ArrayBuffer[] = [];
 
 const post = (event: Event, transfer: Transferable[] = []): void => {
@@ -66,6 +68,13 @@ function publishFrame(force: boolean): void {
   post({ kind: Ev.Frame, rows, stats }, transfer);
 }
 
+/** Posts a read-only snapshot of the sim for the UI windows (src/sim/snapshot.ts). */
+function publishSnapshot(): void {
+  if (!sim) return;
+  lastSnapshotTick = sim.tick;
+  post({ kind: Ev.Snapshot, snap: sim.snapshot() });
+}
+
 /** Reuses a pooled buffer that is large enough, otherwise allocates a fresh one. */
 function takeBuffer(bytes: number): ArrayBuffer {
   for (let k = 0; k < bufferPool.length; k++) {
@@ -106,6 +115,7 @@ function pump(): void {
     ticksThisPump = ran;
   }
   publishFrame(false);
+  if (snapshotDue(lastSnapshotTick, sim.tick)) publishSnapshot();
 }
 
 function handle(cmd: Command): void {
@@ -119,6 +129,7 @@ function handle(cmd: Command): void {
       sim = built.sim;
       accMs = 0;
       lastPublishedTick = -1;
+      lastSnapshotTick = -1;
       lastHash = sim.stateHash();
       post({
         kind: Ev.Ready,
@@ -129,8 +140,12 @@ function handle(cmd: Command): void {
         seed: sim.realm.seed,
       });
       publishFrame(true);
+      publishSnapshot();
       return;
     }
+    case Cmd.Snapshot:
+      publishSnapshot();
+      return;
     case Cmd.SetSpeed:
       speed = cmd.speed;
       return;

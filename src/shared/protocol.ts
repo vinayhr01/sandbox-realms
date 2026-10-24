@@ -161,6 +161,32 @@ export interface Snapshot {
   age?: string;
   /** Tiles per biome id over the whole realm (src/content/biomes.ts). Biomes with no tiles are absent. */
   biomes?: Record<string, number>;
+  /** Clans (kinbands window): counts and the capped rows, living clans first. Optional: older readers ignore it. */
+  clans?: ClanBlock;
+}
+
+/** One clan (src/sim/clans). `chiefAgeYears` is -1 when the clan has no living member. */
+export interface ClanRow {
+  id: number;
+  name: string;
+  /** The strain whose living members make up the clan. */
+  strain: number;
+  strainName: string;
+  species: string;
+  foundedTick: number;
+  members: number;
+  limit: number;
+  /** BeingRow id of the chief, or -1. */
+  chief: number;
+  chiefAgeYears: number;
+  extinct: boolean;
+}
+
+/** Clans: `count` is every clan on record, `living` the ones with a member; `rows` is capped at SNAPSHOT_DETAIL_ROWS. */
+export interface ClanBlock {
+  count: number;
+  living: number;
+  rows: ClanRow[];
 }
 
 /**

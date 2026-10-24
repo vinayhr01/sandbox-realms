@@ -6,6 +6,7 @@
  * invented. System windows (error, update, patch notes, dev tools) live in systemWindows.ts.
  */
 import { BEING_TRAITS, STRAIN_TRAITS, type BeingTraitDef } from '../content/traits.ts';
+import { YEAR_TICKS } from '../shared/constants.ts';
 import type { BeingRow, Snapshot, StructureRow } from '../shared/protocol.ts';
 import { listWindow } from './detailWindows.ts';
 import { buildList, type FilterChoice, type ListHandle } from './listView.ts';
@@ -278,9 +279,76 @@ function pactsList(deps: WindowDeps): WindowBuild {
   });
 }
 
-/** Clans have no records in the sim (families do): the clan window keeps its note and link. */
-function clanWindow(deps: WindowDeps): WindowBuild {
-  return staticWindow(windowTitle('win_clan'), [MISSING.clans], () => [button('Open families', () => deps.open('list_households'))]);
+// Clans (kinbands) -------------------------------------------------------------------------------
+
+/** Note under a clan: what the sim does not do with clans yet. */
+const CLAN_LIMITS =
+  'A clan is the living members of one strain, founded once the strain has four members. The chief is the oldest living member. Clans do not split, merge or refuse births yet: the member limit is recorded, not enforced.';
+
+/** Calendar year of a tick (02 section 1: a Year is 1200 ticks, years count from 1). */
+const yearOf = (tick: number): number => Math.floor(tick / YEAR_TICKS) + 1;
+
+/** One row per clan in the snapshot, living clans first (pure: the tests read it without a DOM). */
+export function clanRowsOf(snap: Snapshot): { id: number; title: string; detail: string; inspector: string; params: WindowParams }[] {
+  return (snap.clans?.rows ?? []).map((c) => ({
+    id: c.id,
+    title: c.name,
+    detail: c.extinct
+      ? `Extinct · ${c.species} · founded in year ${yearOf(c.foundedTick)}`
+      : `${c.members} ${c.members === 1 ? 'member' : 'members'} · ${c.species} · chief ${c.chiefAgeYears} years old`,
+    inspector: 'win_clan',
+    params: { id: c.id },
+  }));
+}
+
+/** Clan inspector: the record's facts from the snapshot, and a link to the strain it grew from. */
+function clanWindow(deps: WindowDeps, params: WindowParams): WindowBuild {
+  const key = params.id;
+  const section = liveSection(deps, (snap, root) => {
+    if (key === undefined) {
+      root.append(note('Choose a clan from the Clans list.'));
+      return;
+    }
+    if (snap === null) {
+      root.append(note('Reading the realm...'));
+      return;
+    }
+    const row = snap.clans?.rows.find((c) => c.id === key);
+    if (row === undefined) {
+      root.append(note('This clan is no longer in the realm, or is not in the latest snapshot.'));
+      return;
+    }
+    const facts: Facts = [
+      ['Name', row.name],
+      ['Status', row.extinct ? 'Extinct' : 'Living'],
+      ['Founded', `Year ${yearOf(row.foundedTick)}`],
+      ['Species', row.species],
+      ['Strain', row.strainName || `Strain ${row.strain}`],
+      ['Members', `${row.members} of ${row.limit} allowed`],
+      ['Chief', row.chief >= 0 ? `Oldest living member, ${row.chiefAgeYears} years old` : 'None: no living member'],
+    ];
+    root.append(factsList(facts), button('Open strain', () => deps.open('win_strain', { id: row.strain })), note(CLAN_LIMITS));
+  });
+  return {
+    title: windowTitle('win_clan'),
+    build: (body) => {
+      body.append(button('Back to clans', () => deps.open('list_kinbands')), section.mount());
+    },
+    live: () => section.refresh(),
+  };
+}
+
+function clanList(deps: WindowDeps): WindowBuild {
+  return listWindow(deps, {
+    self: 'list_kinbands',
+    name: 'Clans',
+    rows: (snap) => clanRowsOf(snap),
+    cut: (snap) => {
+      const block = snap.clans;
+      return block && block.count > block.rows.length ? `Showing ${block.rows.length} of ${block.count} clans.` : null;
+    },
+    empty: 'No clans yet. A clan forms when a strain has four living members.',
+  });
 }
 
 /** Items have no system in the sim: the item windows say so and stay empty. */
@@ -695,9 +763,9 @@ export function specWindowFor(id: string, deps: WindowDeps, params: WindowParams
     case 'list_pacts':
       return pactsList(deps);
     case 'win_clan':
-      return clanWindow(deps);
+      return clanWindow(deps, params);
     case 'list_kinbands':
-      return emptyList(deps, 'list_kinbands', 'Clans', MISSING.clans);
+      return clanList(deps);
     case 'win_compare':
       return compareWindow(deps);
     case 'win_annals':

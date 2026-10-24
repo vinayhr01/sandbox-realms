@@ -9,6 +9,7 @@ import { refreshStats } from './beings/system.ts';
 import { SPECIES } from '../content/beasts.ts';
 import { STRAIN_TRAIT_BY_ID } from '../content/traits.ts';
 import type { Strain } from './beings/strains.ts';
+import { restoreClans, type ClanState } from './clans/clans.ts';
 
 /**
  * Chronicle save codec (15-chronicle-saves, section 3 in spirit): a versioned, sectioned binary
@@ -37,9 +38,9 @@ export const FORMAT_VERSION = 1;
 export const SCHEMA_VERSION = 3;
 const HEADER_BYTES = 16;
 
-const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14, dominions: 15, hamlets: 16, strains: 17 } as const;
+const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14, dominions: 15, hamlets: 16, strains: 17, clans: 18 } as const;
 /** Sections a save may lack (written by later builds); absent means the empty default. */
-const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity, TAG.lifetime, TAG.dominions, TAG.hamlets];
+const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity, TAG.lifetime, TAG.dominions, TAG.hamlets, TAG.clans];
 const REALM_ARRAYS = [
   'elevation',
   'ground',
@@ -305,6 +306,8 @@ export function encodeChronicle(sim: Sim): Uint8Array {
   section(body, TAG.dominions, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(snapshotDominions(sim)))));
   section(body, TAG.hamlets, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(snapshotHamlets(sim)))));
   section(body, TAG.strains, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(sim.beings.strains.snapshot()))));
+  // Clans (tag 18, optional): saves without it load with no clans.
+  section(body, TAG.clans, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(sim.clans))));
 
   const bodyBytes = body.finish();
   const header = new Writer();
@@ -428,6 +431,8 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
     const snap = parseJson<HamletSnapshot | null>(decoder, hamletBytes, 'hamlets');
     if (snap) restoreHamlets(sim, snap);
   }
+  const clanBytes = sections.get(TAG.clans);
+  if (clanBytes) restoreClans(sim.clans, parseJson<ClanState>(decoder, clanBytes, 'clans'));
 
   realm.rebuildSets();
   realm.markAllDirty();

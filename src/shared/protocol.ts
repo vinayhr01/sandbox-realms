@@ -163,6 +163,47 @@ export interface SnapshotDetail {
   families: { child: number; parentA: number; parentB: number }[];
   intrigues: { id: number; kind: 'rebellion' | 'scheme'; group: number; progress: number; goal: number; outcome: 'success' | 'failure' | null }[];
   strains: StrainRow[];
+  /**
+   * Sample rows for the being, structure and realm windows (13 section 6). Optional: older readers
+   * ignore it. Lists are capped at SNAPSHOT_DETAIL_ROWS; the counts stay exact.
+   */
+  notable?: NotableRows;
+}
+
+/** Oldest living beings and the buildings of every hamlet, capped; totals are exact. */
+export interface NotableRows {
+  beingCount: number;
+  beings: BeingRow[];
+  structureCount: number;
+  structures: StructureRow[];
+}
+
+/** One living being. `id` names it while it lives: generation * MAX_BEINGS + slot. */
+export interface BeingRow {
+  id: number;
+  species: string;
+  folk: boolean;
+  female: boolean;
+  baby: boolean;
+  /** Age in whole years (floor). */
+  ageYears: number;
+  vitality: number;
+  maxVitality: number;
+  /** Strain display name, or '' for none. */
+  strain: string;
+  children: number;
+}
+
+/** One hamlet building. `id` is y * 1024 + x (the tile), stable while the building stands. */
+export interface StructureRow {
+  id: number;
+  /** Catalogue id (e.g. 'house'). */
+  kind: string;
+  name: string;
+  /** Index of the hamlet in Snapshot.hamlets (the id of the hamlet window). */
+  hamlet: number;
+  x: number;
+  y: number;
 }
 
 /** One strain (strains window). Trait names are display names from content/traits.ts. */

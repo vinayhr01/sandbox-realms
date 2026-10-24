@@ -17,6 +17,7 @@ import {
   sameDialectGroups,
 } from './detail-model.ts';
 import { buildList } from './listView.ts';
+import { armyFacts, armyLine } from './spec-model.ts';
 import { windowTitle } from './windowCatalog.ts';
 import type { WindowBuild, WindowDeps, WindowParams } from './windowContent.ts';
 
@@ -49,7 +50,7 @@ const snapOf = (deps: WindowDeps): Snapshot | null => deps.snapshot?.() ?? null;
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
 /** Rows of one list window. `cut` says how many rows the snapshot omitted, if any. */
-interface ListSpecView {
+export interface ListSpecView {
   name: string;
   /** Window ids of the inspector this list opens (its row params say which row). */
   rows: (snap: Snapshot) => RowView[];
@@ -59,7 +60,8 @@ interface ListSpecView {
   self: string;
 }
 
-function listWindow(deps: WindowDeps, spec: ListSpecView): WindowBuild {
+/** A list window: rows from the snapshot, each opening its inspector. Shared with the spec list windows. */
+export function listWindow(deps: WindowDeps, spec: ListSpecView): WindowBuild {
   let live: (() => void) | undefined;
   return {
     title: windowTitle(spec.self),
@@ -213,6 +215,24 @@ function cultureList(deps: WindowDeps, id: string): WindowBuild | null {
         cut: (snap) => cutNote(snap.detail?.strains.length ?? 0, snap.detail?.counts.strains ?? 0),
         empty: 'No strains yet.',
       });
+    case 'list_hosts':
+      return listWindow(deps, {
+        self: id,
+        name: 'Armies',
+        rows: (snap) =>
+          snap.dominions.map((d) => {
+            const target = campaignRows(snap).find((c) => c.attacker.id === d.id)?.targetName ?? null;
+            return {
+              id: d.id,
+              title: `Army of ${d.name}`,
+              detail: armyLine(d, target),
+              inspector: 'win_army',
+              params: { id: d.id },
+            };
+          }),
+        cut: (snap) => cutNote(snap.dominions.length, snap.dominionCount),
+        empty: 'No armies yet. Each army belongs to a dominion, and the realm has no dominions.',
+      });
     default:
       return null;
   }
@@ -226,13 +246,32 @@ function inspectorView(snap: Snapshot, id: string, params: WindowParams): Inspec
     case 'win_dominion': {
       const d = snap.dominions.find((x) => x.id === key);
       if (!d) return null;
-      const actions: InspectorView['actions'] = [];
+      const actions: InspectorView['actions'] = [{ label: 'Open army', window: 'win_army', params: { id: d.id } }];
       if (d.campaignTarget >= 0) actions.push({ label: 'Open campaign', window: 'win_campaign', params: { id: d.id } });
+      actions.push({ label: 'Customize banner', window: 'win_customize_dominion', params: { id: d.id } });
       return { heading: d.name, facts: dominionFacts(d, snap), actions };
+    }
+    case 'win_army': {
+      const d = snap.dominions.find((x) => x.id === key);
+      if (!d) return null;
+      const target = campaignRows(snap).find((c) => c.attacker.id === d.id)?.targetName ?? null;
+      return {
+        heading: `Army of ${d.name}`,
+        facts: armyFacts(d, target, snap),
+        lists: [{ title: 'Not in the sim yet', items: ['Captain', 'Kills', 'Deaths', 'Soldiers by hamlet'], empty: '' }],
+        actions: [{ label: 'Open dominion', window: 'win_dominion', params: { id: d.id } }],
+      };
     }
     case 'win_hamlet': {
       const h = hamletAt(snap, key);
       if (!h) return null;
+      const structures = (detail?.notable?.structures ?? []).filter((s) => s.hamlet === key);
+      const actions: NonNullable<InspectorView['actions']> = structures.map((s) => ({
+        label: `${s.name} at ${s.x}, ${s.y}`,
+        window: 'win_structure',
+        params: { id: s.id },
+      }));
+      actions.push({ label: 'Customize banner', window: 'win_customize_hamlet', params: { id: key } });
       return {
         heading: h.name,
         facts: [
@@ -240,6 +279,14 @@ function inspectorView(snap: Snapshot, id: string, params: WindowParams): Inspec
           ['Buildings', String(h.buildings)],
           ['Parcels', String(h.parcels)],
         ],
+        lists: [
+          {
+            title: 'Structures',
+            items: structures.map((s) => `${s.name} at ${s.x}, ${s.y}`),
+            empty: h.buildings > 0 ? 'Structures are listed up to the snapshot cap.' : 'No structures yet.',
+          },
+        ],
+        actions,
       };
     }
     case 'win_campaign': {
@@ -265,6 +312,7 @@ function inspectorView(snap: Snapshot, id: string, params: WindowParams): Inspec
         heading: `Creed ${c.id}`,
         facts: [['Holder groups', String(c.holders.length)]],
         lists: [{ title: 'Held by', items: c.holders.map((g) => groupName(snap, g)), empty: 'No group holds this creed.' }],
+        actions: [{ label: 'Customize banner', window: 'win_customize_creed', params: { id: c.id } }],
       };
     }
     case 'win_custom': {
@@ -277,6 +325,7 @@ function inspectorView(snap: Snapshot, id: string, params: WindowParams): Inspec
           ['Traits', String(c.traits.length)],
         ],
         lists: [{ title: 'Traits', items: c.traits, empty: 'No traits.' }],
+        actions: [{ label: 'Customize banner', window: 'win_customize_custom', params: { id: key } }],
       };
     }
     case 'win_dialect': {
@@ -290,6 +339,7 @@ function inspectorView(snap: Snapshot, id: string, params: WindowParams): Inspec
           ['Dialect word', String(d.word)],
         ],
         lists: [{ title: 'Groups that speak the same dialect', items: same, empty: 'No other group speaks it.' }],
+        actions: [{ label: 'Customize banner', window: 'win_customize_dialect', params: { id: key } }],
       };
     }
     case 'win_family': {
@@ -302,6 +352,7 @@ function inspectorView(snap: Snapshot, id: string, params: WindowParams): Inspec
           ['Parent group', groupName(snap, f.parentA)],
           ['Other parent group', groupName(snap, f.parentB)],
         ],
+        actions: [{ label: 'Customize banner', window: 'win_customize_family', params: { id: key } }],
       };
     }
     case 'win_intrigue': {
@@ -332,6 +383,10 @@ function inspectorView(snap: Snapshot, id: string, params: WindowParams): Inspec
           ['Reproduced', String(s.reproduced)],
         ],
         lists: [{ title: 'Traits', items: s.traits, empty: 'No strain traits.' }],
+        actions: [
+          { label: 'Edit traits', window: 'win_trait_editor', params: { id: s.id, kind: 'strain' } },
+          { label: 'Customize banner', window: 'win_customize_strain', params: { id: s.id } },
+        ],
       };
     }
     default:
@@ -350,6 +405,7 @@ const BACK: Readonly<Record<string, { window: string; label: string; missing: st
   win_family: { window: 'list_households', label: 'Back to families', missing: 'This family is no longer in the realm.' },
   win_intrigue: { window: 'list_intrigues', label: 'Back to intrigues', missing: 'This intrigue is no longer in the realm.' },
   win_strain: { window: 'list_strains', label: 'Back to strains', missing: 'This strain is no longer in the realm.' },
+  win_army: { window: 'list_hosts', label: 'Back to armies', missing: 'This dominion is no longer in the realm, so its army is gone.' },
 };
 
 /** An inspector window: Back to its list, the facts and lists of the row, and its action buttons. */
@@ -418,6 +474,7 @@ export function detailWindowFor(id: string, deps: WindowDeps, params: WindowPara
 
 /** Ids this module builds. */
 export const DETAIL_WINDOW_IDS: readonly string[] = [
+  'list_hosts',
   'list_campaigns',
   'list_creeds',
   'list_customs',

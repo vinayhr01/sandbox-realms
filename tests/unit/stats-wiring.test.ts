@@ -41,22 +41,24 @@ describe('lifetime stats wiring', () => {
 
   it('an unlocked achievement stays unlocked and unlocks only once', () => {
     const sim = seededSim();
-    for (let t = 0; t < YEAR_TICKS + 20; t++) sim.step();
-    expect(sim.unlocked.has('ach_first_year')).toBe(true);
+    for (let k = 0; k < 100; k++) recordStat(sim, { kind: 'being.spawned', count: 1 });
+    expect(unlockAchievements(sim)).toContain('ach_cradle');
+    expect(sim.unlocked.has('ach_cradle')).toBe(true);
     const size = sim.unlocked.size;
 
     sim.lifetime = emptyStats();
     for (let t = 0; t < 40; t++) sim.step();
-    expect(sim.unlocked.has('ach_first_year')).toBe(true);
-    expect(unlockAchievements(sim)).not.toContain('ach_first_year');
+    expect(sim.unlocked.has('ach_cradle')).toBe(true);
+    expect(unlockAchievements(sim)).not.toContain('ach_cradle');
     expect(sim.unlocked.size).toBeGreaterThanOrEqual(size);
   });
 
   it('unlockAchievements returns each new id once and records sim years without double counting', () => {
     const sim = seededSim();
+    for (let k = 0; k < 100; k++) recordStat(sim, { kind: 'being.spawned', count: 1 });
     sim.tick = 2 * YEAR_TICKS;
     const first = unlockAchievements(sim);
-    expect(first).toContain('ach_first_year');
+    expect(first).toContain('ach_cradle');
     expect(sim.lifetime.counters['simYearsElapsed']).toBe(2);
     expect(unlockAchievements(sim)).toEqual([]);
     expect(sim.lifetime.counters['simYearsElapsed']).toBe(2);
@@ -65,16 +67,17 @@ describe('lifetime stats wiring', () => {
   it('recordStat ignores auto events', () => {
     const sim = seededSim();
     recordStat(sim, { kind: 'power.used', power: 'x', auto: true });
-    expect(sim.lifetime.counters['powersUsed']).toBeUndefined();
+    expect(sim.lifetime.counters['powerUsesTotal']).toBeUndefined();
   });
 
   it('the chronicle round trip keeps stats and unlocked achievements', () => {
     const sim = seededSim();
+    for (let k = 0; k < 100; k++) recordStat(sim, { kind: 'being.spawned', count: 1 });
     for (let t = 0; t < YEAR_TICKS + 40; t++) sim.step();
     const back = decodeChronicle(encodeChronicle(sim));
     expect(back.lifetime.counters).toEqual(sim.lifetime.counters);
     expect(back.lifetime.sets).toEqual(sim.lifetime.sets);
     expect([...back.unlocked]).toEqual([...sim.unlocked]);
-    expect(back.unlocked.has('ach_first_year')).toBe(true);
+    expect(back.unlocked.has('ach_cradle')).toBe(true);
   });
 });

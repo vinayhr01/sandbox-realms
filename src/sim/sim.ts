@@ -7,7 +7,7 @@ import { applyStroke } from './brush.ts';
 import { ageDef, newAgeState, tickAge, type AgeState, type AgeDef, AGE_BY_ID } from './ages.ts';
 import { calendar, ssToTicks, SS_TICKS, type Calendar } from './clock.ts';
 import { emptyStats, type StatsRecord } from './stats.ts';
-import { unlockAchievements } from './stats-hooks.ts';
+import { recordStat, unlockAchievements } from './stats-hooks.ts';
 import { Realm } from './realm.ts';
 import { RuleSet, ageRuleId } from './rules.ts';
 import { Runner } from './runner.ts';
@@ -144,7 +144,18 @@ export class Sim {
 
   /** Applies one power (content/powers.ts id) at tile (x,y) now. Returns true when it ran; direct call, between ticks. */
   usePower(id: string, x: number, y: number): boolean {
-    return usePowerById(this, id, x, y);
+    const ran = usePowerById(this, id, x, y);
+    if (ran) recordStat(this, { kind: 'power.used', power: id });
+    return ran;
+  }
+
+  /** Runs the calamity roll and counts each calamity whose cooldown was set by this roll (14 section 3). */
+  private rollCalamityCounted(): void {
+    const before = new Map(this.calamityCooldowns);
+    rollAndRunCalamity(this);
+    for (const [id, until] of this.calamityCooldowns) {
+      if (before.get(id) !== until) recordStat(this, { kind: 'calamity.fired', calamity: id });
+    }
   }
 
   /** Applies queued commands without advancing the clock (paused edit mode, 17 section 3.1). */
@@ -222,7 +233,10 @@ export class Sim {
       isOn: (id) => this.rules.isOn(id),
       ageClouds: this.ageDef().clouds,
       cloudIntervalSs: 15,
-      rainDrop: (tile) => rainDrop(this, tile),
+      rainDrop: (tile) => {
+        recordStat(this, { kind: 'counter.add', name: 'rainTiles' });
+        return rainDrop(this, tile);
+      },
       freeze: (tile) => freeze(this, tile),
       startFire: (tile, force) => startFire(this, tile, force),
       blast: this.explosionContext(),
@@ -280,7 +294,7 @@ export class Sim {
 
   private runBehaviours(): void {
     const age = this.ageDef();
-    this.behaviour('calamity', 80, 0, () => rollAndRunCalamity(this));
+    this.behaviour('calamity', 80, 0, () => this.rollCalamityCounted());
     this.behaviour('scarFade', 3, 5, () => scarFade(this));
     this.behaviour('summitFreeze', 10, 50, () => {
       if (age.id !== 'scorch') summitFreeze(this);

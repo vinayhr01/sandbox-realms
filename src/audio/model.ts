@@ -25,6 +25,25 @@ export interface PlayResult {
 
 export const BUSES: readonly Bus[] = ['master', 'music', 'sfx', 'ui'];
 
+/**
+ * Bus each voice category plays through (16 section B5). The model has four buses, so the
+ * world categories share `sfx`; stingers follow the music slider by default.
+ */
+export const CATEGORY_BUS: Readonly<Record<string, Bus>> = {
+  ui: 'ui',
+  stingers: 'music',
+  calamity: 'sfx',
+  combat: 'sfx',
+  voices: 'sfx',
+  work: 'sfx',
+  ambience: 'sfx',
+};
+
+/** Bus for a category; unknown categories play through `sfx`. */
+export function busForCategory(category: string): Bus {
+  return Object.prototype.hasOwnProperty.call(CATEGORY_BUS, category) ? (CATEGORY_BUS[category] ?? 'sfx') : 'sfx';
+}
+
 export const CATEGORY_CAPS: Readonly<Record<string, number>> = {
   ui: 6,
   stingers: 2,

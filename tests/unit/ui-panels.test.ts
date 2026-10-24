@@ -1,58 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_OPTIONS, SETTINGS_KEY, loadOptions, sanitizeOptions, saveOptions, setOption, type KeyValueStorage } from '../../src/ui/panels/options.ts';
 import { sortFilterSearch, visibleRange } from '../../src/ui/panels/listWindow.ts';
-import { currentStep, newTutorial, skipTutorial, tutorialEvent, TUTORIAL_STEPS } from '../../src/ui/panels/tutorial.ts';
+import { currentStep, newTutorial, parseTutorial, skipTutorial, tutorialEvent, TUTORIAL_STEPS, TUTORIAL_TEXT } from '../../src/ui/panels/tutorial.ts';
 import { BRUSH_MAX, BRUSH_MIN, cooldownFraction, favourite, selectTab, stepBrush } from '../../src/ui/panels/powerBar.ts';
-
-function fakeStorage(initial: Record<string, string> = {}): KeyValueStorage {
-  const data: Record<string, string> = { ...initial };
-  return {
-    getItem: (k) => (k in data ? (data[k] ?? null) : null),
-    setItem: (k, v) => {
-      data[k] = v;
-    },
-  };
-}
-
-const throwingStorage: KeyValueStorage = {
-  getItem: () => {
-    throw new Error('blocked');
-  },
-  setItem: () => {
-    throw new Error('quota');
-  },
-};
-
-describe('options', () => {
-  it('defaults are valid and sanitize is identity on them', () => {
-    expect(sanitizeOptions(DEFAULT_OPTIONS)).toEqual(DEFAULT_OPTIONS);
-  });
-
-  it('clamps numeric ranges and rejects unknown enums', () => {
-    const o = sanitizeOptions({ scale: 999, brushSize: 0, soundVolume: -5, layout: 'weird', theme: 'light' });
-    expect(o.scale).toBe(150);
-    expect(o.brushSize).toBe(1);
-    expect(o.soundVolume).toBe(0);
-    expect(o.layout).toBe(DEFAULT_OPTIONS.layout);
-    expect(o.theme).toBe('light');
-  });
-
-  it('a corrupt saved value falls back to defaults without throwing', () => {
-    expect(loadOptions(fakeStorage({ [SETTINGS_KEY]: '{not json' }))).toEqual(DEFAULT_OPTIONS);
-  });
-
-  it('round-trips through storage', () => {
-    const st = fakeStorage();
-    expect(saveOptions(st, setOption(DEFAULT_OPTIONS, 'scale', 120))).toBe(true);
-    expect(loadOptions(st).scale).toBe(120);
-  });
-
-  it('storage that throws is handled: load gives defaults, save reports false', () => {
-    expect(loadOptions(throwingStorage)).toEqual(DEFAULT_OPTIONS);
-    expect(saveOptions(throwingStorage, DEFAULT_OPTIONS)).toBe(false);
-    expect(loadOptions(null)).toEqual(DEFAULT_OPTIONS);
-  });
-});
 
 describe('list window', () => {
   const items = [

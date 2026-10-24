@@ -14,6 +14,9 @@ import { spawnBeing } from '../beings/system.ts';
 import { hamletsOf } from '../settlements/adapter.ts';
 import { explode } from '../explosions.ts';
 import { startFire } from '../terrain/fire.ts';
+import { meteorImpact } from '../terrain/meteor.ts';
+import { startQuake } from '../terrain/quake.ts';
+import { creepHubAt, geyserAt, heatAt, igniteAt, plantFlora, quenchAt, rainOn, seedBiome, snowOn, volcanoAt } from './terrain-powers.ts';
 
 /** Beings placed by one beings calamity (a herd arriving at a tile). */
 const CALAMITY_HERD = 6;
@@ -23,6 +26,11 @@ const PLACE_TRIES = 32;
 function tileXY(sim: Sim, i: number): [number, number] {
   const side = sim.realm.side;
   return [i % side, Math.floor(i / side)];
+}
+
+/** Tile index of (x,y), which the caller has checked is on the realm. */
+function tileAt(sim: Sim, x: number, y: number): number {
+  return y * sim.realm.side + x;
 }
 
 /** Random walkable land tile drawn from the calamity stream, or -1. */
@@ -46,6 +54,13 @@ function blastAt(sim: Sim, x: number, y: number, radius: number, damage: number,
   return sim.guard.level > before;
 }
 
+/** Meteor impact at (x,y). Returns true when the guard let it run (meteorImpact itself places mineral nodes). */
+function meteorAt(sim: Sim, x: number, y: number, profile: 'skyrock' | 'skyrock_small'): boolean {
+  const before = sim.guard.level;
+  meteorImpact(sim, x, y, profile);
+  return sim.guard.level > before;
+}
+
 /** Runs one calamity's effect at a random place. Nature calamities burn or blast; beings calamities place a herd. */
 export function runCalamity(sim: Sim, id: string): boolean {
   const def = CALAMITY_BY_ID.get(id);
@@ -64,7 +79,10 @@ export function runCalamity(sim: Sim, id: string): boolean {
       return lit;
     }
     const [x, y] = tileXY(sim, i);
-    const blast: Record<string, [number, number]> = { whirlwind: [2, 15], tremor: [3, 25], skyfall: [4, 60] };
+    // Skyfall is a small meteor and tremor a small earthquake (02 section 8.2).
+    if (id === 'skyfall') return meteorAt(sim, x, y, 'skyrock_small');
+    if (id === 'tremor') return startQuake(sim, x, y, 'small');
+    const blast: Record<string, [number, number]> = { whirlwind: [2, 15] };
     const [radius, damage] = blast[id] ?? [2, 15];
     return blastAt(sim, x, y, radius, damage, 'Explosion');
   }
@@ -139,6 +157,26 @@ export function executePower(sim: Sim, def: PowerDef, x: number, y: number): boo
       if (!inBounds) return false;
       return blastAt(sim, x, y, Number(p.radius ?? 3), Number(p.damage ?? 30), def.handler === 'bolt' ? 'Other' : 'Explosion');
     }
+    case 'seed_biome':
+      return inBounds && seedBiome(sim, tileAt(sim, x, y), String(p.biome ?? ''));
+    case 'plant_flora':
+      return inBounds && plantFlora(sim, tileAt(sim, x, y), String(p.flora ?? ''));
+    case 'drop_rain':
+      return inBounds && rainOn(sim, tileAt(sim, x, y));
+    case 'drop_freeze':
+      return inBounds && snowOn(sim, tileAt(sim, x, y));
+    case 'start_fire':
+      return inBounds && igniteAt(sim, tileAt(sim, x, y));
+    case 'quench':
+      return inBounds && quenchAt(sim, tileAt(sim, x, y));
+    case 'add_heat':
+      return inBounds && heatAt(sim, tileAt(sim, x, y), Number(p.amount ?? 0));
+    case 'start_volcano':
+      return inBounds && volcanoAt(sim, x, y, Number(p.small ?? 0) === 1);
+    case 'start_geyser':
+      return inBounds && geyserAt(sim, x, y, p.kind === 'acid' ? 'acid' : 'water');
+    case 'place_creep_hub':
+      return inBounds && creepHubAt(sim, tileAt(sim, x, y), String(p.hub ?? ''));
     case 'calamity':
       return runCalamity(sim, String(p.calamity));
     default:

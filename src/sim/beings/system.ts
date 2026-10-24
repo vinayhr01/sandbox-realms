@@ -1,10 +1,13 @@
 import { SIZE_RANK, SPECIES, speciesIndex, type SpeciesDef } from '../../content/beasts.ts';
 import { ground } from '../../content/grounds.ts';
+import { BEING_TRAITS, BEING_TRAIT_INDEX, BIRTH_POT } from '../../content/traits.ts';
 import { FLORA, FLORA_BY_ID, grazeFlora } from '../flora.ts';
 import type { Realm } from '../realm.ts';
 import type { Sim } from '../sim.ts';
 import { recordStat } from '../stats-hooks.ts';
+import { assemble, type Assembled } from './assembly.ts';
 import { BeingStore } from './store.ts';
+import { strainMutation, Strains, addStrainTrait } from './strains.ts';
 import { TUNING } from './tuning.ts';
 
 export type { BeingStore };
@@ -13,7 +16,7 @@ export type { BeingStore };
 const FUEL_PASS = 300;
 /** Ticks between natural-death rolls (06 section 3.5). */
 const DEATH_ROLL = 20;
-/** Ticks between vitality regeneration steps when fed. */
+/** Ticks between vitality regeneration steps when fed; also the cadence of the growing-up check. */
 const REGEN = 60;
 /** Mating lull after a birth, in ticks (06 section 6.1). */
 const LULL = 1800;
@@ -25,6 +28,8 @@ export const WORLD_CAP = 4096;
 const BUCKET = 8;
 /** Beasts breed only with fewer than this many other beings in their 16x16 patch (06 section 6.1). */
 const BREEDING_CROWD = 6;
+/** Same-species members within this many tiles share a strain (05 section 6.1, strainJoinRadius). */
+export const STRAIN_JOIN_RADIUS = 40;
 /** Ticks per simulated Year (02 section 1). */
 const YEAR = 1200;
 
@@ -50,20 +55,20 @@ export interface BeingStats {
   aged: number;
 }
 
-/** Per-species derived values (06 section 3.1). */
+/** Per-species derived values. */
 interface SpeciesRuntime {
   def: SpeciesDef;
-  adultYears: number;
   hunters: number[];
   prey: number[];
 }
 
 /**
- * Beings subsystem: the store, a spatial bucket grid, and the life cycle (fuel, regeneration,
+ * Beings subsystem: the store, a spatial bucket grid, strains, and the life cycle (fuel, regeneration,
  * ageing and death, decisions and movement, mating and births). One instance per Sim.
  */
 export class Beings {
   readonly store = new BeingStore();
+  readonly strains = new Strains();
   readonly stats: BeingStats = { births: 0, newAdults: 0, deaths: 0, starved: 0, eaten: 0, aged: 0 };
   readonly runtime: readonly SpeciesRuntime[];
   private readonly cellsPerRow: number;
@@ -76,7 +81,6 @@ export class Beings {
     this.link = new Int32Array(this.store.capacity).fill(-1);
     this.runtime = SPECIES.map((def) => ({
       def,
-      adultYears: Math.max(1, Math.min(16, Math.pow(def.span, 0.55) * 1.1)),
       hunters: def.hunters.map((h) => speciesIndex(h)),
       prey: def.prey.map((p) => speciesIndex(p)),
     }));
@@ -152,10 +156,65 @@ function walkable(realm: Realm, i: number): boolean {
   return kind.layer === 'land' && kind.damages === 0;
 }
 
+/** Whether a species eats at all (06 section 2.1: `none` never gets hungry). */
+function needsFood(def: SpeciesDef): boolean {
+  return def.diet !== 'none';
+}
+
+/** The being's trait ids, in index order (18b being traits). Scans the five mark words, skipping empty ones. */
+function markIds(s: BeingStore, slot: number): string[] {
+  const ids: string[] = [];
+  for (let w = 0; w < 5; w++) {
+    let bits = s.marks[slot * 5 + w] ?? 0;
+    while (bits !== 0) {
+      const low = bits & -bits;
+      const k = w * 32 + (31 - Math.clz32(low));
+      if (k < BEING_TRAITS.length) ids.push(BEING_TRAITS[k]!.id);
+      bits &= bits - 1;
+    }
+  }
+  return ids;
+}
+
 /**
- * Terrain speed multiplier under a being (07 section 7.1): the ground's walk value, and x0.8 on a
- * tree tile while the `tangle_roots` rule is on. Flying beings would ignore it; none exist yet.
+ * Recomputes a being's assembled stats (05 section 3) and stores them. Called on spawn, on birth, on
+ * growing up and after a load. A child is recomputed as a child until its age reaches its adult age.
  */
+export function refreshStats(sim: Sim, slot: number): void {
+  const b = sim.beings;
+  const s = b.store;
+  const def = b.species(s.species[slot] ?? 0);
+  const strain = b.strains.get(s.strain[slot] ?? 0);
+  const input = {
+    species: def,
+    strainTraits: strain?.traits ?? [],
+    generation: strain?.generation ?? 0,
+    beingTraits: markIds(s, slot),
+    attrs: {
+      rapport: s.attrs[slot * 4] ?? 0,
+      valor: s.attrs[slot * 4 + 1] ?? 0,
+      husbandry: s.attrs[slot * 4 + 2] ?? 0,
+      wit: s.attrs[slot * 4 + 3] ?? 0,
+    },
+  };
+  const age = (sim.tick - (s.born[slot] ?? 0)) / YEAR;
+  let a: Assembled = assemble({ ...input, baby: false });
+  const baby = age < a.adultYears;
+  if (baby) a = assemble({ ...input, baby: true });
+  s.baby[slot] = baby ? 1 : 0;
+  s.maxVit[slot] = a.vitality;
+  if ((s.vit[slot] ?? 0) > a.vitality) s.vit[slot] = a.vitality;
+  s.paceA[slot] = a.pace;
+  s.mightA[slot] = a.might;
+  s.spanA[slot] = a.span;
+  s.litterA[slot] = a.litter;
+  s.broodA[slot] = a.brood;
+  s.metabolismA[slot] = a.metabolism;
+  s.adultA[slot] = a.adultYears;
+  s.gestationA[slot] = a.gestationMonths;
+}
+
+/** Tile multiplier under a being (07 section 7.1): the ground's walk value, and x0.8 on a tree tile with `tangle_roots`. */
 function tileMult(sim: Sim, slot: number): number {
   const s = sim.beings.store;
   const i = (s.y[slot] ?? 0) * sim.realm.side + (s.x[slot] ?? 0);
@@ -247,23 +306,134 @@ export function killBeing(sim: Sim, slot: number, cause: 'eaten' | 'starved' | '
   if (cause === 'age') b.stats.aged++;
 }
 
-/** Spawns a being at (x,y); returns its slot or -1 (store full, or the tile is not walkable). */
-export function spawnBeing(sim: Sim, speciesIdx: number, x: number, y: number, adult: boolean): number {
+/** Child-to-parent trait inheritance (18b `inh` percentages) and the birth mutation draw (05 section 7.4). */
+function inheritMarks(sim: Sim, parent: number, child: number, strainId: number): void {
+  const s = sim.beings.store;
+  const rng = sim.rng('beings');
+  const xgTaken = (id: string): boolean => {
+    const xg = BEING_TRAITS[BEING_TRAIT_INDEX.get(id) ?? 0]?.xg ?? '';
+    return xg !== '' && BEING_TRAITS.some((t) => t.xg === xg && s.hasMark(child, BEING_TRAIT_INDEX.get(t.id) ?? -1));
+  };
+  for (const id of markIds(s, parent)) {
+    const k = BEING_TRAIT_INDEX.get(id) ?? -1;
+    const trait = BEING_TRAITS[k];
+    if (!trait || trait.inherit === null) continue;
+    if (rng.next() * 100 < trait.inherit && !xgTaken(id)) s.setMark(child, k, true);
+  }
+  const mutation = strainMutation(sim.beings.strains.get(strainId)?.traits ?? []);
+  if (mutation > 0 && BIRTH_POT.length > 0) {
+    const extra = rng.int(mutation + 1);
+    for (let n = 0; n < extra; n++) {
+      const id = BIRTH_POT[rng.int(BIRTH_POT.length)] ?? '';
+      const k = BEING_TRAIT_INDEX.get(id);
+      if (k !== undefined && !s.hasMark(child, k) && !xgTaken(id)) s.setMark(child, k, true);
+    }
+  }
+}
+
+/**
+ * Spawns a being at (x,y); returns its slot or -1 (store full, or the tile is not walkable).
+ * A birth (`parent` >= 0) joins the parent's strain and links to the bearer (05 section 6.1, 06 section 6.6).
+ * An adult spawn joins the nearest same-species strain within 40 tiles, else founds a new strain.
+ */
+export function spawnBeing(sim: Sim, speciesIdx: number, x: number, y: number, adult: boolean, parent = -1): number {
+  // Folk come from the dominion layer (spawnFolk); aquatic and Architect-bound rows have no land behaviour yet.
+  if (!sim.beings.species(speciesIdx).wild) return -1;
+  return place(sim, speciesIdx, x, y, adult, parent, null);
+}
+
+/**
+ * Folk founder (18a section 1.2): an adult of a Folk lineage in a new strain that holds the lineage's
+ * strain traits and carries its being traits. Aptitudes come from the species row.
+ */
+export function spawnFolk(sim: Sim, speciesIdx: number, x: number, y: number): number {
+  const def = sim.beings.species(speciesIdx);
+  if (!def.folk || !def.startTraits) return -1;
+  return place(sim, speciesIdx, x, y, true, -1, def.startTraits);
+}
+
+function place(
+  sim: Sim,
+  speciesIdx: number,
+  x: number,
+  y: number,
+  adult: boolean,
+  parent: number,
+  founder: { being: readonly string[]; strain: readonly string[] } | null,
+): number {
   const realm = sim.realm;
   if (x < 0 || y < 0 || x >= realm.side || y >= realm.side) return -1;
   if (!walkable(realm, y * realm.side + x)) return -1;
-  const def = sim.beings.species(speciesIdx);
+  const b = sim.beings;
+  const s = b.store;
+  const def = b.species(speciesIdx);
   const female = sim.rng('beings').next() < 0.5 ? 1 : 0;
-  const vit = adult ? def.vitality : Math.max(1, Math.floor(def.vitality / 2));
-  // Spawned adults start at their adult age (06 section 3.1 ageBonusYears), so they can breed at once.
-  const adultAge = Math.ceil(sim.beings.runtime[speciesIdx]?.adultYears ?? 1) * YEAR;
-  const born = adult ? sim.tick - adultAge : sim.tick;
-  const slot = sim.beings.store.spawn(speciesIdx, x, y, born, def.vitality, adult ? 100 : 25, female);
+  const slot = s.spawn(speciesIdx, x, y, sim.tick, def.vitality, adult ? 100 : 25, female);
   if (slot < 0) return -1;
-  sim.beings.store.vit[slot] = vit;
-  if (adult) sim.beings.stats.newAdults++;
-  else sim.beings.stats.births++;
-  recordStat(sim, adult ? { kind: 'being.spawned', count: 1 } : { kind: 'being.born', count: 1 });
+  const bearer = parent >= 0 && s.alive[parent] === 1 ? parent : -1;
+
+  // Strain: a birth inherits the bearer's strain; an adult joins a near member's strain or founds one.
+  let strain = bearer >= 0 ? b.strains.get(s.strain[bearer] ?? 0) : undefined;
+  if (!strain && !founder) {
+    // A linear scan: the bucket grid is rebuilt only at the start of a tick, so it misses this tick's spawns.
+    let near = -1;
+    let nearD = Number.POSITIVE_INFINITY;
+    for (let k = 0; k < s.size; k++) {
+      const o = s.at(k);
+      if (o === slot || s.species[o] !== speciesIdx) continue;
+      const dx = (s.x[o] ?? 0) - x;
+      const dy = (s.y[o] ?? 0) - y;
+      if (Math.max(Math.abs(dx), Math.abs(dy)) > STRAIN_JOIN_RADIUS) continue;
+      const d = dx * dx + dy * dy;
+      if (d < nearD || (d === nearD && o < near)) {
+        nearD = d;
+        near = o;
+      }
+    }
+    strain = near >= 0 ? b.strains.get(s.strain[near] ?? 0) : undefined;
+  }
+  if (!strain) {
+    const traits: string[] = [];
+    for (const id of founder?.strain ?? []) addStrainTrait(traits, id);
+    strain = b.strains.create(speciesIdx, def.name, 0, 0, traits);
+  }
+  s.strain[slot] = strain.id;
+  for (const id of founder?.being ?? []) {
+    const k = BEING_TRAIT_INDEX.get(id);
+    if (k !== undefined) s.setMark(slot, k, true);
+  }
+  if (def.aptitudes) {
+    s.attrs[slot * 4] = def.aptitudes.rapport;
+    s.attrs[slot * 4 + 1] = def.aptitudes.valor;
+    s.attrs[slot * 4 + 2] = def.aptitudes.husbandry;
+    s.attrs[slot * 4 + 3] = def.aptitudes.wit;
+  }
+  if (bearer >= 0) {
+    s.setParent(slot, bearer);
+    inheritMarks(sim, bearer, slot, strain.id);
+  }
+
+  refreshStats(sim, slot);
+  if (adult) {
+    // Spawned adults start at their adult age (06 section 3.1 ageBonusYears), so they can breed at once.
+    s.born[slot] = sim.tick - Math.ceil(s.adultA[slot] ?? 1) * YEAR;
+    refreshStats(sim, slot);
+  }
+  s.vit[slot] = s.maxVit[slot] ?? 0;
+
+  if (adult) {
+    b.stats.newAdults++;
+    strain.counters.newAdults++;
+    recordStat(sim, { kind: 'being.spawned', count: 1 });
+  } else {
+    b.stats.births++;
+    strain.counters.born++;
+    recordStat(sim, { kind: 'being.born', count: 1 });
+  }
+  if (bearer >= 0) {
+    const bs = b.strains.get(s.strain[bearer] ?? 0);
+    if (bs) bs.counters.reproduced++;
+  }
   return slot;
 }
 
@@ -277,8 +447,9 @@ function decide(sim: Sim, slot: number): void {
   if (!rt) return;
   const def = rt.def;
   const realm = sim.realm;
-  const adult = (tick - (s.born[slot] ?? 0)) / YEAR >= rt.adultYears;
-  const hungry = (s.fuel[slot] ?? 0) <= TUNING.hungryAt;
+  const adult = (tick - (s.born[slot] ?? 0)) / YEAR >= (s.adultA[slot] ?? 1);
+  const feeds = needsFood(def);
+  const hungry = feeds && (s.fuel[slot] ?? 0) <= TUNING.hungryAt;
 
   // Flee the nearest hunter within four tiles.
   const hunter = b.nearest(slot, (o) => rt.hunters.includes(s.species[o] ?? -1), 4);
@@ -341,18 +512,23 @@ function decide(sim: Sim, slot: number): void {
     }
   }
 
-  // Mating: adult, fed, not in a lull, not already expecting, and the rule allows births.
-  const crowded = b.crowdInPatch(slot, s.x[slot] ?? 0, s.y[slot] ?? 0) >= BREEDING_CROWD;
-  if (adult && !crowded && (s.fuel[slot] ?? 0) >= TUNING.matingFuel && tick >= (s.lull[slot] ?? 0) && !(s.expecting[slot] ?? 0) && sim.rules.isOn('beast_births') && !sim.effects.flag(slot, 'noBreed')) {
+  // Mating (06 section 6.1): adult, fed when it needs food, not in a lull, not expecting, not barren,
+  // and a female bearer below her living-children cap. Births also need the rule on and no crowd.
+  const barren = BEING_TRAIT_INDEX.get('barren') ?? -1;
+  const bearerRoom = (o: number): boolean => s.female[o] === 0 || (s.childCount[o] ?? 0) < Math.ceil(s.litterA[o] ?? 0);
+  const canMate = (o: number): boolean => (!needsFood(b.species(s.species[o] ?? 0)) || (s.fuel[o] ?? 0) >= TUNING.matingFuel) && !s.hasMark(o, barren) && tick >= (s.lull[o] ?? 0) && !(s.expecting[o] ?? 0);
+  // The crowd scan is linear in the population, so it runs only for a being that could breed now.
+  const mayBreed = adult && canMate(slot) && bearerRoom(slot) && sim.rules.isOn('beast_births') && !sim.effects.flag(slot, 'noBreed');
+  if (mayBreed && b.crowdInPatch(slot, s.x[slot] ?? 0, s.y[slot] ?? 0) < BREEDING_CROWD) {
     const sp = s.species[slot] ?? 0;
     const mate = b.nearest(
       slot,
       (o) =>
         s.species[o] === sp &&
         s.female[o] !== s.female[slot] &&
-        (tick - (s.born[o] ?? 0)) / YEAR >= rt.adultYears &&
-        tick >= (s.lull[o] ?? 0) &&
-        (s.fuel[o] ?? 0) >= TUNING.matingFuel,
+        (tick - (s.born[o] ?? 0)) / YEAR >= (s.adultA[o] ?? 1) &&
+        canMate(o) &&
+        bearerRoom(o),
       8,
     );
     if (mate >= 0) {
@@ -361,8 +537,8 @@ function decide(sim: Sim, slot: number): void {
         const bearer = s.female[slot] ? slot : mate;
         if (s.female[bearer] && !(s.expecting[bearer] ?? 0)) {
           s.expecting[bearer] = 1;
-          s.expectUntil[bearer] = tick + def.gestationMonths * 100;
-          s.brood[bearer] = litterRoll(sim, def.litter);
+          s.expectUntil[bearer] = tick + Math.round((s.gestationA[bearer] ?? def.gestationMonths) * 100);
+          s.brood[bearer] = litterRoll(sim, Math.round(s.broodA[bearer] ?? def.litter));
           s.fuel[bearer] = Math.max(0, (s.fuel[bearer] ?? 0) - 50);
         }
         s.lull[slot] = tick + LULL;
@@ -402,11 +578,17 @@ export function stepBeings(sim: Sim): void {
     const rt = b.runtime[s.species[slot] ?? 0];
     if (!rt) continue;
     const def = rt.def;
-    s.moveAcc[slot] = Math.min(2, (s.moveAcc[slot] ?? 0) + (def.pace * 0.2 * sim.effects.multiplier(slot, 'speed') * tileMult(sim, slot)) / 20);
+    const feeds = needsFood(def);
+    s.moveAcc[slot] = Math.min(2, (s.moveAcc[slot] ?? 0) + ((s.paceA[slot] ?? def.pace) * 0.2 * sim.effects.multiplier(slot, 'speed') * tileMult(sim, slot)) / 20);
 
-    if (fuelPass) {
+    if (regen && s.baby[slot] === 1 && (tick - (s.born[slot] ?? 0)) / YEAR >= (s.adultA[slot] ?? 1)) {
+      // Growing up: the stats are recomputed as an adult (06 section 3.2 GrewUp).
+      refreshStats(sim, slot);
+    }
+
+    if (fuelPass && feeds) {
       if ((s.fuel[slot] ?? 0) > 0) {
-        s.fuel[slot] = Math.max(0, (s.fuel[slot] ?? 0) - (def.diet === 'flesh' ? TUNING.predatorMetabolism : 1));
+        s.fuel[slot] = Math.max(0, (s.fuel[slot] ?? 0) - (s.metabolismA[slot] ?? 1));
       } else if (hungerRule) {
         s.vit[slot] = (s.vit[slot] ?? 0) - Math.max(1, Math.floor((s.maxVit[slot] ?? 0) * 0.05));
         if ((s.vit[slot] ?? 0) <= 0) {
@@ -415,14 +597,16 @@ export function stepBeings(sim: Sim): void {
         }
       }
     }
-    if (regen && (s.fuel[slot] ?? 0) >= HUNGRY_AT && (s.vit[slot] ?? 0) < (s.maxVit[slot] ?? 0)) {
+    if (regen && (!feeds || (s.fuel[slot] ?? 0) >= HUNGRY_AT) && (s.vit[slot] ?? 0) < (s.maxVit[slot] ?? 0)) {
       s.vit[slot] = (s.vit[slot] ?? 0) + 1;
     }
 
-    if (deathRoll && agingRule) {
+    // Span 0 never dies of age (05 section 1, 06 section 3.5).
+    const span = s.spanA[slot] ?? 0;
+    if (deathRoll && agingRule && span > 0) {
       const age = (tick - (s.born[slot] ?? 0)) / YEAR;
-      if (age > def.span) {
-        const x = (age - def.span) / def.span;
+      if (age > span) {
+        const x = (age - span) / span;
         const p = Math.min(0.9, 1 / (1 + Math.exp(-5 * (x - 0.5))));
         if (rng.next() < p) {
           killBeing(sim, slot, 'age');
@@ -435,7 +619,7 @@ export function stepBeings(sim: Sim): void {
       s.expecting[slot] = 0;
       const brood = Math.max(1, s.brood[slot] ?? 1);
       for (let n = 0; n < brood && b.store.size < WORLD_CAP; n++) {
-        spawnBeing(sim, s.species[slot] ?? 0, (s.x[slot] ?? 0) + rng.int(5) - 2, (s.y[slot] ?? 0) + rng.int(5) - 2, false);
+        spawnBeing(sim, s.species[slot] ?? 0, (s.x[slot] ?? 0) + rng.int(5) - 2, (s.y[slot] ?? 0) + rng.int(5) - 2, false, slot);
       }
     }
 
@@ -447,10 +631,11 @@ export function stepBeings(sim: Sim): void {
 const START_SPACING = 24;
 
 /**
- * Starting beasts (03 section 8.3): a random land tile is drawn; if its biome lists a species, a
+ * Starting beasts (03 section 8.3): a random land tile is drawn; if its biome lists a wild species, a
  * group of 2 to 4 adults of one such species is placed within radius 2. A group of the same species
  * must be START_SPACING tiles from earlier groups. Each group gets 6 tile draws before it is dropped.
- * Species are equally weighted: 18c gives beast pools without weights.
+ * Species are equally weighted: 18c gives beast pools without weights. Folk and Architect-bound rows
+ * (`wild` false) are never seeded.
  */
 export function seedStartingBeasts(sim: Sim, groups: number): number {
   const realm = sim.realm;
@@ -466,7 +651,7 @@ export function seedStartingBeasts(sim: Sim, groups: number): number {
       const y = rng.int(realm.side);
       const biome = sim.biomeAt(y * realm.side + x);
       if (!biome) continue;
-      const eligible = SPECIES.flatMap((def, k) => (def.biomes.includes(biome.id) ? [k] : []));
+      const eligible = SPECIES.flatMap((def, k) => (def.wild && def.biomes.includes(biome.id) ? [k] : []));
       if (eligible.length === 0) continue;
       const pick = eligible[rng.int(eligible.length)] ?? -1;
       const clear = centres.every((c) => c.species !== pick || Math.max(Math.abs(c.x - x), Math.abs(c.y - y)) >= START_SPACING);
@@ -484,4 +669,16 @@ export function seedStartingBeasts(sim: Sim, groups: number): number {
     }
   }
   return placed;
+}
+
+/** Adds a strain trait to a strain and refreshes its members' stats (05 section 6.2, simplified). */
+export function grantStrainTrait(sim: Sim, strainId: number, traitId: string): boolean {
+  const strain = sim.beings.strains.get(strainId);
+  if (!strain || !addStrainTrait(strain.traits, traitId)) return false;
+  const s = sim.beings.store;
+  for (let k = 0; k < s.size; k++) {
+    const slot = s.at(k);
+    if (s.strain[slot] === strainId) refreshStats(sim, slot);
+  }
+  return true;
 }

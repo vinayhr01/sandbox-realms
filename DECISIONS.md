@@ -166,3 +166,18 @@ Covers heat, volcanoes, geysers, quakes, meteors, acid, slime, creep, minerals, 
 - **Not saved:** vents, a quake in progress, creep hubs and flora jobs sit in a WeakMap keyed by Sim (`terrain/state.ts`), so a Chronicle load drops them. Fixing this needs a schema change, which was not made here.
 - **Not wired (owned by other units):** `powers/handlers.ts` should call `meteorImpact` for `skyfall`, `startQuake(...,'small')` for `tremor`, `startVolcano` for `lm_fire_vent`, `startGeyser` for `lm_hotspring` and `lm_acidspring`, `placeCreepHub` for `creep_*`, and `addHeat` for `sky_warm` and `sky_chill`. `weather.ts` still strips cover for `cloud_vitriol` instead of calling `acidTerraform`, because `sim.ts` builds the weather context and it has no acid callback.
 - **Golden hash:** 890385179 before, 213197484 after.
+
+## Beings round 2
+
+- **Roster:** 90 species (84 beasts of 18a section 2, 6 Folk of section 1). Folk and aquatic/Architect rows are `wild: false`: never seeded or spawned by `spawnBeing`. Folk spawn through `spawnFolk` (founder: aptitudes, strain traits and being traits from 18a 1.2).
+- **Diets:** 18a tags map to grass/nectar/flesh/omni plus `none` (never hungry). insect to omni; detritus, photo, browse, frugivore, granivore, plankton, filter to grass; pisc, scav, blood to flesh.
+- **OPEN defaults:** litter and gestation by size (18a has no column). Derived prey for new flesh eaters = plant or omni species of own size or smaller; hunters derived from prey. Sea and coast ground ids are kept in `grounds` and not seeded.
+- **Stat assembly (05 section 3):** species base, strain and being sources, aptitudes, add-then-multiply, clamps, baby halving (maxVit now halved too, as step 14 says). Level, equipment and temperament steps not built.
+- **Traits:** all 144 being traits and 154 strain traits as data (`src/content/traits.ts`). Numeric effects for stat, meta (gestation, mutation, maturation) and litter rows. Births inherit by `inh` percent. The birth mutation draw is rand(0, mutation) (05 section 7.4, not the 18b header's +1) and runs only when a strain has mutation capacity.
+- **Strains:** an adult joins the nearest same-species member within 40 tiles, else founds a strain. Births join the bearer's strain. Counters born, newAdults, reproduced. No lineage code (05 section 5), splitting or uplift.
+- **Parent links (06 section 6.1):** one bearer slot with a generation check. The store keeps the living-children count and rebuilds it on load. Cap is ceil(litter) on the bearer; the partner's cap is not tracked.
+- **Not built:** pop_cap enforcement, birthday aptitude growth, morph variants, bossScale, abilities, Folk dominion behaviour.
+- **Save:** SCHEMA_VERSION 2 to 3 (parent slot and generation, strain id, aptitudes, marks in the beings section; new section 17 for strains). Schema 2 saves are rejected.
+- **Tests changed (spec-required):** beast-roster now expects 90 species; beings.test burrfleece asserts the 06 6.1 cap (2 to 3 births; was more than 2).
+- **Golden:** GOLDEN_HASH 1157961273 to 812831521.
+- **Soak (strict):** seeds 1,555,31337 totals at year 10 1434, 1103, 1160. Seeds 2024,7,99 totals 1389, 1466, 1573. Survivors 32/38/41 and 39/40/33 of 90 species; the all-species criterion is not met, as before.

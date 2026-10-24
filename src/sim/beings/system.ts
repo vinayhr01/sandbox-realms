@@ -196,6 +196,8 @@ export function refreshStats(sim: Sim, slot: number): void {
       husbandry: s.attrs[slot * 4 + 2] ?? 0,
       wit: s.attrs[slot * 4 + 3] ?? 0,
     },
+    // Items hook (08 section 6.1): flat sums of the worn gear; empty when the Being wears nothing.
+    equipment: sim.items.fxOf(slot),
   };
   const age = (sim.tick - (s.born[slot] ?? 0)) / YEAR;
   let a: Assembled = assemble({ ...input, baby: false });

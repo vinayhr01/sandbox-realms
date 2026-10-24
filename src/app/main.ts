@@ -641,6 +641,9 @@ async function boot(): Promise<void> {
     chronicle,
     setOption: (id, value) => changeOption(id, value),
     snapshot: () => simView.current,
+    sendCommand: (command) => {
+      client.send(command);
+    },
     open: (id, params) => openWindow(id, params),
     brush: () => ({ shape: state.shape, sizeIndex: state.sizeIndex, radii: BRUSH_RADII }),
     setBrush: (patch) => {

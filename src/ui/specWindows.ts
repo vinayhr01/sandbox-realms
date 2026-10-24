@@ -6,8 +6,9 @@
  * invented. System windows (error, update, patch notes, dev tools) live in systemWindows.ts.
  */
 import { BEING_TRAITS, STRAIN_TRAITS, type BeingTraitDef } from '../content/traits.ts';
+import { ITEM_KINDS, ITEM_KIND_BY_ID, ITEM_SLOTS, type ItemKindDef } from '../content/items.ts';
 import { YEAR_TICKS } from '../shared/constants.ts';
-import type { BeingRow, Snapshot, StructureRow } from '../shared/protocol.ts';
+import { Cmd, type BeingRow, type ItemRow, type Snapshot, type StructureRow } from '../shared/protocol.ts';
 import { listWindow } from './detailWindows.ts';
 import { buildList, type FilterChoice, type ListHandle } from './listView.ts';
 import { realmHistory } from './realm-history.ts';
@@ -351,18 +352,202 @@ function clanList(deps: WindowDeps): WindowBuild {
   });
 }
 
-/** Items have no system in the sim: the item windows say so and stay empty. */
+// Items (08 section 6) -----------------------------------------------------------------------------
 
-function itemWindow(): WindowBuild {
-  return staticWindow(windowTitle('win_item'), [MISSING.items]);
+const QUALITY_LABELS: readonly string[] = ['Common', 'Uncommon', 'Rare', 'Legendary'];
+const SLOT_LABELS: Readonly<Record<string, string>> = {
+  weapon: 'Weapon',
+  helm: 'Helm',
+  body: 'Body armour',
+  boots: 'Boots',
+  ring: 'Ring',
+  amulet: 'Amulet',
+};
+
+/** Where an item is kept, in words (the snapshot gives the holder and its place). */
+function holderText(row: ItemRow): string {
+  if (row.holder === 'worn') return 'Worn by a being';
+  if (row.holder === 'stock') return `In the stock of hamlet ${row.at + 1}`;
+  return 'Not held';
 }
 
-function gearEditorWindow(): WindowBuild {
-  return staticWindow(windowTitle('win_gear_editor'), [MISSING.items, 'Equipment cannot be edited until items exist.']);
+/** Facts of one item row (inspector and the list detail line share the words). */
+export function itemFacts(row: ItemRow): Facts {
+  const kind = ITEM_KIND_BY_ID.get(row.kind);
+  const stats = Object.entries(kind?.stats ?? {}).map(([k, v]) => `${k} ${v > 0 ? '+' : ''}${v}`);
+  return [
+    ['Kind', row.name],
+    ['Slot', SLOT_LABELS[row.slot] ?? row.slot],
+    ['Quality', QUALITY_LABELS[row.quality] ?? String(row.quality)],
+    ['Value', String(row.value)],
+    ['Durability', String(row.durability)],
+    ['Modifiers', row.mods.length > 0 ? row.mods.join(', ') : 'None'],
+    ['Stats', stats.length > 0 ? stats.join(', ') : 'None'],
+    ['Held', holderText(row)],
+    ['Favourite', row.favourite ? 'Yes' : 'No'],
+  ];
 }
 
-function itemRainWindow(): WindowBuild {
-  return staticWindow(windowTitle('win_item_rain_edit'), [MISSING.items]);
+/** Favourite items first, then the other items the snapshot sends (the list is never empty once an item exists). */
+export function itemRowsOf(snap: Snapshot): { id: number; title: string; detail: string; inspector: string; params: WindowParams }[] {
+  const rows = snap.items?.rows ?? [];
+  const ordered = [...rows.filter((r) => r.favourite), ...rows.filter((r) => !r.favourite)];
+  return ordered.map((r) => ({
+    id: r.id,
+    title: r.name,
+    detail: `${r.favourite ? 'Favourite' : 'Item'} · ${SLOT_LABELS[r.slot] ?? r.slot} · ${QUALITY_LABELS[r.quality] ?? ''} · ${holderText(r).toLowerCase()}`,
+    inspector: 'win_item',
+    params: { id: r.id },
+  }));
+}
+
+function favouriteItemsList(deps: WindowDeps): WindowBuild {
+  return listWindow(deps, {
+    self: 'list_fav_items',
+    name: 'Favourite items',
+    rows: (snap) => itemRowsOf(snap),
+    cut: (snap) => {
+      const block = snap.items;
+      return block && block.count > block.rows.length ? `Showing ${block.rows.length} of ${block.count} items.` : null;
+    },
+    empty: 'No items in the realm yet. Use Item rain from the powers to drop some on beings.',
+  });
+}
+
+function itemWindow(deps: WindowDeps, params: WindowParams): WindowBuild {
+  const key = params.id;
+  const section = liveSection(deps, (snap, root) => {
+    if (key === undefined) {
+      root.append(note('Choose an item from the Favourite items list.'));
+      return;
+    }
+    if (snap === null) {
+      root.append(note('Reading the realm...'));
+      return;
+    }
+    const row = snap.items?.rows.find((r) => r.id === key);
+    if (row === undefined) {
+      root.append(note('This item is no longer in the realm, or is not in the latest snapshot.'));
+      return;
+    }
+    root.append(factsList(itemFacts(row)));
+    root.append(
+      button(row.favourite ? 'Remove from favourites' : 'Add to favourites', () => {
+        deps.sendCommand?.({ kind: Cmd.SetItemFavourite, itemId: row.id, on: !row.favourite });
+      }),
+    );
+  });
+  return {
+    title: windowTitle('win_item'),
+    build: (body) => {
+      body.append(button('Back to favourite items', () => deps.open('list_fav_items')), section.mount());
+    },
+    live: () => section.refresh(),
+  };
+}
+
+/** Gear editor: one select per equipment slot of the chosen being. Each change is a SetGear command. */
+function gearEditorWindow(deps: WindowDeps, params: WindowParams): WindowBuild {
+  const key = params.id;
+  const section = liveSection(deps, (snap, root) => {
+    if (snap === null) {
+      root.append(note('Reading the realm...'));
+      return;
+    }
+    const beings = snap.detail?.notable?.beings ?? [];
+    if (key === undefined) {
+      root.append(note('Choose a being to equip. The oldest living beings are listed here.'));
+      for (const b of beings) {
+        root.append(button(beingTitle(b), () => deps.open('win_gear_editor', { id: b.id })));
+      }
+      return;
+    }
+    const being = beings.find((b) => b.id === key);
+    if (being === undefined) {
+      root.append(note('This being is no longer in the realm, or is not in the latest snapshot. Choose another being.'));
+      return;
+    }
+    const worn = snap.items?.gear.find((g) => g.being === key)?.kinds ?? ITEM_SLOTS.map(() => '');
+    root.append(note(`Equipping ${beingTitle(being)}. Changes apply on the next tick and recalculate its stats.`));
+    ITEM_SLOTS.forEach((slotName, k) => {
+      const row = el('div', 'gear-row');
+      const label = el('label', undefined, SLOT_LABELS[slotName] ?? slotName);
+      const select = el('select', 'gear-select');
+      select.style.minHeight = '44px';
+      const id = `gear-${key}-${slotName}`;
+      select.id = id;
+      label.htmlFor = id;
+      const empty = el('option', undefined, 'Empty');
+      empty.value = '';
+      select.append(empty);
+      for (const kind of ITEM_KINDS) {
+        if (kind.slot !== slotName) continue;
+        const opt = el('option', undefined, kind.name);
+        opt.value = kind.id;
+        select.append(opt);
+      }
+      select.value = worn[k] ?? '';
+      select.addEventListener('change', () => {
+        deps.sendCommand?.({ kind: Cmd.SetGear, beingId: key, slot: slotName, item: select.value === '' ? null : select.value });
+      });
+      row.append(label, select);
+      root.append(row);
+    });
+  });
+  return {
+    title: windowTitle('win_gear_editor'),
+    build: (body) => {
+      body.append(button('Choose another being', () => deps.open('win_gear_editor')), section.mount());
+    },
+    live: () => section.refresh(),
+  };
+}
+
+/** Item rain editor: the kinds the rain draws from, a Rain button that drops items near the realm centre, and Clear. */
+function itemRainWindow(deps: WindowDeps): WindowBuild {
+  return {
+    title: windowTitle('win_item_rain_edit'),
+    build: (body) => {
+      const current = (): string[] => snapOf(deps)?.items?.rain ?? [];
+      body.append(note('Item rain gives one item from this list to each being near the drop point. An empty list rains any kind.'));
+      const actions = el('div', 'tabs');
+      actions.append(
+        button('Rain on the realm centre', () => {
+          const side = deps.realm().side;
+          deps.sendCommand?.({ kind: Cmd.ItemRain, x: Math.floor(side / 2), y: Math.floor(side / 2), radius: 12 });
+        }),
+        button('Clear the list', () => deps.sendCommand?.({ kind: Cmd.SetItemRain, ids: [] })),
+      );
+      body.append(actions);
+      const listHost = el('div');
+      buildList<ItemKindDef>(listHost, {
+        name: 'Item rain kinds',
+        items: ITEM_KINDS,
+        rowHeight: 56,
+        label: (k) => k.name,
+        sorts: [{ key: 'name', label: 'Name' }],
+        filters: [
+          { id: 'all', label: 'All', test: () => true },
+          { id: 'in', label: 'In rain', test: (k) => current().includes(k.id) },
+        ],
+        empty: 'No item kinds.',
+        render: (k) => {
+          const row = el('label', 'option option-check');
+          const input = el('input');
+          input.type = 'checkbox';
+          input.checked = current().includes(k.id);
+          input.setAttribute('aria-label', `${k.name} in item rain`);
+          input.addEventListener('change', () => {
+            const rest = current().filter((x) => x !== k.id);
+            deps.sendCommand?.({ kind: Cmd.SetItemRain, ids: input.checked ? [...rest, k.id] : rest });
+          });
+          row.append(input, el('span', undefined, `${k.name} (${SLOT_LABELS[k.slot] ?? k.slot})`));
+          return row;
+        },
+      });
+      body.append(listHost);
+    },
+  };
 }
 
 function emptyList(deps: WindowDeps, self: string, name: string, empty: string): WindowBuild {
@@ -753,9 +938,9 @@ export function specWindowFor(id: string, deps: WindowDeps, params: WindowParams
     case 'list_fav_beings':
       return favouriteBeingsList(deps);
     case 'win_item':
-      return itemWindow();
+      return itemWindow(deps, params);
     case 'list_fav_items':
-      return emptyList(deps, 'list_fav_items', 'Favourite items', MISSING.items);
+      return favouriteItemsList(deps);
     case 'win_structure':
       return structureWindow(deps, params);
     case 'win_pact':
@@ -775,9 +960,9 @@ export function specWindowFor(id: string, deps: WindowDeps, params: WindowParams
     case 'win_trait_rain_edit':
       return traitRainWindow();
     case 'win_item_rain_edit':
-      return itemRainWindow();
+      return itemRainWindow(deps);
     case 'win_gear_editor':
-      return gearEditorWindow();
+      return gearEditorWindow(deps, params);
     default:
       return null;
   }

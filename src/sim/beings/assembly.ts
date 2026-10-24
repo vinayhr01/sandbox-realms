@@ -44,9 +44,13 @@ export interface AssemblyInput {
   attrs: Aptitudes;
   /** True while the Being is a child (06 section 3.2): vitality and might are halved. */
   baby: boolean;
+  /** Flat stat sums of the Being's worn items (08 section 6.1; items/store.ts fxOf). Absent means no gear. */
+  equipment?: EquipmentFx;
 }
 
-type FlatKey = 'wit' | 'rapport' | 'valor' | 'husbandry' | 'plating' | 'litter' | 'brood';
+export type FlatKey = 'wit' | 'rapport' | 'valor' | 'husbandry' | 'plating' | 'litter' | 'brood' | 'might' | 'pace' | 'vitality';
+/** Flat stat additions from equipment (only the keys assembly reads). */
+export type EquipmentFx = Partial<Record<FlatKey, number>>;
 type MultKey = 'vitality' | 'might' | 'pace' | 'span' | 'metabolism' | 'litter';
 
 const MULT_KEYS: readonly MultKey[] = ['vitality', 'might', 'pace', 'span', 'metabolism', 'litter'];
@@ -65,7 +69,9 @@ function addFx(fx: TraitFx | undefined, flat: Record<FlatKey, number>, mult: Rec
 /** Assembles the stat block (05 section 3, steps 1 to 15 for the stats the sim reads). */
 export function assemble(input: AssemblyInput): Assembled {
   const def = input.species;
-  const flat: Record<FlatKey, number> = { wit: 0, rapport: 0, valor: 0, husbandry: 0, plating: 0, litter: 0, brood: 0 };
+  const flat: Record<FlatKey, number> = { wit: 0, rapport: 0, valor: 0, husbandry: 0, plating: 0, litter: 0, brood: 0, might: 0, pace: 0, vitality: 0 };
+  // Equipment (08 section 6): its flat sums join the other flat sources before the multipliers.
+  for (const [key, value] of Object.entries(input.equipment ?? {}) as [FlatKey, number][]) flat[key] += value;
   const mult: Record<MultKey, number> = { vitality: 0, might: 0, pace: 0, span: 0, metabolism: 0, litter: 0 };
 
   // Step 1: the species base (no strain: the species fallback block, 05 section 3 step 1).
@@ -110,10 +116,10 @@ export function assemble(input: AssemblyInput): Assembled {
     // A multiplier of -1 or less reduces the parent to its clamp minimum.
     return m <= -1 ? 0 : value + value * m;
   };
-  let vitality = scale('vitality', base.vitality);
+  let vitality = scale('vitality', base.vitality + flat.vitality);
   // Step 14 (Folk): might += valor / 5.
-  let might = scale('might', base.might + (def.folk ? flat.valor / 5 : 0));
-  let pace = scale('pace', base.pace);
+  let might = scale('might', base.might + flat.might + (def.folk ? flat.valor / 5 : 0));
+  let pace = scale('pace', base.pace + flat.pace);
   let span = scale('span', base.span);
   let metabolism = scale('metabolism', base.metabolism);
   let litter = scale('litter', base.litter + flat.litter);

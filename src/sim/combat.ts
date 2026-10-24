@@ -22,6 +22,8 @@ export interface CombatContext {
   rng: Rng;
   /** Species might (base attack) for a slot. */
   might(slot: number): number;
+  /** Plating the slot's worn gear adds (08 section 6, items hook). Absent means none. */
+  equipPlating?(slot: number): number;
 }
 
 /** Per-being combat state: plating, the hit window and the attack timer. */
@@ -58,7 +60,7 @@ export function applyDamage(ctx: CombatContext, victim: number, raw: number, typ
 
   let dmg = raw * ctx.effects.multiplier(victim, 'taken');
   if (PLATED.has(type)) {
-    const plating = ctx.combat.plating[victim] ?? 0;
+    const plating = (ctx.combat.plating[victim] ?? 0) + (ctx.equipPlating?.(victim) ?? 0);
     // Integer math: 40 * 90 / 100 must be exactly 36 (floating point gives 35.99).
     dmg = Math.floor((dmg * (100 - plating)) / 100);
     dmg = Math.max(1, dmg);

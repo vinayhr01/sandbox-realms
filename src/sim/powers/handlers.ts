@@ -10,7 +10,7 @@ import { ground, groundId } from '../../content/grounds.ts';
 import { POWER_BY_ID, type PowerDef } from '../../content/powers.ts';
 import { applyStroke, brushOffsets, clampRadius } from '../brush.ts';
 import { CALAMITY_BY_ID, calamityRoll } from '../calamity.ts';
-import { spawnBeing } from '../beings/system.ts';
+import { spawnBeing, spawnFolk } from '../beings/system.ts';
 import { hamletsOf } from '../settlements/adapter.ts';
 import { explode } from '../explosions.ts';
 import { startFire } from '../terrain/fire.ts';
@@ -154,7 +154,9 @@ export function executePower(sim: Sim, def: PowerDef, x: number, y: number): boo
     case 'spawn_being': {
       const species = SPECIES_BY_ID.get(String(p.species));
       if (species === undefined || !inBounds) return false;
-      return spawnBeing(sim, species, x, y, true) >= 0;
+      // A Folk spawner places a founder with its lineage's starting traits (18a section 1.2).
+      const placed = sim.beings.species(species).folk ? spawnFolk(sim, species, x, y) : spawnBeing(sim, species, x, y, true);
+      return placed >= 0;
     }
     case 'bomb':
     case 'bolt': {

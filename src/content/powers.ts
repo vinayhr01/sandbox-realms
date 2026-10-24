@@ -137,11 +137,11 @@ export const POWERS: readonly PowerDef[] = [
   { ...brush('sky_warm', 'Warm', 'add_heat', { amount: 15 }), tab: 'sky' },
   { ...brush('sky_chill', 'Chill', 'add_heat', { amount: -15 }), tab: 'sky' },
   // Beings tab: one spawner per roster species (section 8.5, scheme spawn_<group>_<id>).
-  ...SPECIES.filter((sp) => sp.wild).map((sp): PowerDef => ({
-    id: `spawn_beast_${sp.id}`,
+  ...SPECIES.map((sp): PowerDef => ({
+    id: sp.wild ? `spawn_beast_${sp.id}` : `spawn_folk_${sp.id}`,
     tab: 'beings',
     kind: 'spawn',
-    name: `Call ${sp.name}`,
+    name: sp.wild ? `Call ${sp.name}` : `Found ${sp.name}`,
     repeatMs: 180,
     handler: 'spawn_being',
     params: { species: sp.id },

@@ -116,7 +116,7 @@ const PATCH_NOTES: ReadonlyArray<{ version: string; items: readonly string[] }> 
       'Windows for the realm overview, lists and inspectors of dominions, hamlets, campaigns, creeds, customs, dialects, families, intrigues and strains.',
       'Windows for beings, structures, armies, banner editors, compare, annals, trait rain and trait editors, and this window set.',
       'Developer console and developer tools, behind the Developer tools setting (off by default).',
-      'Pacts list the peace between bordering dominions. Not in this build yet: alliance terms and an event log.',
+      'Pacts are records of peace between bordering dominions, with renown. Not in this build yet: alliance terms, intrigue formation and an event log.',
     ],
   },
 ];

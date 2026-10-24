@@ -218,7 +218,7 @@ function structureWindow(deps: WindowDeps, params: WindowParams): WindowBuild {
 // Pacts, clans and items -------------------------------------------------------------------------
 
 /** Note under a pact: what the sim does not store about pacts yet (members, campaigns, renown). */
-const PACT_LIMITS = 'Pact terms are not stored yet: members, campaigns and renown. A pact here is peace between two bordering dominions.';
+const PACT_LIMITS = 'Pact records hold members, founders, renown and formation time. Campaign joining and intrigue terms are not built.';
 
 /** One row per peace pact in the snapshot (pure: the tests read it without a DOM). */
 export function pactRowsOf(snap: Snapshot): { id: number; title: string; detail: string; inspector: string; params: WindowParams }[] {
@@ -276,7 +276,7 @@ function pactsList(deps: WindowDeps): WindowBuild {
       const block = snap.pacts;
       return block && block.count > block.rows.length ? `Showing ${block.rows.length} of ${block.count} pacts.` : null;
     },
-    empty: 'No peace pacts yet. A pact is peace between two dominions that share a border.',
+    empty: 'No pacts yet. A pact forms between two bordering dominions at peace, with no enemies, three years after the last one.',
   });
 }
 

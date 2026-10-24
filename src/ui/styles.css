@@ -490,6 +490,48 @@ body {
   word-break: break-word;
 }
 
+.snapshot-section h3 {
+  margin: 12px 0 4px;
+  font-size: calc(15px * var(--ui-scale));
+}
+
+.snapshot-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.snapshot-bars li {
+  display: grid;
+  grid-template-columns: 1fr max-content;
+  gap: 2px 12px;
+  align-items: center;
+}
+
+.snapshot-bars .meter {
+  grid-column: 1 / -1;
+}
+
+.snapshot-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+}
+
+.meter {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.meter > span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
 .tutorial-steps li[data-state='current'] {
   font-weight: 700;
   color: var(--accent);
@@ -524,9 +566,18 @@ body {
   pointer-events: auto;
 }
 
+/* Window buttons: one scrolling row, so the Powers panel keeps its height as windows are added (13 section 3). */
 .power-actions {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  gap: 4px;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.power-actions > .btn {
+  flex: none;
 }
 
 .option {

@@ -36,6 +36,8 @@ import { settlementsStep } from './settlements/adapter.ts';
 import { stepDominions } from './dominions/adapter.ts';
 import { cultureTick, createCultureState, type CultureState } from './culture/adapter.ts';
 import { rollAndRunCalamity, usePowerById } from './powers/handlers.ts';
+import { buildSnapshot } from './snapshot.ts';
+import type { Snapshot } from '../shared/protocol.ts';
 
 export { TICK_MS };
 
@@ -339,6 +341,11 @@ export class Sim {
   /** Ages by display name, for the HUD. */
   ageName(): string {
     return AGE_BY_ID.get(this.ages.current)?.name ?? this.ages.current;
+  }
+
+  /** Read-only snapshot for the UI (src/sim/snapshot.ts). Writes nothing and draws no randomness. */
+  snapshot(): Snapshot {
+    return buildSnapshot(this);
   }
 
   /** Stable FNV-1a hash over the authoritative state plus the tick (replay checkpoint). */

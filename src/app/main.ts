@@ -12,6 +12,7 @@ import { currentStep, parseTutorial, skipTutorial, TUTORIAL_TEXT, tutorialEvent,
 import { cooldownSecondsLeft, linePoints, powerStatus, strokeOp } from '../ui/powerSupport.ts';
 import { WindowHost } from '../ui/windowHost.ts';
 import { windowFor, type WindowDeps } from '../ui/windowContent.ts';
+import { SimView } from '../ui/sim-view.ts';
 import { POWER_BY_ID, POWERS, TABS, powersInTab, type PowerDef, type TabId } from '../content/powers.ts';
 import { Ev, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
 import { MONTH_TICKS, YEAR_TICKS, DEFAULT_SIZE_STEP } from '../shared/constants.ts';
@@ -382,8 +383,13 @@ async function boot(): Promise<void> {
       setStatus('That window is not available yet.');
       return;
     }
-    windowHost.open(id, build.title, build.build);
+    windowHost.open(id, build.title, build.build, build.live);
+    // A live window asks for a snapshot now, so it has numbers while the sim is paused.
+    if (build.live) client.requestSnapshot();
   };
+
+  // The latest sim snapshot (Ev.Snapshot). Windows read it through windowDeps.snapshot.
+  const simView = new SimView();
 
   // The save store opens on first use (the Chronicle window); it never rejects, so a failed open
   // shows an empty list instead of an error.
@@ -398,6 +404,7 @@ async function boot(): Promise<void> {
       return saveStore.then((store) => store.list());
     },
     setOption: (id, value) => changeOption(id, value),
+    snapshot: () => simView.current,
     rules,
     setRule,
     realm: () => ({ seed: realmSeed, side: realmSide, calendar: calendarText }),
@@ -425,6 +432,7 @@ async function boot(): Promise<void> {
 
   const windowHost = new WindowHost($<HTMLDialogElement>('window'), $('window-title'), $('window-body'));
   $('window-close').addEventListener('click', () => windowHost.close());
+  simView.subscribe(() => windowHost.feed());
 
   // Map input. A brush power (raise, lower, ground paint) drags; everything else pans.
   new MapInput(renderer.app.canvas, {
@@ -496,6 +504,9 @@ async function boot(): Promise<void> {
         journal(event.code, event.detail);
         if (event.severity === 'fatal') showFatal('The simulation stopped', event.detail);
         else toast(event.detail);
+        return;
+      case Ev.Snapshot:
+        simView.apply(event.snap);
         return;
       case Ev.QueryResult:
       case Ev.Heartbeat:
@@ -710,6 +721,7 @@ async function boot(): Promise<void> {
     },
     commands: () => [...client.sentKinds],
     openWindow: () => windowHost.current,
+    snapshot: () => simView.current,
     rule: (id: string) => rules.isOn(id),
     cooldownFraction: (id: string) => {
       const power = POWER_BY_ID.get(id);

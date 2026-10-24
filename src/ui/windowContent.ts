@@ -2,14 +2,15 @@
  * Content of each window the UI opens (13 section 7.1). Each builder fills a body element; the
  * window host shows it. All state comes in through WindowDeps, so the windows hold no game state.
  */
-import { ACHIEVEMENTS } from '../content/achievements.ts';
 import { POWERS, type PowerDef } from '../content/powers.ts';
 import { AGES } from '../sim/ages.ts';
 import { RULES, RuleSet, ageRuleId, type RuleDef } from '../sim/rules.ts';
+import type { Snapshot } from '../shared/protocol.ts';
 import { buildList } from './listView.ts';
 import { GROUP_LABELS, SETTINGS, boolOption, resetGroup, type OptionGroup, type OptionValue, type Options, type SettingDef } from './panels/options.ts';
 import { TUTORIAL_TEXT, TUTORIAL_STEPS, type TutorialState } from './panels/tutorial.ts';
 import { powerStatus } from './powerSupport.ts';
+import { snapshotWindowFor } from './snapshotWindows.ts';
 import { windowTitle } from './windowCatalog.ts';
 
 /** One saved realm as the Chronicle window shows it (a read-only view of the save store). */
@@ -35,12 +36,16 @@ export interface WindowDeps {
   tutorial(): { state: TutorialState; restart(): void; skip(): void };
   /** Saved realms on this device, newest first. Rejects when the store cannot be read. */
   saves(): Promise<SaveSlotView[]>;
+  /** Latest sim snapshot, or null before the first one. Optional: windows that need it show "Reading the realm". */
+  snapshot?: () => Snapshot | null;
   close(): void;
 }
 
 export interface WindowBuild {
   title: string;
   build: (body: HTMLElement) => void;
+  /** Re-renders from the latest snapshot. Set only on windows that read the sim (13 section 7). */
+  live?: () => void;
 }
 
 const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] => {
@@ -240,32 +245,6 @@ function buildAges(deps: WindowDeps): WindowBuild {
             sw.textContent = deps.rules.isOn(rule) ? 'On' : 'Off';
           });
           row.append(text, sw);
-          return row;
-        },
-      });
-    },
-  };
-}
-
-function buildAchievements(): WindowBuild {
-  return {
-    title: windowTitle('win_trophies'),
-    build: (body) => {
-      body.append(el('p', 'option-note', 'This is the catalogue. Unlock progress is not sent to the screen yet.'));
-      const rows = ACHIEVEMENTS.map((a) => ({ id: a.id, name: a.hidden ? 'Hidden achievement' : a.name, group: a.group }));
-      buildList(body, {
-        name: 'Achievements',
-        items: rows,
-        rowHeight: 56,
-        label: (r) => r.name,
-        sorts: [
-          { key: 'name', label: 'Name' },
-          { key: 'group', label: 'Group' },
-        ],
-        empty: 'No achievements match.',
-        render: (r) => {
-          const row = el('div', 'rule-row');
-          row.append(el('strong', undefined, r.name), el('span', 'option-note', r.group));
           return row;
         },
       });
@@ -516,8 +495,6 @@ export function windowFor(id: string, deps: WindowDeps): WindowBuild | null {
       return buildRules(deps);
     case 'win_ages':
       return buildAges(deps);
-    case 'win_trophies':
-      return buildAchievements();
     case 'win_realm':
       return buildRealm(deps);
     case 'win_keys':
@@ -535,7 +512,7 @@ export function windowFor(id: string, deps: WindowDeps): WindowBuild | null {
     case 'win_chronicle':
       return buildChronicle(deps);
     default:
-      return null;
+      return snapshotWindowFor(id, deps);
   }
 }
 

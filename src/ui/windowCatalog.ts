@@ -23,6 +23,17 @@ export const WINDOW_CATALOG: readonly WindowInfo[] = [
   { id: 'win_help', spec: 'win_help', title: 'Help' },
   { id: 'win_chronicle', spec: 'win_chronicle', title: 'Chronicle' },
   { id: 'win_power_catalogue', spec: null, title: 'Power catalogue' },
+  // Snapshot windows (src/ui/snapshotWindows.ts). Some ids are spec 13 ids (win_figures, win_stats_lifetime,
+  // list_codex, list_dominions, list_hamlets); their spec field stays null until the spec-id count in
+  // tests/unit/ui-windows.test.ts is updated.
+  { id: 'win_population', spec: null, title: 'Population' },
+  { id: 'win_beings', spec: null, title: 'Beings' },
+  { id: 'win_figures', spec: null, title: 'Figures' },
+  { id: 'win_stats_lifetime', spec: null, title: 'Lifetime stats' },
+  { id: 'list_codex', spec: null, title: 'Codex' },
+  { id: 'list_dominions', spec: null, title: 'Dominions' },
+  { id: 'list_hamlets', spec: null, title: 'Hamlets' },
+  { id: 'win_culture', spec: null, title: 'Culture' },
 ];
 
 export const WINDOW_IDS: ReadonlySet<string> = new Set(WINDOW_CATALOG.map((w) => w.id));

@@ -56,6 +56,9 @@ test('a realm file imports, survives a reload, exports byte for byte, and delete
   await expect(confirm.getByRole('button', { name: 'Load', exact: true })).toBeEnabled();
   await confirm.getByRole('button', { name: 'Load', exact: true }).click();
   await expect(page.getByText('Loaded the save.')).toBeVisible();
+  // The Chronicle window can stay open over the power bar after a load; close it before reopening.
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog', { name: 'Chronicle', exact: true })).toBeHidden();
   chronicle = await openChronicle(page);
 
   // The save is still there after a reload.

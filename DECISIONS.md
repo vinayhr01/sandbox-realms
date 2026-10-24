@@ -253,3 +253,41 @@ Scope: stock fetch, wear, repair and crafting (08 sections 7.2 to 7.4). Code: `s
   - 18d says `starmetal` + `iron` makes tier 9; the registry's starsteel uses `starmetal` alone.
 - **Cut.** The `item.forged` bus event and the `itemsForged` counter (no bus event or counter exists in `src/sim`, so none is emitted). Durability reset on load (OPEN in 08 section 15, not done). Repair on load (OPEN, not done). Ranged and bare-attack wear (above). Soldier gear draws (above).
 - **Tests.** 18 new cases in `tests/unit/items-gear.test.ts`: wear table and per-hit behaviour, warded and everlasting cases, broken halving; fetch into empty and worse slots, swap-back to stock, accursed refusal, period gating; repair gate, coin path, free common repair; crafting without coins, timber build with coin and wood spend, a better worn weapon kept, accursed blocking, period gating.
+
+## Settings round 3
+
+Scope: the 75 rows of the table in `src/ui/panels/options.ts`. Before this round 25 were live; now 41 are. The 34 rows still non-live keep their "not active yet" label, with the reason here. No sim file changed; no protocol change.
+
+Wired (16):
+- `ui.layout`: `data-layout` on `<html>` and a max width on `.app` (compact 600, medium 960, expanded 1440 px; auto is full width). A width cap only; the spec's re-docking classes (13 section 2) are not built.
+- `ui.colorBlindPalette`: daltonize correction (error spread over a Machado 2009 dichromacy simulation) as an SVG colour matrix, applied as a CSS filter to the map canvas only. UI text is not filtered.
+- `map.layerOpacity`, `map.layerBrightness`: CSS opacity and brightness on the map canvas. The spec default 88 % makes the map slightly translucent by default.
+- `map.vignette`: CSS radial overlay on the map.
+- `ui.minimap`, `ui.minimapSize`: 1 px per tile, coloured by ground. It keeps its own copy of the ground ids from the sim frame rows, repaints 4 times a second, shows the view rectangle, and a tap or drag moves the camera.
+- `ui.hideStatusBar`: requests full screen when turned on, on coarse pointers only.
+- `input.stickyHold`: releasing a stroke keeps it running; hover paints; the next press ends it. A press that ends a latched stroke does nothing else.
+- `input.stepDrag`: with an armed raise or lower tool, two taps set the start and end of one stroke. Dragging still paints.
+- `game.autosave`, `game.autosaveMinutes`, `game.autosaveKeep`: `SaveController.configureAutosave`. Off also stops the pause autosave; the keep count is passed to `SaveService.writeAutosave`. The 5-minute and 5-ring defaults are unchanged.
+- `game.pauseOnBlur`: window blur pauses the sim. Focus does not resume it.
+- `game.disasters`: a mirror of Realm Rule `natural_calamities`, both ways, through the existing `setRule` command. Changing it changes a running Realm, as the Rules window does. A refused rule change keeps the old value.
+- `dev.enabled`: already read by `systemWindows.ts` (developer windows gate); flagged live.
+
+Non-live (34), with the reason for each:
+- `ui.scaleNames`: no nameplates are drawn in this build.
+- `map.names`, `map.favouritesOnlyNames`: no nameplates.
+- `map.nightLights`, `map.shadows`, `map.bloom`, `map.particles`, `map.treeWind`, `map.cursorLights`: no such effects. `TerrainRenderer` draws terrain and the brush only, and `src/render` is outside this round's paths.
+- `map.ageEffects`: no age overlay exists.
+- `marks.*` (7 rows): no map mark layers exist.
+- `ui.worldTooltips`, `ui.talkBubbles`, `ui.happinessIcons`, `ui.taskIcons`, `ui.moneyFlow`, `ui.cursorArrows`: these overlays (spec 13 section 11) are not built.
+- `ui.tips`: no world tip messages exist. Toasts carry status and errors only.
+- `ui.autoOpenContextTab`: no context tab exists. Inspecting a tile writes the status line.
+- `ui.quickStrip`: no pinned strip exists; the power bar is always full.
+- `input.touchOrder`: no being selection and no move-order command exist in the protocol.
+- `perf.preloadWindows`: windows are built on open and there is no cache to preload into.
+- `perf.renderScale`: needs a resolution path in `src/render`, which is outside this round's paths.
+- `perf.simBudgetMs`: needs a sim change. `src/sim/worker.ts` has `FRAME_BUDGET_MS = 8` as a constant and no command sets it. Skipped under the sim rule.
+- `perf.maxBeingsHint`: needs a sim change. The spawn guard reads no hint. Skipped.
+- `privacy.telemetry`, `privacy.errorReports`: no telemetry or error-report sender exists in the build. Opt-in stays off.
+- `lang`: only the English string table exists, so there is nothing to switch to. The value is stored.
+
+Follow-ups (not this round): nameplates and map overlays, the render-side map effects, `perf.renderScale`, and a sim command for the budget and the being hint.

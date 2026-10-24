@@ -995,3 +995,42 @@ html[data-reduce-motion] * {
 .dev-panel {
   margin-top: 8px;
 }
+
+/* Display settings (13 section 15): layout width, map vignette, minimap, and the status line above the map layers. */
+.app {
+  max-width: var(--layout-max, none);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.map > .status,
+.map > .coach,
+.map > .debug {
+  z-index: 2;
+}
+
+.map-vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgb(0 0 0 / 0) 55%, rgb(0 0 0 / 0.45) 100%);
+}
+
+.minimap {
+  position: absolute;
+  right: var(--gap);
+  bottom: var(--gap);
+  z-index: 2;
+  background: #000;
+  border: 1px solid rgb(255 255 255 / 0.35);
+  border-radius: var(--radius);
+  image-rendering: pixelated;
+  touch-action: none;
+  cursor: pointer;
+}
+
+/* `.map canvas` sets display, which would override the hidden attribute. */
+.minimap[hidden] {
+  display: none;
+}

@@ -599,12 +599,12 @@ export class SaveService {
     return result;
   }
 
-  /** Writes a new autosave and prunes the ring to AUTOSAVE_RING in the same commit. */
-  async writeAutosave(bytes: Uint8Array, info: SlotInfo, nowMs: number): Promise<SaveResult> {
+  /** Writes a new autosave and prunes the ring to `keep` (the Settings value; default AUTOSAVE_RING) in the same commit. */
+  async writeAutosave(bytes: Uint8Array, info: SlotInfo, nowMs: number, keep: number = AUTOSAVE_RING): Promise<SaveResult> {
     const metas = await this.backend.list();
     const seq = nextAutosaveSeq(metas);
     // The new autosave takes one place in the ring, so keep one fewer of the existing ones.
-    const prune = autosavesToPrune(metas, AUTOSAVE_RING - 1);
+    const prune = autosavesToPrune(metas, Math.max(1, Math.floor(keep)) - 1);
     const result = await this.write(autosaveSlotId(seq), 'auto', seq, bytes, info, nowMs, prune);
     if (result.ok) this.lastAutosaveMs = nowMs;
     return result;

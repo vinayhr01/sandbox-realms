@@ -49,26 +49,26 @@ const C = (id: string, group: OptionGroup, label: string, choices: readonly Opti
 /** The spec's settings table, in spec order (13 section 15). */
 export const SETTINGS: readonly SettingDef[] = [
   // Display
-  C('ui.layout', 'display', 'Layout', ['auto', 'compact', 'medium', 'expanded'], 'auto'),
+  C('ui.layout', 'display', 'Layout', ['auto', 'compact', 'medium', 'expanded'], 'auto', true),
   I('ui.scale', 'display', 'UI scale (%)', 70, 150, 100, true),
   I('ui.scaleWindows', 'display', 'Window scale (%)', 60, 115, 100, true),
   I('ui.scaleTooltips', 'display', 'Tooltip scale (%)', 60, 150, 100, true),
   I('ui.scaleNames', 'display', 'Name scale (%)', 30, 160, 70),
   C('ui.theme', 'display', 'Colour theme', ['dark', 'light', 'highcontrast'], 'dark', true),
-  C('ui.colorBlindPalette', 'display', 'Colour-blind palette', ['none', 'deuteranopia', 'protanopia', 'tritanopia'], 'none'),
+  C('ui.colorBlindPalette', 'display', 'Colour-blind palette', ['none', 'deuteranopia', 'protanopia', 'tritanopia'], 'none', true),
   B('ui.reduceMotion', 'display', 'Reduce motion', false, true),
   B('ui.reduceFlash', 'display', 'Reduce flashing', false, true),
   B('ui.fullscreen', 'display', 'Full screen', false, true),
-  B('ui.hideStatusBar', 'display', 'Hide status bar on phones', false),
+  B('ui.hideStatusBar', 'display', 'Hide status bar on phones', false, true),
   C('ui.fpsCap', 'display', 'Frame rate cap', [30, 60, 120, 0], 60, true),
   B('ui.showFps', 'display', 'Show frame rate', false, true),
   // Map
-  I('map.layerOpacity', 'map', 'Layer opacity (%)', 30, 100, 88),
-  I('map.layerBrightness', 'map', 'Layer brightness (%)', 60, 100, 100),
+  I('map.layerOpacity', 'map', 'Layer opacity (%)', 30, 100, 88, true),
+  I('map.layerBrightness', 'map', 'Layer brightness (%)', 60, 100, 100, true),
   B('map.nightLights', 'map', 'Night lights', true),
   B('map.shadows', 'map', 'Shadows', true),
   B('map.bloom', 'map', 'Bloom', true),
-  B('map.vignette', 'map', 'Vignette', true),
+  B('map.vignette', 'map', 'Vignette', true, true),
   B('map.particles', 'map', 'Fire and smoke particles', true),
   B('map.treeWind', 'map', 'Tree sway', true),
   I('map.ageEffects', 'map', 'Age overlay (%)', 0, 100, 100),
@@ -84,8 +84,8 @@ export const SETTINGS: readonly SettingDef[] = [
   B('marks.boats', 'marks', 'Mark boats', true),
   B('marks.campaigns', 'marks', 'Mark campaigns', true),
   // HUD
-  B('ui.minimap', 'hud', 'Minimap', true),
-  I('ui.minimapSize', 'hud', 'Minimap size (px)', 80, 256, 160),
+  B('ui.minimap', 'hud', 'Minimap', true, true),
+  I('ui.minimapSize', 'hud', 'Minimap size (px)', 80, 256, 160, true),
   B('ui.worldTooltips', 'hud', 'World tooltips', true),
   B('ui.tips', 'hud', 'Tip messages', true),
   B('ui.talkBubbles', 'hud', 'Talk bubbles', true),
@@ -97,8 +97,8 @@ export const SETTINGS: readonly SettingDef[] = [
   B('ui.quickStrip', 'hud', 'Pinned quick strip', false),
   // Input
   B('input.touchOrder', 'input', 'Tap to order selected beings', false),
-  B('input.stickyHold', 'input', 'Sticky hold', false),
-  B('input.stepDrag', 'input', 'Step drag', false),
+  B('input.stickyHold', 'input', 'Sticky hold', false, true),
+  B('input.stepDrag', 'input', 'Step drag', false, true),
   B('input.haptics', 'input', 'Haptic feedback', true, true),
   I('input.panSpeed', 'input', 'Pan speed (%)', 50, 200, 100, true),
   I('input.zoomSpeed', 'input', 'Zoom speed (%)', 50, 200, 100, true),
@@ -114,13 +114,13 @@ export const SETTINGS: readonly SettingDef[] = [
   B('audio.visualCues', 'audio', 'Visual cues for sounds', false, true),
   B('audio.reduceLoud', 'audio', 'Reduce loud sounds', false, true),
   // Game
-  B('game.autosave', 'game', 'Autosave', true),
-  I('game.autosaveMinutes', 'game', 'Autosave every (min)', 1, 30, 5),
-  I('game.autosaveKeep', 'game', 'Autosaves kept', 3, 30, 10),
+  B('game.autosave', 'game', 'Autosave', true, true),
+  I('game.autosaveMinutes', 'game', 'Autosave every (min)', 1, 30, 5, true),
+  I('game.autosaveKeep', 'game', 'Autosaves kept', 3, 30, 10, true),
   B('game.confirmQuit', 'game', 'Confirm before leaving a realm', true, true),
-  B('game.pauseOnBlur', 'game', 'Pause when the window loses focus', false),
+  B('game.pauseOnBlur', 'game', 'Pause when the window loses focus', false, true),
   C('game.defaultSpeed', 'game', 'Starting speed', ['0.5x', '1x', '2x', '5x', '10x'], '1x', true),
-  B('game.disasters', 'game', 'Natural disasters', true),
+  B('game.disasters', 'game', 'Natural disasters', true, true),
   B('game.experimentalRules', 'game', 'Show experimental rules', false, true),
   // Performance
   B('perf.preloadWindows', 'perf', 'Preload windows', true),
@@ -132,7 +132,7 @@ export const SETTINGS: readonly SettingDef[] = [
   B('privacy.telemetry', 'privacy', 'Share anonymous usage data', false),
   B('privacy.errorReports', 'privacy', 'Send error reports', false),
   // Developer
-  B('dev.enabled', 'dev', 'Developer tools', false),
+  B('dev.enabled', 'dev', 'Developer tools', false, true),
 ];
 
 export const SETTING_BY_ID = new Map(SETTINGS.map((s) => [s.id, s]));

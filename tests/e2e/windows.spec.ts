@@ -57,14 +57,14 @@ test('Realm Rules: search, then a toggle changes the rule and sends it to the si
   await expect.poll(() => call<number[]>('commands')).toContain(8);
 });
 
-test('Achievements: the catalogue lists all 24 and search narrows it', async ({ page }) => {
+test('Achievements: the catalogue lists all 63 and search narrows it', async ({ page }) => {
   await openRealm(page);
   await page.getByRole('tab', { name: 'Powers', exact: true }).click();
   await page.getByRole('button', { name: 'Achievements', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Achievements' });
-  await expect(dialog.getByText('24 of 24')).toBeVisible();
+  await expect(dialog.getByText('63 of 63')).toBeVisible();
   await dialog.getByRole('searchbox', { name: 'Search Achievements' }).fill('cradle');
-  await expect(dialog.getByText('1 of 24')).toBeVisible();
+  await expect(dialog.getByText('1 of 63')).toBeVisible();
   await expect(dialog.getByRole('listitem').filter({ hasText: 'Cradle' })).toBeVisible();
 });
 

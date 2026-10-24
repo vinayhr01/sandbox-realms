@@ -147,6 +147,7 @@ async function boot(): Promise<void> {
   let stroke: Stroke | null = null;
   let cursorScreen: { x: number; y: number } | null = null;
   const canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+  let pressed = false;
   const keysDown = new Set<string>();
   const cooldownUntil = new Map<string, number>();
 
@@ -512,6 +513,19 @@ async function boot(): Promise<void> {
       feedTutorial('speed-changed');
     });
   }
+  // Edge pan needs a hover position that is current: it clears when the pointer leaves the map or
+  // when a press starts (a drag moves the camera by itself).
+  renderer.app.canvas.addEventListener('pointerleave', () => {
+    cursorScreen = null;
+  });
+  renderer.app.canvas.addEventListener('pointerdown', () => {
+    pressed = true;
+  });
+  for (const type of ['pointerup', 'pointercancel'] as const) {
+    renderer.app.canvas.addEventListener(type, () => {
+      pressed = false;
+    });
+  }
   for (const btn of document.querySelectorAll<HTMLButtonElement>('.tool')) {
     btn.addEventListener('click', () => setArmed(toolPower(btn.dataset['tool'] ?? 'inspect')));
   }
@@ -632,7 +646,7 @@ async function boot(): Promise<void> {
       shape: state.shape,
     };
     // Edge pan: only with a fine pointer, since touch leaves a stale hover position behind.
-    if (cam && cursorScreen && boolOption(options, 'input.edgePan') && canHover && state.armed?.kind !== 'brush') {
+    if (cam && cursorScreen && !pressed && boolOption(options, 'input.edgePan') && canHover && state.armed?.kind !== 'brush') {
       const edge = edgePanVector(cursorScreen.x, cursorScreen.y, host.clientWidth, host.clientHeight);
       if (edge.dx !== 0 || edge.dy !== 0) {
         const step = ticker.deltaMS * KEY_PAN_PX_PER_MS * (numberOption(options, 'input.panSpeed') / 100) * 2;

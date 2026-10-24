@@ -28,18 +28,19 @@ describe('power support', () => {
   });
 
   it('powers without a handler stay disabled with a note', () => {
-    const rain = POWER_BY_ID.get('sky_rain');
-    expect(rain).toBeDefined();
-    const status = powerStatus(rain!);
+    const handled = new Set([...SIM_HANDLERS, ...UI_HANDLERS]);
+    const off = POWERS.filter((p) => !handled.has(p.handler) && p.handler !== 'open_window');
+    expect(off.length).toBeGreaterThan(0);
+    const status = powerStatus(off[0]!);
     expect(status.enabled).toBe(false);
-    expect(status.note).toContain('Rain');
+    expect(status.note).toContain(off[0]!.name);
     expect(status.note).toContain('not available yet');
   });
 
   it('open_window powers are enabled only for windows that exist', () => {
     expect(powerStatus(POWER_BY_ID.get('realm_rules')!).enabled).toBe(true);
     expect(powerStatus(POWER_BY_ID.get('realm_ages')!).enabled).toBe(true);
-    expect(powerStatus(POWER_BY_ID.get('realm_chronicle')!).enabled).toBe(false);
+    expect(powerStatus(POWER_BY_ID.get('realm_chronicle')!).enabled).toBe(true);
     expect(powerStatus(POWER_BY_ID.get('insight_lore')!).enabled).toBe(false);
   });
 

@@ -11,7 +11,7 @@ import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBa
 import { currentStep, parseTutorial, skipTutorial, TUTORIAL_TEXT, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
 import { cooldownSecondsLeft, linePoints, powerStatus, strokeOp } from '../ui/powerSupport.ts';
 import { WindowHost } from '../ui/windowHost.ts';
-import { windowFor, type WindowDeps } from '../ui/windowContent.ts';
+import { windowFor, type WindowDeps, type WindowParams } from '../ui/windowContent.ts';
 import { SimView } from '../ui/sim-view.ts';
 import { POWER_BY_ID, POWERS, TABS, powersInTab, type PowerDef, type TabId } from '../content/powers.ts';
 import { Ev, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
@@ -377,8 +377,8 @@ async function boot(): Promise<void> {
   const brushOp = (): BrushOp | null => strokeOp(state.armed);
 
   // Windows: one dialog, filled by windowContent. Settings, rules, ages, and the rest open from here.
-  const openWindow = (id: string): void => {
-    const build = windowFor(id, windowDeps);
+  const openWindow = (id: string, params: WindowParams = {}): void => {
+    const build = windowFor(id, windowDeps, params);
     if (!build) {
       setStatus('That window is not available yet.');
       return;
@@ -405,6 +405,15 @@ async function boot(): Promise<void> {
     },
     setOption: (id, value) => changeOption(id, value),
     snapshot: () => simView.current,
+    open: (id, params) => openWindow(id, params),
+    brush: () => ({ shape: state.shape, sizeIndex: state.sizeIndex, radii: BRUSH_RADII }),
+    setBrush: (patch) => {
+      if (patch.shape !== undefined) setShape(patch.shape);
+      if (patch.sizeIndex !== undefined) {
+        sizeInput.value = String(patch.sizeIndex);
+        updateSizeOutput();
+      }
+    },
     rules,
     setRule,
     realm: () => ({ seed: realmSeed, side: realmSide, calendar: calendarText }),

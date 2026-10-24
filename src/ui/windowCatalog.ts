@@ -1,7 +1,8 @@
 /**
- * Windows the UI can open today (13 section 7.1 ids). The spec lists 62 window types; only the ones
- * whose data the screen already has are here. `power_catalogue` is not a spec id: it is the power
- * list the brief asked for and it opens from the Insight tab.
+ * Windows the UI can open today (13 section 7.1 ids). The spec lists 62 window types. `spec` is set
+ * on every one that is built; the rest of the spec table is listed in docs/spec-coverage.md.
+ * `power_catalogue` is not a spec id: it is the power list the brief asked for and it opens from
+ * the Insight tab.
  */
 export interface WindowInfo {
   id: string;
@@ -28,12 +29,36 @@ export const WINDOW_CATALOG: readonly WindowInfo[] = [
   // tests/unit/ui-windows.test.ts is updated.
   { id: 'win_population', spec: null, title: 'Population' },
   { id: 'win_beings', spec: null, title: 'Beings' },
-  { id: 'win_figures', spec: null, title: 'Figures' },
-  { id: 'win_stats_lifetime', spec: null, title: 'Lifetime stats' },
-  { id: 'list_codex', spec: null, title: 'Codex' },
-  { id: 'list_dominions', spec: null, title: 'Dominions' },
-  { id: 'list_hamlets', spec: null, title: 'Hamlets' },
+  { id: 'win_figures', spec: 'win_figures', title: 'Figures' },
+  { id: 'win_stats_lifetime', spec: 'win_stats_lifetime', title: 'Lifetime stats' },
+  { id: 'list_codex', spec: 'list_codex', title: 'Codex' },
+  { id: 'list_dominions', spec: 'list_dominions', title: 'Dominions' },
+  { id: 'list_hamlets', spec: 'list_hamlets', title: 'Hamlets' },
   { id: 'win_culture', spec: null, title: 'Culture' },
+  // Inspectors (13 section 6) open from a list row; their Back button returns to the list.
+  { id: 'win_dominion', spec: 'win_dominion', title: 'Dominion' },
+  { id: 'win_hamlet', spec: 'win_hamlet', title: 'Hamlet' },
+  { id: 'win_campaign', spec: 'win_campaign', title: 'Campaign' },
+  { id: 'win_creed', spec: 'win_creed', title: 'Creed' },
+  { id: 'win_custom', spec: 'win_custom', title: 'Custom' },
+  { id: 'win_dialect', spec: 'win_dialect', title: 'Dialect' },
+  { id: 'win_family', spec: 'win_family', title: 'Family' },
+  { id: 'win_intrigue', spec: 'win_intrigue', title: 'Intrigue' },
+  { id: 'win_strain', spec: 'win_strain', title: 'Strain' },
+  // Lists (13 section 8).
+  { id: 'list_campaigns', spec: 'list_campaigns', title: 'Campaigns' },
+  { id: 'list_creeds', spec: 'list_creeds', title: 'Creeds' },
+  { id: 'list_customs', spec: 'list_customs', title: 'Customs' },
+  { id: 'list_dialects', spec: 'list_dialects', title: 'Dialects' },
+  { id: 'list_households', spec: 'list_households', title: 'Families' },
+  { id: 'list_intrigues', spec: 'list_intrigues', title: 'Intrigues' },
+  { id: 'list_strains', spec: 'list_strains', title: 'Strains' },
+  // Windows without sim data.
+  { id: 'win_language', spec: 'win_language', title: 'Language' },
+  { id: 'win_credits', spec: 'win_credits', title: 'Credits' },
+  { id: 'win_install', spec: 'win_install', title: 'Install' },
+  { id: 'win_welcome', spec: 'win_welcome', title: 'Welcome' },
+  { id: 'win_brushes', spec: 'win_brushes', title: 'Brushes' },
 ];
 
 export const WINDOW_IDS: ReadonlySet<string> = new Set(WINDOW_CATALOG.map((w) => w.id));

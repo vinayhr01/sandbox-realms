@@ -237,13 +237,15 @@ function buildDominions(deps: WindowDeps, body: HTMLElement): () => void {
     empty: 'No dominions yet.',
     render: (d) => {
       const snap = snapOf(deps);
-      const row = el('div', 'rule-row');
+      const row = el('button', 'rule-row');
+      row.type = 'button';
       const text = el('div', 'rule-text');
       text.append(el('strong', undefined, d.name), el('span', 'option-note', dominionLine(d)));
       const target = snap ? campaignTargetName(snap, d) : null;
       if (target) text.append(el('span', 'option-note', `Campaigning against ${target}`));
       row.append(text);
       if (d.atWar) row.append(el('span', 'snapshot-count', 'At war'));
+      row.addEventListener('click', () => deps.open('win_dominion', { id: d.id }));
       return row;
     },
   });
@@ -268,10 +270,13 @@ function buildHamlets(deps: WindowDeps, body: HTMLElement): () => void {
     startDesc: true,
     empty: 'No hamlets yet.',
     render: (h) => {
-      const row = el('div', 'rule-row');
+      const row = el('button', 'rule-row');
+      row.type = 'button';
       const text = el('div', 'rule-text');
       text.append(el('strong', undefined, h.name), el('span', 'option-note', hamletLine(h)));
       row.append(text);
+      const index = snapOf(deps)?.hamlets.indexOf(h) ?? -1;
+      row.addEventListener('click', () => deps.open('win_hamlet', { id: index }));
       return row;
     },
   });

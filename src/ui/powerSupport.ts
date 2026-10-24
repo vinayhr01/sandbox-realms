@@ -26,6 +26,8 @@ export const SIM_HANDLERS: readonly string[] = [
   'start_volcano',
   'start_geyser',
   'place_creep_hub',
+  'bless',
+  'lore',
 ];
 
 /** Handlers the UI carries out itself: pause, speed, windows, hiding the interface, and Realm Rules. */

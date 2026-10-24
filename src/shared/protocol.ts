@@ -141,6 +141,42 @@ export interface Snapshot {
     intriguesResolved: number;
     families: number;
   };
+  /**
+   * Rows behind the culture and strain windows (13 section 7.1). Optional so older snapshot readers
+   * keep working; buildSnapshot always fills it. Lists are capped at SNAPSHOT_DETAIL_ROWS each.
+   */
+  detail?: SnapshotDetail;
+}
+
+/** Row cap per list in SnapshotDetail; the totals in `counts` stay exact. */
+export const SNAPSHOT_DETAIL_ROWS = 16;
+
+export interface SnapshotDetail {
+  /** Exact totals of each list, before the cap. */
+  counts: { customs: number; creeds: number; dialects: number; families: number; intrigues: number; strains: number };
+  /** `group` is a dominion or hamlet id (see Snapshot.dominions). Custom rows have no id: the index is the id. */
+  customs: { group: number; traits: string[] }[];
+  creeds: { id: number; holders: number[] }[];
+  /** One row per group; groups with equal `word` speak one dialect. */
+  dialects: { group: number; word: number }[];
+  /** Family rows; the index is the id. */
+  families: { child: number; parentA: number; parentB: number }[];
+  intrigues: { id: number; kind: 'rebellion' | 'scheme'; group: number; progress: number; goal: number; outcome: 'success' | 'failure' | null }[];
+  strains: StrainRow[];
+}
+
+/** One strain (strains window). Trait names are display names from content/traits.ts. */
+export interface StrainRow {
+  id: number;
+  name: string;
+  species: string;
+  generation: number;
+  /** Parent strain id, or 0 for a founding strain. */
+  parent: number;
+  traits: string[];
+  born: number;
+  newAdults: number;
+  reproduced: number;
 }
 
 export type Event =

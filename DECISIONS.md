@@ -92,3 +92,10 @@ All eight unit branches are merged into `main` with no PRs (no remote, no `gh`).
 ### M3 ecosystem: still not met
 
 Regrowth delay (1,200 ticks, TUNE) is in and sweeps show no change in outcome. The species missing on all seeds is nectarbuzz, which only eats fieldflower tiles. Its extinction is a food-supply or predator problem, not a regrowth one, and fixing it is a content and beings-logic change that is still open.
+
+## Fix round (after the parallel merge)
+
+- **Saves:** dominion state (tag 15) and hamlet state (tag 16) are saved and restored; both are optional, so older saves load. A resumed run matches an uninterrupted run (tests/unit/persist-wiring.test.ts). Relations are saved only for pairs that exist as dominions or borders, because the relation matrix has no iterator. SCHEMA_VERSION is unchanged.
+- **Hamlets:** births no longer stop building or wood; food is capped and wells produce food; territory grows only when a building is placed; hamlets can no longer claim a parcel another hamlet owns (regression test on seed 11, which failed before the fix). Open: stone has no income, so once stone runs out no more buildings are placed.
+- **Tests:** the tick-cost test uses a median with a 50 ms gate (the 8 ms budget is a warning only); regrowth rules have tests; the stats births test uses real starting beasts on seed 1.
+- **Counters:** `sim.beings.stats.births` counts every spawn (starting beasts and adults included), while the lifetime `beingsBorn` counts only newborn children. They are not a double count, but the names are misleading.

@@ -12,6 +12,17 @@ import { TUTORIAL_TEXT, TUTORIAL_STEPS, type TutorialState } from './panels/tuto
 import { powerStatus } from './powerSupport.ts';
 import { windowTitle } from './windowCatalog.ts';
 
+/** One saved realm as the Chronicle window shows it (a read-only view of the save store). */
+export interface SaveSlotView {
+  slotId: string;
+  kind: 'manual' | 'quick' | 'auto' | 'suspend';
+  realmName: string;
+  year: number;
+  byteSize: number;
+  savedAtMs: number;
+  valid: boolean | 'unknown';
+}
+
 export interface WindowDeps {
   options(): Options;
   setOption(id: string, value: OptionValue): void;
@@ -22,6 +33,8 @@ export interface WindowDeps {
   newRealm(seed: number, sizeStep: number): void;
   activate(power: PowerDef): void;
   tutorial(): { state: TutorialState; restart(): void; skip(): void };
+  /** Saved realms on this device, newest first. Rejects when the store cannot be read. */
+  saves(): Promise<SaveSlotView[]>;
   close(): void;
 }
 
@@ -338,11 +351,21 @@ function buildNewRealm(deps: WindowDeps): WindowBuild {
       sizeLabel.append(el('span', undefined, 'Size'), size);
       const create = el('button', 'btn primary', 'Create realm');
       create.type = 'button';
+      // With game.confirmQuit on, the first tap asks; the second tap leaves the current realm.
+      let armed = false;
       create.addEventListener('click', () => {
+        if (boolOption(deps.options(), 'game.confirmQuit') && !armed) {
+          armed = true;
+          create.textContent = 'Confirm: leave this realm';
+          return;
+        }
         const n = Math.floor(Number(seed.value));
         deps.newRealm(Number.isFinite(n) && n >= 0 ? n : Math.floor(Math.random() * 0x7fffffff), Number(size.value));
         deps.close();
       });
+      if (boolOption(deps.options(), 'game.confirmQuit')) {
+        body.append(el('p', 'option-note', 'Creating a realm ends the current one. Tap again to confirm.'));
+      }
       body.append(seedLabel, sizeLabel, create);
     },
   };
@@ -413,6 +436,77 @@ function buildPowerCatalogue(deps: WindowDeps): WindowBuild {
   };
 }
 
+const HELP_TOPICS: ReadonlyArray<[string, string]> = [
+  ['Map', 'Tap a tile to inspect it. Drag to pan, or paint when a brush power is armed. Wheel or pinch to zoom.'],
+  ['Powers', 'Pick a tab in the bottom bar and tap a power to arm it, then tap the map. Powers marked not available have no effect yet.'],
+  ['Speed', 'Pause with the button or P. The x0.5 to x10 buttons set the simulation speed.'],
+  ['Rules and ages', 'Realm Rules change the running realm. Turning an age off keeps it out of the rotation.'],
+  ['Settings', 'Changes apply at once. Settings marked saved; not active yet are kept but have no effect yet.'],
+  ['New realm', 'Creates a world from a seed and a size. This ends the current realm.'],
+  ['Chronicle', 'Lists the realms saved on this device.'],
+  ['Privacy', 'This build sends no data. The privacy switches only record your choice.'],
+];
+
+function buildHelp(): WindowBuild {
+  return {
+    title: windowTitle('win_help'),
+    build: (body) => {
+      const list = el('dl', 'facts');
+      for (const [k, v] of HELP_TOPICS) list.append(el('dt', undefined, k), el('dd', undefined, v));
+      body.append(list);
+    },
+  };
+}
+
+const SAVE_KIND: Readonly<Record<SaveSlotView['kind'], string>> = {
+  manual: 'Slot',
+  quick: 'Quick save',
+  auto: 'Autosave',
+  suspend: 'Suspended',
+};
+
+function buildChronicle(deps: WindowDeps): WindowBuild {
+  return {
+    title: windowTitle('win_chronicle'),
+    build: (body) => {
+      body.append(el('p', 'option-note', 'Realms saved on this device. Loading and saving from this window are not available yet.'));
+      const status = el('p', 'option-note', 'Loading saved realms...');
+      status.setAttribute('role', 'status');
+      body.append(status);
+      deps.saves().then(
+        (slots) => {
+          // The window may have closed or changed while the store answered.
+          if (!status.isConnected) return;
+          status.remove();
+          buildList<SaveSlotView>(body, {
+            name: 'Saved realms',
+            items: slots,
+            rowHeight: 56,
+            label: (s) => `${s.realmName} ${SAVE_KIND[s.kind]}`,
+            sorts: [
+              { key: 'savedAtMs', label: 'Saved' },
+              { key: 'year', label: 'Year' },
+            ],
+            empty: 'No saved realms on this device yet.',
+            render: (s) => {
+              const row = el('div', 'rule-row');
+              const text = el('div', 'rule-text');
+              const when = new Date(s.savedAtMs).toLocaleString();
+              const size = `${Math.max(1, Math.round(s.byteSize / 1024))} KB`;
+              text.append(el('strong', undefined, s.realmName), el('span', 'option-note', `${SAVE_KIND[s.kind]} · year ${s.year} · ${size} · ${when}`));
+              row.append(text);
+              return row;
+            },
+          });
+        },
+        () => {
+          if (status.isConnected) status.textContent = 'Saved realms could not be read on this device.';
+        },
+      );
+    },
+  };
+}
+
 /** The window for `id`, or null when the UI does not build it yet. */
 export function windowFor(id: string, deps: WindowDeps): WindowBuild | null {
   switch (id) {
@@ -436,6 +530,10 @@ export function windowFor(id: string, deps: WindowDeps): WindowBuild | null {
       return buildTutorial(deps);
     case 'win_power_catalogue':
       return buildPowerCatalogue(deps);
+    case 'win_help':
+      return buildHelp();
+    case 'win_chronicle':
+      return buildChronicle(deps);
     default:
       return null;
   }

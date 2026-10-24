@@ -3,6 +3,8 @@ import type { Ticker } from 'pixi.js';
 import { TerrainRenderer, type CursorState } from '../render/terrain.ts';
 import { Camera } from '../render/camera.ts';
 import { MapInput } from '../ui/input.ts';
+import { edgePanVector } from '../ui/edgePan.ts';
+import { SaveService } from './saves.ts';
 import { setCalendar, setDebug, setStatus, toast } from '../ui/hud.ts';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
@@ -144,6 +146,7 @@ async function boot(): Promise<void> {
   let calendarText = 'Y1 M1';
   let stroke: Stroke | null = null;
   let cursorScreen: { x: number; y: number } | null = null;
+  const canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   const keysDown = new Set<string>();
   const cooldownUntil = new Map<string, number>();
 
@@ -381,8 +384,18 @@ async function boot(): Promise<void> {
     windowHost.open(id, build.title, build.build);
   };
 
+  // The save store opens on first use (the Chronicle window); it never rejects, so a failed open
+  // shows an empty list instead of an error.
+  let saveStore: Promise<SaveService> | null = null;
   const windowDeps: WindowDeps = {
     options: () => options,
+    saves: () => {
+      saveStore ??= SaveService.open(window.indexedDB, {
+        isPhone: window.matchMedia('(pointer: coarse)').matches,
+        storage: navigator.storage,
+      });
+      return saveStore.then((store) => store.list());
+    },
     setOption: (id, value) => changeOption(id, value),
     rules,
     setRule,
@@ -618,6 +631,14 @@ async function boot(): Promise<void> {
       radius: brushRadius(),
       shape: state.shape,
     };
+    // Edge pan: only with a fine pointer, since touch leaves a stale hover position behind.
+    if (cam && cursorScreen && boolOption(options, 'input.edgePan') && canHover && state.armed?.kind !== 'brush') {
+      const edge = edgePanVector(cursorScreen.x, cursorScreen.y, host.clientWidth, host.clientHeight);
+      if (edge.dx !== 0 || edge.dy !== 0) {
+        const step = ticker.deltaMS * KEY_PAN_PX_PER_MS * (numberOption(options, 'input.panSpeed') / 100) * 2;
+        cam.panBy(-edge.dx * step, -edge.dy * step);
+      }
+    }
     if (cam) {
       renderer.setView({ offX: cam.offX, offY: cam.offY, zoom: cam.zoom, dpr: renderer.app.renderer.resolution }, cursor);
     }

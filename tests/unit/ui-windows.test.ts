@@ -16,6 +16,9 @@ const deps: WindowDeps = {
   tutorial: () => ({ state: { index: 0, skipped: false, done: false }, restart: () => undefined, skip: () => undefined }),
   saves: () => Promise.resolve([]),
   close: () => undefined,
+  open: () => undefined,
+  brush: () => ({ shape: 'circle', sizeIndex: 5, radii: [0, 1, 2, 3, 4, 5] }),
+  setBrush: () => undefined,
 };
 
 describe('window catalogue', () => {
@@ -46,7 +49,7 @@ describe('window catalogue', () => {
 
   it('spec ids are used where the spec names the window', () => {
     const spec = WINDOW_CATALOG.filter((w) => w.spec !== null);
-    expect(spec.length).toBe(11);
+    expect(spec.length).toBe(37);
     for (const w of spec) expect(w.spec).toBe(w.id);
   });
 });

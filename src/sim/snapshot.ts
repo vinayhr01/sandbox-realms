@@ -8,7 +8,19 @@
  */
 import { ACHIEVEMENTS } from '../content/achievements.ts';
 import { SPECIES } from '../content/beasts.ts';
-import { SNAPSHOT_MAX_BYTES, SNAPSHOT_VERSION, type AchievementRow, type DominionRow, type HamletRow, type Snapshot, type SpeciesRow } from '../shared/protocol.ts';
+import { STRAIN_TRAIT_BY_ID } from '../content/traits.ts';
+import {
+  SNAPSHOT_DETAIL_ROWS,
+  SNAPSHOT_MAX_BYTES,
+  SNAPSHOT_VERSION,
+  type AchievementRow,
+  type DominionRow,
+  type HamletRow,
+  type Snapshot,
+  type SnapshotDetail,
+  type SpeciesRow,
+  type StrainRow,
+} from '../shared/protocol.ts';
 import { SS_TICKS } from './clock.ts';
 import { snapshotDominions } from './dominions/adapter.ts';
 import { hamletsOf } from './settlements/adapter.ts';
@@ -42,6 +54,7 @@ export function buildSnapshot(sim: Sim): Snapshot {
     ...dominionsOf(sim),
     ...hamletsOfSim(sim),
     culture: cultureOf(sim),
+    detail: detailOf(sim),
   };
   return fitSnapshot(snap);
 }
@@ -59,7 +72,47 @@ export function fitSnapshot(snap: Snapshot): Snapshot {
       out = { ...out, truncated: true, hamlets: out.hamlets.slice(0, Math.floor(out.hamlets.length / 2)) };
     }
   }
+  // Last resort: the detail rows go before the totals and the population do.
+  if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.detail !== undefined) {
+    const { detail: _dropped, ...rest } = out;
+    out = { ...rest, truncated: true };
+  }
   return out;
+}
+
+/** Culture and strain rows for the detail windows (read-only; each list capped at SNAPSHOT_DETAIL_ROWS). */
+function detailOf(sim: Sim): SnapshotDetail {
+  const c = sim.culture;
+  const cap = SNAPSHOT_DETAIL_ROWS;
+  const strains: StrainRow[] = sim.beings.strains.snapshot().list.map((s) => ({
+    id: s.id,
+    name: s.name,
+    species: SPECIES[s.species]?.name ?? '',
+    generation: s.generation,
+    parent: s.parent,
+    traits: s.traits.map((t) => STRAIN_TRAIT_BY_ID.get(t)?.name ?? t),
+    born: s.counters.born,
+    newAdults: s.counters.newAdults,
+    reproduced: s.counters.reproduced,
+  }));
+  return {
+    counts: {
+      customs: c.customs.length,
+      creeds: c.creeds.length,
+      dialects: c.dialects.length,
+      families: c.families.length,
+      intrigues: c.intrigues.length,
+      strains: strains.length,
+    },
+    customs: c.customs.slice(0, cap).map((x) => ({ group: x.group, traits: [...x.traits] })),
+    creeds: c.creeds.slice(0, cap).map((x) => ({ id: x.id, holders: [...x.holders].sort((a, b) => a - b) })),
+    dialects: c.dialects.slice(0, cap).map((x) => ({ group: x.group, word: x.word })),
+    families: c.families.slice(0, cap).map((x) => ({ child: x.child, parentA: x.parentA, parentB: x.parentB })),
+    intrigues: c.intrigues
+      .slice(0, cap)
+      .map((x) => ({ id: x.id, kind: x.kind, group: x.group, progress: x.progress, goal: x.goal, outcome: x.outcome })),
+    strains: strains.slice(0, cap),
+  };
 }
 
 function populationOf(sim: Sim): Snapshot['population'] {

@@ -5,8 +5,10 @@
 import { POWERS, type PowerDef } from '../content/powers.ts';
 import { AGES } from '../sim/ages.ts';
 import { RULES, RuleSet, ageRuleId, type RuleDef } from '../sim/rules.ts';
-import type { Snapshot } from '../shared/protocol.ts';
+import type { BrushShape, Snapshot } from '../shared/protocol.ts';
 import { buildList } from './listView.ts';
+import { detailWindowFor } from './detailWindows.ts';
+import { staticWindowFor } from './staticWindows.ts';
 import { GROUP_LABELS, SETTINGS, boolOption, resetGroup, type OptionGroup, type OptionValue, type Options, type SettingDef } from './panels/options.ts';
 import { TUTORIAL_TEXT, TUTORIAL_STEPS, type TutorialState } from './panels/tutorial.ts';
 import { powerStatus } from './powerSupport.ts';
@@ -39,6 +41,22 @@ export interface WindowDeps {
   /** Latest sim snapshot, or null before the first one. Optional: windows that need it show "Reading the realm". */
   snapshot?: () => Snapshot | null;
   close(): void;
+  /** Opens another window (list rows, inspector actions, Back buttons). */
+  open(id: string, params?: WindowParams): void;
+  /** Brush shape, size index and the radius each index means (the Terrain panel's controls). */
+  brush(): BrushState;
+  setBrush(patch: { shape?: BrushShape; sizeIndex?: number }): void;
+}
+
+/** Row or object an inspector window is about: a dominion, creed, strain... id, or a list index. */
+export interface WindowParams {
+  id?: number;
+}
+
+export interface BrushState {
+  shape: BrushShape;
+  sizeIndex: number;
+  radii: readonly number[];
 }
 
 export interface WindowBuild {
@@ -487,7 +505,7 @@ function buildChronicle(deps: WindowDeps): WindowBuild {
 }
 
 /** The window for `id`, or null when the UI does not build it yet. */
-export function windowFor(id: string, deps: WindowDeps): WindowBuild | null {
+export function windowFor(id: string, deps: WindowDeps, params: WindowParams = {}): WindowBuild | null {
   switch (id) {
     case 'win_settings':
       return buildSettings(deps);
@@ -512,7 +530,7 @@ export function windowFor(id: string, deps: WindowDeps): WindowBuild | null {
     case 'win_chronicle':
       return buildChronicle(deps);
     default:
-      return snapshotWindowFor(id, deps);
+      return snapshotWindowFor(id, deps) ?? detailWindowFor(id, deps, params) ?? staticWindowFor(id, deps);
   }
 }
 

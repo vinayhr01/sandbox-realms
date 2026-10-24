@@ -34,8 +34,9 @@ const throwingStorage: KeyValueStorage = {
 };
 
 describe('settings table', () => {
-  it('covers the spec options: 72 rows, 7 of them mark toggles (13 section 15)', () => {
-    expect(SETTINGS.length).toBe(72);
+  it('covers the spec options: 72 rows plus 3 audio rows, 7 of the spec rows mark toggles (13 section 15)', () => {
+    // 72 spec 13 rows plus three audio options from spec 16 (audio.mono, audio.visualCues, audio.reduceLoud).
+    expect(SETTINGS.length).toBe(75);
     expect(SETTINGS.filter((s) => s.id.startsWith('marks.')).length).toBe(7);
   });
 

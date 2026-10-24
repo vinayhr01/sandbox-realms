@@ -110,6 +110,9 @@ export const SETTINGS: readonly SettingDef[] = [
   I('audio.sfx', 'audio', 'Effects volume', 0, 100, 100, true),
   I('audio.ui', 'audio', 'Interface volume', 0, 100, 80, true),
   B('audio.muteOnBlur', 'audio', 'Mute when hidden', true, true),
+  B('audio.mono', 'audio', 'Mono sound', false, true),
+  B('audio.visualCues', 'audio', 'Visual cues for sounds', false, true),
+  B('audio.reduceLoud', 'audio', 'Reduce loud sounds', false, true),
   // Game
   B('game.autosave', 'game', 'Autosave', true),
   I('game.autosaveMinutes', 'game', 'Autosave every (min)', 1, 30, 5),

@@ -28,12 +28,10 @@ describe('power support', () => {
   });
 
   it('powers without a handler stay disabled with a note', () => {
-    const handled = new Set([...SIM_HANDLERS, ...UI_HANDLERS]);
-    const off = POWERS.filter((p) => !handled.has(p.handler) && p.handler !== 'open_window');
-    expect(off.length).toBeGreaterThan(0);
-    const status = powerStatus(off[0]!);
+    const unhandled = { ...POWERS[0]!, handler: 'no_such_handler', name: 'Test power' };
+    const status = powerStatus(unhandled);
     expect(status.enabled).toBe(false);
-    expect(status.note).toContain(off[0]!.name);
+    expect(status.note).toContain('Test power');
     expect(status.note).toContain('not available yet');
   });
 
@@ -41,7 +39,7 @@ describe('power support', () => {
     expect(powerStatus(POWER_BY_ID.get('realm_rules')!).enabled).toBe(true);
     expect(powerStatus(POWER_BY_ID.get('realm_ages')!).enabled).toBe(true);
     expect(powerStatus(POWER_BY_ID.get('realm_chronicle')!).enabled).toBe(true);
-    expect(powerStatus(POWER_BY_ID.get('insight_lore')!).enabled).toBe(false);
+    expect(powerStatus(POWER_BY_ID.get('insight_lore')!).enabled).toBe(true);
   });
 
   it('every power is either enabled or carries a note; UI handlers are enabled', () => {

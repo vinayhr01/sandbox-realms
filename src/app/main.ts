@@ -1,6 +1,7 @@
 import '../ui/styles.css';
 import type { Ticker } from 'pixi.js';
 import { TerrainRenderer, type CursorState } from '../render/terrain.ts';
+import { MarkLayer } from '../render/marks.ts';
 import { Camera } from '../render/camera.ts';
 import { MapInput } from '../ui/input.ts';
 import { edgePanVector } from '../ui/edgePan.ts';
@@ -249,6 +250,8 @@ async function boot(): Promise<void> {
 
   const host = $('map');
   const renderer = await TerrainRenderer.create(host);
+  // Map marks and beings: added after the terrain so they draw on top of it.
+  const marks = new MarkLayer(renderer.app);
   const client = new SimClient();
   // Audio feed: the Age, biome shares and mood from each snapshot (16 B8). Read by the music state below.
   const musicFeed = new MusicFeed();
@@ -1013,6 +1016,11 @@ async function boot(): Promise<void> {
       }
     }
     if (cam) {
+      marks.update(
+        simView.current,
+        { items: boolOption(options, 'marks.items'), favourites: boolOption(options, 'marks.favourites') },
+        { offX: cam.offX, offY: cam.offY, zoom: cam.zoom },
+      );
       renderer.setView({ offX: cam.offX, offY: cam.offY, zoom: cam.zoom, dpr: renderer.app.renderer.resolution }, cursor);
     }
     // The minimap repaints about four times a second; it is skipped while hidden.

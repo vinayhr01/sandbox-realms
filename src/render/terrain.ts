@@ -119,6 +119,19 @@ export class TerrainRenderer {
     return renderer;
   }
 
+  /**
+   * Applies the Performance render scale (50 to 100 percent) to the Pixi resolution: the device-pixel
+   * ratio (capped at 2, as in create) times the scale. Uses the renderer resize call with a resolution
+   * argument (Pixi v8). UNVERIFIED: written from the v8 documented API, not run or checked against typings.
+   */
+  setRenderScale(percent: number): void {
+    const scale = Math.min(100, Math.max(50, percent)) / 100;
+    const next = Math.min(window.devicePixelRatio || 1, 2) * scale;
+    const renderer = this.app.renderer;
+    if (Math.abs(renderer.resolution - next) < 1e-6) return;
+    renderer.resize(this.app.screen.width, this.app.screen.height, next);
+  }
+
   /** Sets the live grid side for the next draw. The texture itself is fixed at MAX_SIDE. */
   setSide(side: number): void {
     if (side > MAX_SIDE) throw new RangeError(`grid side ${side} exceeds ${MAX_SIDE}`);

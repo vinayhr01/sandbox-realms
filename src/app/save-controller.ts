@@ -31,7 +31,7 @@ export interface ChronicleSource {
   restore(bytes: Uint8Array): Promise<boolean>;
 }
 
-/** The default source for this build: the sim worker has no Chronicle encode or decode command yet. */
+/** Fallback source for a controller built without a live realm (tests). The app passes the live client. */
 export const NO_SIM_SOURCE: ChronicleSource = {
   canCapture: false,
   canRestore: false,

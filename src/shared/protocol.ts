@@ -154,6 +154,32 @@ export interface Snapshot {
    * keep working; buildSnapshot always fills it. Lists are capped at SNAPSHOT_DETAIL_ROWS each.
    */
   detail?: SnapshotDetail;
+  /* windows-sim-data block: keep new fields of this window's data here, apart from other blocks. */
+  /** Peace pacts between bordering dominions (pacts window). Optional: older readers ignore it. */
+  pacts?: PactBlock;
+}
+
+/**
+ * One peace pact: two dominions that share a border and are at peace. The sim has no pact records
+ * (10 section 12 is not built); the stats count the same pairs as pacts (src/sim/stats-hooks.ts).
+ */
+export interface PactRow {
+  /** a * 256 + b for the lower dominion id a and the higher id b: stable while both dominions exist. */
+  id: number;
+  a: number;
+  b: number;
+  nameA: string;
+  nameB: string;
+  strengthA: number;
+  strengthB: number;
+  parcelsA: number;
+  parcelsB: number;
+}
+
+/** Peace pacts: `count` is exact; `rows` is capped at SNAPSHOT_DETAIL_ROWS. */
+export interface PactBlock {
+  count: number;
+  rows: PactRow[];
 }
 
 /** Row cap per list in SnapshotDetail; the totals in `counts` stay exact. */

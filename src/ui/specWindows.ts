@@ -141,22 +141,46 @@ function beingWindow(deps: WindowDeps, params: WindowParams): WindowBuild {
   };
 }
 
+/**
+ * Favourites first, then the oldest living beings the snapshot sends that are not starred yet, so the
+ * list has rows before anything is starred. Pure apart from keeping the favourites' rows current.
+ */
+export function favouriteRowsOf(snap: Snapshot): { id: number; title: string; detail: string; inspector: string; params: WindowParams }[] {
+  syncFavouriteBeings(snap);
+  const notable = snap.detail?.notable?.beings ?? [];
+  const alive = new Set(notable.map((b) => b.id));
+  const favs = favouriteBeingList();
+  const starred = new Set(favs.map((f) => f.id));
+  const favRows = favs.map((f) => ({
+    id: f.id,
+    title: beingTitle(f.row),
+    detail: alive.has(f.id) ? `Favourite · alive · ${stageLabel(f.row).toLowerCase()} · age ${f.row.ageYears}` : `Favourite · not seen since tick ${f.seenTick}`,
+    inspector: 'win_being',
+    params: { id: f.id },
+  }));
+  const oldest = notable
+    .filter((b) => !starred.has(b.id))
+    .map((b) => ({
+      id: b.id,
+      title: beingTitle(b),
+      detail: `Oldest living, not a favourite · ${stageLabel(b).toLowerCase()} · age ${b.ageYears}`,
+      inspector: 'win_being',
+      params: { id: b.id },
+    }));
+  return [...favRows, ...oldest];
+}
+
 function favouriteBeingsList(deps: WindowDeps): WindowBuild {
   return listWindow(deps, {
     self: 'list_fav_beings',
     name: 'Favourite beings',
-    rows: (snap) => {
-      syncFavouriteBeings(snap);
-      const alive = new Set((snap.detail?.notable?.beings ?? []).map((b) => b.id));
-      return favouriteBeingList().map((f) => ({
-        id: f.id,
-        title: beingTitle(f.row),
-        detail: alive.has(f.id) ? `Alive · ${stageLabel(f.row).toLowerCase()} · age ${f.row.ageYears}` : `Not seen since tick ${f.seenTick}`,
-        inspector: 'win_being',
-        params: { id: f.id },
-      }));
+    rows: (snap) => favouriteRowsOf(snap),
+    cut: (snap) => {
+      const total = snap.detail?.notable?.beingCount ?? 0;
+      const shown = snap.detail?.notable?.beings.length ?? 0;
+      return total > shown ? `Showing the ${shown} oldest of ${total} living beings.` : null;
     },
-    empty: 'No favourite beings yet. Star a being from its inspector, opened from Interesting people in the Realm overview.',
+    empty: 'No beings in the realm yet. Starred beings are kept here after they die.',
   });
 }
 
@@ -189,15 +213,77 @@ function structureWindow(deps: WindowDeps, params: WindowParams): WindowBuild {
   };
 }
 
-// Pacts, clans and items: the sim has no records for these yet -----------------------------------
+// Pacts, clans and items -------------------------------------------------------------------------
 
-function pactWindow(deps: WindowDeps): WindowBuild {
-  return staticWindow(windowTitle('win_pact'), [MISSING.pacts], () => [button('Back to pacts', () => deps.open('list_pacts'))]);
+/** Note under a pact: what the sim does not store about pacts yet (members, campaigns, renown). */
+const PACT_LIMITS = 'Pact terms are not stored yet: members, campaigns and renown. A pact here is peace between two bordering dominions.';
+
+/** One row per peace pact in the snapshot (pure: the tests read it without a DOM). */
+export function pactRowsOf(snap: Snapshot): { id: number; title: string; detail: string; inspector: string; params: WindowParams }[] {
+  return (snap.pacts?.rows ?? []).map((p) => ({
+    id: p.id,
+    title: `${p.nameA} and ${p.nameB}`,
+    detail: `Peace · strength ${p.strengthA} and ${p.strengthB}`,
+    inspector: 'win_pact',
+    params: { id: p.id },
+  }));
 }
 
+function pactWindow(deps: WindowDeps, params: WindowParams): WindowBuild {
+  const key = params.id;
+  const section = liveSection(deps, (snap, root) => {
+    if (key === undefined) {
+      root.append(note('Choose a pact from the Pacts list.'));
+      return;
+    }
+    if (snap === null) {
+      root.append(note('Reading the realm...'));
+      return;
+    }
+    const row = snap.pacts?.rows.find((p) => p.id === key);
+    if (row === undefined) {
+      root.append(note('This pact is no longer in the realm, or is not in the latest snapshot.'));
+      return;
+    }
+    const facts: Facts = [
+      ['Between', `${row.nameA} and ${row.nameB}`],
+      ['Relation', 'Peace'],
+      ['Border', 'Shared'],
+      [`${row.nameA} strength`, String(row.strengthA)],
+      [`${row.nameB} strength`, String(row.strengthB)],
+      [`${row.nameA} parcels`, String(row.parcelsA)],
+      [`${row.nameB} parcels`, String(row.parcelsB)],
+    ];
+    root.append(factsList(facts), note(PACT_LIMITS));
+  });
+  return {
+    title: windowTitle('win_pact'),
+    build: (body) => {
+      body.append(button('Back to pacts', () => deps.open('list_pacts')), section.mount());
+    },
+    live: () => section.refresh(),
+  };
+}
+
+function pactsList(deps: WindowDeps): WindowBuild {
+  return listWindow(deps, {
+    self: 'list_pacts',
+    name: 'Pacts',
+    rows: (snap) => pactRowsOf(snap),
+    cut: (snap) => {
+      const block = snap.pacts;
+      return block && block.count > block.rows.length ? `Showing ${block.rows.length} of ${block.count} pacts.` : null;
+    },
+    empty: 'No peace pacts yet. A pact is peace between two dominions that share a border.',
+  });
+}
+
+/** Clans have no records in the sim (families do): the clan window keeps its note and link. */
 function clanWindow(deps: WindowDeps): WindowBuild {
   return staticWindow(windowTitle('win_clan'), [MISSING.clans], () => [button('Open families', () => deps.open('list_households'))]);
 }
+
+/** Items have no system in the sim: the item windows say so and stay empty. */
 
 function itemWindow(): WindowBuild {
   return staticWindow(windowTitle('win_item'), [MISSING.items]);
@@ -605,9 +691,9 @@ export function specWindowFor(id: string, deps: WindowDeps, params: WindowParams
     case 'win_structure':
       return structureWindow(deps, params);
     case 'win_pact':
-      return pactWindow(deps);
+      return pactWindow(deps, params);
     case 'list_pacts':
-      return emptyList(deps, 'list_pacts', 'Pacts', MISSING.pacts);
+      return pactsList(deps);
     case 'win_clan':
       return clanWindow(deps);
     case 'list_kinbands':

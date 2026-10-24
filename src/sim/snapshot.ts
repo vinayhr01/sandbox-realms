@@ -18,6 +18,8 @@ import {
   type DominionRow,
   type HamletRow,
   type NotableRows,
+  type PactBlock,
+  type PactRow,
   type Snapshot,
   type SnapshotDetail,
   type SpeciesRow,
@@ -60,6 +62,8 @@ export function buildSnapshot(sim: Sim): Snapshot {
     ...hamletsOfSim(sim),
     culture: cultureOf(sim),
     detail: detailOf(sim),
+    // windows-sim-data block (kept apart from other snapshot blocks so merges stay clean).
+    pacts: pactsOf(sim),
   };
   return fitSnapshot(snap);
 }
@@ -231,6 +235,45 @@ function relationBetween(relations: readonly [number, number, string][], a: numb
   const hi = Math.max(a, b);
   for (const [x, y, rel] of relations) if (x === lo && y === hi) return rel;
   return 'peace';
+}
+
+/**
+ * Peace pacts (pacts window): each border pair of dominions whose relation is peace, read from the
+ * same relation data the stats use (stats-hooks: a border pair at peace is a pact). Pairs are listed
+ * once, lower id first, in border order. Reads only.
+ */
+function pactsOf(sim: Sim): PactBlock {
+  const snap = snapshotDominions(sim);
+  if (!snap) return { count: 0, rows: [] };
+  const byId = new Map(snap.dominions.map((d) => [d.id, d]));
+  const seen = new Set<number>();
+  const rows: PactRow[] = [];
+  let count = 0;
+  for (const [x, y] of snap.borders) {
+    const a = Math.min(x, y);
+    const b = Math.max(x, y);
+    const id = a * 256 + b;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const da = byId.get(a);
+    const db = byId.get(b);
+    if (!da || !db || relationBetween(snap.relations, a, b) !== 'peace') continue;
+    count++;
+    if (rows.length < SNAPSHOT_DETAIL_ROWS) {
+      rows.push({
+        id,
+        a,
+        b,
+        nameA: `Dominion ${a}`,
+        nameB: `Dominion ${b}`,
+        strengthA: da.strength,
+        strengthB: db.strength,
+        parcelsA: da.parcels.length,
+        parcelsB: db.parcels.length,
+      });
+    }
+  }
+  return { count, rows };
 }
 
 function hamletsOfSim(sim: Sim): { hamlets: HamletRow[]; hamletCount: number } {

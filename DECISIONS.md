@@ -421,3 +421,60 @@ Unverified (not run, not checked against typings; node_modules is absent in the 
 - Whether Pixi's own `resizeTo` resize (on window or host resize) keeps the chosen resolution, or resets it to the devicePixelRatio value. If it resets, the render scale is lost until the next settings change.
 - Whether battles and campaigns appear in play at all (the war and campaign paths were not run).
 - Tests: any test that asserts the live count (43 before this round), the snapshot key set, or the mark layer's old `MarkToggles` shape may need an update. Not checked.
+
+### Beings round 6
+
+Scope: spec 06 mood, sleep, bonds and corpses; spec 07 weighted decision system (beast subset); spec 05 section 6.3 `mutateFrom`. Code: `src/sim/beings/system.ts`, `social.ts` (new), `strains.ts`, `store.ts`, `tuning.ts` (`ROUND6`), `src/sim/chronicle.ts` (beings section, schema 4), `src/content/moods.ts` (new), `src/content/decisions.ts` (new).
+
+Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). Types were checked by reading.
+
+**Golden is stale.** `GOLDEN_HASH` (2562049680, `tests/unit/golden.test.ts`) is not edited and is wrong for this code. Reasons: the fuel pass now starves one pass earlier (06 2.1 order), the decision layer draws the `beings` stream in a different order, births can found mutant strains (`lineage` stream), and sleep and mood change state the hash covers. The golden test will fail until it is re-baselined by a run.
+
+**Persisted state changed.** Chronicle beings section, per Being: `mood` (i16), `endurance` (u16), `sleepUntil` (u32), `sleepVit` (i16), `bondWith` (i32), `bondGen` (u32), `closeWith` (i32), `closeGen` (u32), `closeSince` (u32), then one `cooldown` (u32) per decision. The header gains the decision count (u8). Shape checks: decision count equals the content table, mood in -100..100, endurance at most the species maximum, bond and close links name a Being in the save. Not saved: the running task (07 section 14, a loaded Being picks again). `BeingStats` gains `sleeps` and `bonds` (JSON stats, additive). `SCHEMA_VERSION` goes 3 to 4, so schema 3 saves are rejected. This bump is needed because the beings layout changed; it was not named in the brief. `chronicle.ts` is outside the listed touch set; it was edited only for the beings section, the schema constant and one import, because the brief requires persistence there. `PROTOCOL_VERSION`, `SNAPSHOT_VERSION`, `snapshot.ts` and `protocol.ts` are unchanged.
+
+**Step 1: mood and sleep (06 sections 4, 5).**
+- Mood is an `Int16` per Being, -100..100, changed only by events (`MOOD_VALUE` in `src/content/moods.ts`, the spec's TUNE table). No passive drift. Clamped.
+- Feeling mood: 06 4.1 says only strains with the `emotions` tag feel mood, but no trait in the data grants it. OPEN default: awakened strains (all four brain organs). Change `feelsMood` in `social.ts` to widen it. Effect in play: beasts never feel mood, and Folk never spawn in play (`spawnFolk` has no caller), so mood changes nothing in play yet.
+- Events wired, each on a trigger the spec states: `born` (child, 06 6.6), `child_born` (bearer, once per birth event, 06 6.4), `grew_up` (06 3.2), `starving` (each starvation hit; the table names the event, the trigger is our reading), `slept` (natural wake), `child_died` (living parent of the dead, 06 7.2), `kin_died` (living children of the dead; our reading of "children/others"), `friend_died` (bond partner), `bonded`, `talked_well` / `talked_badly` (chat).
+- Sleep: `sleepUntil` and `sleepVit` per Being. Durations: monophasic uniform 800 to 1800; no sleep-cycle trait (SLP group) 400; otherwise uniform 400 to 1200. The era-linked 2000 is not built (no era-to-trait map in data). Sleeping Beings do not decide, move, mate or chat.
+- Early wake: any vitality drop below the last-seen value, from any source (combat, starvation, bites). Gives no mood and no endurance (06 5).
+- Natural wake: endurance +20% of max (rounded), mood `slept` +5. The dream roll (23-entry pot) is not built.
+- Fuel pass (06 2.1): metabolism first; at 0 the hunger rule starves by 5% of max vitality (and gives `starving`); otherwise endurance +1. A sleeping `energy_saver` Being skips the pass. `famished` is not built.
+- Not built, asked for in the brief: a sleep state that reduces speed, and rest triggered by low fuel. 06 states neither, so they were left out. Sleep is started only by the decisions below.
+- Sleep decisions: `idle_nap` (tier 0, w 0.05, cd 1800, onlySafe, no gate), `polyphasic` (tier 1, w 0.8, cd 1800), `monophasic` (tier 1, w 0.75, cd 4000). The 06 text gives no trait gate for the two cycle decisions: our gates are `split_sleep` for polyphasic and `one_sleep` for monophasic. Our choice; change in `decide` if the roster means otherwise.
+
+**Step 2: bonds and corpses (06 4.4 and 7.3).**
+- Bonds (user brief; this is not the spec's lover or best-friend model). Two Beings of one strain within 3 tiles (`ROUND6.bondRadius`, TUNE) for 600 ticks (`bondTicks`, TUNE) bond: `bonded` +40 both. One partner each. The bond ends when a partner dies (survivor `friend_died` -25). Spec 06 4.4 has lovers (same species, `canFallInLoveWith`, `smitten`) and best friends (formed after chat, chance formula); neither is built. Bonds gate no decision: the spec's bond-dependent decisions are Folk-only.
+- Corpses: not built. 06 7.3 says there is no persistent corpse object (OPEN default). Its only decay is a 600-tick `Remains` decal, render only, which lives in `src/render` (outside the touch list). The spec sets no gameplay decay time. No decomposition system exists: a search for corpse, decompos, carcass and remains finds nothing in `src/` except the trait text "Eats corpses". A corpse round needs a spec decision and a render slice first.
+
+**Step 3: weighted decision system (07 sections 3 to 5).**
+- `decide()` now runs: candidates from `DECISION_ROWS` (`src/content/decisions.ts`, 12 rows, weights and cooldowns from the spec), filtered by cooldown, flags (`onlyHungry`, `onlySafe`, `onlyAdult`) and a per-decision eligibility check. Tier rule: a critical candidate forces tiers, otherwise tiers apply 80% of the time (07 3.5). Softmax pick with `exp(w)` on the `beings` stream (07 3.4). The cooldown is set on pick. Empty set: pause 20 ticks.
+- Layers: decision (catalogue) -> task (one function per decision in `TASKS`, run once per decision cadence and continuing while it returns true) -> job (collapsed; the default `idle_decide` is the decision pass). Not built: the step machine, verifiers, path requests, `speedMult`, `cancellableBy*` flags.
+- A flight from a hunter (`flee`) interrupts any running task except flee itself (07 4.2 gives fights this override).
+- Mate weight is 2 under the living-children cap and 0.1 at it (07 3.4 reproduction rule). `seek_partner` (07 tier 3) is merged into `mate`, which walks to the partner and mates.
+- Weights are the spec's numbers. Their effect: at weight 3.1, flee beats an eligible mate (w 2) about 75% of the time, not always. Eat decisions with weight 1 against a mate at weight 2 give the mate about 73%. Idle decisions have weights 0.05 to 0.2, close to uniform under softmax, so idle napping is frequent (cooldown 1800 limits it).
+- Tasks built (beast subset): `wander`, `pause5` (5 ticks, read as ticks), `idle_nap`, `polyphasic`, `monophasic`, `herd_follow` (follows a same-species Being beyond 3 tiles; needs species `herding`), `chat` (simplified: walks to a partner within 2 tiles, then one 70/30 outcome; the spec's 5 to 9 rounds are not built), `flee`, `eat_grass` (grass and omni), `eat_nectar`, `eat_hunt` (flesh; omni only with no food underfoot), `mate`.
+- Cooldowns are persisted (schema 4). Tasks are not.
+- Left out (the brief asked for a record):
+  - `flee_predator`: same trigger as `flee`; not separate. `flee_suspicious`: Folk-only.
+  - `wander_home`, `wander_to_structure`, `blink`, `blink_home`, `investigate`: need houses, structures, teleport or curiosity state, none on beings.
+  - `playful_wander`, `child_flip`, `child_spot`, `child_jump`: cosmetic (render only).
+  - `swim_about`, `eat_algae_fish`, `unstick_small_island`, `leave_blocked_tile`, `reach_land`, `retreat_to_shore`, `douse_self`: need water, island or fire state on beings.
+  - `pollinate`, `swarm_find_nest`, `bee_make_hive`, `burrower_move`, `spider_move`, ant walkers, `skeleton_move`, `raise_boneshambler`, `heal_check`, `cure_check`, `fertilize_check`, `purge_growths`, `shellback_*`: species mechanics with no state here.
+  - `relieve`: needs the `sated` effect. `reflect`, `laugh`, `sing`, `grumble`, `weep`, `outburst`, `mad_emotion`, `swear_check`, `read`, `steal_coins`: need mood history, emotion effects or Folk state.
+  - `outburst_action`, `steered_follow`, `muddled`, `tagalong`, `follow_desire`: tier-4 triggers that need effects and possession, not built.
+  - `herd_leave`, `herd_join_new`, `herd_alpha_move`, `herd_check`: need family state (families are not built).
+  - `follow_parent`: Folk children only. `eat_kin`, `drain_blood`, `eat_insects`, `eat_ground`: no such diet, no cannibal rule, no insect or geophage food.
+  - `rest_indoors`, `choose_sleep_place`, era-linked sleeps: need houses or eras on beings.
+  - Settlement, dominion, army, intrigue, boat, taxi, wyrm, craft, tyrant, hand, and Folk work tasks (`find_job`, `build`, `chop`, `mine`, `store_stock`, `pay_tax`, `craft_gear`, and the rest of 07 section 5 H to K): dominion, settlement or special-creature state, out of scope for beasts.
+  - `eat_hamlet_food`, `refill_at_well`, `repair_gear`, `loot_run`, `fetch_hamlet_gear`, `extinguish`: settlement or item state.
+  - `herd` and `chat` mood outcomes apply only where `feelsMood` is true (see step 1).
+- Ecology risk (not tested): the spec's cooldowns (`eat_hunt` 1100, `mate` 800, `idle_nap` 1800) and the fuel pass reorder change predator and grazer pacing. The soak was not run. Expect to re-tune `eat_*` cooldowns and the weights.
+
+**Step 4: lineage (05 section 6.3).**
+- `mutateFrom(strains, parent, speciesName, rng)` in `strains.ts`: `k = randInt(0, meta.mutation)` inclusive on the `lineage` stream; `k` add draws from `STRAIN_MUTATION_POT` (opposites swap out); then as many remove draws. The remove pot is new: `-` traits outside groups DIE, RMT, COG, GST and EGG (add-only groups in 6.3). Generation is parent + 1; the parent id is recorded.
+- Called on birth when the bearer's strain has mutation capacity above zero (`wild_genes` +1, `stable_genes` -1). Deviation from 06 6.1 ("newborns join a parent's strain"): a birth whose trait set changes founds a new strain. An unchanged set returns null and the newborn joins the parent's strain, so no strain is created per birth. Risk: the strain registry has no cap and `wild_genes` lines can split often. Watch the strain count.
+- Per-strain counters: `born`, `newAdults` and `reproduced` already exist (`strains.ts`, 05 section 2) and are maintained as before. No counter was added.
+- Not built: the lineage code and segments (05 sections 5.1 to 5.5, including `mutateSlot` and `unstableShuffle`), so `k` applies to traits only. Uplift and evolve (05 6.4).
+
+**Fixed decisions that were left alone:** `docs/spec-coverage.md` (not in the touch list; rows 05, 06 and 07 still read PARTIAL and need an update after a run). `PROTOCOL_VERSION` and `SNAPSHOT_VERSION` unchanged.

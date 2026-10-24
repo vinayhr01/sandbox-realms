@@ -6,12 +6,19 @@ import type { Realm } from '../realm.ts';
 import type { Sim } from '../sim.ts';
 import { recordStat } from '../stats-hooks.ts';
 import { assemble, type Assembled } from './assembly.ts';
+import { DECISION_ROWS, EMPTY_PAUSE } from '../../content/decisions.ts';
 import { BeingStore } from './store.ts';
-import { strainMutation, Strains, addStrainTrait } from './strains.ts';
-import { TUNING } from './tuning.ts';
+import { addStrainTrait, mutateFrom, strainMutation, Strains } from './strains.ts';
+import { addMood, beginSleep, bondCheck, isAsleep, sleepCheck } from './social.ts';
+import { ROUND6, TUNING } from './tuning.ts';
 import { MONTH_TICKS, YEAR_TICKS } from '../../shared/constants.ts';
 
 export type { BeingStore };
+
+/** Decision count: each Being keeps one cooldown per decision (07 section 3.4). */
+const DECISIONS = DECISION_ROWS.length;
+/** Ticks between bond checks (round 6, ROUND6.bondCheck). */
+const BOND_CHECK = ROUND6.bondCheck;
 
 /** Ticks between fuel passes (06 section 2.1: 100 passes fill a 100-point bar at metabolism 1). */
 const FUEL_PASS = 300;
@@ -54,7 +61,14 @@ export interface BeingStats {
   starved: number;
   eaten: number;
   aged: number;
+  /** Sleeps started (round 6, 06 section 5). */
+  sleeps: number;
+  /** Bonds formed (round 6, bonds). */
+  bonds: number;
 }
+
+/** A decision task (07 section 4): runs one step and returns true while it continues. */
+type TaskFn = (sim: Sim, slot: number) => boolean;
 
 /** Per-species derived values. */
 interface SpeciesRuntime {
@@ -70,8 +84,12 @@ interface SpeciesRuntime {
 export class Beings {
   readonly store = new BeingStore();
   readonly strains = new Strains();
-  readonly stats: BeingStats = { births: 0, newAdults: 0, deaths: 0, starved: 0, eaten: 0, aged: 0 };
+  readonly stats: BeingStats = { births: 0, newAdults: 0, deaths: 0, starved: 0, eaten: 0, aged: 0, sleeps: 0, bonds: 0 };
   readonly runtime: readonly SpeciesRuntime[];
+  /** Decision cooldowns: the tick each decision is eligible again, by slot * DECISIONS + index (07 section 3.4). */
+  readonly cooldown: Uint32Array;
+  /** Index of the running decision task (DECISION_ROWS), or -1. Not saved: a loaded Being picks again (07 section 14). */
+  readonly task: Int8Array;
   private readonly cellsPerRow: number;
   private readonly head: Int32Array;
   private readonly link: Int32Array;
@@ -80,6 +98,8 @@ export class Beings {
     this.cellsPerRow = Math.ceil(side / BUCKET);
     this.head = new Int32Array(this.cellsPerRow * this.cellsPerRow).fill(-1);
     this.link = new Int32Array(this.store.capacity).fill(-1);
+    this.cooldown = new Uint32Array(this.store.capacity * DECISIONS);
+    this.task = new Int8Array(this.store.capacity).fill(-1);
     this.runtime = SPECIES.map((def) => ({
       def,
       hunters: def.hunters.map((h) => speciesIndex(h)),
@@ -299,8 +319,23 @@ export function litterRoll(sim: Sim, brood: number): number {
 /** Removes a being, counting the cause. */
 export function killBeing(sim: Sim, slot: number, cause: 'eaten' | 'starved' | 'age' | 'combat'): void {
   const b = sim.beings;
-  if (b.store.alive[slot] !== 1) return;
-  b.store.kill(slot);
+  const s = b.store;
+  if (s.alive[slot] !== 1) return;
+  // Death mood (06 section 7.2 step 2): the living parent gets child_died, the children kin_died, and a bond
+  // partner friend_died (the bond ends). Read before the slot is freed.
+  const gen = s.generation[slot] ?? 0;
+  const parentSlot = s.hasLiveParent(slot) ? (s.parent[slot] ?? -1) : -1;
+  for (let k = 0; k < s.size; k++) {
+    const o = s.at(k);
+    if (o === slot) continue;
+    if (o === parentSlot) addMood(sim, o, 'child_died');
+    else if (s.parent[o] === slot && s.hasLiveParent(o)) addMood(sim, o, 'kin_died');
+    if (s.bondWith[o] === slot && s.bondGen[o] === gen) {
+      s.bondWith[o] = -1;
+      addMood(sim, o, 'friend_died');
+    }
+  }
+  s.kill(slot);
   sim.effects.clear(slot);
   b.stats.deaths++;
   recordStat(sim, { kind: 'being.died', cause });
@@ -373,6 +408,8 @@ function place(
   const female = sim.rng('beings').next() < 0.5 ? 1 : 0;
   const slot = s.spawn(speciesIdx, x, y, sim.tick, def.vitality, adult ? 100 : 25, female);
   if (slot < 0) return -1;
+  b.task[slot] = -1;
+  b.cooldown.fill(0, slot * DECISIONS, slot * DECISIONS + DECISIONS);
   const bearer = parent >= 0 && s.alive[parent] === 1 ? parent : -1;
 
   // Strain: a birth inherits the bearer's strain; an adult joins a near member's strain or founds one.
@@ -400,6 +437,12 @@ function place(
     for (const id of founder?.strain ?? []) addStrainTrait(traits, id);
     strain = b.strains.create(speciesIdx, def.name, 0, 0, traits);
   }
+  // Birth mutation (05 section 6.3): a bearer whose strain can mutate may give the newborn a mutant strain.
+  // An unchanged trait set keeps the newborn in the parent's strain (mutateFrom returns null).
+  if (bearer >= 0 && !founder && strain && strainMutation(strain.traits) > 0) {
+    const mutant = mutateFrom(b.strains, strain, def.name, sim.rng('lineage'));
+    if (mutant) strain = mutant;
+  }
   s.strain[slot] = strain.id;
   for (const id of founder?.being ?? []) {
     const k = BEING_TRAIT_INDEX.get(id);
@@ -423,6 +466,8 @@ function place(
     refreshStats(sim, slot);
   }
   s.vit[slot] = s.maxVit[slot] ?? 0;
+  s.endurance[slot] = def.endurance;
+  if (!adult) addMood(sim, slot, 'born');
 
   if (adult) {
     b.stats.newAdults++;
@@ -440,123 +485,358 @@ function place(
   return slot;
 }
 
-/** One decision for a being (07 section 3, reduced to the beast core: flee, hunt or graze, mate, wander). */
-function decide(sim: Sim, slot: number): void {
+/** Whether a strain holds a trait by id (18b). */
+function hasStrainTrait(sim: Sim, slot: number, id: string): boolean {
+  return sim.beings.strains.get(sim.beings.store.strain[slot] ?? 0)?.traits.includes(id) ?? false;
+}
+
+function setNext(sim: Sim, slot: number, ticks: number): void {
+  sim.beings.store.nextDecision[slot] = sim.tick + ticks;
+}
+
+function isAdult(sim: Sim, slot: number): boolean {
+  const s = sim.beings.store;
+  return (sim.tick - (s.born[slot] ?? 0)) / YEAR >= (s.adultA[slot] ?? 1);
+}
+
+/** Can this Being start a mating now (06 section 6.1, the Being-side gates; the crowd and the partner are checked apart). */
+function canMate(sim: Sim, o: number): boolean {
+  const s = sim.beings.store;
+  const barren = BEING_TRAIT_INDEX.get('barren') ?? -1;
+  return (
+    (!needsFood(sim.beings.species(s.species[o] ?? 0)) || (s.fuel[o] ?? 0) >= TUNING.matingFuel) &&
+    !s.hasMark(o, barren) &&
+    sim.tick >= (s.lull[o] ?? 0) &&
+    !(s.expecting[o] ?? 0) &&
+    !isAsleep(sim, o)
+  );
+}
+
+/** A female bearer below her living-children cap (06 section 6.1); males always have room. */
+function bearerRoom(sim: Sim, o: number): boolean {
+  const s = sim.beings.store;
+  return s.female[o] === 0 || (s.childCount[o] ?? 0) < Math.ceil(s.litterA[o] ?? 0);
+}
+
+/** Mating gates for the deciding Being (06 section 6.1): adult, able, rule on, not sleeping, and crowd below the cap. */
+function mayBreed(sim: Sim, slot: number): boolean {
+  const b = sim.beings;
+  return (
+    isAdult(sim, slot) &&
+    canMate(sim, slot) &&
+    bearerRoom(sim, slot) &&
+    sim.rules.isOn('beast_births') &&
+    !sim.effects.flag(slot, 'noBreed') &&
+    b.crowdInPatch(slot, b.store.x[slot] ?? 0, b.store.y[slot] ?? 0) < BREEDING_CROWD
+  );
+}
+
+/** The nearest same-species partner who could mate now (06 section 6.1 partner gates), or -1. */
+function mateTarget(sim: Sim, slot: number): number {
+  const s = sim.beings.store;
+  const sp = s.species[slot] ?? 0;
+  return sim.beings.nearest(
+    slot,
+    (o) => s.species[o] === sp && s.female[o] !== s.female[slot] && isAdult(sim, o) && canMate(sim, o) && bearerRoom(sim, o),
+    ROUND6.partnerRadius,
+  );
+}
+
+/** Nearest hunter within the flee radius, or -1 (07 section 3.6 `flee`). */
+function fleeFrom(sim: Sim, slot: number): number {
+  const b = sim.beings;
+  const rt = b.runtime[b.store.species[slot] ?? 0];
+  if (!rt) return -1;
+  return b.nearest(slot, (o) => rt.hunters.includes(b.store.species[o] ?? -1), ROUND6.fleeRadius);
+}
+
+/** Nearest same-species Being that is not asleep, within the partner radius, or -1 (chat, herd). */
+function partnerFor(sim: Sim, slot: number): number {
+  const s = sim.beings.store;
+  const sp = s.species[slot] ?? 0;
+  return sim.beings.nearest(slot, (o) => s.species[o] === sp && !isAsleep(sim, o), ROUND6.partnerRadius);
+}
+
+/** Herd member to follow (07 section 3.6 `herd_follow`): the nearest same-species Being, when it is beyond the herd gap. */
+function herdTarget(sim: Sim, slot: number): number {
   const b = sim.beings;
   const s = b.store;
-  const rng = sim.rng('beings');
-  const tick = sim.tick;
-  const rt = b.runtime[s.species[slot] ?? 0];
-  if (!rt) return;
-  const def = rt.def;
-  const realm = sim.realm;
-  const adult = (tick - (s.born[slot] ?? 0)) / YEAR >= (s.adultA[slot] ?? 1);
-  const feeds = needsFood(def);
-  const hungry = feeds && (s.fuel[slot] ?? 0) <= TUNING.hungryAt;
+  if (!b.species(s.species[slot] ?? 0).herding) return -1;
+  const near = partnerFor(sim, slot);
+  if (near < 0) return -1;
+  const gap = Math.max(Math.abs((s.x[near] ?? 0) - (s.x[slot] ?? 0)), Math.abs((s.y[near] ?? 0) - (s.y[slot] ?? 0)));
+  return gap > ROUND6.herdGap ? near : -1;
+}
 
-  // Flee the nearest hunter within four tiles.
-  const hunter = b.nearest(slot, (o) => rt.hunters.includes(s.species[o] ?? -1), 4);
-  if (hunter >= 0) {
+/** Prey within hunt range that the Being may take (flesh eaters; omni eaters only with no food underfoot). */
+function huntTarget(sim: Sim, slot: number): number {
+  const b = sim.beings;
+  const s = b.store;
+  const def = b.species(s.species[slot] ?? 0);
+  if (!(def.diet === 'flesh' || (def.diet === 'omni' && foodAt(sim, (s.y[slot] ?? 0) * sim.realm.side + (s.x[slot] ?? 0), def.diet) === 0))) return -1;
+  const rt = b.runtime[s.species[slot] ?? 0];
+  if (!rt) return -1;
+  return b.nearest(slot, (o) => rt.prey.includes(s.species[o] ?? -1) && SIZE_RANK[SPECIES[s.species[o] ?? 0]?.size ?? 'T'] <= SIZE_RANK[def.size], TUNING.huntRadius);
+}
+
+/** The nearest flora tile of a diet within the forage radius (row-major order), or -1. */
+function findFood(sim: Sim, slot: number, diet: SpeciesDef['diet']): number {
+  const s = sim.beings.store;
+  const realm = sim.realm;
+  const r = TUNING.forageRadius;
+  const x0 = s.x[slot] ?? 0;
+  const y0 = s.y[slot] ?? 0;
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      const x = x0 + dx;
+      const y = y0 + dy;
+      if (x < 0 || y < 0 || x >= realm.side || y >= realm.side) continue;
+      if (foodAt(sim, y * realm.side + x, diet) > 0) return y * realm.side + x;
+    }
+  }
+  return -1;
+}
+
+/** Grazing or nectar (06 section 2.2): eat the flora underfoot, or step toward the nearest flora in range. */
+function forage(sim: Sim, slot: number, diet: SpeciesDef['diet']): boolean {
+  const s = sim.beings.store;
+  const realm = sim.realm;
+  const here = (s.y[slot] ?? 0) * realm.side + (s.x[slot] ?? 0);
+  const food = foodAt(sim, here, diet);
+  if (food > 0) {
+    s.fuel[slot] = Math.min(100, (s.fuel[slot] ?? 0) + food);
+    if (diet === 'grass' || diet === 'omni') grazeFlora(sim, here);
+    setNext(sim, slot, 4);
+    return false;
+  }
+  const found = findFood(sim, slot, diet);
+  if (found < 0) return false;
+  stepToward(sim, slot, found % realm.side, Math.floor(found / realm.side));
+  setNext(sim, slot, 2);
+  return true;
+}
+
+/** Whether a food source of this diet is underfoot or in forage range (eligibility for the eat decisions). */
+function canForage(sim: Sim, slot: number, diet: SpeciesDef['diet']): boolean {
+  const s = sim.beings.store;
+  const here = (s.y[slot] ?? 0) * sim.realm.side + (s.x[slot] ?? 0);
+  return foodAt(sim, here, diet) > 0 || findFood(sim, slot, diet) >= 0;
+}
+
+/** The decision tasks of the beast layer (07 section 5, beast subset). Each returns true while the task continues. */
+const TASKS: Record<string, TaskFn> = {
+  wander: (sim, slot) => {
+    const rng = sim.rng('beings');
+    wander(sim, slot, rng.int(8));
+    setNext(sim, slot, 4 + rng.int(6));
+    return false;
+  },
+  pause5: (sim, slot) => {
+    setNext(sim, slot, ROUND6.pauseTicks);
+    return false;
+  },
+  idle_nap: (sim, slot) => {
+    beginSleep(sim, slot, 'nap');
+    setNext(sim, slot, 1);
+    return false;
+  },
+  polyphasic: (sim, slot) => {
+    beginSleep(sim, slot, 'poly');
+    setNext(sim, slot, 1);
+    return false;
+  },
+  monophasic: (sim, slot) => {
+    beginSleep(sim, slot, 'mono');
+    setNext(sim, slot, 1);
+    return false;
+  },
+  herd_follow: (sim, slot) => {
+    const target = herdTarget(sim, slot);
+    if (target < 0) return false;
+    const s = sim.beings.store;
+    stepToward(sim, slot, s.x[target] ?? 0, s.y[target] ?? 0);
+    setNext(sim, slot, 2);
+    return true;
+  },
+  chat: (sim, slot) => {
+    const partner = partnerFor(sim, slot);
+    if (partner < 0) return false;
+    const s = sim.beings.store;
+    const gap = Math.max(Math.abs((s.x[partner] ?? 0) - (s.x[slot] ?? 0)), Math.abs((s.y[partner] ?? 0) - (s.y[slot] ?? 0)));
+    if (gap > 2) {
+      stepToward(sim, slot, s.x[partner] ?? 0, s.y[partner] ?? 0);
+      setNext(sim, slot, 2);
+      return true;
+    }
+    // Conversation outcome (06 section 4.3, simplified to one round): 70% good, 30% bad, for both.
+    const event = sim.rng('beings').next() < 0.7 ? 'talked_well' : 'talked_badly';
+    addMood(sim, slot, event);
+    addMood(sim, partner, event);
+    setNext(sim, slot, 20);
+    return false;
+  },
+  flee: (sim, slot) => {
+    const hunter = fleeFrom(sim, slot);
+    if (hunter < 0) return false;
+    const s = sim.beings.store;
     const x = s.x[slot] ?? 0;
     const y = s.y[slot] ?? 0;
     stepToward(sim, slot, x + Math.sign(x - (s.x[hunter] ?? 0)) * 3, y + Math.sign(y - (s.y[hunter] ?? 0)) * 3);
-    s.nextDecision[slot] = tick + 2;
+    setNext(sim, slot, 2);
+    return true;
+  },
+  eat_grass: (sim, slot) => forage(sim, slot, 'grass'),
+  eat_nectar: (sim, slot) => forage(sim, slot, 'nectar'),
+  eat_hunt: (sim, slot) => {
+    const prey = huntTarget(sim, slot);
+    if (prey < 0) return false;
+    const s = sim.beings.store;
+    const adjacent = Math.abs((s.x[prey] ?? 0) - (s.x[slot] ?? 0)) <= 1 && Math.abs((s.y[prey] ?? 0) - (s.y[slot] ?? 0)) <= 1;
+    setNext(sim, slot, 3);
+    if (!adjacent) {
+      stepToward(sim, slot, s.x[prey] ?? 0, s.y[prey] ?? 0);
+      return true;
+    }
+    // Bite damage is floor(0.15 * victim max vitality) + 1, and fuel gains the damage dealt (06 section 2.2).
+    const bite = Math.floor(0.15 * (s.maxVit[prey] ?? 0)) + 1;
+    s.vit[prey] = (s.vit[prey] ?? 0) - bite;
+    if ((s.vit[prey] ?? 0) <= 0) {
+      killBeing(sim, prey, 'eaten');
+      s.fuel[slot] = 100;
+      return false;
+    }
+    s.fuel[slot] = Math.min(100, (s.fuel[slot] ?? 0) + bite);
+    return true;
+  },
+  mate: (sim, slot) => {
+    const partner = mateTarget(sim, slot);
+    if (partner < 0) return false;
+    const s = sim.beings.store;
+    const tick = sim.tick;
+    setNext(sim, slot, 3);
+    const adjacent = Math.abs((s.x[partner] ?? 0) - (s.x[slot] ?? 0)) <= 1 && Math.abs((s.y[partner] ?? 0) - (s.y[slot] ?? 0)) <= 1;
+    if (!adjacent) {
+      stepToward(sim, slot, s.x[partner] ?? 0, s.y[partner] ?? 0);
+      return true;
+    }
+    // Mating (06 section 6.1): the bearer is pregnant for its gestation and carries a litter (06 section 6.4).
+    const def = sim.beings.species(s.species[slot] ?? 0);
+    const bearer = s.female[slot] ? slot : partner;
+    if (s.female[bearer] && !(s.expecting[bearer] ?? 0)) {
+      s.expecting[bearer] = 1;
+      s.expectUntil[bearer] = tick + Math.round((s.gestationA[bearer] ?? def.gestationMonths) * MONTH_TICKS);
+      s.brood[bearer] = litterRoll(sim, Math.round(s.broodA[bearer] ?? def.litter));
+      s.fuel[bearer] = Math.max(0, (s.fuel[bearer] ?? 0) - 50);
+    }
+    s.lull[slot] = tick + LULL;
+    s.lull[partner] = tick + LULL;
+    return false;
+  },
+};
+
+/** Runs one step of a decision's task. */
+function runTask(sim: Sim, slot: number, k: number): boolean {
+  const id = DECISION_ROWS[k]?.id ?? '';
+  const task = TASKS[id];
+  return task ? task(sim, slot) : false;
+}
+
+/** Eligibility of a decision beyond its flags (07 section 3.3 preconditions). */
+function eligible(sim: Sim, slot: number, id: string, fleeing: boolean): boolean {
+  const b = sim.beings;
+  const s = b.store;
+  const def = b.species(s.species[slot] ?? 0);
+  switch (id) {
+    case 'flee':
+      return fleeing;
+    case 'herd_follow':
+      return herdTarget(sim, slot) >= 0;
+    case 'chat':
+      return partnerFor(sim, slot) >= 0;
+    case 'eat_grass':
+      return (def.diet === 'grass' || def.diet === 'omni') && canForage(sim, slot, 'grass');
+    case 'eat_nectar':
+      return def.diet === 'nectar' && canForage(sim, slot, 'nectar');
+    case 'eat_hunt':
+      return huntTarget(sim, slot) >= 0;
+    case 'mate':
+      return mayBreed(sim, slot) && mateTarget(sim, slot) >= 0;
+    default:
+      return true;
+  }
+}
+
+/**
+ * One decision for a being (07 sections 3 and 4): the running task continues, or a new one is picked by
+ * tier and softmax weight among the eligible decisions (cooldowns, flags and preconditions filter them).
+ * A flight from a hunter interrupts any task but flee itself (07 section 4.2).
+ */
+function decide(sim: Sim, slot: number): void {
+  const b = sim.beings;
+  const s = b.store;
+  const tick = sim.tick;
+  const rt = b.runtime[s.species[slot] ?? 0];
+  if (!rt) return;
+  const hungry = needsFood(rt.def) && (s.fuel[slot] ?? 0) <= TUNING.hungryAt;
+  const fleeing = fleeFrom(sim, slot) >= 0;
+
+  const running = b.task[slot] ?? -1;
+  if (running >= 0) {
+    if (!(fleeing && DECISION_ROWS[running]?.id !== 'flee')) {
+      if (!runTask(sim, slot, running)) b.task[slot] = -1;
+      return;
+    }
+    b.task[slot] = -1;
+  }
+
+  // Candidates: cooldown, flags and preconditions (07 section 3.3).
+  const pool: { k: number; tier: number; w: number }[] = [];
+  for (let k = 0; k < DECISIONS; k++) {
+    const row = DECISION_ROWS[k];
+    if (!row) continue;
+    if ((b.cooldown[slot * DECISIONS + k] ?? 0) > tick) continue;
+    if (row.flags.includes('onlyHungry') && !hungry) continue;
+    if (row.flags.includes('onlySafe') && fleeing) continue;
+    if (row.flags.includes('onlyAdult') && !isAdult(sim, slot)) continue;
+    if (!eligible(sim, slot, row.id, fleeing)) continue;
+    // Reproduction weight: 2 under the living-children cap, else 0.1 (07 section 3.4).
+    const capped = row.id === 'mate' && (s.childCount[slot] ?? 0) >= Math.ceil(s.litterA[slot] ?? 0);
+    pool.push({ k, tier: row.tier, w: capped ? 0.1 : row.weight });
+  }
+  if (pool.length === 0) {
+    setNext(sim, slot, EMPTY_PAUSE);
     return;
   }
 
-  const localFood = foodAt(sim, (s.y[slot] ?? 0) * realm.side + (s.x[slot] ?? 0), def.diet) > 0;
-  if (hungry && (def.diet === 'flesh' || (def.diet === 'omni' && !localFood))) {
-    const prey = b.nearest(slot, (o) => rt.prey.includes(s.species[o] ?? -1) && SIZE_RANK[SPECIES[s.species[o] ?? 0]?.size ?? 'T'] <= SIZE_RANK[def.size], TUNING.huntRadius);
-    if (prey >= 0) {
-      const adjacent = Math.abs((s.x[prey] ?? 0) - (s.x[slot] ?? 0)) <= 1 && Math.abs((s.y[prey] ?? 0) - (s.y[slot] ?? 0)) <= 1;
-      if (adjacent) {
-        // Bite damage is floor(0.15 * victim max vitality) + 1, and fuel gains the damage dealt (06 section 2.2).
-        const bite = Math.floor(0.15 * (s.maxVit[prey] ?? 0)) + 1;
-        s.vit[prey] = (s.vit[prey] ?? 0) - bite;
-        if ((s.vit[prey] ?? 0) <= 0) {
-          killBeing(sim, prey, 'eaten');
-          s.fuel[slot] = 100;
-        } else {
-          s.fuel[slot] = Math.min(100, (s.fuel[slot] ?? 0) + bite);
-        }
-      } else {
-        stepToward(sim, slot, s.x[prey] ?? 0, s.y[prey] ?? 0);
-      }
-      s.nextDecision[slot] = tick + 3;
-      return;
-    }
+  // Tiers (07 section 3.5): a critical candidate forces tiers; otherwise tiers apply 80% of the time.
+  const rng = sim.rng('beings');
+  const critical = pool.some((p) => DECISION_ROWS[p.k]?.tier === 4);
+  const useTiers = critical || rng.next() < 0.8;
+  let set = pool;
+  if (useTiers) {
+    const top = Math.max(...pool.map((p) => p.tier));
+    set = pool.filter((p) => p.tier === top);
   }
 
-  if (hungry && def.diet !== 'flesh') {
-    const here = (s.y[slot] ?? 0) * realm.side + (s.x[slot] ?? 0);
-    const food = foodAt(sim, here, def.diet);
-    if (food > 0) {
-      s.fuel[slot] = Math.min(100, (s.fuel[slot] ?? 0) + food);
-      if (def.diet === 'grass' || def.diet === 'omni') grazeFlora(sim, here);
-      s.nextDecision[slot] = tick + 4;
-      return;
-    }
-    const r = TUNING.forageRadius;
-    const x0 = s.x[slot] ?? 0;
-    const y0 = s.y[slot] ?? 0;
-    let found = -1;
-    for (let dy = -r; dy <= r && found < 0; dy++) {
-      for (let dx = -r; dx <= r && found < 0; dx++) {
-        const x = x0 + dx;
-        const y = y0 + dy;
-        if (x < 0 || y < 0 || x >= realm.side || y >= realm.side) continue;
-        if (foodAt(sim, y * realm.side + x, def.diet) > 0) found = y * realm.side + x;
-      }
-    }
-    if (found >= 0) {
-      stepToward(sim, slot, found % realm.side, Math.floor(found / realm.side));
-      s.nextDecision[slot] = tick + 2;
-      return;
+  // Softmax pick (07 section 3.4): P(i) = exp(w_i) / sum exp(w_j).
+  let sum = 0;
+  for (const p of set) sum += Math.exp(p.w);
+  let r = rng.next() * sum;
+  let pick = set[set.length - 1];
+  for (const p of set) {
+    r -= Math.exp(p.w);
+    if (r <= 0) {
+      pick = p;
+      break;
     }
   }
+  if (!pick) return;
 
-  // Mating (06 section 6.1): adult, fed when it needs food, not in a lull, not expecting, not barren,
-  // and a female bearer below her living-children cap. Births also need the rule on and no crowd.
-  const barren = BEING_TRAIT_INDEX.get('barren') ?? -1;
-  const bearerRoom = (o: number): boolean => s.female[o] === 0 || (s.childCount[o] ?? 0) < Math.ceil(s.litterA[o] ?? 0);
-  const canMate = (o: number): boolean => (!needsFood(b.species(s.species[o] ?? 0)) || (s.fuel[o] ?? 0) >= TUNING.matingFuel) && !s.hasMark(o, barren) && tick >= (s.lull[o] ?? 0) && !(s.expecting[o] ?? 0);
-  // The crowd scan is linear in the population, so it runs only for a being that could breed now.
-  const mayBreed = adult && canMate(slot) && bearerRoom(slot) && sim.rules.isOn('beast_births') && !sim.effects.flag(slot, 'noBreed');
-  if (mayBreed && b.crowdInPatch(slot, s.x[slot] ?? 0, s.y[slot] ?? 0) < BREEDING_CROWD) {
-    const sp = s.species[slot] ?? 0;
-    const mate = b.nearest(
-      slot,
-      (o) =>
-        s.species[o] === sp &&
-        s.female[o] !== s.female[slot] &&
-        (tick - (s.born[o] ?? 0)) / YEAR >= (s.adultA[o] ?? 1) &&
-        canMate(o) &&
-        bearerRoom(o),
-      8,
-    );
-    if (mate >= 0) {
-      const adjacent = Math.abs((s.x[mate] ?? 0) - (s.x[slot] ?? 0)) <= 1 && Math.abs((s.y[mate] ?? 0) - (s.y[slot] ?? 0)) <= 1;
-      if (adjacent) {
-        const bearer = s.female[slot] ? slot : mate;
-        if (s.female[bearer] && !(s.expecting[bearer] ?? 0)) {
-          s.expecting[bearer] = 1;
-          s.expectUntil[bearer] = tick + Math.round((s.gestationA[bearer] ?? def.gestationMonths) * MONTH_TICKS);
-          s.brood[bearer] = litterRoll(sim, Math.round(s.broodA[bearer] ?? def.litter));
-          s.fuel[bearer] = Math.max(0, (s.fuel[bearer] ?? 0) - 50);
-        }
-        s.lull[slot] = tick + LULL;
-        s.lull[mate] = tick + LULL;
-      } else {
-        stepToward(sim, slot, s.x[mate] ?? 0, s.y[mate] ?? 0);
-      }
-      s.nextDecision[slot] = tick + 3;
-      return;
-    }
-  }
-
-  // Wander: move on most decisions.
-  if (rng.next() < 0.7) wander(sim, slot, rng.int(8));
-  s.nextDecision[slot] = tick + 4 + rng.int(6);
+  const row = DECISION_ROWS[pick.k];
+  if (!row) return;
+  b.cooldown[slot * DECISIONS + pick.k] = tick + row.cooldown;
+  b.task[slot] = pick.k;
+  if (!runTask(sim, slot, pick.k)) b.task[slot] = -1;
 }
 
 /**
@@ -587,17 +867,24 @@ export function stepBeings(sim: Sim): void {
     if (regen && s.baby[slot] === 1 && (tick - (s.born[slot] ?? 0)) / YEAR >= (s.adultA[slot] ?? 1)) {
       // Growing up: the stats are recomputed as an adult (06 section 3.2 GrewUp).
       refreshStats(sim, slot);
+      addMood(sim, slot, 'grew_up');
     }
 
-    if (fuelPass && feeds) {
-      if ((s.fuel[slot] ?? 0) > 0) {
-        s.fuel[slot] = Math.max(0, (s.fuel[slot] ?? 0) - (s.metabolismA[slot] ?? 1));
-      } else if (hungerRule) {
-        s.vit[slot] = (s.vit[slot] ?? 0) - Math.max(1, Math.floor((s.maxVit[slot] ?? 0) * 0.05));
-        if ((s.vit[slot] ?? 0) <= 0) {
-          killBeing(sim, slot, 'starved');
-          continue;
+    // Fuel pass (06 section 2.1): metabolism is taken first; at 0 the hunger rule starves the Being by 5% of
+    // max vitality, otherwise endurance regains 1. A sleeping `energy_saver` Being is skipped.
+    if (fuelPass && feeds && !(isAsleep(sim, slot) && hasStrainTrait(sim, slot, 'energy_saver'))) {
+      s.fuel[slot] = Math.max(0, (s.fuel[slot] ?? 0) - (s.metabolismA[slot] ?? 1));
+      if ((s.fuel[slot] ?? 0) === 0) {
+        if (hungerRule) {
+          s.vit[slot] = (s.vit[slot] ?? 0) - Math.max(1, Math.floor((s.maxVit[slot] ?? 0) * 0.05));
+          addMood(sim, slot, 'starving');
+          if ((s.vit[slot] ?? 0) <= 0) {
+            killBeing(sim, slot, 'starved');
+            continue;
+          }
         }
+      } else {
+        s.endurance[slot] = Math.min(def.endurance, (s.endurance[slot] ?? 0) + 1);
       }
     }
     if (regen && (!feeds || (s.fuel[slot] ?? 0) >= HUNGRY_AT) && (s.vit[slot] ?? 0) < (s.maxVit[slot] ?? 0)) {
@@ -621,11 +908,15 @@ export function stepBeings(sim: Sim): void {
     if (s.expecting[slot] && tick >= (s.expectUntil[slot] ?? 0)) {
       s.expecting[slot] = 0;
       const brood = Math.max(1, s.brood[slot] ?? 1);
+      let born = 0;
       for (let n = 0; n < brood && b.store.size < WORLD_CAP; n++) {
-        spawnBeing(sim, s.species[slot] ?? 0, (s.x[slot] ?? 0) + rng.int(5) - 2, (s.y[slot] ?? 0) + rng.int(5) - 2, false, slot);
+        if (spawnBeing(sim, s.species[slot] ?? 0, (s.x[slot] ?? 0) + rng.int(5) - 2, (s.y[slot] ?? 0) + rng.int(5) - 2, false, slot) >= 0) born++;
       }
+      if (born > 0) addMood(sim, slot, 'child_born');
     }
 
+    if (tick % BOND_CHECK === 0) bondCheck(sim, slot);
+    if (sleepCheck(sim, slot)) continue;
     if (tick >= (s.nextDecision[slot] ?? 0)) decide(sim, slot);
   }
 }

@@ -40,3 +40,34 @@ export const TUNING: Tuning = {
   predatorMetabolism: 1,
   regrowDelay: 1200,
 };
+
+/**
+ * Beings round 6 knobs (06 sections 4-5, 07 sections 3 and 8). Kept apart from `TUNING` so the soak sweep's
+ * object is unchanged. Every value is TUNE unless the comment says the spec states it.
+ */
+export const ROUND6 = {
+  /** Ticks between bond checks for each Being (TUNE). */
+  bondCheck: 20,
+  /** Tiles (Chebyshev) two same-strain Beings must stay within to count as close (TUNE; 06 4.4 uses a chunk). */
+  bondRadius: 3,
+  /** Ticks two Beings must stay close before they bond (TUNE). */
+  bondTicks: 600,
+  /** Sleep with a sleep-cycle trait: uniform range (06 section 5, stated 400 to 1200). */
+  sleepMin: 400,
+  sleepMax: 1200,
+  /** Sleep with no sleep-cycle trait (06 section 5, stated 400). */
+  sleepPlain: 400,
+  /** Monophasic sleep range (06 section 5, stated 800 to 1800). */
+  monoMin: 800,
+  monoMax: 1800,
+  /** Share of max endurance restored on natural wake-up (06 section 5, stated 20%). */
+  sleepEndurance: 0.2,
+  /** Tiles within which a hunter makes a Being flee; also the "not safe" radius (07 section 3.3, TUNE). */
+  fleeRadius: 4,
+  /** Tiles a mate, herd mate or chat partner is searched for (TUNE). */
+  partnerRadius: 8,
+  /** Herd distance a follower keeps (TUNE). */
+  herdGap: 3,
+  /** Ticks a `pause5` decision waits (07 section 3.6, read as ticks). */
+  pauseTicks: 5,
+} as const;

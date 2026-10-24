@@ -51,6 +51,21 @@ export class BeingStore {
   readonly metabolismA: Float32Array;
   readonly adultA: Float32Array;
   readonly gestationA: Float32Array;
+  /** Mood -100..+100 (06 section 4.1). Changed only by mood events. */
+  readonly mood: Int16Array;
+  /** Current endurance, 0..species endurance (06 section 1). */
+  readonly endurance: Uint16Array;
+  /** Tick the current sleep ends; 0 when awake (06 section 5). */
+  readonly sleepUntil: Uint32Array;
+  /** Vitality seen at the last sleep check; a drop below it ends sleep early (06 section 5). */
+  readonly sleepVit: Int16Array;
+  /** Bond partner slot and its generation at bond time; -1 when unbonded (round 6 bonds, 06 section 4.4). */
+  readonly bondWith: Int32Array;
+  readonly bondGen: Uint32Array;
+  /** Nearest same-strain Being the Being has been close to, its generation, and the tick closeness began. */
+  readonly closeWith: Int32Array;
+  readonly closeGen: Uint32Array;
+  readonly closeSince: Uint32Array;
 
   private readonly list: Uint32Array;
   private readonly slotPos: Int32Array;
@@ -93,6 +108,15 @@ export class BeingStore {
     this.metabolismA = new Float32Array(capacity);
     this.adultA = new Float32Array(capacity);
     this.gestationA = new Float32Array(capacity);
+    this.mood = new Int16Array(capacity);
+    this.endurance = new Uint16Array(capacity);
+    this.sleepUntil = new Uint32Array(capacity);
+    this.sleepVit = new Int16Array(capacity);
+    this.bondWith = new Int32Array(capacity).fill(-1);
+    this.bondGen = new Uint32Array(capacity);
+    this.closeWith = new Int32Array(capacity).fill(-1);
+    this.closeGen = new Uint32Array(capacity);
+    this.closeSince = new Uint32Array(capacity);
     this.list = new Uint32Array(capacity);
     this.slotPos = new Int32Array(capacity).fill(-1);
     this.freeStack = new Uint32Array(capacity);
@@ -137,6 +161,13 @@ export class BeingStore {
     this.attrs.fill(0, slot * 4, slot * 4 + 4);
     this.marks.fill(0, slot * 5, slot * 5 + 5);
     this.baby[slot] = 0;
+    this.mood[slot] = 0;
+    this.endurance[slot] = 0;
+    this.sleepUntil[slot] = 0;
+    this.sleepVit[slot] = vit;
+    this.bondWith[slot] = -1;
+    this.closeWith[slot] = -1;
+    this.closeSince[slot] = 0;
     this.slotPos[slot] = this.count;
     this.list[this.count++] = slot;
     return slot;

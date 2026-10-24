@@ -2,7 +2,8 @@ import type { Rng } from '../../shared/rng.ts';
 import { ssToTicks } from '../clock.ts';
 import type { Realm } from '../realm.ts';
 import type { BeingStore } from '../beings/store.ts';
-import { buildable, createHamlet, hamletStep, PARCEL, type Hamlet, type HamletContext } from './hamlet.ts';
+import { buildable, createHamlet, hamletStep, PARCEL, type Hamlet, type HamletContext, type Placed } from './hamlet.ts';
+import { BUILDING_BY_ID } from './catalogue.ts';
 
 /** Hamlets placed per realm (TUNE). */
 export const HAMLETS_WANTED = 3;
@@ -33,6 +34,54 @@ const states = new WeakMap<object, SettlementState>();
 /** Hamlets of a host, in placement order. Empty before the first settlementsStep. */
 export function hamletsOf(host: SettlementHost): readonly Hamlet[] {
   return states.get(host)?.hamlets ?? [];
+}
+
+/** Plain-data form of one hamlet, JSON-safe; buildings are kept by catalogue id (Chronicle section 16). */
+export interface HamletSnapshot {
+  hamlets: { parcels: number[]; food: number; wood: number; stone: number; folk: number; buildings: { id: string; x: number; y: number }[]; growTimer: number }[];
+}
+
+/** Plain copy of a host's hamlet state, or null when the state was never created (no settlementsStep yet). */
+export function snapshotHamlets(host: SettlementHost): HamletSnapshot | null {
+  const state = states.get(host);
+  if (!state) return null;
+  return {
+    hamlets: state.hamlets.map((h) => ({
+      parcels: [...h.parcels],
+      food: h.food,
+      wood: h.wood,
+      stone: h.stone,
+      folk: h.folk,
+      buildings: h.buildings.map((b) => ({ id: b.def.id, x: b.x, y: b.y })),
+      growTimer: h.growTimer,
+    })),
+  };
+}
+
+/** Replaces a host's hamlet state with a snapshot (Chronicle load). Unknown building ids are rejected. */
+export function restoreHamlets(host: SettlementHost, snap: HamletSnapshot): void {
+  const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+  if (!Array.isArray(snap.hamlets)) throw new Error('hamlet state is not valid');
+  // Hamlets hold disjoint parcels inside the realm, as placeHamlets guarantees.
+  const perAxis = host.realm.side / PARCEL;
+  const taken = new Set<number>();
+  const hamlets: Hamlet[] = snap.hamlets.map((h) => {
+    if (!Array.isArray(h.parcels)) throw new Error('hamlet state: parcels are not valid');
+    for (const p of h.parcels) {
+      if (!Number.isInteger(p) || p < 0 || p >= perAxis * perAxis || taken.has(p)) throw new Error('hamlet state: parcels are not valid');
+      taken.add(p);
+    }
+    if (!isNum(h.food) || !isNum(h.wood) || !isNum(h.stone) || !isNum(h.folk) || !isNum(h.growTimer) || !Array.isArray(h.parcels) || !Array.isArray(h.buildings)) {
+      throw new Error('hamlet state: record is not valid');
+    }
+    const buildings: Placed[] = h.buildings.map((b) => {
+      const def = BUILDING_BY_ID.get(b.id);
+      if (!def || !isNum(b.x) || !isNum(b.y)) throw new Error(`hamlet state: building ${b.id} is not valid`);
+      return { def, x: b.x, y: b.y };
+    });
+    return { parcels: new Set(h.parcels), food: h.food, wood: h.wood, stone: h.stone, folk: h.folk, buildings, growTimer: h.growTimer };
+  });
+  states.set(host, { hamlets });
 }
 
 /** Maps the host onto the hamlet step's structural context. */

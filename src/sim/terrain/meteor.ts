@@ -1,6 +1,7 @@
 import { explode } from '../explosions.ts';
 import { placeMineralNode } from '../flora.ts';
 import type { Sim } from '../sim.ts';
+import { PARCEL } from '../../shared/constants.ts';
 
 /** Meteor blast profiles (04 section 8.1). Both use radius 20 and power 1. */
 export const METEOR_PROFILES = {
@@ -12,8 +13,6 @@ export type MeteorProfile = keyof typeof METEOR_PROFILES;
 
 /** Mineral nodes a meteor leaves: the impact tile and four more in the same Parcel (04 section 8.1). */
 const NODES_PER_IMPACT = 5;
-/** Parcel edge in tiles (03 section 8.1). */
-const PARCEL = 8;
 
 /**
  * Meteor impact (04 sections 8.1 and 8.6): explodes at (x, y) with the profile's radius and damage,

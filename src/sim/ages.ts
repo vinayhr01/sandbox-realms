@@ -318,7 +318,7 @@ export function rollDuration(def: AgeDef, rng: Rng): number {
   return minTicks + rng.int(maxTicks - minTicks + 1);
 }
 
-export function enterAge(state: AgeState, id: string, rng: Rng, tick: number): void {
+function enterAge(state: AgeState, id: string, rng: Rng, tick: number): void {
   const def = AGE_BY_ID.get(id) ?? dawn;
   state.current = def.id;
   state.elapsed = 0;
@@ -355,10 +355,4 @@ function resolveSlot(state: AgeState, index: number, rng: Rng): string {
 
 export function ageDef(state: AgeState): AgeDef {
   return AGE_BY_ID.get(state.current) ?? dawn;
-}
-
-/** Months left in the current age, rounded up (02 section 5.1 "months left"). */
-export function monthsLeft(state: AgeState): number {
-  const remaining = Math.max(0, state.durationTicks - state.elapsed);
-  return Math.ceil(remaining / 100);
 }

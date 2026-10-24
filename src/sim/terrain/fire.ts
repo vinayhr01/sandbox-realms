@@ -34,11 +34,6 @@ export function fireChanceAt(sim: Sim, i: number): number {
   return 0;
 }
 
-/** Ground kinds that detonate on ignition instead of burning (18c section 1). */
-export function isExplosive(id: number): boolean {
-  return ground(id).blastRadius > 0;
-}
-
 /**
  * Starts a fire on tile i if it can burn (04 section 6 startFire). `force` ignites bare ground
  * too (magma and direct ignite tools). Returns true when a fire started.

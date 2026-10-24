@@ -40,7 +40,6 @@ export enum Ev {
   Frame = 102,
   QueryResult = 103,
   Fault = 104,
-  Heartbeat = 105,
   Snapshot = 106,
   Saved = 107,
   Loaded = 108,
@@ -340,7 +339,6 @@ export type Event =
   | { kind: Ev.Frame; rows: FrameRows | null; stats: FrameStats }
   | { kind: Ev.QueryResult; reply: number; tileX: number; tileY: number; elevation: number; ground: string; inBounds: boolean }
   | { kind: Ev.Fault; severity: 'warn' | 'error' | 'fatal'; code: string; detail: string }
-  | { kind: Ev.Heartbeat; tick: number; avgTickMs: number }
   | { kind: Ev.Snapshot; snap: Snapshot }
   /** Reply to Cmd.SaveRealm. Empty bytes when there is no realm. */
   | { kind: Ev.Saved; reply: number; bytes: Uint8Array }

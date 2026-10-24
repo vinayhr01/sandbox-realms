@@ -1,9 +1,10 @@
 import { ground } from '../../content/grounds.ts';
+import { PARCEL } from '../../shared/constants.ts';
 import type { Rng } from '../../shared/rng.ts';
 import { BUILDINGS, BUILDING_BY_ID, type BuildingDef } from './catalogue.ts';
 
-/** Parcels are 8x8 tiles (01 section 2). */
-export const PARCEL = 8;
+/** Parcels are 8x8 tiles (01 section 2). Defined once in shared constants; re-exported here for existing importers. */
+export { PARCEL };
 
 export interface Placed {
   def: BuildingDef;
@@ -102,7 +103,7 @@ export function placeBuilding(ctx: HamletContext, h: Hamlet, def: BuildingDef): 
 }
 
 /** Extends the territory by one parcel next to an owned one, if the parcel is mostly land. */
-export function expandTerritory(ctx: HamletContext, h: Hamlet): boolean {
+function expandTerritory(ctx: HamletContext, h: Hamlet): boolean {
   const side = ctx.realm.side;
   const perAxis = side / PARCEL;
   const candidates: number[] = [];

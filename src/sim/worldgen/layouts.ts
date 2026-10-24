@@ -5,10 +5,10 @@ import { N4X, N4Y, n4 } from '../grid.ts';
 import { FLAG, type Realm } from '../realm.ts';
 import { BIOME_WEIGHTS, pickWeightedBiome } from './pick.ts';
 import { landmasses } from './water.ts';
+import { PARCEL } from '../../shared/constants.ts';
 
-/** Patch (16 tiles) and Parcel (8 tiles) sizes (01 section 2). */
+/** Patch size in tiles (01 section 2). */
 export const PATCH = 16;
-export const PARCEL = 8;
 
 /** Layout ids selected by a template (03 section 9.1). */
 export type Layout = 'none' | 'chessboard' | 'cells' | 'warren';

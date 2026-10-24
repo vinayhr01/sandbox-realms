@@ -39,7 +39,7 @@ import { clanSpeciesName, yearsSince, type Clan } from './clans/clans.ts';
 import { itemsOf } from './items/summary.ts';
 import type { Sim } from './sim.ts';
 
-/** Sim ticks between periodic snapshots: two sim-seconds (13 section 1, 10 Hz UI budget). */
+/** Sim ticks between periodic snapshots: two sim-seconds, 40 ticks at 20 Hz (13 section 1). */
 export const SNAPSHOT_TICKS = 2 * SS_TICKS;
 
 /** True when a periodic snapshot is due. `lastTick` is -1 before the first one. */

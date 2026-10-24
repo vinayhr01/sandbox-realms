@@ -766,7 +766,6 @@ async function boot(): Promise<void> {
         for (const id of stingers.ingest(event.snap.age ?? null, event.snap.dominions.filter((d) => d.atWar).length)) playCue(id);
         return;
       case Ev.QueryResult:
-      case Ev.Heartbeat:
         return;
     }
   });

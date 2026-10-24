@@ -9,6 +9,7 @@ import { assemble, type Assembled } from './assembly.ts';
 import { BeingStore } from './store.ts';
 import { strainMutation, Strains, addStrainTrait } from './strains.ts';
 import { TUNING } from './tuning.ts';
+import { MONTH_TICKS, YEAR_TICKS } from '../../shared/constants.ts';
 
 export type { BeingStore };
 
@@ -23,15 +24,15 @@ const LULL = 1800;
 /** Fuel at or below which a being is hungry (06 section 2.1). */
 const HUNGRY_AT = 50;
 /** Cap on live beings (06 section 8, TUNE; the quality tier caps the array). */
-export const WORLD_CAP = 4096;
+const WORLD_CAP = 4096;
 /** Spatial bucket side in tiles. */
 const BUCKET = 8;
 /** Beasts breed only with fewer than this many other beings in their 16x16 patch (06 section 6.1). */
 const BREEDING_CROWD = 6;
 /** Same-species members within this many tiles share a strain (05 section 6.1, strainJoinRadius). */
-export const STRAIN_JOIN_RADIUS = 40;
+const STRAIN_JOIN_RADIUS = 40;
 /** Ticks per simulated Year (02 section 1). */
-const YEAR = 1200;
+const YEAR = YEAR_TICKS;
 
 const DIRS: readonly (readonly [number, number])[] = [
   [0, -1],
@@ -539,7 +540,7 @@ function decide(sim: Sim, slot: number): void {
         const bearer = s.female[slot] ? slot : mate;
         if (s.female[bearer] && !(s.expecting[bearer] ?? 0)) {
           s.expecting[bearer] = 1;
-          s.expectUntil[bearer] = tick + Math.round((s.gestationA[bearer] ?? def.gestationMonths) * 100);
+          s.expectUntil[bearer] = tick + Math.round((s.gestationA[bearer] ?? def.gestationMonths) * MONTH_TICKS);
           s.brood[bearer] = litterRoll(sim, Math.round(s.broodA[bearer] ?? def.litter));
           s.fuel[bearer] = Math.max(0, (s.fuel[bearer] ?? 0) - 50);
         }
@@ -671,16 +672,4 @@ export function seedStartingBeasts(sim: Sim, groups: number): number {
     }
   }
   return placed;
-}
-
-/** Adds a strain trait to a strain and refreshes its members' stats (05 section 6.2, simplified). */
-export function grantStrainTrait(sim: Sim, strainId: number, traitId: string): boolean {
-  const strain = sim.beings.strains.get(strainId);
-  if (!strain || !addStrainTrait(strain.traits, traitId)) return false;
-  const s = sim.beings.store;
-  for (let k = 0; k < s.size; k++) {
-    const slot = s.at(k);
-    if (s.strain[slot] === strainId) refreshStats(sim, slot);
-  }
-  return true;
 }

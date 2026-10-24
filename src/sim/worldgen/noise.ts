@@ -1,5 +1,5 @@
 /** Integer hash of a lattice point (03 section 4: integer mixing only). */
-export function hashCell(ix: number, iy: number, seed: number): number {
+function hashCell(ix: number, iy: number, seed: number): number {
   let h = Math.imul(ix, 0x27d4eb2d) ^ Math.imul(iy, 0x165667b1) ^ seed;
   h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
   h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);

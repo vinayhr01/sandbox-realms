@@ -4,6 +4,7 @@
  * Numbers are TUNE. Structural context so this module does not import Sim.
  */
 import type { Rng } from '../shared/rng.ts';
+import { YEAR_TICKS } from '../shared/constants.ts';
 
 export type CalamityCategory = 'nature' | 'beings';
 
@@ -24,7 +25,7 @@ export interface CalamityDef {
   cooldownTicks: number;
 }
 
-const YEAR = 1200;
+const YEAR = YEAR_TICKS;
 const nature = (
   id: string,
   rate: number,
@@ -88,7 +89,7 @@ function categoryRule(category: CalamityCategory): string {
 }
 
 /** True when a calamity may occur in this Age. */
-export function allowedInAge(def: CalamityDef, age: string): boolean {
+function allowedInAge(def: CalamityDef, age: string): boolean {
   if (def.agesForbid.includes(age)) return false;
   return def.agesAllow.length === 0 || def.agesAllow.includes(age);
 }

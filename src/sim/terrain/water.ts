@@ -28,7 +28,7 @@ function touchesSea(sim: Sim, i: number): boolean {
  * Fills a hollow from the sea (04 section 2): the tile becomes its sea kind at that depth's band.
  * Any fire on the tile is put out first.
  */
-export function fillHollow(sim: Sim, i: number, seaId: number): void {
+function fillHollow(sim: Sim, i: number, seaId: number): void {
   const realm = sim.realm;
   stopFire(sim, i);
   const band = ground(seaId).band ?? 0;

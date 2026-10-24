@@ -28,8 +28,8 @@ const WEAPON_GROUPS: readonly ItemGroup[] = ['blade', 'cleaver', 'maul', 'pike',
 const CRAFTABLE: readonly ItemKindDef[] = ITEM_KINDS.filter((k) => !k.unique).sort((a, b) => b.tier - a.tier);
 
 /**
- * Coins a crafter or repairer can spend (08 section 7.2 and 7.4). The sim has no purse yet, so the
- * default holds none: coin costs are then never met, and repairs of uncommon gear wait.
+ * Coins a crafter or repairer can spend (08 section 7.2 and 7.4). The default purse is the hamlet's
+ * gold (see hamletPurse); tests inject their own. NO_PURSE holds nothing: coin costs are then never met.
  */
 export interface Purse {
   coins(slot: number): number;
@@ -40,6 +40,22 @@ export const NO_PURSE: Purse = {
   coins: () => 0,
   spend: (_slot, n) => n <= 0,
 };
+
+/**
+ * The hamlet's gold as a purse. Spec 08 pays coins from the Being's purse; the sim keeps no personal
+ * coins yet, so every Being in the hamlet draws on the hamlet gold (09 section 10.5). Free costs always pay.
+ */
+export function hamletPurse(hamlet: Hamlet): Purse {
+  return {
+    coins: () => hamlet.gold,
+    spend: (_slot, n) => {
+      if (n <= 0) return true;
+      if (hamlet.gold < n) return false;
+      hamlet.gold -= n;
+      return true;
+    },
+  };
+}
 
 /** Being slots standing in each hamlet's parcels, keyed by hamlet index, in being order. */
 function residents(sim: Sim): Map<number, number[]> {
@@ -65,7 +81,7 @@ function hamletOf(sim: Sim, h: number): Hamlet | undefined {
  * Per-tick hook (called from sim.ts after itemsStep). Each pass runs only on its own tick period, so
  * an idle hamlet costs nothing on the other ticks.
  */
-export function hamletGearStep(sim: Sim, purse: Purse = NO_PURSE): void {
+export function hamletGearStep(sim: Sim, purse?: Purse): void {
   const t = sim.tick;
   if (t % FETCH_PERIOD === 0) fetchPass(sim);
   if (t % CRAFT_PERIOD === 0) craftPass(sim, purse);
@@ -120,10 +136,12 @@ function fetchSlot(sim: Sim, h: number, lists: number[][], slot: number, index: 
  * durability is set back to the kind's durability. Common gear is free; other gear costs
  * floor(cost.coins * 0.5) coins from the Being's purse, and waits when the purse cannot pay.
  */
-export function repairPass(sim: Sim, purse: Purse = NO_PURSE): void {
+export function repairPass(sim: Sim, purse?: Purse): void {
   const store = sim.items;
   for (const [h, slots] of residents(sim)) {
-    if (!hamletHasGarrison(sim, h)) continue;
+    const hamlet = hamletOf(sim, h);
+    if (!hamlet || !hamletHasGarrison(hamlet)) continue;
+    const wallet = purse ?? hamletPurse(hamlet);
     for (const slot of slots) {
       let changed = false;
       for (let index = 0; index < GEAR_SLOTS; index++) {
@@ -131,7 +149,7 @@ export function repairPass(sim: Sim, purse: Purse = NO_PURSE): void {
         const kind = inst ? ITEM_KIND_BY_ID.get(inst.kind) : undefined;
         if (!inst || !kind || inst.durability >= kind.durability) continue;
         const cost = repairCost(kind, qualityOf(inst));
-        if (!purse.spend(slot, cost)) continue;
+        if (!wallet.spend(slot, cost)) continue;
         inst.durability = kind.durability;
         changed = true;
       }
@@ -145,8 +163,8 @@ export function repairCost(kind: ItemKindDef, quality: number): number {
   return quality === 0 ? 0 : Math.floor(kind.cost.coins * 0.5);
 }
 
-function hamletHasGarrison(sim: Sim, h: number): boolean {
-  return hamletOf(sim, h)?.buildings.some((b) => b.def.id === 'garrison') ?? false;
+function hamletHasGarrison(hamlet: Hamlet): boolean {
+  return hamlet.buildings.some((b) => b.def.id === 'garrison');
 }
 
 /**
@@ -154,16 +172,17 @@ function hamletHasGarrison(sim: Sim, h: number): boolean {
  * attempts, each of which also tries a weapon; the pass stops at the first attempt where both fail.
  * One random resident is the crafter for the whole pass.
  */
-export function craftPass(sim: Sim, purse: Purse = NO_PURSE): void {
+export function craftPass(sim: Sim, purse?: Purse): void {
   const rng = sim.rng('items');
   for (const [h, slots] of residents(sim)) {
     const hamlet = hamletOf(sim, h);
     const crafter = slots[rng.int(slots.length)];
     if (!hamlet || crafter === undefined) continue;
-    craftSlot(sim, h, hamlet, purse, crafter, 'weapon');
+    const wallet = purse ?? hamletPurse(hamlet);
+    craftSlot(sim, h, hamlet, wallet, crafter, 'weapon');
     for (let k = 0; k < 5; k++) {
-      const armour = craftSlot(sim, h, hamlet, purse, crafter, WORN_SLOTS[rng.int(WORN_SLOTS.length)] ?? 'body');
-      const weapon = craftSlot(sim, h, hamlet, purse, crafter, 'weapon');
+      const armour = craftSlot(sim, h, hamlet, wallet, crafter, WORN_SLOTS[rng.int(WORN_SLOTS.length)] ?? 'body');
+      const weapon = craftSlot(sim, h, hamlet, wallet, crafter, 'weapon');
       if (!armour && !weapon) break;
     }
   }

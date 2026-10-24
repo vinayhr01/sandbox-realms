@@ -35,7 +35,8 @@ export function fallbackReply(kind: number, reply: number): Event {
     case Cmd.Query:
       return { kind: Ev.QueryResult, reply, tileX: 0, tileY: 0, elevation: 0, ground: '', inBounds: false };
     default:
-      return { kind: Ev.Ready, reply, protocolVersion: PROTOCOL_VERSION, side: 0, sizeStep: 0, seed: 0 };
+      // Empty contentHash: no worker answered, so the page does not treat it as a build mismatch.
+      return { kind: Ev.Ready, reply, protocolVersion: PROTOCOL_VERSION, side: 0, sizeStep: 0, seed: 0, contentHash: '' };
   }
 }
 
@@ -68,6 +69,10 @@ export class SimClient {
   private realm: RealmArgs | null = null;
   private deaths: number[] = [];
   private respawned = 0;
+  /** performance.now() of the last Heartbeat; null until the first one for the current worker. */
+  private heartbeatAt: number | null = null;
+  /** Realm-replacing requests (NewRealm, LoadRealm) still waiting: worldgen and decode may block the worker. */
+  private heavyPending = 0;
 
   constructor() {
     this.worker = this.spawn();
@@ -85,6 +90,29 @@ export class SimClient {
   /** How many times the worker has been started again. */
   get respawnCount(): number {
     return this.respawned;
+  }
+
+  /** performance.now() of the last heartbeat, or null before the worker has posted one. */
+  get lastHeartbeat(): number | null {
+    return this.heartbeatAt;
+  }
+
+  /**
+   * True when the watchdog may judge the worker: a heartbeat has been seen and no realm is being
+   * generated or decoded (a long but healthy realm build must not read as a stall).
+   */
+  get watchdogArmed(): boolean {
+    return this.heartbeatAt !== null && this.heavyPending === 0;
+  }
+
+  /** Restarts the watchdog clock from now, for example after the user chose to wait. */
+  resetHeartbeat(): void {
+    if (this.heartbeatAt !== null) this.heartbeatAt = performance.now();
+  }
+
+  /** Ends the current worker and starts another, as after a crash; the newest autosave resumes (onRespawn). */
+  restartWorker(reason: string): void {
+    this.workerDied(reason);
   }
 
   send(command: CommandDraft, transfer: Transferable[] = []): number {
@@ -185,6 +213,7 @@ export class SimClient {
     }
     this.worker = this.spawn();
     this.respawned++;
+    this.heartbeatAt = null;
     this.settlePending();
     this.listener?.({
       kind: Ev.Fault,
@@ -206,11 +235,23 @@ export class SimClient {
   private request(command: CommandDraft): Promise<Event> {
     return new Promise<Event>((resolve) => {
       const seq = this.send(command);
-      this.replies.set(seq, { kind: command.kind, resolve });
+      const heavy = command.kind === Cmd.NewRealm || command.kind === Cmd.LoadRealm;
+      if (heavy) this.heavyPending++;
+      this.replies.set(seq, {
+        kind: command.kind,
+        resolve: (event: Event) => {
+          if (heavy) this.heavyPending--;
+          resolve(event);
+        },
+      });
     });
   }
 
   private dispatch(event: Event): void {
+    if (event.kind === Ev.Heartbeat) {
+      this.heartbeatAt = performance.now();
+      return;
+    }
     if (event.kind === Ev.Ready || event.kind === Ev.QueryResult || event.kind === Ev.Saved || event.kind === Ev.Loaded) {
       const pending = this.replies.get(event.reply);
       if (pending) {

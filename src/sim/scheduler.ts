@@ -23,11 +23,33 @@ export interface PumpPlan {
 }
 
 /**
- * Pure pacing: converts elapsed wall time into a tick count (17 section 3.1). Keeps the
- * accumulator in world milliseconds, clamps catch-up to MAX_CATCHUP_MS and caps ticks per speed.
+ * Wall-clock frame delta clamp in ms (02 section 2: "frameDt is clamped to 100 ms (tab-switch spike)").
+ * Applied before the speed multiplier, so a stall adds at most 100 ms of wall time at any speed.
+ */
+export const FRAME_DT_CLAMP_MS = 100;
+
+/** Sim ticks between heartbeats: one sim-second (02 section 1). */
+export const HEARTBEAT_TICKS = 20;
+
+/**
+ * Pumps between heartbeats when no tick ran (paused, or speed 0): about one second at 60 pumps/s.
+ * Pumps are scheduling, not sim state, so counting them keeps the sim free of wall-clock reads. TUNE.
+ */
+export const HEARTBEAT_PUMPS = 60;
+
+/** True when the worker should post a heartbeat: enough ticks since the last one, or enough idle pumps. */
+export function heartbeatDue(tick: number, lastHeartbeatTick: number, pumpsSinceHeartbeat: number): boolean {
+  return tick - lastHeartbeatTick >= HEARTBEAT_TICKS || pumpsSinceHeartbeat >= HEARTBEAT_PUMPS;
+}
+
+/**
+ * Pure pacing: converts elapsed wall time into a tick count (17 section 3.1). The wall delta is clamped
+ * to FRAME_DT_CLAMP_MS (02 section 2), the accumulator in world milliseconds is clamped to MAX_CATCHUP_MS
+ * (17 section 3.1), and ticks are capped per speed.
  */
 export function planPump(accMs: number, elapsedWallMs: number, speed: Speed): PumpPlan {
-  let acc = accMs + elapsedWallMs * speed;
+  const dt = Math.min(Math.max(0, elapsedWallMs), FRAME_DT_CLAMP_MS);
+  let acc = accMs + dt * speed;
   if (acc > MAX_CATCHUP_MS) acc = MAX_CATCHUP_MS;
   const cap = MAX_TICKS_PER_PUMP[speed];
   let ticks = 0;

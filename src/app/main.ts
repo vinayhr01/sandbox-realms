@@ -45,7 +45,16 @@ import {
   storeBoots,
   type FatalAction,
   type FaultKind,
+  DEGRADE_MAX_FRAME_MS,
+  DEGRADE_OFF,
+  DEGRADE_RENDER_SCALE,
+  DEGRADE_RENDER_SCALE_LEVEL,
+  DEGRADE_START,
+  stepDegrade,
+  workerStalled,
+  type DegradeTrack,
 } from './recovery.ts';
+import { contentHash } from '../content/content-hash.ts';
 
 /** Brush radii in tiles for slider positions 0..10 (04 section 1.1 sizes, trimmed for M1). */
 const BRUSH_RADII = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16] as const;
@@ -349,6 +358,83 @@ async function boot(): Promise<void> {
   let fpsFrames = 0;
   let fpsSince = performance.now();
   let fps = 0;
+
+  // Runtime health (17 sections 3.4, 10). The watchdog reads heartbeats. The ladder lowers render settings
+  // in memory only: the saved options and the sim are never written.
+  let watchdogShown = false;
+  let degrade: DegradeTrack = DEGRADE_START;
+  let degradeLevel = 0;
+  const degradedOff = new Set<string>();
+  let degradeWindowMs = 0;
+  let degradeWindowFrameMs = 0;
+  let degradeWindowFrames = 0;
+  const frameBudgetMs = (): number => {
+    const cap = safeMode ? 30 : numberOption(options, 'ui.fpsCap');
+    return 1000 / (cap > 0 ? cap : 60);
+  };
+  const effectiveRenderScale = (): number => {
+    const saved = numberOption(options, 'perf.renderScale');
+    return degradeLevel >= DEGRADE_RENDER_SCALE_LEVEL ? Math.min(saved, DEGRADE_RENDER_SCALE) : saved;
+  };
+  const applyDegradeLevel = (level: number, meanMs: number): void => {
+    degradeLevel = level;
+    degradedOff.clear();
+    for (let k = 0; k < level && k < DEGRADE_OFF.length; k++) degradedOff.add(DEGRADE_OFF[k] ?? '');
+    renderer.setRenderScale(effectiveRenderScale());
+    journal('DEGRADE', `level ${level} at mean frame ${meanMs.toFixed(1)} ms; off: ${[...degradedOff].join(', ') || 'none'}; render scale ${effectiveRenderScale()}%`);
+  };
+  /** One sample per frame; a verdict once per one-second window (17 section 3.4 hysteresis lives in stepDegrade). */
+  const degradeFrame = (deltaMs: number): void => {
+    if (deltaMs > DEGRADE_MAX_FRAME_MS) return;
+    degradeWindowMs += deltaMs;
+    degradeWindowFrameMs += deltaMs;
+    degradeWindowFrames++;
+    if (degradeWindowMs < 1000) return;
+    const mean = degradeWindowFrames > 0 ? degradeWindowFrameMs / degradeWindowFrames : 0;
+    const next = stepDegrade(degrade, mean, frameBudgetMs());
+    if (next.level !== degrade.level) applyDegradeLevel(next.level, mean);
+    degrade = next;
+    degradeWindowMs = 0;
+    degradeWindowFrameMs = 0;
+    degradeWindowFrames = 0;
+  };
+  const showNotResponding = (): void => {
+    const wait: FatalAction = {
+      label: 'Wait',
+      run: () => {
+        watchdogShown = false;
+        client.resetHeartbeat();
+        hideFatal();
+      },
+    };
+    const restart: FatalAction = {
+      label: 'Restart simulation',
+      primary: true,
+      run: () => {
+        watchdogShown = false;
+        hideFatal();
+        client.restartWorker('The simulation stopped responding.');
+      },
+    };
+    showFatal(
+      'Simulation not responding',
+      'The simulation has not reported for six seconds. Restart it to resume from the newest autosave, or wait a little longer.',
+      [restart, wait],
+    );
+  };
+  /** Shows the not-responding dialog after a stall, and clears it when heartbeats return. */
+  const watchdogCheck = (now: number): void => {
+    if (!client.watchdogArmed || document.hidden) return;
+    const stalled = workerStalled(client.lastHeartbeat, now);
+    if (stalled && !watchdogShown) {
+      watchdogShown = true;
+      journal('WORKER_STALL', 'no heartbeat for 6 s');
+      showNotResponding();
+    } else if (!stalled && watchdogShown) {
+      watchdogShown = false;
+      hideFatal();
+    }
+  };
 
   // Display layers and the minimap (Settings). The vignette and minimap sit over the map canvas;
   // the colour-blind filter markup is mounted once, and the map canvas gets its filter in applyOptions.
@@ -884,7 +970,7 @@ async function boot(): Promise<void> {
     root.toggleAttribute('data-reduce-motion', safeMode || boolOption(options, 'ui.reduceMotion'));
     root.toggleAttribute('data-reduce-flash', safeMode || boolOption(options, 'ui.reduceFlash'));
     renderer.app.ticker.maxFPS = safeMode ? 30 : numberOption(options, 'ui.fpsCap');
-    renderer.setRenderScale(numberOption(options, 'perf.renderScale'));
+    renderer.setRenderScale(effectiveRenderScale());
     $('debug').hidden = !(boolOption(options, 'ui.showFps') || debugOverlay);
     // Layout width, map layers, vignette and minimap.
     const layout = stringOption(options, 'ui.layout') as LayoutChoice;
@@ -971,6 +1057,8 @@ async function boot(): Promise<void> {
       void saveController.suspend();
     } else {
       applySpeed();
+      // Heartbeats may have paused while hidden; judge the worker from now on.
+      client.resetHeartbeat();
     }
     audio.setHidden(document.hidden);
   });
@@ -993,6 +1081,8 @@ async function boot(): Promise<void> {
       if (dx !== 0 || dy !== 0) cam.panBy(-dx * dt, -dy * dt);
     }
     saveController.frame(ticker.deltaMS, state.paused || document.hidden, autosaveState());
+    degradeFrame(ticker.deltaMS);
+    watchdogCheck(performance.now());
     flushStroke();
 
     // The music state is published about once a second (16 B8: never more often than that).
@@ -1064,7 +1154,15 @@ async function boot(): Promise<void> {
   // Initial realm: ?seed= and ?size= override the defaults (size is sizeStep, 4 = 256 tiles).
   const seed = parseIntParam(params, 'seed') ?? Math.floor(Math.random() * 0x7fffffff);
   const sizeStep = parseIntParam(params, 'size') ?? DEFAULT_SIZE_STEP;
-  await client.init();
+  const ready = await client.init();
+  // Refuse to run when the worker's registries differ from this page's (17 section 2.2, 10). An empty hash
+  // means no worker answered, which the crash path already reports.
+  const ownHash = contentHash();
+  if (ready.kind === Ev.Ready && ready.contentHash !== '' && ready.contentHash !== ownHash) {
+    journal('CONTENT_MISMATCH', `simulation ${ready.contentHash}, page ${ownHash}`);
+    showFatal('Build mismatch', 'This page and its simulation come from different builds, so no Realm was started. Reload the page to get the current build.');
+    return;
+  }
   await client.newRealm(seed, sizeStep);
   client.setSpeed(state.paused ? 0 : state.speed);
   applySpeed();
@@ -1099,6 +1197,7 @@ async function boot(): Promise<void> {
       return power ? cooldownFraction(performance.now(), cooldownUntil.get(id) ?? 0, power.cooldownMs) : 0;
     },
     powerCount: () => POWERS.length,
+    degrade: () => ({ level: degradeLevel, off: [...degradedOff], renderScale: effectiveRenderScale() }),
   };
 
   setStatus(safeMode ? 'Safe Mode: audio is off and motion is reduced in this tab.' : 'Tap a tile to inspect it.');

@@ -43,6 +43,8 @@ export enum Ev {
   Snapshot = 106,
   Saved = 107,
   Loaded = 108,
+  /** Sim liveness for the main-thread watchdog (17 section 10). Additive kind; PROTOCOL_VERSION unchanged. */
+  Heartbeat = 109,
 }
 
 export type Speed = 0 | 0.5 | 1 | 2 | 5 | 10;
@@ -372,7 +374,10 @@ export interface StrainRow {
 }
 
 export type Event =
-  | { kind: Ev.Ready; reply: number; protocolVersion: number; side: number; sizeStep: number; seed: number }
+  /** `contentHash` is the worker's registry hash (src/content/content-hash.ts); the page refuses to run on a mismatch. */
+  | { kind: Ev.Ready; reply: number; protocolVersion: number; side: number; sizeStep: number; seed: number; contentHash: string }
+  /** Posted every HEARTBEAT_TICKS ticks, or after HEARTBEAT_PUMPS pumps with no tick (paused). Not a reply. */
+  | { kind: Ev.Heartbeat; tick: number; avgTickMs: number }
   | { kind: Ev.Frame; rows: FrameRows | null; stats: FrameStats }
   | { kind: Ev.QueryResult; reply: number; tileX: number; tileY: number; elevation: number; ground: string; inBounds: boolean }
   | { kind: Ev.Fault; severity: 'warn' | 'error' | 'fatal'; code: string; detail: string }

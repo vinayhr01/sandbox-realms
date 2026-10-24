@@ -47,9 +47,26 @@ describe('window catalogue', () => {
     }
   });
 
-  it('spec ids are used where the spec names the window', () => {
+  it('spec ids are used where the spec names the window; the spec table has 62 rows', () => {
     const spec = WINDOW_CATALOG.filter((w) => w.spec !== null);
-    expect(spec.length).toBe(37);
-    for (const w of spec) expect(w.spec).toBe(w.id);
+    // win_customize_* is one row of the spec table with nine ids (one per banner kind).
+    const rows = new Set(spec.map((w) => w.spec));
+    expect(rows.size).toBe(62);
+    for (const w of spec) {
+      const customize = w.spec === 'win_customize_*' && w.id.startsWith('win_customize_');
+      expect(customize || w.spec === w.id, w.id).toBe(true);
+    }
+  });
+
+  it('every spec row of 13 section 7.1 has a window (62 rows, customise as one)', () => {
+    const rows = new Set(WINDOW_CATALOG.map((w) => w.spec).filter((s): s is string => s !== null));
+    const missing = [
+      'win_being', 'win_item', 'win_structure', 'win_pact', 'win_army', 'win_clan',
+      'list_pacts', 'list_hosts', 'list_kinbands', 'list_fav_beings', 'list_fav_items', 'win_customize_*',
+      'win_compare', 'win_annals', 'win_chronicle_confirm', 'win_trait_rain_edit', 'win_item_rain_edit',
+      'win_trait_editor', 'win_gear_editor', 'win_patch_notes', 'win_error', 'win_confirm_quit', 'win_update',
+      'win_dev_console', 'win_dev_tools',
+    ];
+    for (const id of missing) expect(rows.has(id), id).toBe(true);
   });
 });

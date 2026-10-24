@@ -3,6 +3,7 @@
  * here; windows read `current` and subscribe to be told when a new one arrives. Holds no sim state.
  */
 import type { Snapshot } from '../shared/protocol.ts';
+import { realmHistory } from './realm-history.ts';
 
 export class SimView {
   private snap: Snapshot | null = null;
@@ -13,9 +14,10 @@ export class SimView {
     return this.snap;
   }
 
-  /** Stores a snapshot and tells the listeners. Messages arrive in order; a new realm resets the tick. */
+  /** Stores a snapshot, adds it to the session history, and tells the listeners. Messages arrive in order; a new realm resets the tick. */
   apply(snap: Snapshot): void {
     this.snap = snap;
+    realmHistory.record(snap);
     for (const listener of this.listeners) listener(snap);
   }
 

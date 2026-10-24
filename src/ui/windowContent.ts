@@ -13,6 +13,8 @@ import { GROUP_LABELS, SETTINGS, boolOption, resetGroup, type OptionGroup, type 
 import { TUTORIAL_TEXT, TUTORIAL_STEPS, type TutorialState } from './panels/tutorial.ts';
 import { powerStatus } from './powerSupport.ts';
 import { snapshotWindowFor } from './snapshotWindows.ts';
+import { specWindowFor } from './specWindows.ts';
+import { systemWindowFor } from './systemWindows.ts';
 import { windowTitle } from './windowCatalog.ts';
 
 /** One saved realm as the Chronicle window shows it (a read-only view of the save store). */
@@ -51,6 +53,14 @@ export interface WindowDeps {
 /** Row or object an inspector window is about: a dominion, creed, strain... id, or a list index. */
 export interface WindowParams {
   id?: number;
+  /** Which kind of object an editor is about (for example 'strain' for the trait editor). */
+  kind?: string;
+  /** Chronicle confirmation: 'save', 'load' or 'delete'. */
+  action?: string;
+  /** Chronicle confirmation: a label for the save the action is about (its name and kind). */
+  slot?: string;
+  /** Error window: the reason to show. */
+  message?: string;
 }
 
 export interface BrushState {
@@ -271,6 +281,38 @@ function buildAges(deps: WindowDeps): WindowBuild {
 }
 
 function buildRealm(deps: WindowDeps): WindowBuild {
+  let section: HTMLElement | null = null;
+  let lastKey = '';
+  const draw = (): void => {
+    if (section === null) return;
+    const snap = deps.snapshot?.() ?? null;
+    const notable = snap?.detail?.notable;
+    // Redraw only when the list changes, so its buttons keep keyboard focus between snapshots.
+    const key = snap === null ? 'loading' : `${notable?.beingCount ?? 0}:${(notable?.beings ?? []).map((b) => b.id).join(',')}`;
+    if (key === lastKey) return;
+    lastKey = key;
+    section.replaceChildren();
+    section.append(el('h3', undefined, 'Interesting people'));
+    if (snap === null) {
+      section.append(el('p', 'option-note', 'Reading the realm...'));
+      return;
+    }
+    if (!notable || notable.beings.length === 0) {
+      section.append(el('p', 'option-note', 'No beings are alive.'));
+      return;
+    }
+    const cut = notable.beingCount > notable.beings.length;
+    section.append(el('p', 'option-note', cut ? `The oldest ${notable.beings.length} of ${notable.beingCount} beings.` : `${notable.beingCount} beings, oldest first.`));
+    const list = el('div', 'list-chips');
+    for (const b of notable.beings) {
+      const btn = el('button', 'btn list-chip', `${b.species} ${b.id}`);
+      btn.type = 'button';
+      btn.setAttribute('aria-haspopup', 'dialog');
+      btn.addEventListener('click', () => deps.open('win_being', { id: b.id }));
+      list.append(btn);
+    }
+    section.append(list);
+  };
   return {
     title: windowTitle('win_realm'),
     build: (body) => {
@@ -286,7 +328,11 @@ function buildRealm(deps: WindowDeps): WindowBuild {
       ];
       for (const [k, v] of rows) list.append(el('dt', undefined, k), el('dd', undefined, v));
       body.append(list);
+      section = el('div', 'snapshot-section');
+      body.append(section);
+      draw();
     },
+    live: draw,
   };
 }
 
@@ -491,7 +537,17 @@ function buildChronicle(deps: WindowDeps): WindowBuild {
               const when = new Date(s.savedAtMs).toLocaleString();
               const size = `${Math.max(1, Math.round(s.byteSize / 1024))} KB`;
               text.append(el('strong', undefined, s.realmName), el('span', 'option-note', `${SAVE_KIND[s.kind]} · year ${s.year} · ${size} · ${when}`));
-              row.append(text);
+              const label = `${s.realmName}, ${SAVE_KIND[s.kind].toLowerCase()}`;
+              const actions = el('div', 'row-actions');
+              for (const action of ['load', 'delete'] as const) {
+                const verb = action === 'load' ? 'Load' : 'Delete';
+                const btn = el('button', 'btn', verb);
+                btn.type = 'button';
+                btn.setAttribute('aria-label', `${verb} ${label}`);
+                btn.addEventListener('click', () => deps.open('win_chronicle_confirm', { action, slot: label }));
+                actions.append(btn);
+              }
+              row.append(text, actions);
               return row;
             },
           });
@@ -530,7 +586,13 @@ export function windowFor(id: string, deps: WindowDeps, params: WindowParams = {
     case 'win_chronicle':
       return buildChronicle(deps);
     default:
-      return snapshotWindowFor(id, deps) ?? detailWindowFor(id, deps, params) ?? staticWindowFor(id, deps);
+      return (
+        snapshotWindowFor(id, deps) ??
+        detailWindowFor(id, deps, params) ??
+        staticWindowFor(id, deps) ??
+        specWindowFor(id, deps, params) ??
+        systemWindowFor(id, deps, params)
+      );
   }
 }
 

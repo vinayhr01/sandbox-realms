@@ -14,14 +14,19 @@ import {
   SNAPSHOT_MAX_BYTES,
   SNAPSHOT_VERSION,
   type AchievementRow,
+  type BeingRow,
   type DominionRow,
   type HamletRow,
+  type NotableRows,
   type Snapshot,
   type SnapshotDetail,
   type SpeciesRow,
   type StrainRow,
+  type StructureRow,
 } from '../shared/protocol.ts';
+import { YEAR_TICKS } from '../shared/constants.ts';
 import { SS_TICKS } from './clock.ts';
+import { MAX_BEINGS } from './beings/store.ts';
 import { snapshotDominions } from './dominions/adapter.ts';
 import { hamletsOf } from './settlements/adapter.ts';
 import { codexProgress } from './progression.ts';
@@ -112,7 +117,45 @@ function detailOf(sim: Sim): SnapshotDetail {
       .slice(0, cap)
       .map((x) => ({ id: x.id, kind: x.kind, group: x.group, progress: x.progress, goal: x.goal, outcome: x.outcome })),
     strains: strains.slice(0, cap),
+    notable: notableOf(sim, new Map(strains.map((s) => [s.id, s.name]))),
   };
+}
+
+/**
+ * Sample rows for the being, structure and realm windows: the oldest living beings (by birth tick,
+ * then slot) and the buildings of every hamlet in hamlet order. Totals are exact; lists are capped.
+ * Reads only: no randomness, no lazy state.
+ */
+function notableOf(sim: Sim, strainNames: ReadonlyMap<number, string>): NotableRows {
+  const cap = SNAPSHOT_DETAIL_ROWS;
+  const s = sim.beings.store;
+  const alive: number[] = [];
+  for (let k = 0; k < s.size; k++) alive.push(s.at(k));
+  alive.sort((a, b) => (s.born[a] ?? 0) - (s.born[b] ?? 0) || a - b);
+  const beings: BeingRow[] = alive.slice(0, cap).map((slot) => {
+    const def = SPECIES[s.species[slot] ?? 0];
+    return {
+      id: (s.generation[slot] ?? 0) * MAX_BEINGS + slot,
+      species: def?.name ?? '',
+      folk: def !== undefined && !def.wild,
+      female: s.female[slot] === 1,
+      baby: s.baby[slot] === 1,
+      ageYears: Math.max(0, Math.floor((sim.tick - (s.born[slot] ?? 0)) / YEAR_TICKS)),
+      vitality: s.vit[slot] ?? 0,
+      maxVitality: s.maxVit[slot] ?? 0,
+      strain: strainNames.get(s.strain[slot] ?? 0) ?? '',
+      children: s.childCount[slot] ?? 0,
+    };
+  });
+  const structures: StructureRow[] = [];
+  let structureCount = 0;
+  hamletsOf(sim).forEach((h, index) => {
+    for (const b of h.buildings) {
+      structureCount++;
+      if (structures.length < cap) structures.push({ id: b.y * 1024 + b.x, kind: b.def.id, name: b.def.name, hamlet: index, x: b.x, y: b.y });
+    }
+  });
+  return { beingCount: alive.length, beings, structureCount, structures };
 }
 
 function populationOf(sim: Sim): Snapshot['population'] {

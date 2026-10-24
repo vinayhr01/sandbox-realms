@@ -745,3 +745,150 @@ html[data-reduce-motion] * {
   transition: none !important;
   animation: none !important;
 }
+
+/* Spec windows (13 section 7.1): banner editors, compare chart, annals row actions, developer console. */
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.btn[aria-selected='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.banner-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 240px;
+  min-height: 96px;
+  margin: 8px 0;
+  border-radius: var(--radius);
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 1px 2px #000;
+}
+
+.swatch-grid,
+.icon-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.swatch {
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border: 2px solid var(--surface-2);
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.swatch[aria-checked='true'] {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.icon-choice {
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0 10px;
+  border: 1px solid var(--surface-2);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.icon-choice[aria-checked='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.compare-picks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.compare-chart {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  height: auto;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.compare-chart .chart-axis {
+  fill: none;
+  stroke: var(--text-dim);
+}
+
+.compare-chart text {
+  fill: var(--text-dim);
+  font-size: 10px;
+}
+
+.compare-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.compare-legend li {
+  min-height: 24px;
+  padding-left: 6px;
+  border-left: 4px solid;
+}
+
+.compare-table {
+  width: 100%;
+  margin: 8px 0;
+  border-collapse: collapse;
+}
+
+.compare-table th,
+.compare-table td {
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--surface-2);
+  text-align: left;
+}
+
+.console-log {
+  height: 40vh;
+  overflow-y: auto;
+  padding: 8px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.console-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.console-form .option {
+  flex: 1;
+}
+
+.dev-panel {
+  margin-top: 8px;
+}

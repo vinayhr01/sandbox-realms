@@ -2,7 +2,7 @@
  * Main <-> sim worker protocol (17 section 2.2). Numeric kinds, plain objects,
  * every command carries `seq`, every reply echoes it.
  */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 /** Version of the Snapshot payload (Ev.Snapshot). Bump when a field changes meaning or shape. */
 export const SNAPSHOT_VERSION = 1;
@@ -23,6 +23,8 @@ export enum Cmd {
   SetRule = 8,
   /** Asks for a Snapshot now, whatever the sim tick (windows open while paused). */
   Snapshot = 9,
+  SaveRealm = 10,
+  LoadRealm = 11,
 }
 
 export enum Ev {
@@ -32,6 +34,8 @@ export enum Ev {
   Fault = 104,
   Heartbeat = 105,
   Snapshot = 106,
+  Saved = 107,
+  Loaded = 108,
 }
 
 export type Speed = 0 | 0.5 | 1 | 2 | 5 | 10;
@@ -49,7 +53,11 @@ export type Command =
   | { kind: Cmd.ReturnBuffer; seq: number; buffer: ArrayBuffer }
   | { kind: Cmd.Power; seq: number; powerId: string; x: number; y: number }
   | { kind: Cmd.SetRule; seq: number; rule: string; on: boolean }
-  | { kind: Cmd.Snapshot; seq: number };
+  | { kind: Cmd.Snapshot; seq: number }
+  /** Encodes the live realm as a Chronicle save (src/sim/chronicle.ts). Replies with Ev.Saved. */
+  | { kind: Cmd.SaveRealm; seq: number }
+  /** Replaces the live realm with a decoded Chronicle save. Replies with Ev.Ready or Ev.Loaded. */
+  | { kind: Cmd.LoadRealm; seq: number; bytes: Uint8Array };
 
 /** Rows of the index texture: RGBA8 per tile = [ground, cover, elevation, flags & 0xff]. */
 export interface FrameRows {
@@ -226,4 +234,8 @@ export type Event =
   | { kind: Ev.QueryResult; reply: number; tileX: number; tileY: number; elevation: number; ground: string; inBounds: boolean }
   | { kind: Ev.Fault; severity: 'warn' | 'error' | 'fatal'; code: string; detail: string }
   | { kind: Ev.Heartbeat; tick: number; avgTickMs: number }
-  | { kind: Ev.Snapshot; snap: Snapshot };
+  | { kind: Ev.Snapshot; snap: Snapshot }
+  /** Reply to Cmd.SaveRealm. Empty bytes when there is no realm. */
+  | { kind: Ev.Saved; reply: number; bytes: Uint8Array }
+  /** Reply to a Cmd.LoadRealm that failed; ok is always false. */
+  | { kind: Ev.Loaded; reply: number; ok: boolean; detail: string };

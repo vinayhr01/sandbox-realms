@@ -28,6 +28,25 @@ export interface SaveSlotView {
   valid: boolean | 'unknown';
 }
 
+/** Result of a Chronicle action, shown in the window. */
+export interface ChronicleOutcome {
+  ok: boolean;
+  message: string;
+}
+
+/** Save, load, export and import for the Chronicle window (src/app/save-controller.ts). */
+export interface ChronicleActions {
+  /** Why saving the live realm is unavailable, or null when it works. */
+  readonly saveBlocked: string | null;
+  /** Why loading a realm is unavailable, or null when it works. */
+  readonly loadBlocked: string | null;
+  storage(): Promise<{ mode: 'indexeddb' | 'memory'; fallbackReason: string | null }>;
+  /** 'new' saves into the first free manual slot; 'quick' ignores the slot id. */
+  run(action: 'save' | 'quick' | 'load' | 'delete', slotId: string): Promise<ChronicleOutcome>;
+  exportSave(slotId: string): Promise<ChronicleOutcome>;
+  importFile(file: File): Promise<ChronicleOutcome>;
+}
+
 export interface WindowDeps {
   options(): Options;
   setOption(id: string, value: OptionValue): void;
@@ -40,6 +59,8 @@ export interface WindowDeps {
   tutorial(): { state: TutorialState; restart(): void; skip(): void };
   /** Saved realms on this device, newest first. Rejects when the store cannot be read. */
   saves(): Promise<SaveSlotView[]>;
+  /** Save actions for the Chronicle window. Absent in tests: the window then only lists saves. */
+  chronicle?: ChronicleActions;
   /** Latest sim snapshot, or null before the first one. Optional: windows that need it show "Reading the realm". */
   snapshot?: () => Snapshot | null;
   close(): void;
@@ -61,6 +82,10 @@ export interface WindowParams {
   slot?: string;
   /** Error window: the reason to show. */
   message?: string;
+  /** Chronicle confirmation and window: the save the action is about (a slot id). */
+  slotId?: string;
+  /** Chronicle window: the outcome of the last action, shown once. */
+  notice?: string;
 }
 
 export interface BrushState {
@@ -508,23 +533,77 @@ const SAVE_KIND: Readonly<Record<SaveSlotView['kind'], string>> = {
   suspend: 'Suspended',
 };
 
-function buildChronicle(deps: WindowDeps): WindowBuild {
+function buttonEl(label: string, onClick: () => void, className = 'btn'): HTMLButtonElement {
+  const btn = el('button', className, label);
+  btn.type = 'button';
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+function buildChronicle(deps: WindowDeps, params: WindowParams): WindowBuild {
+  const actions = deps.chronicle;
   return {
     title: windowTitle('win_chronicle'),
     build: (body) => {
-      body.append(el('p', 'option-note', 'Realms saved on this device. Loading and saving from this window are not available yet.'));
-      const status = el('p', 'option-note', 'Loading saved realms...');
+      body.append(el('p', 'option-note', 'Realms saved on this device.'));
+      const status = el('p', 'option-note', params.notice ?? '');
       status.setAttribute('role', 'status');
       body.append(status);
+
+      // Reports an action's outcome in this window, then rebuilds the window so the list is current.
+      const report = (task: Promise<ChronicleOutcome>): void => {
+        status.textContent = 'Working...';
+        void task.then((out) => {
+          if (!status.isConnected) return;
+          deps.open('win_chronicle', { notice: out.message });
+        });
+      };
+
+      if (actions) {
+        if (actions.saveBlocked !== null) body.append(el('p', 'option-note', actions.saveBlocked));
+        if (actions.loadBlocked !== null) body.append(el('p', 'option-note', actions.loadBlocked));
+        const storageNote = el('p', 'option-note');
+        void actions.storage().then((s) => {
+          if (storageNote.isConnected && s.mode === 'memory') {
+            storageNote.textContent = `Saving to this device is unavailable (${s.fallbackReason ?? 'unknown reason'}). Saves last only this visit.`;
+          }
+        });
+        body.append(storageNote);
+
+        const toolbar = el('div', 'row-actions chronicle-tools');
+        toolbar.setAttribute('role', 'group');
+        toolbar.setAttribute('aria-label', 'Save actions');
+        const saveNew = buttonEl('Save to a new slot', () => report(actions.run('save', 'new')));
+        saveNew.disabled = actions.saveBlocked !== null;
+        const quick = buttonEl('Quick save', () => report(actions.run('quick', 'quick')));
+        quick.disabled = actions.saveBlocked !== null;
+        const importInput = el('input', 'chronicle-import');
+        importInput.type = 'file';
+        importInput.accept = '.realm,application/octet-stream';
+        importInput.setAttribute('aria-label', 'Import a realm file (.realm)');
+        importInput.addEventListener('change', () => {
+          const file = importInput.files?.[0];
+          importInput.value = '';
+          if (file) report(actions.importFile(file));
+        });
+        toolbar.append(saveNew, quick, importInput);
+        body.append(toolbar);
+      } else {
+        body.append(el('p', 'option-note', 'Saving from this window is not available here.'));
+      }
+
+      const listStatus = el('p', 'option-note', 'Loading saved realms...');
+      listStatus.setAttribute('role', 'status');
+      body.append(listStatus);
       deps.saves().then(
         (slots) => {
           // The window may have closed or changed while the store answered.
-          if (!status.isConnected) return;
-          status.remove();
+          if (!listStatus.isConnected) return;
+          listStatus.remove();
           buildList<SaveSlotView>(body, {
             name: 'Saved realms',
             items: slots,
-            rowHeight: 56,
+            rowHeight: 112,
             label: (s) => `${s.realmName} ${SAVE_KIND[s.kind]}`,
             sorts: [
               { key: 'savedAtMs', label: 'Saved' },
@@ -532,28 +611,33 @@ function buildChronicle(deps: WindowDeps): WindowBuild {
             ],
             empty: 'No saved realms on this device yet.',
             render: (s) => {
-              const row = el('div', 'rule-row');
+              const row = el('div', 'rule-row chronicle-row');
               const text = el('div', 'rule-text');
               const when = new Date(s.savedAtMs).toLocaleString();
               const size = `${Math.max(1, Math.round(s.byteSize / 1024))} KB`;
               text.append(el('strong', undefined, s.realmName), el('span', 'option-note', `${SAVE_KIND[s.kind]} · year ${s.year} · ${size} · ${when}`));
               const label = `${s.realmName}, ${SAVE_KIND[s.kind].toLowerCase()}`;
-              const actions = el('div', 'row-actions');
+              const actionsEl = el('div', 'row-actions');
               for (const action of ['load', 'delete'] as const) {
                 const verb = action === 'load' ? 'Load' : 'Delete';
                 const btn = el('button', 'btn', verb);
                 btn.type = 'button';
                 btn.setAttribute('aria-label', `${verb} ${label}`);
-                btn.addEventListener('click', () => deps.open('win_chronicle_confirm', { action, slot: label }));
-                actions.append(btn);
+                btn.addEventListener('click', () => deps.open('win_chronicle_confirm', { action, slot: label, slotId: s.slotId }));
+                actionsEl.append(btn);
               }
-              row.append(text, actions);
+              if (actions) {
+                const exp = buttonEl('Export', () => report(actions.exportSave(s.slotId)));
+                exp.setAttribute('aria-label', `Export ${label}`);
+                actionsEl.append(exp);
+              }
+              row.append(text, actionsEl);
               return row;
             },
           });
         },
         () => {
-          if (status.isConnected) status.textContent = 'Saved realms could not be read on this device.';
+          if (listStatus.isConnected) listStatus.textContent = 'Saved realms could not be read on this device.';
         },
       );
     },
@@ -584,7 +668,7 @@ export function windowFor(id: string, deps: WindowDeps, params: WindowParams = {
     case 'win_help':
       return buildHelp();
     case 'win_chronicle':
-      return buildChronicle(deps);
+      return buildChronicle(deps, params);
     default:
       return (
         snapshotWindowFor(id, deps) ??

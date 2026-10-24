@@ -656,6 +656,36 @@ body {
   font-size: calc(20px * var(--ui-scale));
 }
 
+.chronicle-tools {
+  flex-wrap: wrap;
+}
+
+/* Chronicle rows: the actions wrap below the text on a phone, so the row needs room for them. */
+.chronicle-row {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+.chronicle-row .row-actions {
+  flex-wrap: wrap;
+}
+
+.chronicle-import {
+  min-height: 44px;
+  max-width: 100%;
+}
+
+.fatal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.fatal-actions:empty {
+  display: none;
+}
+
 .fatal-card p {
   margin: 0 0 16px;
   color: var(--text-dim);

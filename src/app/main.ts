@@ -5,21 +5,42 @@ import { Camera } from '../render/camera.ts';
 import { MapInput } from '../ui/input.ts';
 import { edgePanVector } from '../ui/edgePan.ts';
 import { SaveService } from './saves.ts';
+import { CANNOT_CAPTURE, CANNOT_RESTORE, SaveController, type ActionOutcome, type AutosaveState, type ChronicleSource } from './save-controller.ts';
 import { setCalendar, setDebug, setStatus, toast } from '../ui/hud.ts';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
 import { currentStep, parseTutorial, skipTutorial, TUTORIAL_TEXT, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
 import { cooldownSecondsLeft, linePoints, powerStatus, strokeOp } from '../ui/powerSupport.ts';
 import { WindowHost } from '../ui/windowHost.ts';
-import { windowFor, type WindowDeps, type WindowParams } from '../ui/windowContent.ts';
+import { windowFor, type ChronicleActions, type ChronicleOutcome, type WindowDeps, type WindowParams } from '../ui/windowContent.ts';
 import { SimView } from '../ui/sim-view.ts';
 import { POWER_BY_ID, POWERS, TABS, powersInTab, type PowerDef, type TabId } from '../content/powers.ts';
 import { Ev, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
 import { MONTH_TICKS, YEAR_TICKS, DEFAULT_SIZE_STEP } from '../shared/constants.ts';
 import { RULE_BY_ID, RuleSet } from '../sim/rules.ts';
-import { AudioModel } from '../audio/model.ts';
+import { AudioEngine } from '../audio/engine.ts';
+import { audioOptionsFrom, CUE, musicViewState, type Cue } from './audio-wiring.ts';
+import { LAYER_CAP_DESKTOP, LAYER_CAP_PHONE } from '../audio/music.ts';
+import { panFor } from '../audio/mix.ts';
 import { SimClient } from './sim-client.ts';
-import { installGlobalErrorHandlers, journal, showFatal, startSentinel } from './recovery.ts';
+import {
+  bootGuard,
+  decideRecovery,
+  fatalOpen,
+  hideFatal,
+  installGlobalErrorHandlers,
+  journal,
+  loadAttempts,
+  safeModeOn,
+  setFatalDetail,
+  setSafeMode,
+  showFatal,
+  startSentinel,
+  storeAttempt,
+  storeBoots,
+  type FatalAction,
+  type FaultKind,
+} from './recovery.ts';
 
 /** Brush radii in tiles for slider positions 0..10 (04 section 1.1 sizes, trimmed for M1). */
 const BRUSH_RADII = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16] as const;
@@ -55,6 +76,109 @@ const $ = <T extends HTMLElement>(id: string): T => {
   if (!el) throw new Error(`missing element #${id}`);
   return el as T;
 };
+
+/** Starts a new Realm from the crash dialog. Set once the sim client exists. */
+let restartRealm: (() => void) | null = null;
+
+/** The newest-autosave restore for the recovery dialogs (19 section 7). Set once the save controller exists. */
+interface AutosaveRecovery {
+  hasSave: () => Promise<boolean>;
+  restore: () => Promise<ActionOutcome>;
+}
+let autosaveRecovery: AutosaveRecovery | null = null;
+
+/** The restore button. `hasSave` null means the save list is still being read, so the button waits. */
+function restoreAction(hasSave: boolean | null, primary: boolean, onRestored: () => void = () => undefined): FatalAction {
+  return {
+    label: 'Restore last autosave',
+    primary: primary && hasSave === true,
+    disabled: hasSave !== true,
+    run: async () => {
+      const outcome: ActionOutcome = autosaveRecovery ? await autosaveRecovery.restore() : { ok: false, message: 'Saves are not ready yet.' };
+      if (outcome.ok) {
+        onRestored();
+        hideFatal();
+      } else {
+        setFatalDetail(outcome.message);
+      }
+    },
+  };
+}
+
+function safeModeAction(primary: boolean): FatalAction {
+  return {
+    label: 'Start in Safe Mode',
+    primary,
+    run: () => {
+      setSafeMode(true);
+      location.reload();
+    },
+  };
+}
+
+/** Crash reporter for the recovery dialog. The ladder (19 section 7) decides which recovery buttons it offers. */
+function reportCrash(kind: FaultKind, title: string, detail: string): void {
+  // The dialog shows at once; the restore button waits until the save list has been read.
+  showFatal(title, detail, [restoreAction(null, false), safeModeAction(false)]);
+  void (async () => {
+    const hasSave = autosaveRecovery ? await autosaveRecovery.hasSave() : false;
+    const now = Date.now();
+    const decision = decideRecovery({ kind, nowMs: now, attempts: loadAttempts(), hasValidAutosave: hasSave });
+    storeAttempt({ atMs: now, kind, level: decision.level ?? 'fatal_dialog' });
+    const actions: FatalAction[] = [restoreAction(hasSave, decision.level === 'restart_from_autosave')];
+    if (kind === 'sim_fatal' && decision.level === 'reset_realm' && restartRealm) {
+      const restart = restartRealm;
+      actions.push({
+        label: 'Start a new Realm',
+        primary: true,
+        run: () => {
+          hideFatal();
+          restart();
+        },
+      });
+    }
+    actions.push(safeModeAction(decision.enterSafeMode));
+    showFatal(title, detail, actions);
+  })();
+}
+
+/** The boot-loop dialog (19 section 4). `hasSave` null while the save list is read. */
+function showBootLoopDialog(hasSave: boolean | null): void {
+  showFatal(
+    'Stopped several times in a row',
+    'This page stopped unexpectedly three times in a few minutes. Restore the last autosave, start in Safe Mode to run with audio off and less motion, or keep going as normal.',
+    [
+      restoreAction(hasSave, true, () => storeBoots([])),
+      {
+        label: 'Start in Safe Mode',
+        run: () => {
+          setSafeMode(true);
+          storeBoots([]);
+          location.reload();
+        },
+      },
+      {
+        label: 'Keep going normally',
+        run: () => {
+          storeBoots([]);
+          hideFatal();
+        },
+      },
+    ],
+  );
+}
+
+/** Saves bytes as a file the browser downloads (the export action). */
+function downloadFile(name: string, bytes: Uint8Array): void {
+  const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
 
 function supported(): boolean {
   if (typeof Worker === 'undefined') return false;
@@ -104,8 +228,8 @@ function osPrefers(query: string): boolean {
 }
 
 async function boot(): Promise<void> {
-  installGlobalErrorHandlers();
-  startSentinel();
+  installGlobalErrorHandlers(reportCrash);
+  const guard = bootGuard(Date.now(), startSentinel());
   if (!supported()) {
     showFatal(
       'Browser not supported',
@@ -114,14 +238,19 @@ async function boot(): Promise<void> {
     return;
   }
 
+  // Safe Mode (19 section 7) lasts for this tab: audio off, reduced motion and flashing, 30 fps.
+  const safeMode = safeModeOn();
   const params = new URLSearchParams(location.search);
   const debugOverlay = params.has('debug');
 
   const host = $('map');
   const renderer = await TerrainRenderer.create(host);
   const client = new SimClient();
+  restartRealm = () => {
+    void client.newRealm(Math.floor(Math.random() * 0x7fffffff), DEFAULT_SIZE_STEP);
+  };
   const rules = new RuleSet();
-  const audio = new AudioModel();
+  const audio = new AudioEngine();
 
   // Settings: the OS preference fills reduce motion and flashing until the player chooses.
   const osDefaults: Options = {
@@ -131,6 +260,36 @@ async function boot(): Promise<void> {
   };
   let options: Options = loadOptions(safeStorage(), osDefaults);
   const startSpeed = Number.parseFloat(stringOption(options, 'game.defaultSpeed'));
+
+  // Audio starts on the first gesture (16 B6), never before. Safe Mode keeps it off.
+  let audioUnlocked = false;
+  const unlockAudio = (): void => {
+    if (audioUnlocked || safeMode) return;
+    audioUnlocked = true;
+    audio.unlock();
+    // Music starts with the first gesture after unlock (16 B6); the layer cap depends on the device (B8).
+    audio.setLayerCap(window.matchMedia('(pointer: coarse)').matches ? LAYER_CAP_PHONE : LAYER_CAP_DESKTOP);
+    audio.startMusic();
+    for (const type of ['pointerdown', 'keydown', 'touchend'] as const) window.removeEventListener(type, unlockAudio, true);
+  };
+  for (const type of ['pointerdown', 'keydown', 'touchend'] as const) window.addEventListener(type, unlockAudio, true);
+  const playCue = (cue: Cue): void => {
+    if (audioUnlocked) audio.play(cue, performance.now());
+  };
+  /** A cue for a tile on the map, panned by where the tile sits on screen (16 B4). */
+  const playCueAt = (cue: Cue, tileX: number): void => {
+    const cam = camera;
+    if (!audioUnlocked) return;
+    const width = renderer.app.screen.width;
+    const pan = cam ? panFor(tileX, (width / 2 - cam.offX) / cam.zoom, width / 2 / cam.zoom, audio.currentOptions.spatialIntensity) : 0;
+    audio.play(cue, performance.now(), pan, 1);
+  };
+  let musicClockMs = 0;
+  /** A notification: a toast with its cue. */
+  const notify = (text: string, cue: Cue = CUE.notify): void => {
+    toast(text);
+    playCue(cue);
+  };
 
   const state: UiState = {
     armed: null,
@@ -153,6 +312,8 @@ async function boot(): Promise<void> {
   const cooldownUntil = new Map<string, number>();
 
   let simTick = 0;
+  /** The sim tick at the last successful autosave; the autosave is due only when the tick has moved on. */
+  let savedTick = -1;
   let simHash = 0;
   let simAvgTickMs = 0;
   let simSpeed = 1;
@@ -195,6 +356,8 @@ async function boot(): Promise<void> {
   const togglePause = (): void => {
     state.paused = !state.paused;
     applySpeed();
+    // Pausing is a natural save point (15 section 5).
+    if (state.paused) saveController.onPause(autosaveState());
   };
 
   const cycleSpeed = (): void => {
@@ -316,7 +479,10 @@ async function boot(): Promise<void> {
     else if (op) setStatus(`${op === 'raise' ? 'Raise' : 'Lower'}: drag to shape the land.`);
     else if (power.kind === 'brush') setStatus(`${power.name}: drag or tap the map.`);
     else setStatus(`${power.name} is armed: tap the map to use it.`);
-    if (power) feedTutorial('tool-armed');
+    if (power) {
+      feedTutorial('tool-armed');
+      playCue(CUE.arm);
+    }
   };
 
   const toolPower = (tool: string): PowerDef | null => {
@@ -357,6 +523,7 @@ async function boot(): Promise<void> {
     const op = strokeOp(power);
     if (op) client.stroke(op, state.shape, brushRadius(), x, y, x, y, true);
     else client.power(power.id, x, y);
+    playCueAt(op ? CUE.paint : CUE.power, x);
     if (boolOption(options, 'input.haptics')) navigator.vibrate?.(8);
   };
 
@@ -384,6 +551,7 @@ async function boot(): Promise<void> {
       return;
     }
     windowHost.open(id, build.title, build.build, build.live);
+    playCue(CUE.windowOpen);
     // A live window asks for a snapshot now, so it has numbers while the sim is paused.
     if (build.live) client.requestSnapshot();
   };
@@ -393,16 +561,64 @@ async function boot(): Promise<void> {
 
   // The save store opens on first use (the Chronicle window); it never rejects, so a failed open
   // shows an empty list instead of an error.
-  let saveStore: Promise<SaveService> | null = null;
-  const windowDeps: WindowDeps = {
-    options: () => options,
-    saves: () => {
-      saveStore ??= SaveService.open(window.indexedDB, {
+  const liveRealm: ChronicleSource = {
+    canCapture: true,
+    canRestore: true,
+    capture: async () => {
+      const bytes = await client.capture();
+      if (!bytes) return null;
+      const info = { realmName: $('realm-name').textContent ?? 'Realm', tick: simTick, year: Math.floor(simTick / YEAR_TICKS) + 1 };
+      return { bytes, info };
+    },
+    restore: (bytes) => client.restore(bytes),
+  };
+  const saveController = new SaveController(
+    () =>
+      SaveService.open(window.indexedDB, {
         isPhone: window.matchMedia('(pointer: coarse)').matches,
         storage: navigator.storage,
-      });
-      return saveStore.then((store) => store.list());
+      }),
+    liveRealm,
+    {
+      onAutosaved: () => {
+        savedTick = simTick;
+      },
     },
+  );
+  autosaveRecovery = {
+    hasSave: () => saveController.restoreTarget(safeModeOn()).then((target) => target !== null),
+    restore: () => saveController.restoreAutosave(safeModeOn()),
+  };
+  // Boot-loop guard (19 section 4): repeated unclean boots offer the restore, Safe Mode, or carrying on.
+  // The save list is read first, so the restore button is enabled only when a valid autosave exists.
+  if (guard.loop) {
+    showBootLoopDialog(null);
+    void autosaveRecovery.hasSave().then((has) => {
+      if (fatalOpen()) showBootLoopDialog(has);
+    });
+  }
+  const exportToFile = async (slotId: string): Promise<ChronicleOutcome> => {
+    const file = await saveController.exportSave(slotId);
+    if (!file) return { ok: false, message: 'That save no longer exists.' };
+    downloadFile(file.name, file.bytes);
+    return { ok: true, message: `Exported ${file.name}.` };
+  };
+  const chronicle: ChronicleActions = {
+    get saveBlocked() {
+      return saveController.canSave ? null : CANNOT_CAPTURE;
+    },
+    get loadBlocked() {
+      return saveController.canLoad ? null : CANNOT_RESTORE;
+    },
+    storage: () => saveController.storage(),
+    run: (action, slotId) => saveController.perform(action, slotId),
+    exportSave: exportToFile,
+    importFile: (file) => file.arrayBuffer().then((buf) => saveController.importFile(file.name, new Uint8Array(buf))),
+  };
+  const windowDeps: WindowDeps = {
+    options: () => options,
+    saves: () => saveController.list(),
+    chronicle,
     setOption: (id, value) => changeOption(id, value),
     snapshot: () => simView.current,
     open: (id, params) => openWindow(id, params),
@@ -440,6 +656,13 @@ async function boot(): Promise<void> {
   };
 
   const windowHost = new WindowHost($<HTMLDialogElement>('window'), $('window-title'), $('window-body'));
+  // What the autosave timer and the pause and hide saves need to know about the UI right now.
+  const autosaveState = (): AutosaveState => ({
+    dirty: simTick !== savedTick,
+    modalOpen: windowHost.current !== null,
+    gestureActive: stroke !== null,
+    degradeLevel: 0,
+  });
   $('window-close').addEventListener('click', () => windowHost.close());
   simView.subscribe(() => windowHost.feed());
 
@@ -511,8 +734,8 @@ async function boot(): Promise<void> {
         return;
       case Ev.Fault:
         journal(event.code, event.detail);
-        if (event.severity === 'fatal') showFatal('The simulation stopped', event.detail);
-        else toast(event.detail);
+        if (event.severity === 'fatal') reportCrash(event.code === 'WORKER_ERROR' ? 'worker_dead' : 'sim_fatal', 'The simulation stopped', event.detail);
+        else notify(event.detail, CUE.error);
         return;
       case Ev.Snapshot:
         simView.apply(event.snap);
@@ -571,15 +794,11 @@ async function boot(): Promise<void> {
     root.style.setProperty('--ui-scale-windows', String(numberOption(options, 'ui.scaleWindows') / 100));
     root.style.setProperty('--ui-scale-tooltips', String(numberOption(options, 'ui.scaleTooltips') / 100));
     root.dataset['theme'] = stringOption(options, 'ui.theme');
-    root.toggleAttribute('data-reduce-motion', boolOption(options, 'ui.reduceMotion'));
-    root.toggleAttribute('data-reduce-flash', boolOption(options, 'ui.reduceFlash'));
-    renderer.app.ticker.maxFPS = numberOption(options, 'ui.fpsCap');
+    root.toggleAttribute('data-reduce-motion', safeMode || boolOption(options, 'ui.reduceMotion'));
+    root.toggleAttribute('data-reduce-flash', safeMode || boolOption(options, 'ui.reduceFlash'));
+    renderer.app.ticker.maxFPS = safeMode ? 30 : numberOption(options, 'ui.fpsCap');
     $('debug').hidden = !(boolOption(options, 'ui.showFps') || debugOverlay);
-    audio.setVolume('master', numberOption(options, 'audio.master') / 100);
-    audio.setVolume('music', numberOption(options, 'audio.music') / 100);
-    audio.setVolume('sfx', numberOption(options, 'audio.sfx') / 100);
-    audio.setVolume('ui', numberOption(options, 'audio.ui') / 100);
-    audio.setHidden(document.hidden && boolOption(options, 'audio.muteOnBlur'));
+    audio.applyOptions(audioOptionsFrom(options));
   };
   applyOptions();
   $('settings-open').addEventListener('click', () => openWindow('win_settings'));
@@ -639,9 +858,16 @@ async function boot(): Promise<void> {
   });
   window.addEventListener('keyup', (e: KeyboardEvent) => keysDown.delete(e.code));
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) client.setSpeed(0);
-    else applySpeed();
-    audio.setHidden(document.hidden && boolOption(options, 'audio.muteOnBlur'));
+    if (document.hidden) {
+      client.setSpeed(0);
+      void saveController.suspend();
+    } else {
+      applySpeed();
+    }
+    audio.setHidden(document.hidden);
+  });
+  window.addEventListener('pagehide', () => {
+    void saveController.suspend();
   });
 
   // Keep the camera viewport in step with the map element.
@@ -658,7 +884,16 @@ async function boot(): Promise<void> {
       const dy = (keysDown.has('ArrowDown') || keysDown.has('KeyS') ? 1 : 0) - (keysDown.has('ArrowUp') || keysDown.has('KeyW') ? 1 : 0);
       if (dx !== 0 || dy !== 0) cam.panBy(-dx * dt, -dy * dt);
     }
+    saveController.frame(ticker.deltaMS, state.paused || document.hidden, autosaveState());
     flushStroke();
+
+    // The music state is published about once a second (16 B8: never more often than that).
+    musicClockMs += ticker.deltaMS;
+    if (audioUnlocked && cam && musicClockMs >= 1000) {
+      musicClockMs = 0;
+      const zoom01 = (cam.zoom - cam.minZoom) / (cam.maxZoom - cam.minZoom);
+      audio.setMusicState(musicViewState({ paused: state.paused || document.hidden, zoom01 }));
+    }
 
     const cursor: CursorState = {
       tile: strokeOp(state.armed) !== null && cursorScreen && camera ? tileAt(cursorScreen.x, cursorScreen.y) : null,
@@ -739,7 +974,7 @@ async function boot(): Promise<void> {
     powerCount: () => POWERS.length,
   };
 
-  setStatus('Tap a tile to inspect it.');
+  setStatus(safeMode ? 'Safe Mode: audio is off and motion is reduced in this tab.' : 'Tap a tile to inspect it.');
   if ('serviceWorker' in navigator && import.meta.env.PROD) {
     void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`);
   }

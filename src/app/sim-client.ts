@@ -93,6 +93,18 @@ export class SimClient {
     this.send({ kind: Cmd.ReturnBuffer, buffer }, [buffer]);
   }
 
+  /** Encodes the live realm; null when there is no realm to save. */
+  async capture(): Promise<Uint8Array | null> {
+    const event = await this.request({ kind: Cmd.SaveRealm });
+    return event.kind === Ev.Saved && event.bytes.length > 0 ? event.bytes : null;
+  }
+
+  /** Replaces the live realm with a save; false when the save cannot be decoded. */
+  async restore(bytes: Uint8Array): Promise<boolean> {
+    const event = await this.request({ kind: Cmd.LoadRealm, bytes });
+    return event.kind === Ev.Ready;
+  }
+
   private request(command: CommandDraft): Promise<Event> {
     return new Promise<Event>((resolve) => {
       const seq = this.send(command);
@@ -101,7 +113,7 @@ export class SimClient {
   }
 
   private dispatch(event: Event): void {
-    if (event.kind === Ev.Ready || event.kind === Ev.QueryResult) {
+    if (event.kind === Ev.Ready || event.kind === Ev.QueryResult || event.kind === Ev.Saved || event.kind === Ev.Loaded) {
       const resolve = this.replies.get(event.reply);
       if (resolve) {
         this.replies.delete(event.reply);

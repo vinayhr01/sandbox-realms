@@ -20,7 +20,7 @@ function playedSim(seed = 20240601, ticks = 200): Sim {
 
 describe('protocol constants', () => {
   it('pins the snapshot message kinds and versions', () => {
-    expect(PROTOCOL_VERSION).toBe(2);
+    expect(PROTOCOL_VERSION).toBe(3);
     expect(SNAPSHOT_VERSION).toBe(1);
     expect(Cmd.Snapshot).toBe(9);
     expect(Ev.Snapshot).toBe(106);

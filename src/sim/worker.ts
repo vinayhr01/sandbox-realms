@@ -10,6 +10,7 @@ import type { Sim } from './sim.ts';
 import { generateRealm } from './worldgen.ts';
 import { planPump } from './scheduler.ts';
 import { snapshotDue } from './snapshot.ts';
+import { decodeChronicle, encodeChronicle } from './chronicle.ts';
 
 /** Sim time budget per pump in ms (17 section 3.1; 8 ms desktop, 6 ms phones TUNE). Desktop default. */
 const FRAME_BUDGET_MS = 8;
@@ -143,6 +144,23 @@ function handle(cmd: Command): void {
       publishSnapshot();
       return;
     }
+    case Cmd.SaveRealm: {
+      const bytes = (sim ? encodeChronicle(sim) : new Uint8Array(0)).slice();
+      post({ kind: Ev.Saved, reply: cmd.seq, bytes }, [bytes.buffer]);
+      return;
+    }
+    case Cmd.LoadRealm:
+      try {
+        sim = decodeChronicle(cmd.bytes);
+        accMs = 0;
+        lastPublishedTick = -1;
+        lastHash = sim.stateHash();
+        post({ kind: Ev.Ready, reply: cmd.seq, protocolVersion: PROTOCOL_VERSION, side: sim.realm.side, sizeStep: sim.realm.sizeStep, seed: sim.realm.seed });
+        publishFrame(true);
+      } catch (error) {
+        post({ kind: Ev.Loaded, reply: cmd.seq, ok: false, detail: error instanceof Error ? error.message : 'unreadable save' });
+      }
+      return;
     case Cmd.Snapshot:
       publishSnapshot();
       return;

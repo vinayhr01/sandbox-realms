@@ -115,16 +115,27 @@ export const POWERS: readonly PowerDef[] = [
   brush('shape_wayworn', 'Wayworn Path', 'paint_ground', { ground: 'wayworn' }),
   brush('shape_tilled', 'Tilled Row', 'paint_ground', { ground: 'tilled' }),
   // Grow tab: flora and biome seeding (section 8.3).
-  click('grow_seed_biome', 'grow', 'Seed Biome', 'seed_biome', {}),
+  // Seeds: one biome per power; the UI has no biome picker yet, so this one seeds Verdant Reach.
+  click('grow_seed_biome', 'grow', 'Seed Biome', 'seed_biome', { biome: 'verdant_reach' }),
   click('grow_flora_herb', 'grow', 'Herb', 'plant_flora', { flora: 'herb' }),
   click('grow_flora_fieldflower', 'grow', 'Fieldflower', 'plant_flora', { flora: 'fieldflower' }),
   click('grow_flora_broadleaf_a', 'grow', 'Broadleaf Tree', 'plant_flora', { flora: 'broadleaf_a' }),
   click('grow_flora_toadstool', 'grow', 'Toadstool', 'plant_flora', { flora: 'toadstool' }),
+  // Landmarks (12 section 8.3): volcano and geyser vents, creep hubs (18e section 1).
+  click('lm_fire_vent', 'grow', 'Fire Vent', 'start_volcano', { small: 1 }),
+  click('lm_hotspring', 'grow', 'Hot Spring', 'start_geyser', { kind: 'water' }),
+  click('lm_acidspring', 'grow', 'Acid Spring', 'start_geyser', { kind: 'acid' }),
+  click('creep_gloomgrowth', 'grow', 'Gloomgrowth', 'place_creep_hub', { hub: 'gloom_heart' }),
+  click('creep_bloatmoss', 'grow', 'Bloatmoss', 'place_creep_hub', { hub: 'bloat_heart' }),
+  click('creep_gourdgrowth', 'grow', 'Gourdgrowth', 'place_creep_hub', { hub: 'gourd_heart' }),
   // Sky tab: weather drops (section 8.4), drop ids from 02 section 6.
   click('sky_rain', 'sky', 'Rain', 'drop_rain', {}),
   click('sky_snow', 'sky', 'Snow', 'drop_freeze', {}),
   click('sky_ignite', 'sky', 'Ignite', 'start_fire', {}),
   click('sky_quench', 'sky', 'Quench', 'quench', {}),
+  // Temperature brushes (12 section 8.4): heat +/-15 per application.
+  { ...brush('sky_warm', 'Warm', 'add_heat', { amount: 15 }), tab: 'sky' },
+  { ...brush('sky_chill', 'Chill', 'add_heat', { amount: -15 }), tab: 'sky' },
   // Beings tab: one spawner per roster species (section 8.5, scheme spawn_<group>_<id>).
   ...SPECIES.filter((sp) => sp.wild).map((sp): PowerDef => ({
     id: `spawn_beast_${sp.id}`,

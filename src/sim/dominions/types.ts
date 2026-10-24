@@ -29,6 +29,12 @@ export interface DominionContext {
   owner: Map<number, number>;
   /** Called once when a strength exchange defeats a dominion (its strength reaches 0). Optional. */
   onDefeat?(winnerId: number): void;
+  /** Pact member lists for campaign joining (pacts.ts). Optional: without it no pact joins a war. */
+  pacts?: { id: number; memberIds: number[] }[];
+  /** Army parcel per dominion id (armies.ts). Optional: without it every border war pair is in contact. */
+  armyParcel?: Map<number, number>;
+  /** Parcels per side of the realm, for the army contact test. Optional, with armyParcel. */
+  perAxis?: number;
 }
 
 /** Key of an unordered pair of dominion ids: the lower id first. */

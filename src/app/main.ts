@@ -5,7 +5,7 @@ import { Camera } from '../render/camera.ts';
 import { MapInput } from '../ui/input.ts';
 import { edgePanVector } from '../ui/edgePan.ts';
 import { SaveService } from './saves.ts';
-import { CANNOT_CAPTURE, CANNOT_RESTORE, NO_SIM_SOURCE, SaveController, type AutosaveState } from './save-controller.ts';
+import { CANNOT_CAPTURE, CANNOT_RESTORE, SaveController, type AutosaveState, type ChronicleSource } from './save-controller.ts';
 import { setCalendar, setDebug, setStatus, toast } from '../ui/hud.ts';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
@@ -511,13 +511,24 @@ async function boot(): Promise<void> {
 
   // The save store opens on first use (the Chronicle window); it never rejects, so a failed open
   // shows an empty list instead of an error.
+  const liveRealm: ChronicleSource = {
+    canCapture: true,
+    canRestore: true,
+    capture: async () => {
+      const bytes = await client.capture();
+      if (!bytes) return null;
+      const info = { realmName: $('realm-name').textContent ?? 'Realm', tick: simTick, year: Math.floor(simTick / YEAR_TICKS) + 1 };
+      return { bytes, info };
+    },
+    restore: (bytes) => client.restore(bytes),
+  };
   const saveController = new SaveController(
     () =>
       SaveService.open(window.indexedDB, {
         isPhone: window.matchMedia('(pointer: coarse)').matches,
         storage: navigator.storage,
       }),
-    NO_SIM_SOURCE,
+    liveRealm,
     {
       onAutosaved: () => {
         savedTick = simTick;

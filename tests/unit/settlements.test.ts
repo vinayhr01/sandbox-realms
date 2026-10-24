@@ -2,7 +2,14 @@ import { expect, it, describe } from 'vitest';
 import { generateRealm } from '../../src/sim/worldgen.ts';
 import { ground } from '../../src/content/grounds.ts';
 import { createRng } from '../../src/shared/rng.ts';
-import { createHamlet, hamletStep, buildable, PARCEL, type HamletContext } from '../../src/sim/settlements/hamlet.ts';
+import { createHamlet, hamletStep, buildable, placeBuilding, foodCapacity, BASE_FOOD_STORE, PARCEL, type HamletContext } from '../../src/sim/settlements/hamlet.ts';
+import { BUILDING_BY_ID, type BuildingDef } from '../../src/sim/settlements/catalogue.ts';
+
+function def(id: string): BuildingDef {
+  const d = BUILDING_BY_ID.get(id);
+  if (!d) throw new Error(`no building ${id}`);
+  return d;
+}
 
 function setup(seed: number) {
   const { sim } = generateRealm({ seed, sizeStep: 3, template: 'continent', startingBeasts: false });
@@ -69,5 +76,122 @@ describe('settlements', () => {
     for (const b of h.buildings) {
       expect(buildable(ctx, b.x, b.y, { ...h, buildings: [] }) || h.parcels.has(Math.floor(b.y / PARCEL) * perAxis + Math.floor(b.x / PARCEL))).toBe(true);
     }
+  });
+
+  it('births off still lets buildings and wood production happen', () => {
+    const { ctx, parcel } = setup(34);
+    ctx.isOn = (id) => id !== 'folk_births';
+    const h = createHamlet(parcel, 6);
+    h.food = 5000;
+    h.wood = 500;
+    h.stone = 300;
+    for (let t = 0; t < 3600; t++) { ctx.tick = t; hamletStep(ctx, h); }
+    expect(h.folk).toBe(6);
+    expect(h.buildings.length).toBeGreaterThan(0);
+
+    // Wood production alone, with nothing affordable to spend it on.
+    const idle = createHamlet(parcel, 0);
+    idle.wood = 0;
+    idle.stone = 0;
+    idle.buildings.push({ def: def('workshop'), x: 0, y: 0 });
+    ctx.isOn = () => false;
+    for (let t = 0; t < 1000; t++) { ctx.tick = t; hamletStep(ctx, idle); }
+    expect(idle.wood).toBeGreaterThan(0);
+    expect(idle.wood % def('workshop').woodYield).toBe(0);
+  });
+
+  it('food yield is capped at the store capacity and a well produces food', () => {
+    const { ctx, parcel } = setup(35);
+    ctx.isOn = () => true;
+    const step = (h: ReturnType<typeof createHamlet>) => { ctx.tick = 0; hamletStep(ctx, h); };
+
+    // A well on an empty store yields its catalogue food per step.
+    const well = createHamlet(parcel, 0);
+    well.food = 0;
+    well.wood = 0;
+    well.stone = 0;
+    well.buildings.push({ def: def('well'), x: 0, y: 0 });
+    expect(def('well').foodYield).toBeGreaterThan(0);
+    step(well);
+    expect(well.food).toBe(def('well').foodYield);
+
+    // Yield stops at the cap: three wells cannot push the store past BASE_FOOD_STORE.
+    const full = createHamlet(parcel, 0);
+    full.food = BASE_FOOD_STORE - 5;
+    full.wood = 0;
+    full.stone = 0;
+    for (let i = 0; i < 3; i++) full.buildings.push({ def: def('well'), x: 0, y: 0 });
+    step(full);
+    expect(full.food).toBe(BASE_FOOD_STORE);
+
+    // A granary raises the cap but yields no food itself.
+    const granary = createHamlet(parcel, 0);
+    granary.food = 0;
+    granary.wood = 0;
+    granary.stone = 0;
+    granary.buildings.push({ def: def('granary'), x: 0, y: 0 });
+    expect(foodCapacity(granary)).toBe(BASE_FOOD_STORE + def('granary').foodCapacity);
+    step(granary);
+    expect(granary.food).toBe(0);
+
+    // Existing stock above the cap is kept; yield does not clip it.
+    const stocked = createHamlet(parcel, 0);
+    stocked.food = 5000;
+    stocked.wood = 0;
+    stocked.stone = 0;
+    stocked.buildings.push({ def: def('well'), x: 0, y: 0 });
+    step(stocked);
+    expect(stocked.food).toBe(5000);
+  });
+
+  it('territory does not grow without a placed building', () => {
+    const { ctx, parcel } = setup(36);
+    ctx.isOn = () => true;
+    // No folk means a granary is wanted (needs stone 4). With wood but no stone nothing is placed,
+    // so the territory must stay one parcel.
+    const h = createHamlet(parcel, 0);
+    h.wood = 1000;
+    h.stone = 0;
+    h.food = 200;
+    for (let t = 0; t < 1000; t++) { ctx.tick = t; hamletStep(ctx, h); }
+    expect(h.buildings.length).toBe(0);
+    expect(h.parcels.size).toBe(1);
+  });
+
+  it('territory does not grow when an affordable building finds no room', () => {
+    const { ctx, parcel, realm } = setup(37);
+    ctx.isOn = () => true;
+    const h = createHamlet(parcel, 6);
+    h.food = 5000;
+    h.wood = 1000;
+    h.stone = 1000;
+    // Fill every tile of the home parcel so nothing can be placed there.
+    const perAxis = realm.side / PARCEL;
+    const px = (parcel % perAxis) * PARCEL;
+    const py = Math.floor(parcel / perAxis) * PARCEL;
+    for (let y = py; y < py + PARCEL; y++) for (let x = px; x < px + PARCEL; x++) h.buildings.push({ def: def('well'), x, y });
+    ctx.tick = 0;
+    hamletStep(ctx, h);
+    expect(h.parcels.size).toBe(1);
+  });
+
+  it('builds a well after the first granary so the store has food income', () => {
+    const { ctx, parcel } = setup(39);
+    ctx.isOn = () => true;
+    const h = createHamlet(parcel, 0);
+    h.wood = 1000;
+    h.stone = 1000;
+    for (let t = 0; t < 300; t++) { ctx.tick = t; hamletStep(ctx, h); }
+    expect(h.buildings.some((b) => b.def.id === 'granary')).toBe(true);
+    expect(h.buildings.some((b) => b.def.id === 'well')).toBe(true);
+  });
+
+  it('placeBuilding refuses an unaffordable building', () => {
+    const { ctx, parcel } = setup(38);
+    const h = createHamlet(parcel, 0);
+    h.wood = 100;
+    h.stone = 0;
+    expect(placeBuilding(ctx, h, def('granary'))).toBe(false);
+    expect(h.buildings.length).toBe(0);
   });
 });

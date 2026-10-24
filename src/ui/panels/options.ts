@@ -76,8 +76,8 @@ export const SETTINGS: readonly SettingDef[] = [
   B('map.favouritesOnlyNames', 'map', 'Nameplates for favourites only', false),
   B('map.cursorLights', 'map', 'Cursor lights', true),
   // Marks (the 7 mark toggles, 13 section 15)
-  B('marks.favourites', 'marks', 'Mark favourites', true),
-  B('marks.items', 'marks', 'Mark items', true),
+  B('marks.favourites', 'marks', 'Mark favourites', true, true),
+  B('marks.items', 'marks', 'Mark items', true, true),
   B('marks.intrigues', 'marks', 'Mark intrigues', true),
   B('marks.armies', 'marks', 'Mark armies', true),
   B('marks.battles', 'marks', 'Mark battles', true),

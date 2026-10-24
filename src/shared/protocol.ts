@@ -177,6 +177,19 @@ export interface Snapshot {
   clans?: ClanBlock;
   /** Item summary (src/sim/items/summary.ts): counts, capped rows, worn gear and the rain list. Optional. */
   items?: ItemBlock;
+  /** Living beings' tile positions for the map layers (src/render/marks.ts). Capped at MAP_POINT_CAP; optional. */
+  mapPoints?: MapPoint[];
+}
+
+/** Most beings that carry a position in one snapshot. Keeps the message inside SNAPSHOT_MAX_BYTES. */
+export const MAP_POINT_CAP = 96;
+
+/** One living being on the map: `id` is the BeingRow id (generation * MAX_BEINGS + slot); x, y are tile coordinates. */
+export interface MapPoint {
+  id: number;
+  x: number;
+  y: number;
+  folk: boolean;
 }
 
 /** One clan (src/sim/clans). `chiefAgeYears` is -1 when the clan has no living member. */

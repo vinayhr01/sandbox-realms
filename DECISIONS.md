@@ -340,3 +340,18 @@ Wired (0). Non-live (34), with the reason for each:
 - `lang`: only the English string table exists.
 
 Follow-ups: a map mark layer (items, armies, pacts, borders) would unlock the 7 `marks.*` rows; a being draw path would unlock the nameplate and being-icon rows; `perf.renderScale` needs a Pixi API check with dependencies installed.
+
+## Map layers round 5
+
+Scope: a mark layer (`src/render/marks.ts`) and a being dot path, drawn from the snapshot. The sim changed in one additive, read-only place: `buildSnapshot` adds `mapPoints` (living beings' id, tile x and y, folk flag), capped at `MAP_POINT_CAP` (96) and dropped first by `fitSnapshot` if the message is over budget. `PROTOCOL_VERSION` and `SNAPSHOT_VERSION` are unchanged (the field is optional). Nothing in `src/sim` state, `dominions`, `settlements` or `items` was touched.
+
+Wired (2): `marks.items` and `marks.favourites` are now live. Items: a ring on each worn item whose holder is in `mapPoints`; stored items have no tile in the snapshot, so they are not drawn. Favourites: the item ring turns pink when the item is a favourite, and favourite items are shown even when `marks.items` is off. Only the item rows the snapshot carries (capped) are considered.
+
+Non-live, reasons updated:
+- `marks.armies`, `marks.battles`, `marks.boats`, `marks.campaigns`, `marks.intrigues`: the snapshot has no tile for these (armies, pacts, intrigues and dominion borders carry counts and ids only; boats and battles are not in the snapshot). Nothing to place a marker on yet.
+- `map.names`, `map.favouritesOnlyNames`, `ui.scaleNames`: not wired. The snapshot's `mapPoints` carries no name field, and beings have no favourite flag in the sim, so a favourites-only name rule has no data. Needs a name field on the map feed.
+- `perf.renderScale`: still not wired; the Pixi API was not checked in this round (no node_modules in the worktree).
+
+Being dots (folk and wild) are drawn with no setting of their own. Unverified: nothing was run; the Pixi v8 `Graphics.circle().fill()` and `.stroke()` calls are written from the v8 documented API, not checked against typings.
+
+Live count: 41 to 43.

@@ -20,6 +20,8 @@ import {
   type ClanRow,
   type DominionRow,
   type HamletRow,
+  MAP_POINT_CAP,
+  type MapPoint,
   type NotableRows,
   type PactBlock,
   type PactRow,
@@ -75,8 +77,30 @@ export function buildSnapshot(sim: Sim): Snapshot {
     clans: clansOf(sim),
     // Items block (windows-sim-data, 08 section 6): read-only summary of the item store.
     items: itemsOf(sim),
+    // Map feed (src/render/marks.ts): read-only positions of living beings, capped.
+    mapPoints: mapPointsOf(sim),
   };
   return fitSnapshot(snap);
+}
+
+/**
+ * Positions of living beings for the map layers: the oldest first (birth tick, then slot), capped at
+ * MAP_POINT_CAP. Reads only.
+ */
+function mapPointsOf(sim: Sim): MapPoint[] {
+  const s = sim.beings.store;
+  const alive: number[] = [];
+  for (let k = 0; k < s.size; k++) alive.push(s.at(k));
+  alive.sort((a, b) => (s.born[a] ?? 0) - (s.born[b] ?? 0) || a - b);
+  return alive.slice(0, MAP_POINT_CAP).map((slot) => {
+    const def = SPECIES[s.species[slot] ?? 0];
+    return {
+      id: (s.generation[slot] ?? 0) * MAX_BEINGS + slot,
+      x: s.x[slot] ?? 0,
+      y: s.y[slot] ?? 0,
+      folk: def !== undefined && !def.wild,
+    };
+  });
 }
 
 /** Tiles per biome id over the whole realm: a read-only scan of the cover layer. */
@@ -120,6 +144,11 @@ function clansOf(sim: Sim): ClanBlock {
  */
 export function fitSnapshot(snap: Snapshot): Snapshot {
   let out = snap;
+  // Map points go first: the map simply draws without them.
+  if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapPoints !== undefined) {
+    const { mapPoints: _points, ...rest } = out;
+    out = { ...rest, truncated: true };
+  }
   while (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && (out.dominions.length > 0 || out.hamlets.length > 0)) {
     if (out.dominions.length >= out.hamlets.length) {
       out = { ...out, truncated: true, dominions: out.dominions.slice(0, Math.floor(out.dominions.length / 2)) };

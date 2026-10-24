@@ -135,6 +135,8 @@ function handle(cmd: Command): void {
       speed = cmd.speed;
       return;
     case Cmd.Stroke:
+    case Cmd.Power:
+    case Cmd.SetRule:
       sim?.enqueue(cmd);
       return;
     case Cmd.Query: {

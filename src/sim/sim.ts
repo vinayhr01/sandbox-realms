@@ -249,6 +249,12 @@ export class Sim {
       case Cmd.Stroke:
         applyStroke(this.realm, cmd.op, cmd.shape, cmd.size, cmd.x0, cmd.y0, cmd.x1, cmd.y1, cmd.includeStart);
         break;
+      case Cmd.Power:
+        usePowerById(this, cmd.powerId, cmd.x, cmd.y);
+        break;
+      case Cmd.SetRule:
+        this.rules.set(cmd.rule, cmd.on);
+        break;
       default:
         break;
     }

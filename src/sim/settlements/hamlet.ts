@@ -30,6 +30,8 @@ export interface HamletContext {
   tick: number;
   /** Realm Rule lookup (rules.isOn). */
   isOn(id: string): boolean;
+  /** True when another hamlet already owns the parcel; expansion must not take it. */
+  claimed?: (parcel: number) => boolean;
 }
 
 /** Food the hamlet store holds before any granary is built (matches the starting stock). */
@@ -102,7 +104,7 @@ export function expandTerritory(ctx: HamletContext, h: Hamlet): boolean {
       const ny = py + dy;
       if (nx < 0 || ny < 0 || nx >= perAxis || ny >= perAxis) continue;
       const q = ny * perAxis + nx;
-      if (!h.parcels.has(q) && !candidates.includes(q)) candidates.push(q);
+      if (!h.parcels.has(q) && !candidates.includes(q) && !ctx.claimed?.(q)) candidates.push(q);
     }
   }
   candidates.sort((a, b) => a - b);

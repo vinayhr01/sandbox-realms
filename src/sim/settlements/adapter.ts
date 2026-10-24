@@ -139,6 +139,8 @@ export function settlementsStep(host: SettlementHost): void {
   const ctx = contextOf(host);
   for (const h of state.hamlets) {
     h.folk = census(host, h);
-    hamletStep(ctx, h);
+    // Another hamlet owning a parcel blocks this hamlet from expanding into it.
+    const own: HamletContext = { ...ctx, claimed: (q) => state.hamlets.some((o) => o !== h && o.parcels.has(q)) };
+    hamletStep(own, h);
   }
 }

@@ -9,8 +9,10 @@ export interface BuildingDef {
   stone: number;
   /** Side of the square footprint in tiles. */
   footprint: number;
-  /** Food capacity added to the hamlet store (granary) or yield per tick (well). */
+  /** Food capacity added to the hamlet store (granary). */
   foodCapacity: number;
+  /** Food produced per growth step (well). */
+  foodYield: number;
   /** Housing slots for folk (house). */
   housing: number;
   /** Goods capacity added to the stockpile (storehouse). */
@@ -20,11 +22,11 @@ export interface BuildingDef {
 }
 
 export const BUILDINGS: readonly BuildingDef[] = [
-  { id: 'house', name: 'House', wood: 10, stone: 0, footprint: 2, foodCapacity: 0, housing: 4, storage: 0, woodYield: 0 },
-  { id: 'granary', name: 'Granary', wood: 8, stone: 4, footprint: 2, foodCapacity: 200, housing: 0, storage: 0, woodYield: 0 },
-  { id: 'well', name: 'Well', wood: 2, stone: 6, footprint: 1, foodCapacity: 0, housing: 0, storage: 0, woodYield: 0 },
-  { id: 'storehouse', name: 'Storehouse', wood: 12, stone: 6, footprint: 3, foodCapacity: 0, housing: 0, storage: 300, woodYield: 0 },
-  { id: 'workshop', name: 'Workshop', wood: 14, stone: 4, footprint: 2, foodCapacity: 0, housing: 0, storage: 0, woodYield: 3 },
+  { id: 'house', name: 'House', wood: 10, stone: 0, footprint: 2, foodCapacity: 0, foodYield: 0, housing: 4, storage: 0, woodYield: 0 },
+  { id: 'granary', name: 'Granary', wood: 8, stone: 4, footprint: 2, foodCapacity: 200, foodYield: 0, housing: 0, storage: 0, woodYield: 0 },
+  { id: 'well', name: 'Well', wood: 2, stone: 6, footprint: 1, foodCapacity: 0, foodYield: 10, housing: 0, storage: 0, woodYield: 0 },
+  { id: 'storehouse', name: 'Storehouse', wood: 12, stone: 6, footprint: 3, foodCapacity: 0, foodYield: 0, housing: 0, storage: 300, woodYield: 0 },
+  { id: 'workshop', name: 'Workshop', wood: 14, stone: 4, footprint: 2, foodCapacity: 0, foodYield: 0, housing: 0, storage: 0, woodYield: 3 },
 ];
 
 export const BUILDING_BY_ID = new Map(BUILDINGS.map((b) => [b.id, b]));

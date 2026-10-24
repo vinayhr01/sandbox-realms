@@ -32,8 +32,16 @@ export interface HamletContext {
   isOn(id: string): boolean;
 }
 
+/** Food the hamlet store holds before any granary is built (matches the starting stock). */
+export const BASE_FOOD_STORE = 200;
+
 export function createHamlet(parcelIndex: number, folk: number): Hamlet {
-  return { parcels: new Set([parcelIndex]), food: 200, wood: 60, stone: 30, folk, buildings: [], growTimer: 0 };
+  return { parcels: new Set([parcelIndex]), food: BASE_FOOD_STORE, wood: 60, stone: 30, folk, buildings: [], growTimer: 0 };
+}
+
+/** Food capacity of the store: the base store plus the capacity each granary adds. */
+export function foodCapacity(h: Hamlet): number {
+  return BASE_FOOD_STORE + h.buildings.reduce((s, b) => s + (b.def.id === 'granary' ? b.def.foodCapacity : 0), 0);
 }
 
 /** True when a tile can carry a building: land (not water, molten, slime or blocked), no flora, free of other buildings. */
@@ -117,7 +125,7 @@ export function expandTerritory(ctx: HamletContext, h: Hamlet): boolean {
 /**
  * One hamlet tick (09 sections 4-5, reduced). Every 100 ticks: folk eat from the store, the
  * population grows when food covers it and housing has room, and the hamlet builds the cheapest
- * useful building it can afford (house first while folk outnumber housing, then granary).
+ * useful building it can afford (house first while folk outnumber housing, then granary, then well).
  */
 export function hamletStep(ctx: HamletContext, h: Hamlet): void {
   h.growTimer -= 1;
@@ -127,16 +135,17 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
   h.food -= eaten;
   if (h.food < h.folk) h.folk = Math.max(1, h.folk - 1);
   const housing = h.buildings.reduce((s, b) => s + b.def.housing, 0);
-  if (!ctx.isOn('folk_births')) return;
-  if (h.food > h.folk * 2 && h.folk < housing && h.folk < 100) h.folk += 1;
+  if (ctx.isOn('folk_births') && h.food > h.folk * 2 && h.folk < housing && h.folk < 100) h.folk += 1;
   const granaries = h.buildings.filter((b) => b.def.id === 'granary').length;
+  const wells = h.buildings.filter((b) => b.def.id === 'well').length;
   const houses = h.buildings.filter((b) => b.def.id === 'house').length;
-  const wanted = h.folk > housing ? 'house' : granaries === 0 ? 'granary' : houses < 4 ? 'house' : null;
-  if (wanted && h.wood >= (BUILDING_BY_ID.get(wanted)?.wood ?? 0)) {
-    const def = BUILDING_BY_ID.get(wanted);
-    if (def && !placeBuilding(ctx, h, def)) expandTerritory(ctx, h);
-  }
-  h.food += h.buildings.reduce((s, b) => s + b.def.foodCapacity / 10, 0) | 0;
+  const wanted = h.folk > housing ? 'house' : granaries === 0 ? 'granary' : wells === 0 ? 'well' : houses < 4 ? 'house' : null;
+  const def = wanted ? BUILDING_BY_ID.get(wanted) : undefined;
+  // Territory grows only after an affordable building is actually placed.
+  if (def && h.wood >= def.wood && h.stone >= def.stone && placeBuilding(ctx, h, def)) expandTerritory(ctx, h);
+  // Wells yield food per step; granaries only raise the store cap. Yield stops at the cap; stock above it is kept.
+  const cap = foodCapacity(h);
+  if (h.food < cap) h.food = Math.min(h.food + h.buildings.reduce((s, b) => s + b.def.foodYield, 0), cap);
   h.wood += h.buildings.reduce((s, b) => s + b.def.woodYield, 0);
 }
 

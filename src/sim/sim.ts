@@ -39,6 +39,8 @@ import { rollAndRunCalamity, usePowerById } from './powers/handlers.ts';
 import { buildSnapshot } from './snapshot.ts';
 import { ItemStore } from './items/store.ts';
 import { itemRain, itemsStep, setGear, setItemFavourite, setItemRain } from './items/system.ts';
+import { hamletGearStep } from './items/hamlet-gear.ts';
+import { wearOnHit } from './items/wear.ts';
 import type { Snapshot } from '../shared/protocol.ts';
 import { clansStep, createClanState, type ClanState } from './clans/clans.ts';
 
@@ -195,6 +197,7 @@ export class Sim {
     stepBeings(this);
     clansStep(this);
     itemsStep(this);
+    hamletGearStep(this);
     this.runCombatAndWeather();
     stepDominions(this);
     dominionsYearly(this);
@@ -212,6 +215,7 @@ export class Sim {
       // Worn gear adds its might and plating (08 section 6); both are 0 for a Being with no gear.
       might: (slot) => this.beings.species(this.beings.store.species[slot] ?? 0).might + this.items.mightOf(slot),
       equipPlating: (slot) => this.items.platingOf(slot),
+      onWeaponHit: (attacker, victim) => wearOnHit(this, attacker, victim),
     };
   }
 

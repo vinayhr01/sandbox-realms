@@ -92,7 +92,7 @@ export function hamletAt(sim: Sim, x: number, y: number): number {
 }
 
 /** Puts a loose item into a hamlet's stock list (08 section 7.3). A full list keeps the higher-value items. */
-function stockPut(sim: Sim, inst: ItemInstance, hamlet: number): boolean {
+export function stockPut(sim: Sim, inst: ItemInstance, hamlet: number): boolean {
   const store = sim.items;
   const kind = ITEM_KIND_BY_ID.get(inst.kind);
   if (!kind) return false;
@@ -135,7 +135,7 @@ function placeLoose(sim: Sim, inst: ItemInstance, x: number, y: number): void {
 }
 
 /** Writes an item into a Being's equipment slot. */
-function wear(sim: Sim, slot: number, index: number, inst: ItemInstance): void {
+export function wear(sim: Sim, slot: number, index: number, inst: ItemInstance): void {
   const store = sim.items;
   store.gear[slot * GEAR_SLOTS + index] = inst.id;
   store.gearGen[slot] = sim.beings.store.generation[slot] ?? 0;
@@ -144,7 +144,7 @@ function wear(sim: Sim, slot: number, index: number, inst: ItemInstance): void {
 }
 
 /** Clears one equipment slot of a Being and returns the item that was there (or undefined). */
-function unwear(sim: Sim, slot: number, index: number): ItemInstance | undefined {
+export function unwear(sim: Sim, slot: number, index: number): ItemInstance | undefined {
   const store = sim.items;
   const id = store.gearAt(slot, index);
   if (id === 0) return undefined;

@@ -25,6 +25,9 @@ export interface ItemInstance {
   holder: Holder;
 }
 
+/** Multiplier on an item's stats while it is broken (durability 0; 05 section 3 step 10, 08 section 7.4). */
+export const BROKEN_SCALE = 0.5;
+
 /** Stat keys assembly reads from equipment. */
 const FX_KEYS = ['might', 'pace', 'plating', 'vitality', 'wit', 'rapport', 'valor', 'husbandry'] as const;
 
@@ -73,7 +76,8 @@ export class ItemStore {
       const id = this.gearAt(slot, k);
       const inst = id > 0 ? this.items.get(id) : undefined;
       if (!inst) continue;
-      for (const [key, value] of statEntries(statsOf(inst))) fx[key] = (fx[key] ?? 0) + value;
+      const scale = inst.durability > 0 ? 1 : BROKEN_SCALE;
+      for (const [key, value] of statEntries(statsOf(inst))) fx[key] = (fx[key] ?? 0) + value * scale;
     }
     return fx;
   }

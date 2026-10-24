@@ -98,7 +98,7 @@ describe('being and structure facts', () => {
 
   it('says the sim does not store the rest of the spec fields', () => {
     expect(MISSING.structures).toContain('not stored');
-    expect(MISSING.items).toContain('not in the sim');
+    expect(MISSING.items).toContain('Wear, durability');
   });
 });
 

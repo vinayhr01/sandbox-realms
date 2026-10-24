@@ -116,7 +116,7 @@ const PATCH_NOTES: ReadonlyArray<{ version: string; items: readonly string[] }> 
       'Windows for the realm overview, lists and inspectors of dominions, hamlets, campaigns, creeds, customs, dialects, families, intrigues and strains.',
       'Windows for beings, structures, armies, banner editors, compare, annals, trait rain and trait editors, and this window set.',
       'Developer console and developer tools, behind the Developer tools setting (off by default).',
-      'Pacts list the peace between bordering dominions. Not in this build yet: items, clans, alliance terms, an event log, and saving or loading from the Chronicle window.',
+      'Pacts list the peace between bordering dominions. Not in this build yet: alliance terms and an event log.',
     ],
   },
 ];
@@ -178,7 +178,7 @@ function updateWindow(deps: WindowDeps): WindowBuild {
     title: windowTitle('win_update'),
     build: (body) => {
       body.append(note('This build does not check for new versions, so no update is known.'));
-      body.append(note('Reloading starts the game again. The realm is not saved yet, so unsaved progress is lost.'));
+      body.append(note('Reloading starts the game again. Progress since the last save or autosave is lost.'));
       body.append(button('Reload the game', () => window.location.reload(), true));
       body.append(button('Not now', () => deps.close()));
     },
@@ -192,7 +192,7 @@ function confirmQuitWindow(deps: WindowDeps): WindowBuild {
     title: windowTitle('win_confirm_quit'),
     build: (body) => {
       body.append(el('p', undefined, 'Leave this realm?'));
-      body.append(note('The realm is not saved yet. Saving is not available, and leaving to the title is not wired yet.'));
+      body.append(note('Save from the Chronicle window first. Leaving to the title is not wired yet, so the two leave buttons stay off.'));
       body.append(button('Keep playing', () => deps.close(), true));
       body.append(disabledButton('Save and leave'));
       body.append(disabledButton('Leave without saving'));

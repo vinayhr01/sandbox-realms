@@ -132,7 +132,7 @@ function beingWindow(deps: WindowDeps, params: WindowParams): WindowBuild {
       section.refresh();
     });
     root.append(star);
-    root.append(note('Gear, bonds, mind and intrigues are not stored for beings yet.'));
+    root.append(note('Gear is set in the Gear editor, not here. Bonds, mind and intrigues are not stored for beings yet.'));
   });
   return {
     title: windowTitle('win_being'),
@@ -410,7 +410,7 @@ function favouriteItemsList(deps: WindowDeps): WindowBuild {
       const block = snap.items;
       return block && block.count > block.rows.length ? `Showing ${block.rows.length} of ${block.count} items.` : null;
     },
-    empty: 'No items in the realm yet. Use Item rain from the powers to drop some on beings.',
+    empty: 'No items in the realm yet. Open Item rain from the window list to drop some on beings.',
   });
 }
 

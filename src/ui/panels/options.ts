@@ -104,7 +104,7 @@ export const SETTINGS: readonly SettingDef[] = [
   I('input.zoomSpeed', 'input', 'Zoom speed (%)', 50, 200, 100, true),
   B('input.invertZoom', 'input', 'Invert zoom', false, true),
   B('input.edgePan', 'input', 'Edge pan', false, true),
-  // Audio (volumes feed the audio model; no WebAudio output yet)
+  // Audio (volumes feed the audio model, which the audio engine applies)
   I('audio.master', 'audio', 'Master volume', 0, 100, 100, true),
   I('audio.music', 'audio', 'Music volume', 0, 100, 60, true),
   I('audio.sfx', 'audio', 'Effects volume', 0, 100, 100, true),

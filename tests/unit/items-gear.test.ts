@@ -68,7 +68,7 @@ function purseWith(balance: number): Purse & { balance: number } {
   return p;
 }
 
-/** A garrison record placed in hamlet 0 (the catalogue has no garrison yet). */
+/** A garrison record placed in hamlet 0 without the build rules (the catalogue garrison has gold and gates). */
 function addGarrison(sim: Sim, h: number): void {
   const def = { ...(BUILDING_BY_ID.get('house') as BuildingDef), id: 'garrison', name: 'Garrison' };
   hamletsOf(sim)[h]?.buildings.push({ def, x: 0, y: 0 });

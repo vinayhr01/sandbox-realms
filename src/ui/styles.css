@@ -633,6 +633,79 @@ body {
   font-size: calc(14px * var(--ui-scale));
 }
 
+/* Visual sound cues (16 B9, A7): a caption line for stingers and screen-edge pulses for off-screen events. */
+.audio-cues {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9;
+}
+
+.audio-cues[hidden] {
+  display: none;
+}
+
+.cue-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  max-width: min(90vw, 480px);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: calc(14px * var(--ui-scale));
+  text-align: center;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.cue-caption.visible {
+  opacity: 1;
+}
+
+.cue-edge {
+  position: absolute;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+.cue-edge.on {
+  opacity: 0.55;
+}
+
+.cue-edge-left,
+.cue-edge-right {
+  top: 0;
+  bottom: 0;
+  width: 6px;
+}
+
+.cue-edge-left {
+  left: 0;
+}
+
+.cue-edge-right {
+  right: 0;
+}
+
+.cue-edge-top,
+.cue-edge-bottom {
+  left: 0;
+  right: 0;
+  height: 6px;
+}
+
+.cue-edge-top {
+  top: 0;
+}
+
+.cue-edge-bottom {
+  bottom: 0;
+}
+
 .fatal {
   position: fixed;
   inset: 0;

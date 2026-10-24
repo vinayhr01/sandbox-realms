@@ -26,8 +26,12 @@ Four pure modules and one adapter. Only `engine.ts` touches WebAudio, and the si
 - The biome-to-family map (`feed.ts`) and the mood scales are content guesses marked TUNE.
 - Most of the B2 file list (about 56 of about 660 files are represented). Voices are synthesised stand-ins, not recordings.
 - Per-category bus gains for ambience and voices are handled by sub-buses in the engine; the model still has four buses.
-- Mono downmix (B9 `mono`) and visual sound cues are stored as options but not applied.
-- Haptics and the `reduceLoudSounds` limiter level are applied only to the compressor and master trim.
+- Mono downmix (B9 `mono`) is applied: the master sums to one channel (`setDownmix`), so L and R match. Tested in `tests/unit/audio-cues-mono.test.ts`.
+- Visual sound cues (caption for stingers, edge pulse for off-screen priority 0-1 sounds) and haptics live in `src/ui/cues.ts`, not here. The engine only carries the flags. No off-screen priority 0-1 event reaches the UI yet (the sim event stream has no combat, calamity or explosion events), so the edge pulse has no live trigger.
+- The settings rows for `audio.mono`, `audio.visualCues` and `audio.reduceLoud` are missing from `src/ui/panels/options.ts`, so the saved-settings loader drops them and the options cannot be turned on from the UI.
+- Stingers are triggered from the snapshot feed only for Age change, war declared and peace. Pact, ruler, dominion fall, calamity warning and achievement stingers have no trigger yet.
+- Haptics: UI confirm on power use is live. The "hit on selected being" pattern has no trigger (no combat events), and the calamity peak pattern has no trigger (no calamity events).
+- The `reduceLoudSounds` limiter level is applied to the compressor and master trim.
 - Rendering happens on the main thread on first play of each sound (about 0.1 to 0.2 s for an 8 s bed at 8 kHz; more at 32 kHz). Pre-render at unlock if it causes a hitch.
 - Phone profile sample rate (32 kHz) is a context factory option, not set by default.
 - Category caps for summons, gadgets and statuses fall back to the default cap of 4.

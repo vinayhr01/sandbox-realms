@@ -23,6 +23,7 @@ import { audioOptionsFrom, CUE, musicViewState, type Cue } from './audio-wiring.
 import { LAYER_CAP_DESKTOP, LAYER_CAP_PHONE } from '../audio/music.ts';
 import { panFor } from '../audio/mix.ts';
 import { MusicFeed } from '../audio/feed.ts';
+import { CueOverlay, StingerWatch, captionFor, cueOptionsFrom, hapticPattern, vibrate } from '../ui/cues.ts';
 import { SimClient } from './sim-client.ts';
 import {
   bootGuard,
@@ -280,17 +281,30 @@ async function boot(): Promise<void> {
     for (const type of ['pointerdown', 'keydown', 'touchend'] as const) window.removeEventListener(type, unlockAudio, true);
   };
   for (const type of ['pointerdown', 'keydown', 'touchend'] as const) window.addEventListener(type, unlockAudio, true);
-  const playCue = (cue: Cue): void => {
+  // Visual cues, captions and haptics (16 B9): one caption line, mounted once.
+  const cueLayer = new CueOverlay(document);
+  /** Feedback for a cue whether or not the sound plays: the haptic pattern, then the caption when on. */
+  const cueFeedback = (cue: string): void => {
+    const o = cueOptionsFrom(options);
+    vibrate(hapticPattern(cue, o.haptics));
+    cueLayer.caption(captionFor(cue, o.visualCues));
+  };
+  const playCue = (cue: string): void => {
     if (audioUnlocked) audio.play(cue, performance.now());
+    cueFeedback(cue);
   };
   /** A cue for a tile on the map, panned by where the tile sits on screen (16 B4). */
-  const playCueAt = (cue: Cue, tileX: number): void => {
+  const playCueAt = (cue: string, tileX: number): void => {
     const cam = camera;
-    if (!audioUnlocked) return;
-    const width = renderer.app.screen.width;
-    const pan = cam ? panFor(tileX, (width / 2 - cam.offX) / cam.zoom, width / 2 / cam.zoom, audio.currentOptions.spatialIntensity) : 0;
-    audio.play(cue, performance.now(), pan, 1);
+    if (audioUnlocked) {
+      const width = renderer.app.screen.width;
+      const pan = cam ? panFor(tileX, (width / 2 - cam.offX) / cam.zoom, width / 2 / cam.zoom, audio.currentOptions.spatialIntensity) : 0;
+      audio.play(cue, performance.now(), pan, 1);
+    }
+    cueFeedback(cue);
   };
+  /** Stingers implied by the snapshot feed (Age change, war and peace). The first snapshot only sets the baseline. */
+  const stingers = new StingerWatch();
   let musicClockMs = 0;
   /** A notification: a toast with its cue. */
   const notify = (text: string, cue: Cue = CUE.notify): void => {
@@ -531,7 +545,6 @@ async function boot(): Promise<void> {
     if (op) client.stroke(op, state.shape, brushRadius(), x, y, x, y, true);
     else client.power(power.id, x, y);
     playCueAt(op ? CUE.paint : CUE.power, x);
-    if (boolOption(options, 'input.haptics')) navigator.vibrate?.(8);
   };
 
   const flushStroke = (): void => {
@@ -747,6 +760,7 @@ async function boot(): Promise<void> {
       case Ev.Snapshot:
         simView.apply(event.snap);
         musicFeed.ingest(event.snap);
+        for (const id of stingers.ingest(event.snap.age ?? null, event.snap.dominions.filter((d) => d.atWar).length)) playCue(id);
         return;
       case Ev.QueryResult:
       case Ev.Heartbeat:
@@ -806,7 +820,9 @@ async function boot(): Promise<void> {
     root.toggleAttribute('data-reduce-flash', safeMode || boolOption(options, 'ui.reduceFlash'));
     renderer.app.ticker.maxFPS = safeMode ? 30 : numberOption(options, 'ui.fpsCap');
     $('debug').hidden = !(boolOption(options, 'ui.showFps') || debugOverlay);
-    audio.applyOptions(audioOptionsFrom(options));
+    const cueOpts = cueOptionsFrom(options);
+    cueLayer.setEnabled(cueOpts.visualCues);
+    audio.applyOptions({ ...audioOptionsFrom(options), mono: cueOpts.mono, reduceLoudSounds: cueOpts.reduceLoudSounds, visualCues: cueOpts.visualCues, haptics: cueOpts.haptics });
   };
   applyOptions();
   $('settings-open').addEventListener('click', () => openWindow('win_settings'));

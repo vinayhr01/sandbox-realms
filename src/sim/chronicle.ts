@@ -3,7 +3,7 @@ import { Sim } from './sim.ts';
 import type { WeatherState } from './weather.ts';
 import type { Projectile } from './combat.ts';
 import { culturePayload, cultureFromPayload, type CulturePayload } from './culture/adapter.ts';
-import { snapshotDominions, restoreDominions, type DominionSnapshot } from './dominions/adapter.ts';
+import { snapshotDominions, restoreDominions, snapshotPacts, restorePacts, type DominionSnapshot, type PactSnapshot } from './dominions/adapter.ts';
 import { snapshotHamlets, restoreHamlets, type HamletSnapshot } from './settlements/adapter.ts';
 import { refreshStats } from './beings/system.ts';
 import { restoreItems, saveItems, type ItemSave } from './items/system.ts';
@@ -46,9 +46,9 @@ const HEADER_BYTES = 16;
 export const MIN_SIZE_STEP = 2;
 export const MAX_SIZE_STEP = 9;
 
-const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14, dominions: 15, hamlets: 16, strains: 17, clans: 18, items: 19 } as const;
+const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14, dominions: 15, hamlets: 16, strains: 17, clans: 18, items: 19, pacts: 20 } as const;
 /** Sections a save may lack (written by later builds); absent means the empty default. */
-const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity, TAG.lifetime, TAG.dominions, TAG.hamlets, TAG.clans, TAG.items];
+const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity, TAG.lifetime, TAG.dominions, TAG.hamlets, TAG.clans, TAG.items, TAG.pacts];
 const REALM_ARRAYS = [
   'elevation',
   'ground',
@@ -311,6 +311,10 @@ export function encodeChronicle(sim: Sim): Uint8Array {
   if (sim.items.items.size > 0 || sim.items.stock.size > 0 || sim.items.rain.length > 0) {
     section(body, TAG.items, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(saveItems(sim)))));
   }
+  // Optional pact records (tag 20, 10 section 12): written only once a pact exists or has formed, so a realm
+  // without pacts saves exactly as before.
+  const pactSnap = snapshotPacts(sim);
+  if (pactSnap) section(body, TAG.pacts, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(pactSnap))));
 
   const bodyBytes = body.finish();
   const header = new Writer();
@@ -433,6 +437,8 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
     const snap = checkDominions(parseJson<unknown>(decoder, dominionBytes, 'dominions'));
     if (snap) restoreDominions(sim, snap);
   }
+  const pactBytes = sections.get(TAG.pacts);
+  if (pactBytes) restorePacts(sim, checkPacts(parseJson<unknown>(decoder, pactBytes, 'pacts')));
   const hamletBytes = sections.get(TAG.hamlets);
   if (hamletBytes) {
     const snap = parseJson<HamletSnapshot | null>(decoder, hamletBytes, 'hamlets');
@@ -505,6 +511,14 @@ function checkDominions(raw: unknown): DominionSnapshot | null {
     throw new Error('chronicle: dominion section is not valid');
   }
   return raw as unknown as DominionSnapshot;
+}
+
+/** Checks the pact section's shape; restorePacts checks the records. */
+function checkPacts(raw: unknown): PactSnapshot {
+  if (!isRecord(raw) || !Array.isArray(raw.pacts) || typeof raw.nextId !== 'number' || typeof raw.lastFormedTick !== 'number') {
+    throw new Error('chronicle: pact section is not valid');
+  }
+  return raw as unknown as PactSnapshot;
 }
 
 /** Checks the shape of the lifetime section before any of it is applied. */

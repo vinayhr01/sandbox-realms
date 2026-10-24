@@ -54,6 +54,7 @@ function exchange(ctx: DominionContext, a: Dominion, b: Dominion, relations: Rel
   if (loser.strength === 0) {
     relations.set(a.id, b.id, 'peace');
     if (ctx.isOn('border_creep')) takeParcel(ctx, winner, loser);
+    ctx.onDefeat?.(winner.id);
   }
 }
 

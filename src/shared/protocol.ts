@@ -240,12 +240,13 @@ export interface ItemBlock {
 }
 
 /**
- * One peace pact: two dominions that share a border and are at peace. The sim has no pact records
- * (10 section 12 is not built); the stats count the same pairs as pacts (src/sim/stats-hooks.ts).
+ * One pact record (10 section 12, src/sim/dominions/pacts.ts). `a` and `b` are the two founders, sized
+ * here; `members` lists every current member, which can be more than two once dominions have joined.
  */
 export interface PactRow {
-  /** a * 256 + b for the lower dominion id a and the higher id b: stable while both dominions exist. */
+  /** The pact id: stable while the pact lives. */
   id: number;
+  name: string;
   a: number;
   b: number;
   nameA: string;
@@ -254,9 +255,15 @@ export interface PactRow {
   strengthB: number;
   parcelsA: number;
   parcelsB: number;
+  /** Every current member dominion id, ascending. */
+  members: number[];
+  /** Sum of the members' strength. */
+  power: number;
+  renown: number;
+  formedTick: number;
 }
 
-/** Peace pacts: `count` is exact; `rows` is capped at SNAPSHOT_DETAIL_ROWS. */
+/** Pact records: `count` is exact; `rows` is capped at SNAPSHOT_DETAIL_ROWS. */
 export interface PactBlock {
   count: number;
   rows: PactRow[];

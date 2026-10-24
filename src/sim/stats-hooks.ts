@@ -11,7 +11,7 @@ import { YEAR_TICKS } from '../shared/constants.ts';
 import { BIOMES, biomeOfCover } from '../content/biomes.ts';
 import { G } from '../content/grounds.ts';
 import { SS_TICKS } from './clock.ts';
-import { dominionState } from './dominions/adapter.ts';
+import { dominionState, pactsOfSim } from './dominions/adapter.ts';
 import { hamletsOf } from './settlements/adapter.ts';
 import { recordEvent, evaluateAchievements, type StatsEvent } from './stats.ts';
 import type { Sim } from './sim.ts';
@@ -28,7 +28,8 @@ interface Observed {
   hamlets: number;
   ages: Set<string>;
   campaign: Map<number, { since: number; target: number }>;
-  pairRelation: Map<string, string>;
+  /** Pact ids already counted as made; null until the first observation (pacts loaded from a save are not new). */
+  pactIds: Set<number> | null;
   resolvedIntrigues: Set<number>;
   below: Uint8Array;
   drops: Uint16Array;
@@ -52,7 +53,7 @@ function stateOf(sim: Sim): Observed {
       hamlets: 0,
       ages: new Set(),
       campaign: new Map(),
-      pairRelation: new Map(),
+      pactIds: null,
       resolvedIntrigues: new Set(),
       below: new Uint8Array(cap),
       drops: new Uint16Array(cap),
@@ -152,30 +153,18 @@ function observeDominions(sim: Sim, st: Observed): void {
   recordEvent(s, { kind: 'gauge.max', name: 'campaignsOngoingMax', value: ongoing });
   recordEvent(s, { kind: 'gauge.max', name: 'campaignYearsMax', value: longest });
 
-  // Pacts: a border pair turning to peace is a pact made; the largest peace-linked group is a pact.
-  const parent = new Map<number, number>();
-  const find = (a: number): number => {
-    let r = a;
-    while ((parent.get(r) ?? r) !== r) r = parent.get(r) ?? r;
-    return r;
-  };
-  for (const [a, b] of ds.borders) {
-    const key = a < b ? `${a}:${b}` : `${b}:${a}`;
-    const rel = ds.relations.get(a, b);
-    if (rel === 'peace' && st.pairRelation.get(key) !== undefined && st.pairRelation.get(key) !== 'peace') {
-      recordEvent(s, { kind: 'pact.made' });
-    }
-    st.pairRelation.set(key, rel);
-    if (rel === 'peace') parent.set(find(a), find(b));
+  // Pacts: a pact record seen for the first time is a pact made; the largest pact is the size gauge.
+  const pacts = pactsOfSim(sim);
+  const seen = st.pactIds ?? new Set<number>();
+  const first = st.pactIds === null;
+  let members = 0;
+  for (const p of pacts) {
+    if (!seen.has(p.id) && !first) recordEvent(s, { kind: 'pact.made' });
+    seen.add(p.id);
+    members = Math.max(members, p.memberIds.length);
   }
-  const sizes = new Map<number, number>();
-  for (const d of ds.dominions) {
-    const root = find(d.id);
-    sizes.set(root, (sizes.get(root) ?? 0) + 1);
-  }
-  let pact = 0;
-  for (const n of sizes.values()) pact = Math.max(pact, n);
-  recordEvent(s, { kind: 'gauge.max', name: 'pactMembersMax', value: pact });
+  st.pactIds = seen;
+  recordEvent(s, { kind: 'gauge.max', name: 'pactMembersMax', value: members });
 }
 
 function observeIntrigues(sim: Sim, st: Observed): void {

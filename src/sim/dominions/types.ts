@@ -27,6 +27,8 @@ export interface DominionContext {
   borders: [number, number][];
   /** Parcel owner lookup used when a parcel changes hands. */
   owner: Map<number, number>;
+  /** Called once when a strength exchange defeats a dominion (its strength reaches 0). Optional. */
+  onDefeat?(winnerId: number): void;
 }
 
 /** Key of an unordered pair of dominion ids: the lower id first. */

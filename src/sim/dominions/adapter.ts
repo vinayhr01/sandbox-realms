@@ -7,6 +7,8 @@ import { dominionStep } from './step.ts';
 import { ground } from '../../content/grounds.ts';
 import { FOUND_FOLK, foundingYear, type FoundingEnv, type Truce } from './founding.ts';
 import { pairKey, RelationMatrix, type Dominion, type DominionContext, type Relation } from './types.ts';
+import { addPactRenown, makePact, newPactState, pactOf, pactYear, PACT_RENOWN_PER_DEFEAT, type Pact, type PactState } from './pacts.ts';
+import { armyWon, raiseArmies, syncArmies, type Army } from './armies.ts';
 
 /**
  * Sim adapter for the dominions slice. The dominion state is kept beside the Sim (not on it) and
@@ -28,6 +30,10 @@ export interface DominionState {
   owner: Uint8Array;
   /** Truces by pair key (founding.ts): no new declaration until `until`. */
   truce: Map<string, Truce>;
+  /** Pact records (pacts.ts). */
+  pacts: PactState;
+  /** One army per dominion (armies.ts). */
+  armies: Army[];
 }
 
 const states = new WeakMap<Sim, DominionState>();
@@ -37,10 +43,41 @@ export function dominionState(sim: Sim): DominionState {
   let s = states.get(sim);
   if (!s) {
     const perAxis = sim.realm.side / PARCEL;
-    s = { dominions: [], relations: new RelationMatrix(), borders: [], owner: new Uint8Array(perAxis * perAxis), truce: new Map() };
+    s = {
+      dominions: [],
+      relations: new RelationMatrix(),
+      borders: [],
+      owner: new Uint8Array(perAxis * perAxis),
+      truce: new Map(),
+      pacts: newPactState(),
+      armies: [],
+    };
     states.set(sim, s);
   }
   return s;
+}
+
+/** Pact records of a sim, read only: empty when the dominion state was never created. */
+export function pactsOfSim(sim: Sim): readonly Pact[] {
+  return states.get(sim)?.pacts.pacts ?? [];
+}
+
+/** Dominions of a sim, read only: empty when the dominion state was never created. */
+export function dominionsOfSim(sim: Sim): readonly Dominion[] {
+  return states.get(sim)?.dominions ?? [];
+}
+
+/**
+ * Adds a pact record between two dominions that are not in a pact yet (tests and tools; the yearly
+ * pass forms pacts itself and keeps the formation timeout). Throws when a dominion is missing or pacted.
+ */
+export function addPact(sim: Sim, a: number, b: number): Pact {
+  const s = dominionState(sim);
+  for (const id of [a, b]) {
+    if (!s.dominions.some((d) => d.id === id)) throw new Error(`no dominion ${id}`);
+    if (pactOf(s.pacts.pacts, id)) throw new Error(`dominion ${id} is already in a pact`);
+  }
+  return makePact(s.pacts, a, b, sim.tick);
 }
 
 /** Number of parcels along one side of the realm. */
@@ -88,6 +125,15 @@ export interface DominionSnapshot {
   owner: number[];
   /** Truces (founding.ts). Optional: saves written before the yearly pass have none. */
   truce?: { a: number; b: number; until: number; declared: boolean }[];
+  /** Armies (armies.ts). Optional: saves written before armies have none. */
+  armies?: { id: number; name: string; dominionId: number; soldiers: number; renown: number }[];
+}
+
+/** Plain-data form of the pact records (chronicle tag 20, pacts.ts). */
+export interface PactSnapshot {
+  pacts: Pact[];
+  nextId: number;
+  lastFormedTick: number;
 }
 
 /** Plain copy of a sim's dominion state, or null when the state was never created. */
@@ -114,6 +160,44 @@ export function snapshotDominions(sim: Sim): DominionSnapshot | null {
     borders: s.borders.map(([a, b]) => [a, b]),
     owner: [...s.owner],
     truce: [...s.truce.values()].map((t) => ({ a: t.a, b: t.b, until: t.until, declared: t.declared })),
+    armies: s.armies.map((a) => ({ id: a.id, name: a.name, dominionId: a.dominionId, soldiers: a.soldiers, renown: a.renown })),
+  };
+}
+
+/** Plain copy of the pact records, or null when there are none and no formation has happened (no section then). */
+export function snapshotPacts(sim: Sim): PactSnapshot | null {
+  const s = states.get(sim);
+  if (!s || (s.pacts.pacts.length === 0 && s.pacts.lastFormedTick < 0)) return null;
+  return {
+    pacts: s.pacts.pacts.map((p) => ({ ...p, memberIds: [...p.memberIds], founders: [p.founders[0], p.founders[1]] })),
+    nextId: s.pacts.nextId,
+    lastFormedTick: s.pacts.lastFormedTick,
+  };
+}
+
+/** Replaces the pact records with a snapshot (Chronicle load). Checks ids, members and counters first. */
+export function restorePacts(sim: Sim, snap: PactSnapshot): void {
+  const bad = (what: string): never => {
+    throw new Error(`pact state: ${what} is not valid`);
+  };
+  const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+  const isInt = (v: unknown): v is number => isNum(v) && Number.isInteger(v);
+  const s = dominionState(sim);
+  const dominionIds = new Set(s.dominions.map((d) => d.id));
+  if (!Array.isArray(snap.pacts) || !isInt(snap.nextId) || !isInt(snap.lastFormedTick) || snap.lastFormedTick < -1) bad('counters');
+  const seen = new Set<number>();
+  for (const p of snap.pacts) {
+    if (!isInt(p.id) || p.id < 1 || seen.has(p.id) || p.id >= snap.nextId) bad(`pact ${p.id}`);
+    seen.add(p.id);
+    if (typeof p.name !== 'string' || !isNum(p.renown) || p.renown < 0 || !isInt(p.formedTick) || (p.kind !== 'normal' && p.kind !== 'forced')) bad(`pact ${p.id} fields`);
+    if (!Array.isArray(p.memberIds) || p.memberIds.length < 2 || !Array.isArray(p.founders) || p.founders.length !== 2) bad(`pact ${p.id} members`);
+    for (const m of p.memberIds) if (!isInt(m) || !dominionIds.has(m)) bad(`pact ${p.id} member ${m}`);
+    if (new Set(p.memberIds).size !== p.memberIds.length) bad(`pact ${p.id} members repeat`);
+  }
+  s.pacts = {
+    pacts: snap.pacts.map((p) => ({ ...p, memberIds: [...p.memberIds], founders: [p.founders[0], p.founders[1]] })),
+    nextId: snap.nextId,
+    lastFormedTick: snap.lastFormedTick,
   };
 }
 
@@ -158,7 +242,14 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
     if (!isNum(t.a) || !isNum(t.b) || !isNum(t.until) || typeof t.declared !== 'boolean') bad('truce');
     truce.set(pairKey(t.a, t.b), { a: t.a, b: t.b, until: t.until, declared: t.declared });
   }
-  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce });
+  const armies: Army[] = [];
+  for (const a of snap.armies ?? []) {
+    if (!isNum(a.id) || !isNum(a.dominionId) || !dominions.some((d) => d.id === a.dominionId) || !isNum(a.soldiers) || !isNum(a.renown) || typeof a.name !== 'string') {
+      bad(`army ${a.id}`);
+    }
+    armies.push({ id: a.id, name: a.name, dominionId: a.dominionId, soldiers: a.soldiers, renown: a.renown });
+  }
+  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies });
 }
 
 /**
@@ -182,6 +273,9 @@ export function dominionsYearly(sim: Sim): void {
     },
   };
   foundingYear(s, settlements, env);
+  pactYear(s.pacts, s.dominions, s.borders, s.relations, sim.tick);
+  raiseArmies(s.armies, s.dominions);
+  syncArmies(s.armies, s.dominions);
 }
 
 /**
@@ -205,7 +299,12 @@ export function stepDominions(sim: Sim): void {
     dominions: s.dominions,
     borders: s.borders,
     owner,
+    onDefeat: (winnerId) => {
+      addPactRenown(s.pacts, winnerId, PACT_RENOWN_PER_DEFEAT);
+      armyWon(s.armies, winnerId);
+    },
   };
   dominionStep(ctx, s.relations);
+  syncArmies(s.armies, s.dominions);
   for (const [p, id] of owner) s.owner[p] = id;
 }

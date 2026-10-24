@@ -39,6 +39,36 @@ export interface HamletContext {
   claimed?: (parcel: number) => boolean;
 }
 
+/** Share of a parcel's tiles that must be land for it to take a founding (09 section 2, rule 1; TUNE, relaxed from 100%). */
+export const FOUNDING_LAND = 0.9;
+
+/**
+ * True when parcel `p` is a good founding site (09 section 2): at least FOUNDING_LAND of its tiles are land,
+ * and neither it nor any of its 8 neighbour parcels is owned by a hamlet (`owned` holds every hamlet parcel).
+ */
+export function goodFoundingParcel(realm: HamletContext['realm'], p: number, owned: ReadonlySet<number>): boolean {
+  const side = realm.side;
+  const perAxis = side / PARCEL;
+  const px = p % perAxis;
+  const py = Math.floor(p / perAxis);
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const nx = px + dx;
+      const ny = py + dy;
+      if (nx < 0 || ny < 0 || nx >= perAxis || ny >= perAxis) continue;
+      if (owned.has(ny * perAxis + nx)) return false;
+    }
+  }
+  let land = 0;
+  for (let y = 0; y < PARCEL; y++) {
+    for (let x = 0; x < PARCEL; x++) {
+      const i = (py * PARCEL + y) * side + px * PARCEL + x;
+      if (ground(realm.ground[i] ?? 0).layer === 'land') land++;
+    }
+  }
+  return land >= FOUNDING_LAND * PARCEL * PARCEL;
+}
+
 /** Food the hamlet store holds before any granary is built (matches the starting stock). */
 export const BASE_FOOD_STORE = 200;
 

@@ -220,3 +220,12 @@ Scope: a production path that founds dominions, grows their borders, sets relati
 - **Limits.** Hamlets are fixed at three (`HAMLETS_WANTED`), and no creed regions exist, so there are at most three dominions per seed. Hamlet expansion ignores dominion owner bytes (settlements adapter is read-only here). Opinion, ruler and intrigue-driven pacts of spec 10 are not built.
 - **Probe, seeds 1, 555, 31337, 2024, 7, 99, 10 years.** Soak size (sizeStep 4): 1-3 dominions per seed, 0 declared wars. sizeStep 2: 2-3 dominions per seed, 1 declared war (seed 555, year 8), 0 pacts.
 - **Soak.** Strict soak passes (seeds 1, 555, 31337). Year-10 totals 1471, 1109, 1302, identical to HEAD.
+
+## Hamlet founding round 3
+
+- **MIN_BAND founding (09 section 2, path A; 12 spawn_folk).** Each sim-second, `foundHamlets` in `settlements/adapter.ts` scans adult Folk (`baby === 0`, species `folk`) in slot order. A founder whose band (adults of its lineage within `BAND_RANGE` = 20 tiles, itself included) reaches `MIN_BAND` = 2 founds on its parcel when `goodFoundingParcel` holds: at least 90% land tiles (`FOUNDING_LAND`, TUNE) and no hamlet on the parcel or its 8 neighbours. The hamlet claims the parcel and every unowned neighbour parcel. No RNG draws. No dominion is made here; the yearly pass does that at `FOUND_FOLK`. No rule gate (path A is ungated).
+- **Not built from 09 section 2.** Island size (300 ground tiles), biome-by-strain check, annexing a neighbouring hamlet's parcel (rule 5; the neighbour check already refuses it), the 600-tick decision cooldown, the founder's clan, dialect and custom, and the name roll. Founding is one scan per second rather than a decision per Being.
+- **Worldgen placement kept.** 09 places no hamlets at worldgen, but the spec does not ask for it to be removed, so `placeHamlets` (3 hamlets) is unchanged. Founding adds on top.
+- **Census kept (all beings).** Probe: census of Folk only leaves every worldgen hamlet at 0 Folk for three sim-years (seed 7, 40 starting beasts, 3 years). Under 09 section 2 a hamlet with no Folk turns neutral, so folk-only census would kill the worldgen hamlets. Kept the all-beings census. Founded hamlets still count beasts in their parcels, as before.
+- **Probe results (seed 7, sizeStep 2, no starting beasts).** Two adult Folk spawned on one good parcel found a hamlet at tick 20. Forty Folk in a hamlet produce a dominion at tick 130 (within year 1).
+- **Golden.** `GOLDEN_HASH` unchanged at 2562049680: the golden run has no Folk, so founding does not fire and the census is unchanged.

@@ -205,3 +205,18 @@ Scope: an item registry, equipment on Beings, hamlet stock, item rain, the item 
 - **Not built.** Wear and durability loss (08 7.4), repair, crafting (smithy), soldiers drawing gear from stock (`fetch_hamlet_gear`), spells and projectiles from items, weapon reach and targets in combat, crit chance, the unique-name roll at rank 5, the Favour reforge and curse buttons, the Gear tab of the being window.
 - **Golden.** `GOLDEN_HASH` unchanged (2562049680). Items are not in `stateHash`, and no item command runs in the golden script.
 >
+## Dominions round 2
+
+Scope: a production path that founds dominions, grows their borders, sets relations, declares wars and signs pacts. Code: `src/sim/dominions/founding.ts` (yearly pass), `adapter.ts` (`dominionsYearly`, truce save field), one hook line in `sim.ts`. Golden hash unchanged (2562049680): dominion state is not in `stateHash`, and nothing in beings or realm reads it.
+
+- **Cadence.** Once per sim-year on `sim.due('dominions.year', YEAR_TICKS)`. No RNG draws.
+- **Founding (OPEN).** A settlement (hamlet) with no dominion parcels and folk >= `FOUND_FOLK` = 30 founds a dominion on its parcels. Needs rule `realm_expansion`. A settlement's dominion is the owner of most of its parcels. Folk is the settlement census of beings in its parcels: Folk are never spawned in the running sim (`spawnFolk` has no caller), so the census counts beasts too.
+- **Land (OPEN).** 09 section 3 gives a hamlet one claim per 1200 ticks. Dominions claim `CLAIMS_PER_YEAR` = 3 free land parcels a year next to their territory, nearest the centroid within 13 parcels (`CLAIM_RANGE_SQ`). One claim a year left founded dominions too far apart to meet on most seeds. Settlement parcels are never taken.
+- **Army (OPEN).** Strength cap = folk / `ARMY_DIVISOR` (3). Strength regrows toward the cap and is never cut by the yearly pass.
+- **Borders.** Parcel adjacency (8 neighbours), recomputed yearly. A new border starts at `tension` when one side has at least `TENSION_RATIO` (2) times the other's strength, else `peace`. New borders are not judged for war in their first pass.
+- **War.** Peace goes to tension on a power gap of 2. Tension goes to war when the bigger side has more than `DECLARE_ARMY` (10) strength. The declaration sets a truce of 5 years (`TRUCE_TICKS`). A war seen at a pass keeps a truce 5 years out. Undeclared wars (tests, god tools) get the same truce but are never pacted.
+- **Pacts.** A declared war ends in peace (`endWar`) once the bigger side has at least `PACT_RATIO` (3) times the other's strength at a pass. Not observed in the 10-year probes: wars end in defeat within about a year, before a pass sees them.
+- **Save.** `DominionSnapshot.truce` is optional (`{a, b, until, declared}`); older saves restore with none. No version bump.
+- **Limits.** Hamlets are fixed at three (`HAMLETS_WANTED`), and no creed regions exist, so there are at most three dominions per seed. Hamlet expansion ignores dominion owner bytes (settlements adapter is read-only here). Opinion, ruler and intrigue-driven pacts of spec 10 are not built.
+- **Probe, seeds 1, 555, 31337, 2024, 7, 99, 10 years.** Soak size (sizeStep 4): 1-3 dominions per seed, 0 declared wars. sizeStep 2: 2-3 dominions per seed, 1 declared war (seed 555, year 8), 0 pacts.
+- **Soak.** Strict soak passes (seeds 1, 555, 31337). Year-10 totals 1471, 1109, 1302, identical to HEAD.

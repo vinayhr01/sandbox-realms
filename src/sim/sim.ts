@@ -33,7 +33,7 @@ import { freeze, } from './terrain/freeze.ts';
 import { startFire } from './terrain/fire.ts';
 import { stepBeings, killBeing } from './beings/system.ts';
 import { settlementsStep } from './settlements/adapter.ts';
-import { stepDominions } from './dominions/adapter.ts';
+import { dominionsYearly, stepDominions } from './dominions/adapter.ts';
 import { cultureTick, createCultureState, type CultureState } from './culture/adapter.ts';
 import { rollAndRunCalamity, usePowerById } from './powers/handlers.ts';
 import { buildSnapshot } from './snapshot.ts';
@@ -197,6 +197,7 @@ export class Sim {
     itemsStep(this);
     this.runCombatAndWeather();
     stepDominions(this);
+    dominionsYearly(this);
     if (this.due('achievements', SS_TICKS)) unlockAchievements(this);
   }
 

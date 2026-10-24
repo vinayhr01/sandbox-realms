@@ -68,8 +68,13 @@ function takeParcel(ctx: DominionContext, winner: Dominion, loser: Dominion): vo
 
 /** Signs a peace pact: ends the war between two dominions and stops their campaigns (10 section 5). */
 export function signPeace(ctx: DominionContext, relations: RelationMatrix, a: number, b: number): void {
+  endWar(ctx.dominions, relations, a, b);
+}
+
+/** Sets a pair to peace and clears any campaign between them. Shared by signPeace and the yearly pass. */
+export function endWar(dominions: readonly Dominion[], relations: RelationMatrix, a: number, b: number): void {
   relations.set(a, b, 'peace');
-  for (const d of ctx.dominions) {
+  for (const d of dominions) {
     if ((d.id === a && d.target === b) || (d.id === b && d.target === a)) {
       d.target = -1;
       d.campaignSince = -1;

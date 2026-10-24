@@ -1,8 +1,12 @@
 import type { Sim } from '../sim.ts';
 import { PARCEL } from '../settlements/hamlet.ts';
+import { hamletsOf } from '../settlements/adapter.ts';
 import { SS_TICKS } from '../clock.ts';
+import { YEAR_TICKS } from '../../shared/constants.ts';
 import { dominionStep } from './step.ts';
-import { RelationMatrix, type Dominion, type DominionContext, type Relation } from './types.ts';
+import { ground } from '../../content/grounds.ts';
+import { FOUND_FOLK, foundingYear, type FoundingEnv, type Truce } from './founding.ts';
+import { pairKey, RelationMatrix, type Dominion, type DominionContext, type Relation } from './types.ts';
 
 /**
  * Sim adapter for the dominions slice. The dominion state is kept beside the Sim (not on it) and
@@ -22,6 +26,8 @@ export interface DominionState {
   borders: [number, number][];
   /** Owner byte per parcel: dominion id, or UNOWNED. Sized (side / PARCEL) squared. */
   owner: Uint8Array;
+  /** Truces by pair key (founding.ts): no new declaration until `until`. */
+  truce: Map<string, Truce>;
 }
 
 const states = new WeakMap<Sim, DominionState>();
@@ -31,7 +37,7 @@ export function dominionState(sim: Sim): DominionState {
   let s = states.get(sim);
   if (!s) {
     const perAxis = sim.realm.side / PARCEL;
-    s = { dominions: [], relations: new RelationMatrix(), borders: [], owner: new Uint8Array(perAxis * perAxis) };
+    s = { dominions: [], relations: new RelationMatrix(), borders: [], owner: new Uint8Array(perAxis * perAxis), truce: new Map() };
     states.set(sim, s);
   }
   return s;
@@ -80,6 +86,8 @@ export interface DominionSnapshot {
   borders: [number, number][];
   /** Owner byte per parcel. */
   owner: number[];
+  /** Truces (founding.ts). Optional: saves written before the yearly pass have none. */
+  truce?: { a: number; b: number; until: number; declared: boolean }[];
 }
 
 /** Plain copy of a sim's dominion state, or null when the state was never created. */
@@ -105,6 +113,7 @@ export function snapshotDominions(sim: Sim): DominionSnapshot | null {
     relations,
     borders: s.borders.map(([a, b]) => [a, b]),
     owner: [...s.owner],
+    truce: [...s.truce.values()].map((t) => ({ a: t.a, b: t.b, until: t.until, declared: t.declared })),
   };
 }
 
@@ -144,7 +153,35 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
     if (!isNum(a) || !isNum(b)) bad('border');
     borders.push([a, b]);
   }
-  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner) });
+  const truce = new Map<string, Truce>();
+  for (const t of snap.truce ?? []) {
+    if (!isNum(t.a) || !isNum(t.b) || !isNum(t.until) || typeof t.declared !== 'boolean') bad('truce');
+    truce.set(pairKey(t.a, t.b), { a: t.a, b: t.b, until: t.until, declared: t.declared });
+  }
+  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce });
+}
+
+/**
+ * Yearly dominion pass (10 sections 3, 10, 11 and 12; see founding.ts). Runs once per sim-year on a
+ * phase derived from its name. Settlements are read through the hamlet adapter; the dominion state is
+ * created only when a settlement qualifies, so a sim without one keeps no dominion state.
+ */
+export function dominionsYearly(sim: Sim): void {
+  if (!sim.due('dominions.year', YEAR_TICKS)) return;
+  const settlements = hamletsOf(sim);
+  const s = states.get(sim) ?? (settlements.some((h) => h.folk >= FOUND_FOLK) ? dominionState(sim) : undefined);
+  if (!s) return;
+  const perAxis = parcelsPerAxis(sim);
+  const env: FoundingEnv = {
+    perAxis,
+    tick: sim.tick,
+    isOn: (id) => sim.rules.isOn(id),
+    land: (p) => {
+      const i = (Math.floor(p / perAxis) * PARCEL + PARCEL / 2) * sim.realm.side + ((p % perAxis) * PARCEL + PARCEL / 2);
+      return ground(sim.realm.ground[i] ?? 0).layer === 'land';
+    },
+  };
+  foundingYear(s, settlements, env);
 }
 
 /**

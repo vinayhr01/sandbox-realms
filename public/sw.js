@@ -1,8 +1,8 @@
 // Sandbox Realms service worker: precache the shell, cache-first for hashed assets,
 // network-first for navigations with an offline fallback. It never calls skipWaiting,
 // so a new build waits for the next cold start (17 section 10: never hot-swap mid-session).
-const CACHE = 'sr-shell-v1';
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg'];
+const CACHE = 'sr-shell-v2';
+const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/icon-maskable-192.png', '/icon-maskable-512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));

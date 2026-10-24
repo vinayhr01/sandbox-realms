@@ -64,3 +64,21 @@ export function hash3(seed: number, x: number, y: number): number {
   h ^= h >>> 12;
   return h >>> 0;
 }
+
+/** FNV-1a offset basis and prime (32-bit). */
+export const FNV_OFFSET = 0x811c9dc5;
+export const FNV_PRIME = 0x01000193;
+
+/**
+ * FNV-1a over a sequence of values (bytes, or char codes for names), starting from `start`.
+ * The one FNV implementation: checksums, replay checkpoints and named stream seeds all use it.
+ * Returns an unsigned 32-bit value.
+ */
+export function fnv1a(data: ArrayLike<number>, start: number = FNV_OFFSET): number {
+  let h = start;
+  for (let i = 0; i < data.length; i++) {
+    h ^= data[i] ?? 0;
+    h = Math.imul(h, FNV_PRIME);
+  }
+  return h >>> 0;
+}

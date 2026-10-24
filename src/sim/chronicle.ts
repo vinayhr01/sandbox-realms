@@ -1,4 +1,4 @@
-import type { AgeState } from './ages.ts';
+import { AGE_BY_ID, type AgeState } from './ages.ts';
 import { Sim } from './sim.ts';
 import type { WeatherState } from './weather.ts';
 import type { Projectile } from './combat.ts';
@@ -11,6 +11,10 @@ import { SPECIES } from '../content/beasts.ts';
 import { STRAIN_TRAIT_BY_ID } from '../content/traits.ts';
 import type { Strain } from './beings/strains.ts';
 import { restoreClans, type ClanState } from './clans/clans.ts';
+import { fnv1a } from '../shared/rng.ts';
+
+/** FNV-1a over raw bytes (the same hash as Sim.stateHash); re-exported for the save tests and tools. */
+export { fnv1a };
 
 /**
  * Chronicle save codec (15-chronicle-saves, section 3 in spirit): a versioned, sectioned binary
@@ -38,6 +42,9 @@ export const FORMAT_VERSION = 1;
  */
 export const SCHEMA_VERSION = 3;
 const HEADER_BYTES = 16;
+/** Realm size steps a save (and a NewRealm command) may name. */
+export const MIN_SIZE_STEP = 2;
+export const MAX_SIZE_STEP = 9;
 
 const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14, dominions: 15, hamlets: 16, strains: 17, clans: 18, items: 19 } as const;
 /** Sections a save may lack (written by later builds); absent means the empty default. */
@@ -196,16 +203,6 @@ class Reader {
   get remaining(): number {
     return this.data.length - this.pos;
   }
-}
-
-/** FNV-1a over raw bytes (the same hash as Sim.stateHash). */
-export function fnv1a(bytes: Uint8Array): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < bytes.length; i++) {
-    h ^= bytes[i] ?? 0;
-    h = Math.imul(h, 0x01000193);
-  }
-  return h >>> 0;
 }
 
 function view(a: Uint8Array | Uint16Array | Uint32Array | Float32Array): Uint8Array {
@@ -367,7 +364,7 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
   const rr = new Reader(realmBytes);
   const seed = rr.u32();
   const sizeStep = rr.u8();
-  if (sizeStep < 2 || sizeStep > 9) throw new Error(`chronicle: size step ${sizeStep} out of range`);
+  if (sizeStep < MIN_SIZE_STEP || sizeStep > MAX_SIZE_STEP) throw new Error(`chronicle: size step ${sizeStep} out of range`);
   const sim = new Sim(seed, sizeStep);
   const realm = sim.realm;
 
@@ -384,10 +381,14 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
   sim.tick = clock;
 
   const decoder = new TextDecoder('utf-8', { fatal: true });
-  sim.ages = parseJson<AgeState>(decoder, sections.get(TAG.ages), 'ages');
-  const rules = parseJson<Record<string, boolean>>(decoder, sections.get(TAG.rules), 'rules');
-  for (const [id, on] of Object.entries(rules)) sim.rules.set(id, on);
-  const stats = parseJson<Record<string, number>>(decoder, sections.get(TAG.stats), 'stats');
+  sim.ages = checkAges(parseJson<unknown>(decoder, sections.get(TAG.ages), 'ages'));
+  const rules = parseJson<unknown>(decoder, sections.get(TAG.rules), 'rules');
+  if (!isRecord(rules) || !Object.values(rules).every((v) => typeof v === 'boolean')) throw new Error('chronicle: rules are not valid');
+  for (const [id, on] of Object.entries(rules)) {
+    if (!sim.rules.set(id, on as boolean)) throw new Error(`chronicle: unknown rule ${id}`);
+  }
+  const stats = parseJson<unknown>(decoder, sections.get(TAG.stats), 'stats');
+  if (!isRecord(stats) || !Object.values(stats).every(isFiniteNumber)) throw new Error('chronicle: stats are not valid');
   Object.assign(sim.beings.stats, stats);
 
   decodeStrains(sim, parseJson<{ next: number; list: Strain[] }>(decoder, sections.get(TAG.strains), 'strains'));
@@ -405,7 +406,7 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
   view(sim.effects.code).set(er.bytes(sim.effects.code.byteLength));
   view(sim.effects.until).set(er.bytes(sim.effects.until.byteLength));
   if (er.remaining !== 0) throw new Error('chronicle: trailing bytes in effects section');
-  const weatherPayload = parseJson<{ weather: WeatherState; guard: number; projectiles: Projectile[] }>(decoder, sections.get(TAG.weather), 'weather');
+  const weatherPayload = checkWeather(parseJson<unknown>(decoder, sections.get(TAG.weather), 'weather'));
   sim.weather = weatherPayload.weather;
   sim.guard.level = weatherPayload.guard;
   sim.projectiles.length = 0;
@@ -414,7 +415,7 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
   const runnerPayload = parseJson<Record<string, { order: number[]; cursor: number }>>(decoder, sections.get(TAG.runners), 'runners');
   sim.loadStreamState({ streams: streamPayload.streams, timers: streamPayload.timers, runners: runnerPayload });
   const cultureBytes = sections.get(TAG.culture);
-  if (cultureBytes) Object.assign(sim.culture, cultureFromPayload(parseJson<CulturePayload>(decoder, cultureBytes, 'culture')));
+  if (cultureBytes) Object.assign(sim.culture, cultureFromPayload(checkCulture(parseJson<unknown>(decoder, cultureBytes, 'culture'))));
   if (sections.has(TAG.calamity)) {
     const cooldowns = parseJson<[string, number][]>(decoder, sections.get(TAG.calamity), "calamity");
     sim.calamityCooldowns.clear();
@@ -429,7 +430,7 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
 
   const dominionBytes = sections.get(TAG.dominions);
   if (dominionBytes) {
-    const snap = parseJson<DominionSnapshot | null>(decoder, dominionBytes, 'dominions');
+    const snap = checkDominions(parseJson<unknown>(decoder, dominionBytes, 'dominions'));
     if (snap) restoreDominions(sim, snap);
   }
   const hamletBytes = sections.get(TAG.hamlets);
@@ -457,6 +458,55 @@ function parseJson<T>(decoder: TextDecoder, payload: Uint8Array | undefined, nam
   }
 }
 
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/** Checks the ages section: eight known slot ids, a slot index in range, finite timing fields. */
+function checkAges(raw: unknown): AgeState {
+  if (!isRecord(raw)) throw new Error('chronicle: ages are not valid');
+  const slotsOk = Array.isArray(raw.slots) && raw.slots.length === 8 && raw.slots.every((s) => typeof s === 'string' && AGE_BY_ID.has(s));
+  const currentOk = typeof raw.current === 'string' && AGE_BY_ID.has(raw.current);
+  const slotIndexOk = Number.isInteger(raw.slotIndex) && (raw.slotIndex as number) >= 0 && (raw.slotIndex as number) < 8;
+  if (!slotsOk || !currentOk || !slotIndexOk) throw new Error('chronicle: ages are not valid');
+  if (![raw.elapsed, raw.durationTicks, raw.speedMultiplier, raw.startedAtTick].every(isFiniteNumber)) throw new Error('chronicle: ages are not valid');
+  return raw as unknown as AgeState;
+}
+
+/** Checks the weather section: clouds and projectiles with their numeric fields, and a finite guard level. */
+function checkWeather(raw: unknown): { weather: WeatherState; guard: number; projectiles: Projectile[] } {
+  const fail = new Error('chronicle: weather section is not valid');
+  if (!isRecord(raw) || !isRecord(raw.weather) || !isFiniteNumber(raw.guard) || !Array.isArray(raw.projectiles)) throw fail;
+  const weather = raw.weather;
+  if (!Array.isArray(weather.clouds) || !isFiniteNumber(weather.nextSpawn)) throw fail;
+  for (const c of weather.clouds as unknown[]) {
+    if (!isRecord(c) || typeof c.type !== 'string' || ![c.x, c.y, c.speed, c.age, c.dropTimer, c.dropInterval].every(isFiniteNumber)) throw fail;
+  }
+  for (const p of raw.projectiles as unknown[]) {
+    if (!isRecord(p) || typeof p.type !== 'string' || typeof p.collide !== 'boolean' || typeof p.alive !== 'boolean') throw fail;
+    if (![p.x, p.y, p.tx, p.ty, p.speed, p.damage].every(isFiniteNumber)) throw fail;
+  }
+  return raw as unknown as { weather: WeatherState; guard: number; projectiles: Projectile[] };
+}
+
+/** Checks the culture payload: the list fields, and creed rosters of numeric ids. */
+function checkCulture(raw: unknown): CulturePayload {
+  if (!isRecord(raw) || !isFiniteNumber(raw.nextId)) throw new Error('chronicle: culture payload is not valid');
+  const creeds = raw.creeds;
+  const listsOk = [raw.customs, raw.creeds, raw.dialects, raw.intrigues, raw.families].every(Array.isArray);
+  const creedsOk = Array.isArray(creeds) && creeds.every((c) => isRecord(c) && isFiniteNumber(c.id) && Array.isArray(c.holders) && c.holders.every(isFiniteNumber));
+  if (!listsOk || !creedsOk) throw new Error('chronicle: culture payload is not valid');
+  return raw as unknown as CulturePayload;
+}
+
+/** Checks the dominion section: null, or a snapshot whose lists exist (restoreDominions checks the contents). */
+function checkDominions(raw: unknown): DominionSnapshot | null {
+  if (raw === null) return null;
+  if (!isRecord(raw) || !Array.isArray(raw.dominions) || !Array.isArray(raw.relations) || !Array.isArray(raw.borders) || !Array.isArray(raw.owner)) {
+    throw new Error('chronicle: dominion section is not valid');
+  }
+  return raw as unknown as DominionSnapshot;
+}
+
 /** Checks the shape of the lifetime section before any of it is applied. */
 function parseLifetime(decoder: TextDecoder, payload: Uint8Array): { counters: Record<string, number>; sets: Record<string, string[]>; unlocked: string[] } {
   const raw = parseJson<{ counters?: unknown; sets?: unknown; unlocked?: unknown }>(decoder, payload, 'lifetime');
@@ -482,12 +532,17 @@ function decodeBeings(sim: Sim, r: Reader): void {
     const slot = r.u32();
     if (slot >= capacity || seen.has(slot)) throw new Error(`chronicle: bad being slot ${slot}`);
     seen.add(slot);
+    const species = r.u8();
+    const x = r.u16();
+    const y = r.u16();
+    if (species >= SPECIES.length) throw new Error(`chronicle: being ${slot} has an unknown species ${species}`);
+    if (x >= sim.realm.side || y >= sim.realm.side) throw new Error(`chronicle: being ${slot} stands outside the realm`);
     raw.push({
       slot,
       fields: {
-        species: r.u8(),
-        x: r.u16(),
-        y: r.u16(),
+        species,
+        x,
+        y,
         vit: r.i16(),
         maxVit: r.u16(),
         fuel: r.u8(),

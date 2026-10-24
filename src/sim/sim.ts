@@ -1,6 +1,6 @@
 import { TICK_MS } from '../shared/constants.ts';
-import { Cmd, type Command, type Speed } from '../shared/protocol.ts';
-import { createRng, type Rng } from '../shared/rng.ts';
+import { Cmd, type Command } from '../shared/protocol.ts';
+import { createRng, fnv1a, FNV_OFFSET, type Rng } from '../shared/rng.ts';
 import { groundKey } from '../content/grounds.ts';
 import { biomeOfCover, BIOMES } from '../content/biomes.ts';
 import { applyStroke } from './brush.ts';
@@ -44,17 +44,11 @@ import { clansStep, createClanState, type ClanState } from './clans/clans.ts';
 
 export { TICK_MS };
 
-/** Speed -> ticks allowed per pump (17 section 3.1). The tick length never changes. */
-export const MAX_TICKS_PER_PUMP: Readonly<Record<Speed, number>> = { 0: 0, 0.5: 1, 1: 1, 2: 2, 5: 5, 10: 10 };
-
-/** FNV-1a of a name, mixed with the realm seed; names key the independent RNG streams. */
+/** FNV-1a of a name (char codes), mixed with the seed; names key the independent RNG streams. */
 function streamSeed(seed: number, name: string): number {
-  let h = 0x811c9dc5 ^ seed;
-  for (let k = 0; k < name.length; k++) {
-    h ^= name.charCodeAt(k);
-    h = Math.imul(h, 0x01000193);
-  }
-  return h >>> 0;
+  const codes = new Array<number>(name.length);
+  for (let k = 0; k < name.length; k++) codes[k] = name.charCodeAt(k);
+  return fnv1a(codes, FNV_OFFSET ^ seed);
 }
 
 /**
@@ -90,6 +84,8 @@ export class Sim {
   private readonly timers = new Map<string, number>();
   /** Calamity cooldowns: calamity id -> tick it may next occur (02 section 8.1; saved in the Chronicle). */
   readonly calamityCooldowns = new Map<string, number>();
+  /** Queued commands refused when applied (e.g. unknown rule ids); drained by takeRefusals(). */
+  private refusals: string[] = [];
 
   constructor(seed: number, sizeStep: number) {
     this.realm = new Realm(seed, sizeStep);
@@ -161,6 +157,13 @@ export class Sim {
     const ran = usePowerById(this, id, x, y);
     if (ran) recordStat(this, { kind: 'power.used', power: id });
     return ran;
+  }
+
+  /** Returns and clears the descriptions of queued commands the sim refused to apply. */
+  takeRefusals(): string[] {
+    const out = this.refusals;
+    this.refusals = [];
+    return out;
   }
 
   /** Runs the calamity roll and counts each calamity whose cooldown was set by this roll (14 section 3). */
@@ -265,13 +268,15 @@ export class Sim {
   private apply(cmd: Command): void {
     switch (cmd.kind) {
       case Cmd.Stroke:
+        // Non-finite coordinates cannot name a tile: the stroke is dropped (brush.ts clamps the rest).
+        if (![cmd.x0, cmd.y0, cmd.x1, cmd.y1].every(Number.isFinite)) break;
         applyStroke(this.realm, cmd.op, cmd.shape, cmd.size, cmd.x0, cmd.y0, cmd.x1, cmd.y1, cmd.includeStart);
         break;
       case Cmd.Power:
-        usePowerById(this, cmd.powerId, cmd.x, cmd.y);
+        this.usePower(cmd.powerId, cmd.x, cmd.y);
         break;
       case Cmd.SetRule:
-        this.rules.set(cmd.rule, cmd.on);
+        if (!this.rules.set(cmd.rule, cmd.on)) this.refusals.push(`rule ${cmd.rule} refused`);
         break;
       case Cmd.SetGear:
         setGear(this, cmd.beingId, cmd.slot, cmd.item);
@@ -374,21 +379,21 @@ export class Sim {
 
   /** Stable FNV-1a hash over the authoritative state plus the tick (replay checkpoint). */
   stateHash(): number {
-    let h = 0x811c9dc5;
-    h = fnv(h, this.tick);
-    h = fnv(h, this.ages.elapsed);
-    h = fnvBytes(h, this.realm.elevation);
-    h = fnvBytes(h, this.realm.ground);
-    h = fnvBytes(h, this.realm.cover);
-    h = fnvBytes(h, new Uint8Array(this.realm.flags.buffer));
-    h = fnvBytes(h, new Uint8Array(this.realm.heat.buffer));
-    h = fnvBytes(h, this.realm.scar);
-    h = fnvBytes(h, this.realm.flora);
-    h = fnvBytes(h, new Uint8Array(this.realm.floraBlockedUntil.buffer));
-    h = fnvBytes(h, new Uint8Array(this.beings.store.x.buffer));
-    h = fnvBytes(h, new Uint8Array(this.beings.store.y.buffer));
-    h = fnvBytes(h, new Uint8Array(this.beings.store.vit.buffer));
-    h = fnvBytes(h, this.beings.store.alive);
+    let h = FNV_OFFSET;
+    h = fnvWord(h, this.tick);
+    h = fnvWord(h, this.ages.elapsed);
+    h = fnv1a(this.realm.elevation, h);
+    h = fnv1a(this.realm.ground, h);
+    h = fnv1a(this.realm.cover, h);
+    h = fnv1a(new Uint8Array(this.realm.flags.buffer), h);
+    h = fnv1a(new Uint8Array(this.realm.heat.buffer), h);
+    h = fnv1a(this.realm.scar, h);
+    h = fnv1a(this.realm.flora, h);
+    h = fnv1a(new Uint8Array(this.realm.floraBlockedUntil.buffer), h);
+    h = fnv1a(new Uint8Array(this.beings.store.x.buffer), h);
+    h = fnv1a(new Uint8Array(this.beings.store.y.buffer), h);
+    h = fnv1a(new Uint8Array(this.beings.store.vit.buffer), h);
+    h = fnv1a(this.beings.store.alive, h);
     return h >>> 0;
   }
 
@@ -406,21 +411,8 @@ export class Sim {
   }
 }
 
-function fnv(h: number, v: number): number {
-  let x = h;
-  for (let s = 0; s < 32; s += 8) {
-    x ^= (v >>> s) & 0xff;
-    x = Math.imul(x, 0x01000193);
-  }
-  return x >>> 0;
-}
-
-function fnvBytes(h: number, bytes: Uint8Array): number {
-  let x = h;
-  for (let i = 0; i < bytes.length; i++) {
-    x ^= bytes[i] ?? 0;
-    x = Math.imul(x, 0x01000193);
-  }
-  return x >>> 0;
+/** Folds the low 32 bits of a number into a hash, least significant byte first. */
+function fnvWord(h: number, v: number): number {
+  return fnv1a([(v >>> 0) & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff], h);
 }
 

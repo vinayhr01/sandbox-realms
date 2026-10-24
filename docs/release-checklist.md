@@ -14,7 +14,7 @@ Not legal advice. Items are marked from what the repository actually contains. "
 - [ ] Lawyer review before commercial release. Not done.
 
 ## Platform (from PLATFORM-REQUIREMENTS section 6)
-- [x] Playwright smoke suite exists at 4 viewports: 1280x720, 390x844 (touch), 844x390 (touch), 820x1180 (touch). Last run: 20 of 20 passed on Chromium only.
+- [x] Playwright smoke suite exists at 4 viewports: 1280x720, 390x844 (touch), 844x390 (touch), 820x1180 (touch). Last run: 32 of 32 passed on Chromium only (8 tests at each of 4 projects).
 - [ ] Firefox and WebKit runs. Not done: only Chromium is installed here.
 - [ ] Per-milestone screenshot diffs of each layout class. Not done: screenshots are written but not compared.
 - [ ] Lighthouse mobile run (PWA, accessibility >= 90, performance budget). Not done.
@@ -22,10 +22,10 @@ Not legal advice. Items are marked from what the repository actually contains. "
 - [ ] Golden replay hash identical across engines. Not done: only Node is checked.
 
 ## Performance (from 17 section 13 and PERFORMANCE-PLAN)
-- [x] Build-size budgets: main chunk 80 KB gzip (limit 350), worker chunk 20 KB gzip (limit 250). Checked by scripts/check-budgets.mjs after `npm run build`.
+- [x] Build-size budgets: main chunk about 83 KB gzip (limit 350), worker chunk about 26 KB gzip (limit 250). Checked by scripts/check-budgets.mjs after `npm run build`.
 - [x] Determinism lint: no Math.random, Date or performance.now in sim or shared code (scripts/check-determinism.mjs).
 - [x] Sim tick cost measured in tests/unit/tick-cost.test.ts, well under 8 ms at 128 to 512 sizes.
-- [ ] Ecosystem soak (1,000 beasts, 10 years) meets its exit test. Not done: species are not stable.
+- [x] Ecosystem soak, chosen criterion (DECISIONS.md): total beasts stay between 300 and 3,000 every year for 10 years on the unseen seeds 1, 555 and 31337. Not part of the criterion: all 8 species alive (7 or 8 survive per seed), which is not met.
 - [ ] Frame-rate target (60 fps at 512x512 on mid phones). Not done: headless WebGL runs at 1 to 3 fps.
 - [ ] Memory soak (60 minutes at 10x, heap growth under 5%). Not done.
 

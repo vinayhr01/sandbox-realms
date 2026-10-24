@@ -11,6 +11,7 @@ import { POWER_BY_ID, type PowerDef } from '../../content/powers.ts';
 import { applyStroke, brushOffsets, clampRadius } from '../brush.ts';
 import { CALAMITY_BY_ID, calamityRoll } from '../calamity.ts';
 import { spawnBeing } from '../beings/system.ts';
+import { hamletsOf } from '../settlements/adapter.ts';
 import { explode } from '../explosions.ts';
 import { startFire } from '../terrain/fire.ts';
 
@@ -80,23 +81,27 @@ export function runCalamity(sim: Sim, id: string): boolean {
   return placed > 0;
 }
 
-/**
- * One calamity roll (02 section 8.1) followed by its effect. Called by the behaviour timer in
- * Sim.runBehaviours every 80 sim-seconds. Returns the calamity id that fired, or null.
- */
-export function rollAndRunCalamity(sim: Sim): string | null {
-  const id = calamityRoll({
+/** Inputs to one calamity roll (02 section 8.1), with the live hamlet and being counts. */
+export function calamityInputs(sim: Sim): Parameters<typeof calamityRoll>[0] {
+  return {
     rng: sim.rng('calamity'),
     tick: sim.tick,
     age: sim.currentAge,
     isOn: (rule) => sim.rules.isOn(rule),
     cooldowns: sim.calamityCooldowns,
-    // The sim has no hamlet registry yet (settlements are not wired), so hamlet gates see zero.
-    hamlets: 0,
+    hamlets: hamletsOf(sim).length,
     beings: sim.beings.store.size,
     // Lineage caps need a species-to-calamity map that does not exist yet, so no cap applies.
     liveCount: () => 0,
-  });
+  };
+}
+
+/**
+ * One calamity roll (02 section 8.1) followed by its effect. Called by the behaviour timer in
+ * Sim.runBehaviours every 80 sim-seconds. Returns the calamity id that fired, or null.
+ */
+export function rollAndRunCalamity(sim: Sim): string | null {
+  const id = calamityRoll(calamityInputs(sim));
   if (id === null) return null;
   runCalamity(sim, id);
   return id;

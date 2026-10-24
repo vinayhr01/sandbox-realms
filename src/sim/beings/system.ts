@@ -1,6 +1,6 @@
-import { SPECIES, speciesIndex, type SpeciesDef } from '../../content/beasts.ts';
+import { SIZE_RANK, SPECIES, speciesIndex, type SpeciesDef } from '../../content/beasts.ts';
 import { ground } from '../../content/grounds.ts';
-import { FLORA_BY_ID, grazeFlora } from '../flora.ts';
+import { FLORA, FLORA_BY_ID, grazeFlora } from '../flora.ts';
 import type { Realm } from '../realm.ts';
 import type { Sim } from '../sim.ts';
 import { recordStat } from '../stats-hooks.ts';
@@ -152,7 +152,20 @@ function walkable(realm: Realm, i: number): boolean {
   return kind.layer === 'land' && kind.damages === 0;
 }
 
-/** Spends one movement unit (17 pace: pace/20 tiles per tick accumulates). */
+/**
+ * Terrain speed multiplier under a being (07 section 7.1): the ground's walk value, and x0.8 on a
+ * tree tile while the `tangle_roots` rule is on. Flying beings would ignore it; none exist yet.
+ */
+function tileMult(sim: Sim, slot: number): number {
+  const s = sim.beings.store;
+  const i = (s.y[slot] ?? 0) * sim.realm.side + (s.x[slot] ?? 0);
+  let mult = ground(sim.realm.ground[i] ?? 0).walk;
+  const code = sim.realm.flora[i] ?? 0;
+  if (code > 0 && FLORA[code - 1]?.kind === 'tree' && sim.rules.isOn('tangle_roots')) mult *= 0.8;
+  return Math.max(mult, 0.01);
+}
+
+/** Spends one movement unit; units accumulate at pace * 0.2 / 20 per tick (07 section 7.1). */
 function takeStep(sim: Sim, slot: number): boolean {
   const s = sim.beings.store;
   if (sim.effects.flag(slot, 'immobile')) return false;
@@ -206,19 +219,19 @@ function stepToward(sim: Sim, slot: number, tx: number, ty: number): void {
 function foodAt(sim: Sim, i: number, diet: SpeciesDef['diet']): number {
   const code = sim.realm.flora[i] ?? 0;
   if (code === 0) return 0;
-  if (diet === 'grass') return TUNING.grazeGain;
+  if (diet === 'grass' || diet === 'omni') return TUNING.grazeGain;
   if (diet === 'nectar') return code === (FLORA_BY_ID.get('fieldflower') ?? -2) + 1 ? TUNING.nectarGain : 0;
   return 0;
 }
 
-/** Litter size: first baby always, extras with probability 0.5 * 0.85^i (06 section 6.4). */
-function litterRoll(sim: Sim, max: number): number {
+/** Litter size: first baby always, then for i = 0 .. brood-1 an extra with probability 0.5 * 0.85^i (06 section 6.4). */
+export function litterRoll(sim: Sim, brood: number): number {
   const rng = sim.rng('beings');
-  let brood = 1;
-  for (let i = 0; i < max - 1; i++) {
-    if (rng.next() < 0.5 * Math.pow(0.85, i)) brood++;
+  let babies = 1;
+  for (let i = 0; i < brood; i++) {
+    if (rng.next() < 0.5 * Math.pow(0.85, i)) babies++;
   }
-  return brood;
+  return babies;
 }
 
 /** Removes a being, counting the cause. */
@@ -277,17 +290,20 @@ function decide(sim: Sim, slot: number): void {
     return;
   }
 
-  if (hungry && def.diet === 'flesh') {
-    const prey = b.nearest(slot, (o) => rt.prey.includes(s.species[o] ?? -1), TUNING.huntRadius);
+  const localFood = foodAt(sim, (s.y[slot] ?? 0) * realm.side + (s.x[slot] ?? 0), def.diet) > 0;
+  if (hungry && (def.diet === 'flesh' || (def.diet === 'omni' && !localFood))) {
+    const prey = b.nearest(slot, (o) => rt.prey.includes(s.species[o] ?? -1) && SIZE_RANK[SPECIES[s.species[o] ?? 0]?.size ?? 'T'] <= SIZE_RANK[def.size], TUNING.huntRadius);
     if (prey >= 0) {
       const adjacent = Math.abs((s.x[prey] ?? 0) - (s.x[slot] ?? 0)) <= 1 && Math.abs((s.y[prey] ?? 0) - (s.y[slot] ?? 0)) <= 1;
       if (adjacent) {
-        s.vit[prey] = (s.vit[prey] ?? 0) - def.might;
+        // Bite damage is floor(0.15 * victim max vitality) + 1, and fuel gains the damage dealt (06 section 2.2).
+        const bite = Math.floor(0.15 * (s.maxVit[prey] ?? 0)) + 1;
+        s.vit[prey] = (s.vit[prey] ?? 0) - bite;
         if ((s.vit[prey] ?? 0) <= 0) {
           killBeing(sim, prey, 'eaten');
           s.fuel[slot] = 100;
         } else {
-          s.fuel[slot] = Math.min(100, (s.fuel[slot] ?? 0) + def.might);
+          s.fuel[slot] = Math.min(100, (s.fuel[slot] ?? 0) + bite);
         }
       } else {
         stepToward(sim, slot, s.x[prey] ?? 0, s.y[prey] ?? 0);
@@ -302,7 +318,7 @@ function decide(sim: Sim, slot: number): void {
     const food = foodAt(sim, here, def.diet);
     if (food > 0) {
       s.fuel[slot] = Math.min(100, (s.fuel[slot] ?? 0) + food);
-      if (def.diet === 'grass') grazeFlora(sim, here);
+      if (def.diet === 'grass' || def.diet === 'omni') grazeFlora(sim, here);
       s.nextDecision[slot] = tick + 4;
       return;
     }
@@ -386,7 +402,7 @@ export function stepBeings(sim: Sim): void {
     const rt = b.runtime[s.species[slot] ?? 0];
     if (!rt) continue;
     const def = rt.def;
-    s.moveAcc[slot] = Math.min(2, (s.moveAcc[slot] ?? 0) + (def.pace * sim.effects.multiplier(slot, 'speed')) / 20);
+    s.moveAcc[slot] = Math.min(2, (s.moveAcc[slot] ?? 0) + (def.pace * 0.2 * sim.effects.multiplier(slot, 'speed') * tileMult(sim, slot)) / 20);
 
     if (fuelPass) {
       if ((s.fuel[slot] ?? 0) > 0) {
@@ -427,19 +443,41 @@ export function stepBeings(sim: Sim): void {
   }
 }
 
-/** Starting beasts (03 section 8.3, reduced): small groups placed on suitable biome tiles. */
+/** Same-species groups keep this many tiles apart when seeding (03 section 8.3). */
+const START_SPACING = 24;
+
+/**
+ * Starting beasts (03 section 8.3): a random land tile is drawn; if its biome lists a species, a
+ * group of 2 to 4 adults of one such species is placed within radius 2. A group of the same species
+ * must be START_SPACING tiles from earlier groups. Each group gets 6 tile draws before it is dropped.
+ * Species are equally weighted: 18c gives beast pools without weights.
+ */
 export function seedStartingBeasts(sim: Sim, groups: number): number {
   const realm = sim.realm;
   const rng = sim.rng('start');
+  const centres: { species: number; x: number; y: number }[] = [];
   let placed = 0;
   for (let g = 0; g < groups; g++) {
-    const x0 = rng.int(realm.side);
-    const y0 = rng.int(realm.side);
-    const i = y0 * realm.side + x0;
-    const species = rng.int(SPECIES.length);
-    const def = SPECIES[species];
-    const biome = sim.biomeAt(i);
-    if (!def || !biome || !def.biomes.includes(biome.id)) continue;
+    let species = -1;
+    let x0 = -1;
+    let y0 = -1;
+    for (let tries = 0; tries < 6 && species < 0; tries++) {
+      const x = rng.int(realm.side);
+      const y = rng.int(realm.side);
+      const biome = sim.biomeAt(y * realm.side + x);
+      if (!biome) continue;
+      const eligible = SPECIES.flatMap((def, k) => (def.biomes.includes(biome.id) ? [k] : []));
+      if (eligible.length === 0) continue;
+      const pick = eligible[rng.int(eligible.length)] ?? -1;
+      const clear = centres.every((c) => c.species !== pick || Math.max(Math.abs(c.x - x), Math.abs(c.y - y)) >= START_SPACING);
+      if (clear) {
+        species = pick;
+        x0 = x;
+        y0 = y;
+      }
+    }
+    if (species < 0) continue;
+    centres.push({ species, x: x0, y: y0 });
     const size = 2 + rng.int(3);
     for (let n = 0; n < size; n++) {
       if (spawnBeing(sim, species, x0 + rng.int(5) - 2, y0 + rng.int(5) - 2, true) >= 0) placed++;
@@ -447,4 +485,3 @@ export function seedStartingBeasts(sim: Sim, groups: number): number {
   }
   return placed;
 }
-

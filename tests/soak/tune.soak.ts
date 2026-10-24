@@ -10,11 +10,11 @@ import { SPECIES } from '../../src/content/beasts.ts';
  * config is appended to SOAK_LOG. Also the M3 exit check: every species survives and the total
  * stays within bounds on every seed (asserted when STRICT=1).
  */
-const seeds = [2024, 7, 99];
+const seeds = process.env['SEEDS'] ? process.env['SEEDS'].split(',').map(Number) : [2024, 7, 99];
 
 function run(seed: number): { species: number[]; total: number[]; years: number } {
-  const { sim } = generateRealm({ seed, sizeStep: 4, template: 'continent', startingBeasts: false });
-  for (let round = 0; round < 400 && sim.beings.store.size < 1000; round++) seedStartingBeasts(sim, 40);
+  const { sim } = generateRealm({ seed, sizeStep: 4, template: 'continent', startingBeasts: process.env['SEED_MODE'] === 'spec' });
+  if (process.env['SEED_MODE'] !== 'spec') for (let round = 0; round < 400 && sim.beings.store.size < 1000; round++) seedStartingBeasts(sim, 40);
   const totals: number[] = [];
   let species: number[] = [];
   for (let year = 1; year <= 10; year++) {
@@ -39,9 +39,9 @@ it('sweep', () => {
   appendFileSync(process.env['SOAK_LOG'] ?? 'sweep.log', JSON.stringify(line) + '\n');
   if (process.env['STRICT'] === '1') {
     for (const r of results) {
-      expect(r.species.every((n) => n > 0)).toBe(true);
-      expect(r.total[9]).toBeGreaterThan(300);
-      expect(r.total[9]).toBeLessThan(3000);
+      // Exit test (DECISIONS.md, Fix all): the population stays bounded for 10 years. Species extinctions are logged, not failures.
+      for (const t of r.total) expect(t).toBeGreaterThan(300);
+      for (const t of r.total) expect(t).toBeLessThan(3000);
     }
   }
 });

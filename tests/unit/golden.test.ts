@@ -1,16 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { Cmd, type Command } from '../../src/shared/protocol.ts';
 import { generateRealm } from '../../src/sim/worldgen.ts';
+import { seedStartingBeasts } from '../../src/sim/beings/system.ts';
 
 /**
  * Golden replay (17 section 7.3, acceptance test 10 in CI form): a fixed seed and command script
  * must always produce the same checkpoint hash. If this fails after an intentional sim change,
  * update GOLDEN_HASH and say so in the commit message.
  */
-const GOLDEN_HASH = 890385179;
+// Changed when the golden run started seeding beasts and the species took roster values (see DECISIONS.md).
+const GOLDEN_HASH = 1157961273;
 
 function replay(): number[] {
   const sim = generateRealm({ seed: 20240601, sizeStep: 2, template: 'continent' }).sim;
+  // This realm has no beasts at generation; seed some so the golden run covers beings.
+  seedStartingBeasts(sim, 40);
   const checkpoints: number[] = [];
   const script: Command[] = [];
   for (let k = 0; k < 40; k++) {

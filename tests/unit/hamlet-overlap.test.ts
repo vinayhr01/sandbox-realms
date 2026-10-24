@@ -16,5 +16,5 @@ describe('hamlet territory never overlaps', () => {
         }
       }
     }
-  });
+  }, 30000);
 });

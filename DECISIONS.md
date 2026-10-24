@@ -22,9 +22,8 @@ Choices made while building M0 and M1 (BUILD-PLAN.md). Spec `OPEN` items use the
 ## Deferred (not in M0/M1)
 
 - Mode S (SharedArrayBuffer) and cross-origin isolation headers.
-- Hollows and refill (04 section 2): lowering sea tiles only deepens them for now.
 - Undo, perf HUD beyond the `?debug` line, benchmark CI gate against budgets.
-- Cover, flora, structures, beings, weather; the ground list is the 12 terrain kinds only.
+- Structures, lineage and traits (later milestones; see the sections below).
 - Full tool catalogue (path, till, sponge, flood, etc.), ring and scatter brushes, the Realm tab only creates new realms.
 - PNG icons (only the SVG icon is shipped; maskable PNGs needed before release).
 - ESLint and dependency-cruiser boundaries.
@@ -41,9 +40,9 @@ Choices made while building M0 and M1 (BUILD-PLAN.md). Spec `OPEN` items use the
 | Area | Choice | Spec gap |
 |---|---|---|
 | Clock | calendar from ticks; ages rotate with speed multiplier; Veiled resolves on entry | 12 ages, default slots and duration roll as 02 section 5 |
-| Rules | 49 rules with defaults, `forbidden_lore` one-way, age enable flags | effects are read by systems; most consumers come with their milestones |
+| Rules | 49 rules with defaults, `forbidden_lore` one-way, age enable flags | 28 of 49 rule ids have no consumer yet (see the coverage audit in `docs/spec-coverage.md`) |
 | Worldgen | value noise (integer lattice), forceHeight, centre shapes, basin, lake, low/high ground, shore snap, round and square edges, typing, mountain edges, freeze peaks, weighted biome flood fills, 10 flora passes, starting beasts | gradient noise replaced by value noise; blob masks are radial, not bitmaps; rivers, lakes, replace rules and the Chessboard/Cells/Warren layouts are not built; Sleeping Crater has no volcano |
-| Terrain | fire with scars, sea refill and hollows, magma levels with flow and cooling, freeze and thaw with shoal spread, heat, biome spread | slime, acid, lightning and explosive chains are not built (M4) |
+| Terrain | fire with scars, sea refill and hollows, magma levels with flow and cooling, freeze and thaw with shoal spread, heat, biome spread | lightning is in the weather system; slime, acid and explosive chains are not built |
 | Flora | 10 kinds from 18d, wild seeding in patches, growth stages, spread, lifespan, drought and frost passes | most of the 18d registry is not built |
 | Beings | species table of 8 from 18a, SoA store with generations, fuel and starvation, ageing and natural death, mating with gestation and litter, flee/hunt/graze/wander | no traits, genes or strains (05, 18b), no stat assembly, no AI task system (07 section 4 onward) |
 
@@ -59,21 +58,21 @@ Choices made while building M0 and M1 (BUILD-PLAN.md). Spec `OPEN` items use the
 ## Milestones 3 (ecosystem still open), 4 and 5
 
 - **M3 balance:** breeding needs fewer than six other beings in the 16x16 patch (06 6.1). Flora spread covers the whole map over time; wild seeding places patches. A predator-metabolism knob exists (`beings/tuning.ts`). Sweep results (3 seeds, 10 years): no setting keeps all eight species alive; best runs keep seven, totals 950 to 1,550, predators roughly half the population. Default knobs left as is. The M3 exit test stays open.
-- **M4 combat:** melee with reach 1 and the 6-tick hit window; plating for Weapon and Other only, integer math; projectiles that land on their target tile; blasts with falloff, crater, fire and an anti-spam guard; 22 of the 56 roster statuses with their hooks (speed, damage, taken, immobile, periodic damage, immunity, no-breed); weather clouds from age weights, drops mapped to rain, freeze, fire and acid, storm lightning. Not built: AI-driven fights (beasts fight only when hunting), 34 remaining statuses, bolts, spells, gear, boats, dazed/dozing sleep, factions.
+- **M4 combat:** melee with reach 1 and the 6-tick hit window; plating for Weapon and Other only, integer math; projectiles that land on their target tile; blasts with falloff, crater, fire and an anti-spam guard; 24 status definitions in `effects.ts` (the spec roster has 56), with their hooks (speed, damage, taken, immobile, periodic damage, immunity, no-breed); weather clouds from age weights, drops mapped to rain, freeze, fire and acid, storm lightning. Not built: AI-driven fights (beasts fight only when hunting), 34 remaining statuses, bolts, spells, gear, boats, dazed/dozing sleep, factions.
 - **M5 saves:** versioned, checksummed format with sections for clock, realm, ages, rules, stats, beings (generations, exact list and free-stack order), RNG streams, timers, tile runners, combat, statuses, weather and projectiles. Resume test: a save at tick N continued to M matches an uninterrupted run. Typed arrays are written raw (little-endian host assumed). Runner orders are JSON, which is large at 512 tiles.
 - **Not yet built:** milestones 6 to 12 (hamlets and economy, dominions and war, customs and intrigue, full powers catalogue, full UI, audio and achievements, performance and accessibility).
 
 ## Milestones 6-12 (reduced slices, built in parallel)
 
-Each slice is a standalone module with a structural context (no import of `Sim`), tested in isolation. None is wired into `Sim` or the UI yet.
+Each slice is a standalone module with a structural context (no import of `Sim`), tested in isolation. The merge section below wires them into `Sim` and the UI.
 
-- **M6 settlements** (`src/sim/settlements`): hamlet with 8x8 parcels, five buildings, stockpile, food-driven growth. No beings query, jobs, or trade.
+- **M6 settlements** (`src/sim/settlements`): hamlet with 8x8 parcels, six buildings, stockpile, food-driven growth. No jobs or trade.
 - **M7 dominions** (`src/sim/dominions`): relation matrix (peace, tension, war), campaigns, peace pacts, `parley`, `standing_armies`, `border_creep`. Tension has no effect; no recruitment, boats, or settlement borders.
 - **M8 culture** (`src/sim/culture`): customs, creeds that spread on contact, dialects that drift and merge, families, intrigues. `rituals`, `uprisings`, `chaotic_minds` honoured. Tuning values are placeholders.
-- **M9 powers and calamities** (`src/content/powers.ts`, `src/sim/calamity.ts`): about 90 powers across all eight tabs (about 300 in the spec); the 16 calamities of 02 section 8.2 with the 80-tick roll. Powers have no handlers yet.
+- **M9 powers and calamities** (`src/content/powers.ts`, `src/sim/calamity.ts`): 64 powers (about 300 in the spec), most without a handler or UI path; the 16 calamities of 02 section 8.2 with the 80-tick roll.
 - **M10 UI models** (`src/ui/panels`): options with clamped values and injectable storage, list sort/filter/search and a virtual list, tutorial steps, power bar model. The virtual list and the power bar's DOM are not browser-tested.
-- **M11 audio and stats** (`src/audio/model.ts`, `src/sim/stats.ts`, `src/content/achievements.ts`): audio bus model with voice caps and a hidden-tab mute, stats counters, 22 achievements (spec has 63). Nothing calls them yet.
-- **M12 checks** (`scripts/check-budgets.mjs`, `tests/a11y`, `tests/perf`, `docs/release-checklist.md`): gzip budgets (main 80 KB, worker 20 KB against 350 and 250), dark-theme contrast (text 14.6:1, secondary 7.7:1, ink on accent 10.9:1). Device testing, Firefox and WebKit runs, and legal review are not done.
+- **M11 audio and stats** (`src/audio/model.ts`, `src/sim/stats.ts`, `src/content/achievements.ts`): audio bus model with voice caps and a hidden-tab mute, stats counters, 24 achievements (spec has 63). Nothing calls them yet.
+- **M12 checks** (`scripts/check-budgets.mjs`, `tests/a11y`, `tests/perf`, `docs/release-checklist.md`): gzip budgets (main about 83 KB, worker about 26 KB against 350 and 250), dark-theme contrast (text 14.6:1, secondary 7.7:1, ink on accent 10.9:1). Device testing, Firefox and WebKit runs, and legal review are not done.
 
 ### M3 ecosystem: still not stable
 
@@ -86,8 +85,8 @@ All eight unit branches are merged into `main` with no PRs (no remote, no `gh`).
 - **Units wired into `Sim`:** settlements (hamlets, once per sim-second), dominions (ownership in the running sim), culture (creeds spread across land regions), powers and calamities (80-second roll, `usePower`), stats and achievements (events, once per sim-second).
 - **UI:** options dialog (UI scale, reduce motion, saved) and a power bar. Only Raise and Lower work on the map; other powers arm but do nothing yet.
 - **Audio:** pure model with tests, not connected to WebAudio.
-- **Save format:** SCHEMA_VERSION 2. Chronicle sections: culture 12, calamity 13 (optional), stats 14 (optional). Saves from before these sections still load. Saves from before the flora regrowth change (schema 1) are rejected.
-- **Chronicle gaps:** dominion state and hamlet state are not saved, so a resumed game loses them.
+- **Save format:** SCHEMA_VERSION 2. Chronicle sections: culture 12, calamity 13, lifetime 14, dominions 15, hamlets 16 (12-16 optional). Saves from before these sections still load. Saves from before the flora regrowth change (schema 1) are rejected.
+- **Chronicle gaps:** closed in the fix round below (dominion and hamlet state are saved).
 
 ### M3 ecosystem: still not met
 
@@ -95,8 +94,8 @@ Regrowth delay (1,200 ticks, TUNE) is in and sweeps show no change in outcome. T
 
 ## Fix round (after the parallel merge)
 
-- **Saves:** dominion state (tag 15) and hamlet state (tag 16) are saved and restored; both are optional, so older saves load. A resumed run matches an uninterrupted run (tests/unit/persist-wiring.test.ts). Relations are saved only for pairs that exist as dominions or borders, because the relation matrix has no iterator. SCHEMA_VERSION is unchanged.
-- **Hamlets:** births no longer stop building or wood; food is capped and wells produce food; territory grows only when a building is placed; hamlets can no longer claim a parcel another hamlet owns (regression test on seed 11, which failed before the fix). Open: stone has no income, so once stone runs out no more buildings are placed.
+- **Saves:** dominion state (tag 15) and hamlet state (tag 16) are saved and restored; both are optional, so older saves load. Chronicle tags are culture 12, calamity 13, lifetime 14, dominions 15, hamlets 16 (12-16 optional). A resumed run matches an uninterrupted run (tests/unit/persist-wiring.test.ts). Relations are saved only for pairs that exist as dominions or borders, because the relation matrix has no iterator. SCHEMA_VERSION is unchanged.
+- **Hamlets:** births no longer stop building or wood; food is capped and wells produce food; territory grows only when a building is placed; hamlets can no longer claim a parcel another hamlet owns (regression test on seed 11, which failed before the fix). Stone income was added later (see below).
 - **Tests:** the tick-cost test uses a median with a 50 ms gate (the 8 ms budget is a warning only); regrowth rules have tests; the stats births test uses real starting beasts on seed 1.
 - **Counters:** `sim.beings.stats.births` counts every spawn (starting beasts and adults included), while the lifetime `beingsBorn` counts only newborn children. They are not a double count, but the names are misleading.
 
@@ -104,3 +103,25 @@ Regrowth delay (1,200 ticks, TUNE) is in and sweeps show no change in outcome. T
 
 - **Stone:** the spec (09 sections 3, 8 and the job table) defines a quarry, stone outcrops and a miner. The hamlet slice now has a quarry (10 wood) that turns outcrop stock into 2 stone per growth step. Outcrops start at 40, regrow 1 per 5 steps, and cap at 60. Hamlets build a quarry when stone is below 10 and the first basics stand. Not built: miners as folk jobs, prospectors, the cleaner's ruin salvage, and other outcrop types.
 - **Counters:** `beings.stats.births` now counts only newborn children, and `newAdults` counts adults spawned, as 05 section 2 and 06 section 6.6 separate them. Not built: the per-parent and per-strain counters (`parent.births`, `strain.counters.reproduced`), since strains are not implemented.
+
+## Coverage fix round (after the spec audit)
+
+- **Calamity hamlet gate:** `rollAndRunCalamity` passes the live hamlet count (`hamletsOf(sim).length`). Calamities with a hamlet minimum can now fire.
+- **Litter:** brood is the species litter value; the roll runs once per brood slot (i = 0 .. brood-1), as 06 section 6.4 says. The first baby is always born.
+- **Speed:** tiles per tick = pace * 0.2 / 20 (07 section 7.1), which is pace/100. The old code was 5x too fast. `tileMult` (terrain walk multipliers) is still not applied.
+- **Docs sync:** README, HANDOFF, START-NEW-CHAT-PROMPT, BUILD-PLAN and the release checklist describe the current state. The coverage matrix is in `docs/spec-coverage.md`.
+
+## Fix all (after the spec sync)
+
+- **Beast stats are the 18a roster values.** The 8 species in `src/content/beasts.ts` had invented numbers (for example nectarbuzz span 3, pace 5; roster span 5, pace 20). `tests/unit/beast-roster.test.ts` checks vitality, might, pace and span against the roster. Hunters, prey, litter and gestation are not in the roster and are kept as the sim's food-web simplification. Omni diets map to grass (cluckling, mudsnuffler keeps flesh; the sim has no omnivore diet).
+- **Nectarbuzz adult age is resolved.** The earlier "dies at once" result came from the wrong roster span. With span 5, adults start at ceil(2.87) = 3 years and live about 2 more years, as 06 section 3.1 gives.
+- **Litter:** 06 section 6.4 as written (brood = litter value, one roll per brood slot). The 05 section 1 meaning (maximum children alive) would need parent links to enforce the 06 section 6.1 gate; those links do not exist, so the gate is not built. With this reading plowhorn (litter 1) can have twins.
+- **Golden replay now covers beings.** It seeds starting beasts (the realm had none at generation), and GOLDEN_HASH moved to 4255989876 (then to 2582522930 after the ecosystem changes below). The golden test passed before this change because it covered no beings.
+- **Calamity hamlet gate has a test** (`tests/unit/calamity-gate.test.ts`); `calamityInputs(sim)` is the roll input builder.
+- **Hamlet-overlap test** has a 30 s timeout; it timed out at 5 s under full-suite load.
+- **Movement** follows 07 section 7.1 (pace * 0.2 / 20 per tick). Terrain `tileMult` is still not applied.
+- **Ecosystem changes (latest round):** starting beasts are drawn species-first from biomes present on the realm (03 section 8.3, equal weights); mudsnuffler and cluckling are `omni` (eat flora and hunt prey); predators only hunt prey of their own size class or smaller (07 section 2.2); nectarbuzz spawns only in bloomfield and verdant_reach (fieldflower grows there, not in trefoil_lea); flora spread 4 and coverage 3 (was 1 and 1). Default soak on the tuned seeds (2024, 7, 99): 8, 8, 8 species alive at year 10. Validation on unseen seeds (1, 555, 31337): 7, 8, 7 species alive, so the M3 exit is not met in general. Golden hash moved to 2582522930.
+- **M3 exit criterion (chosen):** the spec roadmap asks for a "stable ecosystem" for 10 sim-years, and the spec files are read-only here, so this project defines it as: total beasts stay between 300 and 3000 in every sim-year on every seed (`STRICT=1 npm run soak`). Species extinctions are logged, not failures. The spec mechanics are unchanged. Result: unseen seeds 1, 555, 31337 pass (totals 1194 to 1734 at year 10); tuned seeds 2024, 7, 99 pass. Species alive at year 10 remain 7 or 8 of 8; the all-eight-alive goal is not met.
+- **Final round:** beasts now move at the ground walk value (07 section 7.1 tileMult), x0.8 on tree tiles with `tangle_roots`; the golden hash is 2497442044. Spec-population test (`SEED_MODE=spec`, the generator's own starting beasts, about 100 instead of 1,000): populations fall to 11 to 101 by year 10, so breeding at spec density is too weak to sustain the ecosystem. The 1,000-beast exit test needs that seeded population. Final soak with the spec rules: tuned seeds 7, 8, 7 species alive (2024, 7, 99); unseen seeds 7, 7, 8 (1, 555, 31337). Not built: the 06 section 6.1 living-children cap (needs parent links and a save-format change).
+- **Spec revert (follow the spec):** the crowd-by-species switch, the nectar keep-feeding loop, the nectarbuzz biome edit, the flora multipliers (now 1 and 1), and the species-first seeding were removed. Starting beasts follow 03 section 8.3 again (tile first, then a species from its biome; equal weights). Predator bite damage follows 06 section 2.2 (floor(0.15 x victim max vitality) + 1, fuel gains the damage). Golden hash is 2371108859. Spec-faithful soak: tuned seeds 7, 8, 7 species at year 10 (2024, 7, 99); unseen seeds 8, 7, 7 (1, 555, 31337). The M3 exit is not met. Sweeps of forage radius, predator metabolism and regrowth delay (TUNE knobs) did not reach 8 of 8 on both sets.
+- **Ecosystem (M3 exit) is still not met.** Soak with current defaults (`soak.log`): survivors 7, 8, 7 of 8 on seeds 2024, 7 and 99; cluckling is extinct on seed 2024 and nectarbuzz on seed 99; gloamfang dominates by year 10. Totals 1383 to 1891. Sweeps in `soak-sweep.log` (predator metabolism 3 to 5, hunt radius 5 to 6, flora spread 2, grazing gain 40, regrowth 600) also keep 6 or 7 of 8. The defaults are unchanged because no sweep met the exit test.

@@ -181,6 +181,34 @@ export interface Snapshot {
   mapPoints?: MapPoint[];
   /** Positions of armies, campaigns, battles, pact links and hamlet names for the map (src/render/marks.ts). Optional. */
   mapMarks?: MapMarks;
+  /** Species group and size class per map point, keyed by id (src/render/sprites.ts). Optional; dropped first when over budget. */
+  mapKinds?: MapKind[];
+  /** Hamlet buildings with tile positions for the map (src/render/marks.ts). Capped at MAP_BUILDING_CAP; optional; dropped first. */
+  mapBuildings?: MapBuilding[];
+}
+
+/** Map sprite group: Folk, the 18a beast groups A to C, and the sea, insect, undead, monster and divine blocks. */
+export type MapKindGroup = 'folk' | 'beast' | 'sea' | 'insect' | 'undead' | 'monster' | 'divine';
+
+/** Roster size class of a being (18a section 0). */
+export type MapSizeClass = 'T' | 'S' | 'M' | 'L' | 'H' | 'C';
+
+/** One being's sprite kind. `id` is the MapPoint id it belongs to. */
+export interface MapKind {
+  id: number;
+  group: MapKindGroup;
+  size: MapSizeClass;
+}
+
+/** Most buildings in one snapshot's map feed. Keeps the message inside SNAPSHOT_MAX_BYTES. */
+export const MAP_BUILDING_CAP = 96;
+
+/** One hamlet building on the map: `id` is y * 1024 + x (as StructureRow.id), `kind` the catalogue id. */
+export interface MapBuilding {
+  id: number;
+  kind: string;
+  x: number;
+  y: number;
 }
 
 /** Most beings that carry a position in one snapshot. Keeps the message inside SNAPSHOT_MAX_BYTES. */

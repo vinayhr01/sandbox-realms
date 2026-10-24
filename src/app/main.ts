@@ -1028,7 +1028,7 @@ async function boot(): Promise<void> {
           names: stringOption(options, 'map.names') as 'full' | 'banner' | 'off',
           favouritesOnlyNames: boolOption(options, 'map.favouritesOnlyNames'),
         },
-        { offX: cam.offX, offY: cam.offY, zoom: cam.zoom },
+        { offX: cam.offX, offY: cam.offY, zoom: cam.zoom, viewW: renderer.app.screen.width, viewH: renderer.app.screen.height },
       );
       renderer.setView({ offX: cam.offX, offY: cam.offY, zoom: cam.zoom, dpr: renderer.app.renderer.resolution }, cursor);
     }

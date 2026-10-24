@@ -421,3 +421,28 @@ Unverified (not run, not checked against typings; node_modules is absent in the 
 - Whether Pixi's own `resizeTo` resize (on window or host resize) keeps the chosen resolution, or resets it to the devicePixelRatio value. If it resets, the render scale is lost until the next settings change.
 - Whether battles and campaigns appear in play at all (the war and campaign paths were not run).
 - Tests: any test that asserts the live count (43 before this round), the snapshot key set, or the mark layer's old `MarkToggles` shape may need an update. Not checked.
+
+## Art round 6
+
+Scope: procedural sprites for beings and hamlet buildings in place of the being dots, and two additive read-only map feeds. Code: `src/render/sprites.ts` (new: `SpriteFactory`, silhouettes per group and per building group, cached textures), `src/render/marks.ts` (being dots replaced by pooled sprites, culled to the viewport; building sprites under them), `src/sim/snapshot.ts` (`mapKindsOf`, `mapBuildingsOf`, `fitSnapshot` drops both first), `src/shared/protocol.ts` (`MapKind`, `MapKindGroup`, `MapSizeClass`, `MapBuilding`, `MAP_BUILDING_CAP` = 96, optional `Snapshot.mapKinds` and `Snapshot.mapBuildings`), `src/app/main.ts` (viewport size passed to the mark layer; nothing else). `PROTOCOL_VERSION` (3) and `SNAPSHOT_VERSION` (1) are unchanged; both new fields are optional. No file under `src/sim/beings/`, `dominions/`, `settlements/`, `items/` or `src/ui/` was touched, and no sim state is written. No randomness.
+
+Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). Types were checked by reading.
+
+- **Group mapping.** The spec gives the group of each species as a letter (18a section 2) and the spawn-power rule (18a section 0): A to C are beasts, D sea, E insects, F undead-like, G monsters, H divine (`spawn_divine_*`). Folk is its own group. `mapKindsOf` maps the letters to the seven groups.
+- **Colours.** The spec gives no colour per species group. The palette file it names (`palette-master.gpl`) is not in the Spec folder. Colours used: Folk `#F2D18B` (the old dot colour), beast `#DE9650`, sea `#3B7DD4`, undead `#A3A3A3`, monster `#F2331A`, divine `#FFE04A` (these four are values the spec already uses in 01 section 2); insect `#7FBF3F` is a choice of this round. Outlines are a 45% darker tint of the group colour.
+- **Sizes.** Fixed CSS px per size class (not scaled with zoom, as the spec's rule that a sprite never scales): T 4, S 5, M 7, L 10, H 13, C 16 px tall. Size classes L and up get a dark patch on the body. These numbers are a guess for legibility, not from the spec.
+- **Buildings.** The hamlet rows carry a building count only, and `detail.notable.structures` is capped at 16 rows, so neither gives every hamlet's buildings. `mapBuildings` lists them with `id` (y * 1024 + x), `kind` and tile position, capped at 96 in hamlet order. Groups: `lean_to` and `dwelling_*` house, `granary`, `springwell` well, `quarry` and `quarry_lodge` quarry, `garrison` garrison, everything else a generic box.
+- **Budget.** Both new lists are dropped first in `fitSnapshot`, before the marks and points, then the dominions and hamlets are cut as before. Their byte size was not measured. Up to 96 beings and 96 buildings at a few dozen bytes each is a few kB against the 32 kB budget, so a busy realm may now drop the feeds early. Measure before relying on them.
+- **Cost.** Textures are rendered once per (group, size) and per building group, then cached in `SpriteFactory`. Sprites are rebuilt when the snapshot tick changes. A camera change only repositions the pooled sprites and hides the ones off screen (margin 16 px); no texture work runs. Pools are reused and extra sprites are hidden, not destroyed.
+- **Layers.** Order from the bottom: buildings, beings, the mark graphics (items, armies, pact links, campaigns, battles, hamlet dots), labels.
+- **Settings.** `marks.*` do not gate beings or buildings, as before the change (no marks toggle covers beings). `map.particles` is not wired: the layer has no particle effects, so the option has no effect yet. `map.names` and the hamlet labels are unchanged.
+- **Beings without a kind.** A being in `mapPoints` with no `mapKinds` row (dropped with the feed) is drawn as a beast when wild and Folk when `folk`, at size S.
+
+Unverified (not run, not checked against typings; node_modules is absent in the worktree):
+- `renderer.textureGenerator.generateTexture({ target, resolution, antialias, frame, textureSourceOptions })`: the v8 path and option keys are from memory of the v8 API. The docs fetch did not confirm them. If the path is `renderer.generateTexture` (v7 style) or the option keys differ, the factory fails at the first sprite draw.
+- `textureSourceOptions: { scaleMode: 'nearest' }` as a key of that options object.
+- `Graphics` shape chaining: `.roundRect/.ellipse/.poly/.rect(...).rect(...)` each followed by `.fill(colour).stroke({ width, color })` on the same path, and `Graphics.destroy(true)`.
+- `new Sprite()` with `texture`, `anchor.set`, `position.set` and `visible`: standard v8 members, not checked against typings.
+- `Texture.destroy(true)` in `SpriteFactory.destroy`. The factory is not destroyed anywhere yet (the app lives for the page), so it is unused at runtime.
+- Visual result of the silhouettes at real zoom levels: not seen.
+- Tests: `tests/unit/snapshot-build.test.ts` references the snapshot map fields; an exact key-set or budget assertion may need the two new fields. Not checked.

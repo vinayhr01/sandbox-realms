@@ -57,12 +57,14 @@ export function startSentinel(): boolean {
 export interface FatalAction {
   label: string;
   primary?: boolean;
-  run: () => void;
+  /** Shown but not clickable, for example a restore when no valid autosave exists. */
+  disabled?: boolean;
+  run: () => void | Promise<void>;
 }
 
 /**
  * Shows the fatal dialog with a reload action plus any extra actions (19 section 7). Safe to call
- * more than once: the extra buttons are rebuilt each time.
+ * more than once: the extra buttons are rebuilt each time, and the reload button is set, not added.
  */
 export function showFatal(title: string, detail: string, actions: readonly FatalAction[] = []): void {
   const dialog = document.getElementById('fatal');
@@ -79,13 +81,27 @@ export function showFatal(title: string, detail: string, actions: readonly Fatal
         btn.type = 'button';
         btn.className = action.primary ? 'btn primary' : 'btn';
         btn.textContent = action.label;
-        btn.addEventListener('click', () => action.run(), { once: true });
+        btn.disabled = action.disabled === true;
+        btn.addEventListener('click', () => void action.run());
         return btn;
       }),
     );
   }
   dialog.hidden = false;
-  document.getElementById('fatal-reload')?.addEventListener('click', () => location.reload(), { once: true });
+  const reload = document.getElementById('fatal-reload');
+  if (reload) reload.onclick = () => location.reload();
+}
+
+/** Replaces the detail text of the open fatal dialog (for example after a failed restore). */
+export function setFatalDetail(text: string): void {
+  const detailEl = document.getElementById('fatal-detail');
+  if (detailEl) detailEl.textContent = text;
+}
+
+/** True while the fatal dialog is open. */
+export function fatalOpen(): boolean {
+  const dialog = document.getElementById('fatal');
+  return dialog !== null && !dialog.hidden;
 }
 
 /** Closes the fatal dialog without reloading. */

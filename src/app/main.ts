@@ -5,7 +5,7 @@ import { Camera } from '../render/camera.ts';
 import { MapInput } from '../ui/input.ts';
 import { edgePanVector } from '../ui/edgePan.ts';
 import { SaveService } from './saves.ts';
-import { CANNOT_CAPTURE, CANNOT_RESTORE, SaveController, type AutosaveState, type ChronicleSource } from './save-controller.ts';
+import { CANNOT_CAPTURE, CANNOT_RESTORE, SaveController, type ActionOutcome, type AutosaveState, type ChronicleSource } from './save-controller.ts';
 import { setCalendar, setDebug, setStatus, toast } from '../ui/hud.ts';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
@@ -19,16 +19,20 @@ import { Ev, type BrushOp, type BrushShape, type Event as SimEvent, type Speed }
 import { MONTH_TICKS, YEAR_TICKS, DEFAULT_SIZE_STEP } from '../shared/constants.ts';
 import { RULE_BY_ID, RuleSet } from '../sim/rules.ts';
 import { AudioEngine } from '../audio/engine.ts';
-import { audioOptionsFrom, CUE, type Cue } from './audio-wiring.ts';
+import { audioOptionsFrom, CUE, musicViewState, type Cue } from './audio-wiring.ts';
+import { LAYER_CAP_DESKTOP, LAYER_CAP_PHONE } from '../audio/music.ts';
+import { panFor } from '../audio/mix.ts';
 import { SimClient } from './sim-client.ts';
 import {
   bootGuard,
   decideRecovery,
+  fatalOpen,
   hideFatal,
   installGlobalErrorHandlers,
   journal,
   loadAttempts,
   safeModeOn,
+  setFatalDetail,
   setSafeMode,
   showFatal,
   startSentinel,
@@ -76,32 +80,92 @@ const $ = <T extends HTMLElement>(id: string): T => {
 /** Starts a new Realm from the crash dialog. Set once the sim client exists. */
 let restartRealm: (() => void) | null = null;
 
-/** Crash reporter for the recovery dialog. The ladder (19 section 7) decides which recovery buttons it offers. */
-function reportCrash(kind: FaultKind, title: string, detail: string): void {
-  const now = Date.now();
-  const decision = decideRecovery({ kind, nowMs: now, attempts: loadAttempts(), hasValidAutosave: false });
-  storeAttempt({ atMs: now, kind, level: decision.level ?? 'fatal_dialog' });
-  const actions: FatalAction[] = [];
-  if (kind === 'sim_fatal' && decision.level === 'reset_realm' && restartRealm) {
-    const restart = restartRealm;
-    actions.push({
-      label: 'Start a new Realm',
-      primary: true,
-      run: () => {
+/** The newest-autosave restore for the recovery dialogs (19 section 7). Set once the save controller exists. */
+interface AutosaveRecovery {
+  hasSave: () => Promise<boolean>;
+  restore: () => Promise<ActionOutcome>;
+}
+let autosaveRecovery: AutosaveRecovery | null = null;
+
+/** The restore button. `hasSave` null means the save list is still being read, so the button waits. */
+function restoreAction(hasSave: boolean | null, primary: boolean, onRestored: () => void = () => undefined): FatalAction {
+  return {
+    label: 'Restore last autosave',
+    primary: primary && hasSave === true,
+    disabled: hasSave !== true,
+    run: async () => {
+      const outcome: ActionOutcome = autosaveRecovery ? await autosaveRecovery.restore() : { ok: false, message: 'Saves are not ready yet.' };
+      if (outcome.ok) {
+        onRestored();
         hideFatal();
-        restart();
-      },
-    });
-  }
-  actions.push({
+      } else {
+        setFatalDetail(outcome.message);
+      }
+    },
+  };
+}
+
+function safeModeAction(primary: boolean): FatalAction {
+  return {
     label: 'Start in Safe Mode',
-    primary: decision.enterSafeMode,
+    primary,
     run: () => {
       setSafeMode(true);
       location.reload();
     },
-  });
-  showFatal(title, detail, actions);
+  };
+}
+
+/** Crash reporter for the recovery dialog. The ladder (19 section 7) decides which recovery buttons it offers. */
+function reportCrash(kind: FaultKind, title: string, detail: string): void {
+  // The dialog shows at once; the restore button waits until the save list has been read.
+  showFatal(title, detail, [restoreAction(null, false), safeModeAction(false)]);
+  void (async () => {
+    const hasSave = autosaveRecovery ? await autosaveRecovery.hasSave() : false;
+    const now = Date.now();
+    const decision = decideRecovery({ kind, nowMs: now, attempts: loadAttempts(), hasValidAutosave: hasSave });
+    storeAttempt({ atMs: now, kind, level: decision.level ?? 'fatal_dialog' });
+    const actions: FatalAction[] = [restoreAction(hasSave, decision.level === 'restart_from_autosave')];
+    if (kind === 'sim_fatal' && decision.level === 'reset_realm' && restartRealm) {
+      const restart = restartRealm;
+      actions.push({
+        label: 'Start a new Realm',
+        primary: true,
+        run: () => {
+          hideFatal();
+          restart();
+        },
+      });
+    }
+    actions.push(safeModeAction(decision.enterSafeMode));
+    showFatal(title, detail, actions);
+  })();
+}
+
+/** The boot-loop dialog (19 section 4). `hasSave` null while the save list is read. */
+function showBootLoopDialog(hasSave: boolean | null): void {
+  showFatal(
+    'Stopped several times in a row',
+    'This page stopped unexpectedly three times in a few minutes. Restore the last autosave, start in Safe Mode to run with audio off and less motion, or keep going as normal.',
+    [
+      restoreAction(hasSave, true, () => storeBoots([])),
+      {
+        label: 'Start in Safe Mode',
+        run: () => {
+          setSafeMode(true);
+          storeBoots([]);
+          location.reload();
+        },
+      },
+      {
+        label: 'Keep going normally',
+        run: () => {
+          storeBoots([]);
+          hideFatal();
+        },
+      },
+    ],
+  );
 }
 
 /** Saves bytes as a file the browser downloads (the export action). */
@@ -176,32 +240,6 @@ async function boot(): Promise<void> {
 
   // Safe Mode (19 section 7) lasts for this tab: audio off, reduced motion and flashing, 30 fps.
   const safeMode = safeModeOn();
-  // Boot-loop guard (19 section 4): repeated unclean boots offer Safe Mode, or carrying on as normal.
-  if (guard.loop) {
-    showFatal(
-      'Stopped several times in a row',
-      'This page stopped unexpectedly three times in a few minutes. Start in Safe Mode to run with audio off and less motion, or keep going as normal.',
-      [
-        {
-          label: 'Start in Safe Mode',
-          primary: true,
-          run: () => {
-            setSafeMode(true);
-            storeBoots([]);
-            location.reload();
-          },
-        },
-        {
-          label: 'Keep going normally',
-          run: () => {
-            storeBoots([]);
-            hideFatal();
-          },
-        },
-      ],
-    );
-  }
-
   const params = new URLSearchParams(location.search);
   const debugOverlay = params.has('debug');
 
@@ -229,12 +267,24 @@ async function boot(): Promise<void> {
     if (audioUnlocked || safeMode) return;
     audioUnlocked = true;
     audio.unlock();
+    // Music starts with the first gesture after unlock (16 B6); the layer cap depends on the device (B8).
+    audio.setLayerCap(window.matchMedia('(pointer: coarse)').matches ? LAYER_CAP_PHONE : LAYER_CAP_DESKTOP);
+    audio.startMusic();
     for (const type of ['pointerdown', 'keydown', 'touchend'] as const) window.removeEventListener(type, unlockAudio, true);
   };
   for (const type of ['pointerdown', 'keydown', 'touchend'] as const) window.addEventListener(type, unlockAudio, true);
   const playCue = (cue: Cue): void => {
     if (audioUnlocked) audio.play(cue, performance.now());
   };
+  /** A cue for a tile on the map, panned by where the tile sits on screen (16 B4). */
+  const playCueAt = (cue: Cue, tileX: number): void => {
+    const cam = camera;
+    if (!audioUnlocked) return;
+    const width = renderer.app.screen.width;
+    const pan = cam ? panFor(tileX, (width / 2 - cam.offX) / cam.zoom, width / 2 / cam.zoom, audio.currentOptions.spatialIntensity) : 0;
+    audio.play(cue, performance.now(), pan, 1);
+  };
+  let musicClockMs = 0;
   /** A notification: a toast with its cue. */
   const notify = (text: string, cue: Cue = CUE.notify): void => {
     toast(text);
@@ -473,7 +523,7 @@ async function boot(): Promise<void> {
     const op = strokeOp(power);
     if (op) client.stroke(op, state.shape, brushRadius(), x, y, x, y, true);
     else client.power(power.id, x, y);
-    playCue(op ? CUE.paint : CUE.power);
+    playCueAt(op ? CUE.paint : CUE.power, x);
     if (boolOption(options, 'input.haptics')) navigator.vibrate?.(8);
   };
 
@@ -535,6 +585,18 @@ async function boot(): Promise<void> {
       },
     },
   );
+  autosaveRecovery = {
+    hasSave: () => saveController.restoreTarget(safeModeOn()).then((target) => target !== null),
+    restore: () => saveController.restoreAutosave(safeModeOn()),
+  };
+  // Boot-loop guard (19 section 4): repeated unclean boots offer the restore, Safe Mode, or carrying on.
+  // The save list is read first, so the restore button is enabled only when a valid autosave exists.
+  if (guard.loop) {
+    showBootLoopDialog(null);
+    void autosaveRecovery.hasSave().then((has) => {
+      if (fatalOpen()) showBootLoopDialog(has);
+    });
+  }
   const exportToFile = async (slotId: string): Promise<ChronicleOutcome> => {
     const file = await saveController.exportSave(slotId);
     if (!file) return { ok: false, message: 'That save no longer exists.' };
@@ -824,6 +886,14 @@ async function boot(): Promise<void> {
     }
     saveController.frame(ticker.deltaMS, state.paused || document.hidden, autosaveState());
     flushStroke();
+
+    // The music state is published about once a second (16 B8: never more often than that).
+    musicClockMs += ticker.deltaMS;
+    if (audioUnlocked && cam && musicClockMs >= 1000) {
+      musicClockMs = 0;
+      const zoom01 = (cam.zoom - cam.minZoom) / (cam.maxZoom - cam.minZoom);
+      audio.setMusicState(musicViewState({ paused: state.paused || document.hidden, zoom01 }));
+    }
 
     const cursor: CursorState = {
       tile: strokeOp(state.armed) !== null && cursorScreen && camera ? tileAt(cursorScreen.x, cursorScreen.y) : null,

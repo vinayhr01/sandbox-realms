@@ -20,6 +20,7 @@ import {
   type SlotInfo,
   type SlotMeta,
 } from './saves.ts';
+import { chooseRestore, restoreOffers, type RestoreCandidate } from './recovery.ts';
 
 /** Produces and restores the live realm. The UI never touches the sim directly. */
 export interface ChronicleSource {
@@ -76,6 +77,30 @@ function writeOutcome(result: SaveResult, label: string): ActionOutcome {
   return fail(`Not enough room to save ${label}. Delete a save first.${biggest}`);
 }
 
+/** How long a restore may wait for the sim to answer before the attempt is given up. */
+export const RESTORE_TIMEOUT_MS = 10_000;
+
+/**
+ * The autosaves as restore candidates. Manual, quick and suspend slots are not offered here. The
+ * newest autosave is the current generation and older ones are previous, which is what Safe Mode
+ * offers (19 section 7, step 5).
+ */
+export function autosaveCandidates(metas: readonly SlotMeta[]): RestoreCandidate[] {
+  return metas
+    .filter((m) => m.kind === 'auto')
+    .sort((a, b) => b.savedAtMs - a.savedAtMs || (b.seq ?? 0) - (a.seq ?? 0))
+    .map((m, i): RestoreCandidate => ({ slotId: m.slotId, savedAtMs: m.savedAtMs, valid: m.valid, generation: i === 0 ? 'current' : 'previous' }));
+}
+
+/** Resolves to the promise's value, or null when it does not settle within `ms`. */
+function settleWithin<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 export class SaveController {
   private store: Promise<SaveService> | null = null;
   private readonly clock: AutosaveClock;
@@ -124,6 +149,49 @@ export class SaveController {
   /** Slot list, newest first. */
   list(): Promise<SlotMeta[]> {
     return this.service().then((svc) => svc.list());
+  }
+
+  /**
+   * The autosave the recovery dialog would restore: the newest valid one (19 section 7 step 4),
+   * picked by chooseRestore. Null when there is none, or when the store cannot be read.
+   */
+  async restoreTarget(safeMode = false): Promise<SlotMeta | null> {
+    try {
+      const metas = await this.list();
+      const pick = chooseRestore(autosaveCandidates(metas), safeMode);
+      return metas.find((m) => m.slotId === pick?.slotId) ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Loads the newest valid autosave into the live realm. A save that cannot be read is marked
+   * invalid by the store and the next one is tried. A simulation that does not answer in time stops
+   * the attempt, because older saves would wait the same way.
+   */
+  async restoreAutosave(safeMode = false): Promise<ActionOutcome> {
+    if (!this.source.canRestore) return fail(CANNOT_RESTORE);
+    try {
+      const svc = await this.service();
+      const offers = restoreOffers(autosaveCandidates(await svc.list()), safeMode);
+      if (offers.length === 0) return fail('There is no valid autosave to restore.');
+      for (const offer of offers) {
+        let bytes: Uint8Array | null;
+        try {
+          bytes = await svc.read(offer.slotId);
+        } catch {
+          continue;
+        }
+        if (!bytes) continue;
+        const loaded = await settleWithin(this.source.restore(bytes), RESTORE_TIMEOUT_MS);
+        if (loaded === null) return fail('The simulation did not answer, so the autosave was not loaded.');
+        if (loaded) return ok(`Restored the autosave from ${new Date(offer.savedAtMs).toLocaleString()}.`);
+      }
+      return fail('No autosave could be loaded.');
+    } catch (err) {
+      return fail(this.describe(err));
+    }
   }
 
   /** Runs one action from the Chronicle window. `slotId` is 'new' for a save into the first free manual slot. */

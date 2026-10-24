@@ -11,6 +11,26 @@ import { DEFAULT_AUDIO_OPTIONS, optionOfCategory, sliderToGain, type AudioOption
 import { dbToGain } from './mix.ts';
 import { SOUND_BY_ID, canStart, type SoundDef } from './sounds.ts';
 import { renderSound } from './synth.ts';
+import {
+  LAYER_CAP_DESKTOP,
+  STEPS_PER_LOOP,
+  STEM_DEFS,
+  barStepAtOrAfter,
+  capLayers,
+  noteSeconds,
+  shouldStop,
+  silenceSince,
+  silentMusicState,
+  stemTargets,
+  stemTau,
+  stepAtOrAfter,
+  stepTime,
+  stepValue,
+  variantFor,
+  degreeHz,
+  type MusicState,
+  type StemDef,
+} from './music.ts';
 
 /** Gain changes use a 30 ms time constant to avoid zipper noise (B5). */
 const TIME_CONSTANT = 0.03;
@@ -32,6 +52,20 @@ export interface NodeLike {
 }
 export interface GainLike extends NodeLike {
   readonly gain: ParamLike;
+  /** Channel layout, set on the master for the mono option (16 B9). */
+  channelCount?: number;
+  channelCountMode?: string;
+  channelInterpretation?: string;
+}
+export interface OscLike extends NodeLike {
+  type: string;
+  readonly frequency: ParamLike;
+  start(when?: number): void;
+  stop(when?: number): void;
+}
+export interface FilterLike extends NodeLike {
+  type: string;
+  readonly frequency: ParamLike;
 }
 export interface PannerLike extends NodeLike {
   readonly pan: ParamLike;
@@ -50,8 +84,8 @@ export interface SourceLike extends NodeLike {
   buffer: BufferLike | null;
   loop: boolean;
   onended: (() => void) | null;
-  start(): void;
-  stop(): void;
+  start(when?: number): void;
+  stop(when?: number): void;
 }
 /** The subset of BaseAudioContext the engine uses. A fake satisfies it in tests. */
 export interface ContextLike {
@@ -64,9 +98,34 @@ export interface ContextLike {
   createBuffer(channels: number, length: number, sampleRate: number): BufferLike;
   createBufferSource(): SourceLike;
   resume(): Promise<unknown>;
+  /** Only the music needs these. The engine checks for them and keeps the music off without them. */
+  createOscillator?(): OscLike;
+  createBiquadFilter?(): FilterLike;
 }
 
 export type ContextFactory = () => ContextLike;
+
+/** Scheduler tick and look-ahead for music (16 B5: timer 100 ms, schedules up to 400 ms ahead). */
+const SCHEDULE_TICK_MS = 100;
+const SCHEDULE_AHEAD_S = 0.4;
+
+/** One stem that is playing: its gain node, its drone oscillators, and where its pattern has reached. */
+interface StemVoice {
+  def: StemDef;
+  gain: GainLike;
+  drones: OscLike[];
+  startStep: number;
+  nextStep: number;
+  level: number;
+  silentSince: number | null;
+}
+
+/** Mono downmix (16 B9): the master sums to one channel; the stereo panners still act before it. */
+function setDownmix(node: GainLike, mono: boolean): void {
+  node.channelCount = mono ? 1 : 2;
+  node.channelCountMode = mono ? 'explicit' : 'max';
+  node.channelInterpretation = 'speakers';
+}
 
 interface Voice {
   source: SourceLike;
@@ -89,6 +148,12 @@ export class AudioEngine {
   private readonly buffers = new Map<string, BufferLike>();
   private readonly voices = new Map<number, Voice>();
   private readonly lastStart = new Map<string, number>();
+  private musicState: MusicState = silentMusicState();
+  private musicOrigin = 0;
+  private musicTimer: ReturnType<typeof setInterval> | null = null;
+  private readonly stems = new Map<string, StemVoice>();
+  private noise: BufferLike | null = null;
+  private layerCap = LAYER_CAP_DESKTOP;
 
   constructor(private readonly makeContext: ContextFactory = browserContextFactory) {}
 
@@ -154,6 +219,7 @@ export class AudioEngine {
     this.model.setVolume('music', sliderToGain(v.music));
     this.model.setVolume('sfx', sliderToGain(v.effects));
     this.model.setVolume('ui', sliderToGain(v.ui));
+    if (this.master) setDownmix(this.master, options.mono);
     if (this.ctx && this.compressor) {
       this.compressor.threshold.value = options.reduceLoudSounds ? LIMIT_REDUCED_DB : LIMIT_DB;
     }
@@ -206,7 +272,8 @@ export class AudioEngine {
     amp.gain.value = Math.max(0, Math.min(1, distance));
     source.connect(amp);
     let out: NodeLike = amp;
-    if (def.spatial) {
+    // A panned cue gets a panner even when its sound is not spatial, so world-positioned UI cues pan too.
+    if (def.spatial || pan !== 0) {
       const panner = ctx.createStereoPanner();
       panner.pan.value = Math.max(-1, Math.min(1, pan));
       amp.connect(panner);
@@ -255,6 +322,177 @@ export class AudioEngine {
     let n = 0;
     for (const info of this.voices.values()) if (info.soundId === id) n++;
     return n;
+  }
+
+  /** True while the music scheduler runs. */
+  get musicPlaying(): boolean {
+    return this.musicTimer !== null;
+  }
+
+  /** Layers allowed at once: 6 on phones, 9 on desktop (16 B8 rule 2). */
+  setLayerCap(max: number): void {
+    this.layerCap = Math.max(2, Math.floor(max));
+  }
+
+  /**
+   * Starts the adaptive music on the audio clock (16 B8). Needs an unlocked context that can make
+   * oscillators; otherwise it does nothing. Stems join on bar boundaries as the state asks for them.
+   */
+  startMusic(): void {
+    const ctx = this.ctx;
+    if (!ctx || this.musicTimer !== null || !ctx.createOscillator) return;
+    this.musicOrigin = ctx.currentTime;
+    if (!this.noise) {
+      // One second of white noise, shared by every percussion hit. Cosmetic only: it never touches the sim.
+      const length = Math.floor(ctx.sampleRate);
+      const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+      const data = new Float32Array(length);
+      for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
+      buffer.copyToChannel(data, 0);
+      this.noise = buffer;
+    }
+    this.musicTimer = setInterval(() => this.scheduleMusic(), SCHEDULE_TICK_MS);
+    this.updateStems();
+    this.scheduleMusic();
+  }
+
+  /** Stops the music and every stem. The graph stays for the next start. */
+  stopMusic(): void {
+    if (this.musicTimer !== null) clearInterval(this.musicTimer);
+    this.musicTimer = null;
+    for (const id of [...this.stems.keys()]) this.stopStem(id);
+  }
+
+  /** The state the stems follow. The game loop publishes it about once a second (16 B8). */
+  setMusicState(state: MusicState): void {
+    this.musicState = state;
+    this.updateStems();
+  }
+
+  /** Moves each stem toward its capped target. Smoothing uses the attack and release constants. */
+  private updateStems(): void {
+    const ctx = this.ctx;
+    if (!ctx || this.musicTimer === null) return;
+    const targets = capLayers(stemTargets(this.musicState), STEM_DEFS, this.layerCap);
+    const now = ctx.currentTime;
+    const nowMs = performance.now();
+    for (const def of STEM_DEFS) {
+      const target = targets[def.id] ?? 0;
+      const voice = this.stems.get(def.id) ?? (target > 0 ? this.startStem(def, now) : null);
+      if (!voice) continue;
+      voice.gain.gain.setTargetAtTime(target, now, stemTau(def, target > voice.level));
+      voice.level = target;
+      voice.silentSince = silenceSince(voice.silentSince, target, nowMs);
+      if (shouldStop(voice.silentSince, nowMs)) this.stopStem(def.id);
+    }
+  }
+
+  /** Creates a stem's gain node and, for drones, its oscillators, starting on the next bar. */
+  private startStem(def: StemDef, now: number): StemVoice | null {
+    const ctx = this.ctx;
+    const bus = this.busNodes.get('music');
+    if (!ctx || !bus || !ctx.createOscillator) return null;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    gain.connect(bus);
+    const startStep = barStepAtOrAfter(this.musicOrigin, now);
+    const at = stepTime(this.musicOrigin, startStep);
+    const drones: OscLike[] = [];
+    if (def.kind === 'drone') {
+      for (const degree of def.chord) {
+        const osc = ctx.createOscillator();
+        osc.type = def.wave;
+        osc.frequency.value = degreeHz(degree, def.octave);
+        osc.connect(gain);
+        osc.start(at);
+        drones.push(osc);
+      }
+    }
+    const voice: StemVoice = { def, gain, drones, startStep, nextStep: startStep, level: 0, silentSince: null };
+    this.stems.set(def.id, voice);
+    return voice;
+  }
+
+  private stopStem(id: string): void {
+    const voice = this.stems.get(id);
+    if (!voice) return;
+    this.stems.delete(id);
+    for (const osc of voice.drones) {
+      try {
+        osc.stop();
+      } catch {
+        // Already stopped: nothing to do.
+      }
+    }
+    voice.gain.disconnect();
+  }
+
+  /** Schedules every pattern step that falls inside the look-ahead window. Runs on the timer. */
+  private scheduleMusic(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const horizon = ctx.currentTime + SCHEDULE_AHEAD_S;
+    const nowStep = stepAtOrAfter(this.musicOrigin, ctx.currentTime);
+    for (const voice of this.stems.values()) {
+      if (voice.def.kind === 'drone') continue;
+      // A paused or hidden tab can leave steps behind the clock: skip them rather than play a burst.
+      if (voice.nextStep < nowStep) voice.nextStep = nowStep;
+      while (stepTime(this.musicOrigin, voice.nextStep) < horizon) {
+        this.playStep(voice, voice.nextStep);
+        voice.nextStep++;
+      }
+    }
+  }
+
+  /** Plays the note or hit a pattern stem has at one grid step. */
+  private playStep(voice: StemVoice, step: number): void {
+    const ctx = this.ctx;
+    if (!ctx || !ctx.createOscillator) return;
+    const variant = variantFor(Math.floor(step / STEPS_PER_LOOP), voice.def.id);
+    const value = stepValue(voice.def, step, variant);
+    if (value < 0) return;
+    const def = voice.def;
+    const at = stepTime(this.musicOrigin, step);
+    const len = noteSeconds(def.kind);
+    if (def.kind === 'noise') {
+      if (!this.noise) return;
+      this.percussion(ctx, voice.gain, at, len, def.octave < 0 ? 220 : 2400);
+      return;
+    }
+    const osc = ctx.createOscillator();
+    osc.type = def.wave;
+    osc.frequency.value = degreeHz(value, def.octave);
+    const env = ctx.createGain();
+    env.gain.value = 0;
+    env.gain.setTargetAtTime(def.kind === 'pulse' ? 0.16 : 0.22, at, 0.01);
+    env.gain.setTargetAtTime(0, at + len * 0.6, len / 4);
+    osc.connect(env);
+    env.connect(voice.gain);
+    osc.start(at);
+    osc.stop(at + len + 0.3);
+  }
+
+  /** A noise hit through a low-pass filter (drums) or a higher one (shakers). */
+  private percussion(ctx: ContextLike, dest: GainLike, at: number, len: number, cutoff: number): void {
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise;
+    src.loop = false;
+    const env = ctx.createGain();
+    env.gain.value = 0;
+    env.gain.setTargetAtTime(0.5, at, 0.003);
+    env.gain.setTargetAtTime(0, at + 0.03, len / 5);
+    let out: NodeLike = env;
+    if (ctx.createBiquadFilter) {
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = cutoff;
+      env.connect(filter);
+      out = filter;
+    }
+    src.connect(env);
+    out.connect(dest);
+    src.start(at);
+    src.stop(at + len + 0.2);
   }
 
   /** Ramps the music bus down by `db` and back (B5 ducking). */

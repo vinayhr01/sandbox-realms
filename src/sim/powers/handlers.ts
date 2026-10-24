@@ -17,6 +17,7 @@ import { startFire } from '../terrain/fire.ts';
 import { meteorImpact } from '../terrain/meteor.ts';
 import { startQuake } from '../terrain/quake.ts';
 import { creepHubAt, geyserAt, heatAt, igniteAt, plantFlora, quenchAt, rainOn, seedBiome, snowOn, volcanoAt } from './terrain-powers.ts';
+import { blessAt, loreAt } from './rites.ts';
 
 /** Beings placed by one beings calamity (a herd arriving at a tile). */
 const CALAMITY_HERD = 6;
@@ -127,6 +128,9 @@ export function rollAndRunCalamity(sim: Sim): string | null {
 
 /** Applies one power at tile (x,y). Returns true when its handler ran; UI-only and unbuilt handlers return false. */
 export function executePower(sim: Sim, def: PowerDef, x: number, y: number): boolean {
+  // Soft gate (12 section 8): every rule in `requires` must be on, or the power does nothing. Ritual
+  // powers (favour_bless) need `rituals` (02 section 9).
+  if (!def.requires.every((rule) => sim.rules.isOn(rule))) return false;
   const inBounds = sim.realm.inBounds(x, y);
   const p = def.params;
   switch (def.handler) {
@@ -179,6 +183,15 @@ export function executePower(sim: Sim, def: PowerDef, x: number, y: number): boo
       return inBounds && creepHubAt(sim, tileAt(sim, x, y), String(p.hub ?? ''));
     case 'calamity':
       return runCalamity(sim, String(p.calamity));
+    case 'bless':
+      // Ran even when no being is in range, like a brush over empty ground (12 section 10).
+      if (!inBounds) return false;
+      blessAt(sim, x, y, Number(p.radius ?? 3), String(p.status ?? 'warded'));
+      return true;
+    case 'lore':
+      if (!inBounds) return false;
+      loreAt(sim, x, y, Number(p.radius ?? 4));
+      return true;
     default:
       return false;
   }

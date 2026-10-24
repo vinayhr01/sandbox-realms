@@ -1,11 +1,19 @@
 import { BANDED, G, GROUND_BY_ELEVATION, ground, groundId } from '../content/grounds.ts';
-import { BIOMES, biomeCoverId, GEN_WEIGHT_TOTAL } from '../content/biomes.ts';
+import { BIOMES, biomeCoverId } from '../content/biomes.ts';
 import { createRng, hash3, type Rng } from '../shared/rng.ts';
 import { FLAG, Realm } from './realm.ts';
 import { n4 } from './grid.ts';
 import { Sim } from './sim.ts';
 import { wildSeeding } from './flora.ts';
 import { seedStartingBeasts } from './beings/system.ts';
+import { noise01 } from './worldgen/noise.ts';
+import { pickWeightedBiome, BIOME_WEIGHTS } from './worldgen/pick.ts';
+import { carveLakes, carveRivers } from './worldgen/water.ts';
+import { applyReplaceRules, type ReplaceRule } from './worldgen/replace.ts';
+import { layoutCells, layoutChessboard, layoutWarren, placeVolcano, type Layout } from './worldgen/layouts.ts';
+
+export { noise01 } from './worldgen/noise.ts';
+export type { ReplaceRule, Layout };
 
 /** Generation parameters (03 section 3), a subset used by the templates. */
 export interface GenParams {
@@ -27,6 +35,16 @@ export interface GenParams {
   addFlora: boolean;
   shapes: number;
   forceHeight: number;
+  /** Special layout (03 section 9.1). */
+  layout: Layout;
+  /** Patch-count scale of the Cells rooms (03 section 3, 2..15). */
+  cellSize: number;
+  /** River and lake counts (03 section 7, extensions 0..10). */
+  rivers: number;
+  lakes: number;
+  replaceRules: ReplaceRule[];
+  /** Starter volcano footprint at generation (03 section 8). */
+  startVolcano: boolean;
 }
 
 export const DEFAULT_PARAMS: GenParams = {
@@ -48,23 +66,78 @@ export const DEFAULT_PARAMS: GenParams = {
   addFlora: true,
   shapes: 0,
   forceHeight: 0,
+  layout: 'none',
+  cellSize: 2,
+  rivers: 0,
+  lakes: 0,
+  replaceRules: [],
+  startVolcano: false,
 };
 
-/** Templates (03 section 9). Special layouts are approximated; see DECISIONS.md. */
+/** Templates (03 section 9). Special layouts follow section 9.1; see DECISIONS.md for deviations. */
 export const TEMPLATES: Readonly<Record<string, Partial<GenParams>>> = {
-  continent: { noise2: 5, noise3: 5, roundEdges: true, centerLand: true, shoreSnap: true, shapes: 5, freezePeaks: true },
-  walled_plain: { noise2: 5, noise3: 5, mountainEdges: true, centerLand: true, shoreSnap: true, shapes: 5, freezePeaks: true },
+  continent: {
+    noise2: 5,
+    noise3: 5,
+    roundEdges: true,
+    centerLand: true,
+    shoreSnap: true,
+    shapes: 5,
+    freezePeaks: true,
+    rivers: 2,
+    lakes: 1,
+    replaceRules: [{ threshold: 168, from: 'highloam', to: 'lowloam' }],
+  },
+  walled_plain: {
+    noise2: 5,
+    noise3: 5,
+    mountainEdges: true,
+    centerLand: true,
+    shoreSnap: true,
+    shapes: 5,
+    freezePeaks: true,
+    rivers: 2,
+    replaceRules: [{ threshold: 168, from: 'highloam', to: 'lowloam' }],
+  },
   archipelago: { noise2: 5, noise3: 5, roundEdges: true, shoreSnap: true, shapes: 5, freezePeaks: true },
   isle_shape: { noise2: 5, noise3: 5, centerLand: true, removeMountains: true, shapes: 5 },
-  open_plains: { centerLand: true, noise2: 5, noise3: 5, mountainEdges: true, removeMountains: true, randomBiomes: true },
-  chessboard: { mountainEdges: true, removeMountains: true },
-  cells: { mountainEdges: true, removeMountains: true },
-  sleeping_crater: { forceHeight: 125, noise2: 5, roundEdges: true, centerLand: true, randomBiomes: false },
-  holey_plain: { forceHeight: 120, noise2: 5, squareEdges: true, removeMountains: true, centerLand: true },
+  open_plains: {
+    centerLand: true,
+    noise2: 5,
+    noise3: 5,
+    mountainEdges: true,
+    removeMountains: true,
+    randomBiomes: true,
+    replaceRules: [
+      { threshold: 0, from: 'shoal', to: 'lowloam' },
+      { threshold: 0, from: 'midmere', to: 'lowloam' },
+      { threshold: 0, from: 'deepmere', to: 'highloam' },
+    ],
+  },
+  chessboard: { layout: 'chessboard', mountainEdges: true, removeMountains: true },
+  cells: { layout: 'cells', cellSize: 2, mountainEdges: true, removeMountains: true },
+  sleeping_crater: { forceHeight: 125, noise2: 5, roundEdges: true, centerLand: true, randomBiomes: false, startVolcano: true },
+  holey_plain: {
+    forceHeight: 120,
+    noise2: 5,
+    squareEdges: true,
+    removeMountains: true,
+    centerLand: true,
+    replaceRules: [
+      { threshold: 168, from: 'highloam', to: 'shoal' },
+      { threshold: 168, from: 'strand', to: 'shoal' },
+      { threshold: 148, from: 'highloam', to: 'strand' },
+      { threshold: 128, from: 'lowloam', to: 'strand' },
+      { threshold: 84, from: 'highloam', to: 'lowloam' },
+    ],
+  },
   ringland: { forceHeight: 125, noise2: 5, roundEdges: true, centerLand: true, centerLake: true },
-  warren: { mountainEdges: true },
+  warren: { layout: 'warren', mountainEdges: true },
   blank: { noise1: 0, randomBiomes: false, addFlora: false },
 };
+
+/** Minimum land fraction per template (03 section 1; 3% Archipelago, 0 for Blank and Warren). */
+const MIN_LAND: Readonly<Record<string, number>> = { blank: 0, warren: 0, archipelago: 0.03 };
 
 export interface GenReport {
   attempts: number;
@@ -72,31 +145,6 @@ export interface GenReport {
   lowLand: boolean;
   biomeTiles: number;
   floraTiles: number;
-}
-
-/** Integer hash of a lattice point (03 section 4: integer mixing only). */
-function hashCell(ix: number, iy: number, seed: number): number {
-  let h = Math.imul(ix, 0x27d4eb2d) ^ Math.imul(iy, 0x165667b1) ^ seed;
-  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
-  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35);
-  return (h ^ (h >>> 16)) >>> 0;
-}
-
-function smootherstep(t: number): number {
-  return t * t * t * (t * (t * 6 - 15) + 10);
-}
-
-/** Value noise in [0,1] (03 section 4 stand-in: value lattice, smootherstep blend). */
-export function noise01(x: number, y: number, seed: number): number {
-  const x0 = Math.floor(x);
-  const y0 = Math.floor(y);
-  const tx = smootherstep(x - x0);
-  const ty = smootherstep(y - y0);
-  const a = hashCell(x0, y0, seed) / 4294967296;
-  const b = hashCell(x0 + 1, y0, seed) / 4294967296;
-  const c = hashCell(x0, y0 + 1, seed) / 4294967296;
-  const d = hashCell(x0 + 1, y0 + 1, seed) / 4294967296;
-  return a + (b - a) * tx + (c - a) * ty + (a - b - c + d) * tx * ty;
 }
 
 /** Stable 32-bit hash of the request seed (strings hash with FNV-1a, numbers pass through). */
@@ -126,7 +174,7 @@ export interface GenRequest {
 export function generateRealm(req: GenRequest): { sim: Sim; report: GenReport } {
   const base = worldSeedOf(req.seed);
   const params: GenParams = { ...DEFAULT_PARAMS, ...(TEMPLATES[req.template] ?? {}), ...(req.overrides ?? {}) };
-  const minLand = req.template === 'blank' ? 0 : 0.06;
+  const minLand = MIN_LAND[req.template] ?? 0.06;
   let attempt = 0;
   let sim = buildOnce(base, req.sizeStep, params, req.startingFlora ?? true, req.startingBeasts ?? true);
   let land = landFraction(sim.realm);
@@ -267,6 +315,19 @@ function buildOnce(seed: number, sizeStep: number, p: GenParams, flora: boolean,
       if (g !== (realm.ground[k] ?? 0)) realm.ground[k] = g;
     }
   }
+
+  // Special layouts (03 section 9.1) run after removeMountains so their walls survive it
+  // (deviation from the section 2 order, see DECISIONS.md), then rivers, lakes and replace rules
+  // (section 2 steps 16-17), then the starter volcano.
+  const seedBase = hash3(seed, 0x67656e, 2);
+  if (p.layout === 'chessboard') layoutChessboard(realm, createRng(hash3(seedBase, 1, 1)), p.randomBiomes);
+  else if (p.layout === 'cells') layoutCells(realm, createRng(hash3(seedBase, 2, 1)), p.cellSize, p.randomBiomes);
+  else if (p.layout === 'warren') layoutWarren(realm, createRng(hash3(seedBase, 3, 1)));
+  carveRivers(realm, p.rivers, seedBase);
+  carveLakes(realm, p.lakes, seedBase);
+  applyReplaceRules(realm, p.replaceRules, seedBase);
+  if (p.startVolcano) placeVolcano(realm);
+
   if (p.mountainEdges) {
     const wall = 1;
     for (let k = 0; k < realm.tileCount; k++) {
@@ -338,15 +399,7 @@ function paintBiomes(sim: Sim, rng: Rng): void {
     const g = realm.ground[k] ?? 0;
     if (g === G.lowloam || g === G.highloam) soil.push(k);
   }
-  const weights = BIOMES.map((b) => b.genWeight);
-  const pickBiome = (): number => {
-    let r = rng.int(GEN_WEIGHT_TOTAL);
-    for (let b = 0; b < weights.length; b++) {
-      r -= weights[b] ?? 0;
-      if (r < 0) return b;
-    }
-    return 0;
-  };
+  const pickBiome = (): number => pickWeightedBiome(rng, BIOME_WEIGHTS);
   while (soil.length > 0) {
     const start = soil[soil.length - 1] ?? 0;
     if (realm.cover[start] !== 0) {

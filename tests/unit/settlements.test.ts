@@ -176,7 +176,7 @@ describe('settlements', () => {
   });
 
   it('builds a well after the first granary so the store has food income', () => {
-    const { ctx, parcel } = setup(39);
+    const { ctx, parcel } = setup(40);
     ctx.isOn = () => true;
     const h = createHamlet(parcel, 0);
     h.wood = 1000;

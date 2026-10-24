@@ -5,6 +5,10 @@ import type { Projectile } from './combat.ts';
 import { culturePayload, cultureFromPayload, type CulturePayload } from './culture/adapter.ts';
 import { snapshotDominions, restoreDominions, type DominionSnapshot } from './dominions/adapter.ts';
 import { snapshotHamlets, restoreHamlets, type HamletSnapshot } from './settlements/adapter.ts';
+import { refreshStats } from './beings/system.ts';
+import { SPECIES } from '../content/beasts.ts';
+import { STRAIN_TRAIT_BY_ID } from '../content/traits.ts';
+import type { Strain } from './beings/strains.ts';
 
 /**
  * Chronicle save codec (15-chronicle-saves, section 3 in spirit): a versioned, sectioned binary
@@ -25,10 +29,15 @@ import { snapshotHamlets, restoreHamlets, type HamletSnapshot } from './settleme
  */
 export const CHRONICLE_MAGIC = 'SRCH';
 export const FORMAT_VERSION = 1;
-export const SCHEMA_VERSION = 2;
+/**
+ * Schema 3 (beings round 2): the beings section carries each Being's parent link (slot and generation,
+ * 06 section 6.1), strain id, stored aptitudes and marks; section 17 holds the strain registry. Schema 2
+ * saves are rejected: they have no parent links or strains to restore.
+ */
+export const SCHEMA_VERSION = 3;
 const HEADER_BYTES = 16;
 
-const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14, dominions: 15, hamlets: 16 } as const;
+const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14, dominions: 15, hamlets: 16, strains: 17 } as const;
 /** Sections a save may lack (written by later builds); absent means the empty default. */
 const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity, TAG.lifetime, TAG.dominions, TAG.hamlets];
 const REALM_ARRAYS = [
@@ -258,6 +267,11 @@ export function encodeChronicle(sim: Sim): Uint8Array {
       w.f32(s.moveAcc[slot] ?? 0);
       w.i32(s.mate[slot] ?? -1);
       w.u32(s.mateGen[slot] ?? 0);
+      w.i32(s.parent[slot] ?? -1);
+      w.u32(s.parentGen[slot] ?? 0);
+      w.u32(s.strain[slot] ?? 0);
+      for (let k = 0; k < 4; k++) w.u16(s.attrs[slot * 4 + k] ?? 0);
+      for (let k = 0; k < 5; k++) w.u32(s.marks[slot * 5 + k] ?? 0);
     }
     // Full generation table (dead slots keep their counters) and the exact list and free-stack order.
     for (let slot = 0; slot < s.capacity; slot++) w.u32(s.generation[slot] ?? 0);
@@ -290,6 +304,7 @@ export function encodeChronicle(sim: Sim): Uint8Array {
 
   section(body, TAG.dominions, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(snapshotDominions(sim)))));
   section(body, TAG.hamlets, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(snapshotHamlets(sim)))));
+  section(body, TAG.strains, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(sim.beings.strains.snapshot()))));
 
   const bodyBytes = body.finish();
   const header = new Writer();
@@ -366,6 +381,7 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
   const stats = parseJson<Record<string, number>>(decoder, sections.get(TAG.stats), 'stats');
   Object.assign(sim.beings.stats, stats);
 
+  decodeStrains(sim, parseJson<{ next: number; list: Strain[] }>(decoder, sections.get(TAG.strains), 'strains'));
   decodeBeings(sim, new Reader(sections.get(TAG.beings) ?? new Uint8Array()));
   const combatBytes = sections.get(TAG.combat) ?? new Uint8Array();
   const cr = new Reader(combatBytes);
@@ -471,6 +487,18 @@ function decodeBeings(sim: Sim, r: Reader): void {
         moveAcc: r.f32(),
         mate: r.i32(),
         mateGen: r.u32(),
+        parent: r.i32(),
+        parentGen: r.u32(),
+        strain: r.u32(),
+        attr0: r.u16(),
+        attr1: r.u16(),
+        attr2: r.u16(),
+        attr3: r.u16(),
+        mark0: r.u32(),
+        mark1: r.u32(),
+        mark2: r.u32(),
+        mark3: r.u32(),
+        mark4: r.u32(),
       },
     });
   }
@@ -510,7 +538,29 @@ function decodeBeings(sim: Sim, r: Reader): void {
     s.moveAcc[slot] = f['moveAcc'] ?? 0;
     s.mate[slot] = f['mate'] ?? -1;
     s.mateGen[slot] = f['mateGen'] ?? 0;
+    s.parent[slot] = f['parent'] ?? -1;
+    s.parentGen[slot] = f['parentGen'] ?? 0;
+    s.strain[slot] = f['strain'] ?? 0;
+    for (let k = 0; k < 4; k++) s.attrs[slot * 4 + k] = f[`attr${k}`] ?? 0;
+    for (let k = 0; k < 5; k++) s.marks[slot * 5 + k] = f[`mark${k}`] ?? 0;
+    if (!sim.beings.strains.get(s.strain[slot] ?? 0)) throw new Error(`chronicle: being ${slot} names a missing strain`);
   }
   for (let slot = 0; slot < capacity; slot++) s.generation[slot] = generation[slot] ?? 0;
   s.restoreLayout(list, free);
+  // Child counts and the derived stats are not saved: both are rebuilt from the restored records.
+  s.rebuildChildCounts();
+  for (const rec of raw) refreshStats(sim, rec.slot);
+}
+
+/** Restores the strain registry (section 17). Traits are kept only when the content still defines them. */
+function decodeStrains(sim: Sim, data: { next: number; list: Strain[] }): void {
+  if (!Array.isArray(data.list) || !Number.isInteger(data.next)) throw new Error('chronicle: strains section is not valid');
+  const ids = new Set<number>();
+  for (const st of data.list) {
+    if (!Number.isInteger(st.id) || st.id < 1 || ids.has(st.id) || st.id >= data.next) throw new Error('chronicle: bad strain id');
+    ids.add(st.id);
+    if (!Number.isInteger(st.species) || st.species < 0 || st.species >= SPECIES.length) throw new Error(`chronicle: strain ${st.id} has an unknown species`);
+    st.traits = st.traits.filter((t) => STRAIN_TRAIT_BY_ID.has(t));
+  }
+  sim.beings.strains.restore(data);
 }

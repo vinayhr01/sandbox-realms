@@ -29,19 +29,20 @@ export interface DominionContext {
   owner: Map<number, number>;
 }
 
+/** Key of an unordered pair of dominion ids: the lower id first. */
+export function pairKey(a: number, b: number): string {
+  return a < b ? `${a}:${b}` : `${b}:${a}`;
+}
+
 /** Symmetric relation store keyed by the sorted pair of dominion ids. */
 export class RelationMatrix {
   private readonly map = new Map<string, Relation>();
 
-  private key(a: number, b: number): string {
-    return a < b ? `${a}:${b}` : `${b}:${a}`;
-  }
-
   get(a: number, b: number): Relation {
-    return this.map.get(this.key(a, b)) ?? 'peace';
+    return this.map.get(pairKey(a, b)) ?? 'peace';
   }
 
   set(a: number, b: number, r: Relation): void {
-    this.map.set(this.key(a, b), r);
+    this.map.set(pairKey(a, b), r);
   }
 }

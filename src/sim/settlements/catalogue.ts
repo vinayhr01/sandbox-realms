@@ -1,5 +1,5 @@
 /**
- * Hamlet buildings (reduced slice of 18c section 4.1 and 09 section 3). Costs are in stockpile
+ * Hamlet buildings (reduced slice of 18c section 4.1 and 09 section 7). Costs are in stockpile
  * units; footprints are square side lengths in tiles. Numbers are TUNE.
  */
 export interface BuildingDef {
@@ -29,7 +29,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
   { id: 'well', name: 'Well', wood: 2, stone: 6, footprint: 1, foodCapacity: 0, foodYield: 10, housing: 0, storage: 0, woodYield: 0 },
   { id: 'storehouse', name: 'Storehouse', wood: 12, stone: 6, footprint: 3, foodCapacity: 0, foodYield: 0, housing: 0, storage: 300, woodYield: 0 },
   { id: 'workshop', name: 'Workshop', wood: 14, stone: 4, footprint: 2, foodCapacity: 0, foodYield: 0, housing: 0, storage: 0, woodYield: 3 },
-  // Quarry (09 section 3): works stone outcrops; yield per growth step is set by `stoneYield`.
+  // Quarry (09 section 7): works stone outcrops; yield per growth step is set by `stoneYield`.
   { id: 'quarry', name: 'Quarry', wood: 10, stone: 0, footprint: 2, foodCapacity: 0, foodYield: 0, housing: 0, storage: 0, woodYield: 0, stoneYield: 2 },
 ];
 

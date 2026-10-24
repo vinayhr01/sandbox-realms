@@ -6,6 +6,7 @@ import type { Sim } from './sim.ts';
 import type { Rng } from '../shared/rng.ts';
 import { TUNING } from './beings/tuning.ts';
 import { ssToTicks } from './clock.ts';
+import { MONTH_TICKS, YEAR_TICKS } from '../shared/constants.ts';
 import { terrainState, type FloraJob } from './terrain/state.ts';
 
 /**
@@ -35,8 +36,8 @@ export interface FloraDef {
   beach: boolean;
 }
 
-const Y = 1200;
-const mo = (n: number): number => n * 100;
+const Y = YEAR_TICKS;
+const mo = (n: number): number => n * MONTH_TICKS;
 
 
 const mineral = (id: string): FloraDef => ({ id, kind: 'mineral', biomes: [], matureTicks: 0, lifespanTicks: 0, spreadChance: 0, spreadSteps: 0, flammable: false, droughtSensitive: false, coldSensitive: false, beach: false });
@@ -132,7 +133,7 @@ function parcelTrees(sim: Sim, i: number): number {
 }
 
 /** Growth stage 0 sprout, 1 young, 2 mature, 3 old, from age in ticks (18d 5.1). */
-export function floraStage(def: FloraDef, ageTicks: number): number {
+function floraStage(def: FloraDef, ageTicks: number): number {
   if (def.lifespanTicks > 0 && ageTicks >= def.lifespanTicks) return 3;
   if (ageTicks >= def.matureTicks) return 2;
   if (ageTicks >= def.matureTicks / 3) return 1;

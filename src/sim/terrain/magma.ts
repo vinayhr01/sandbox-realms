@@ -15,7 +15,7 @@ const SWEEP_BUDGET = 2000;
 const coolTicks = (level: number): number => Math.round((COOL_AFTER_SS[level] ?? 4) * 20);
 
 /** Level 0..3 of a molten ground id, or -1. */
-export function magmaLevel(id: number): number {
+function magmaLevel(id: number): number {
   return id >= G.molten_1 && id <= G.molten_4 ? id - G.molten_1 : -1;
 }
 

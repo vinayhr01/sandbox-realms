@@ -8,6 +8,7 @@ import { snapshotHamlets, restoreHamlets, type HamletSnapshot } from './settleme
 import { refreshStats } from './beings/system.ts';
 import { restoreItems, saveItems, type ItemSave } from './items/system.ts';
 import { SPECIES } from '../content/beasts.ts';
+import { DECISION_ROWS } from '../content/decisions.ts';
 import { STRAIN_TRAIT_BY_ID } from '../content/traits.ts';
 import type { Strain } from './beings/strains.ts';
 import { restoreClans, type ClanState } from './clans/clans.ts';
@@ -36,11 +37,15 @@ export { fnv1a };
 export const CHRONICLE_MAGIC = 'SRCH';
 export const FORMAT_VERSION = 1;
 /**
+ * Schema 4 (beings round 6): each Being in the beings section also carries mood, endurance, sleep (end tick
+ * and last vitality), bond and close-contact links, and one decision cooldown per decision (the decision
+ * count is written first and must match content/decisions.ts). Schema 3 saves are rejected: their beings
+ * section has none of these fields.
  * Schema 3 (beings round 2): the beings section carries each Being's parent link (slot and generation,
  * 06 section 6.1), strain id, stored aptitudes and marks; section 17 holds the strain registry. Schema 2
  * saves are rejected: they have no parent links or strains to restore.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 const HEADER_BYTES = 16;
 /** Realm size steps a save (and a NewRealm command) may name. */
 export const MIN_SIZE_STEP = 2;
@@ -247,6 +252,7 @@ export function encodeChronicle(sim: Sim): Uint8Array {
     const alive: number[] = [];
     for (let slot = 0; slot < s.capacity; slot++) if (s.alive[slot] === 1) alive.push(slot);
     w.u32(s.capacity);
+    w.u8(DECISION_ROWS.length);
     w.u32(alive.length);
     for (const slot of alive) {
       w.u32(slot);
@@ -271,6 +277,17 @@ export function encodeChronicle(sim: Sim): Uint8Array {
       w.u32(s.strain[slot] ?? 0);
       for (let k = 0; k < 4; k++) w.u16(s.attrs[slot * 4 + k] ?? 0);
       for (let k = 0; k < 5; k++) w.u32(s.marks[slot * 5 + k] ?? 0);
+      // Round 6 (schema 4): mood, endurance, sleep, bonds, and the decision cooldowns (07 section 14).
+      w.i16(s.mood[slot] ?? 0);
+      w.u16(s.endurance[slot] ?? 0);
+      w.u32(s.sleepUntil[slot] ?? 0);
+      w.i16(s.sleepVit[slot] ?? 0);
+      w.i32(s.bondWith[slot] ?? -1);
+      w.u32(s.bondGen[slot] ?? 0);
+      w.i32(s.closeWith[slot] ?? -1);
+      w.u32(s.closeGen[slot] ?? 0);
+      w.u32(s.closeSince[slot] ?? 0);
+      for (let k = 0; k < DECISION_ROWS.length; k++) w.u32(sim.beings.cooldown[slot * DECISION_ROWS.length + k] ?? 0);
     }
     // Full generation table (dead slots keep their counters) and the exact list and free-stack order.
     for (let slot = 0; slot < s.capacity; slot++) w.u32(s.generation[slot] ?? 0);
@@ -538,6 +555,7 @@ function decodeBeings(sim: Sim, r: Reader): void {
   const s = sim.beings.store;
   const capacity = r.u32();
   if (capacity !== s.capacity) throw new Error('chronicle: being capacity mismatch');
+  if (r.u8() !== DECISION_ROWS.length) throw new Error('chronicle: being decision count mismatch');
   const count = r.u32();
   const seen = new Set<number>();
   // Read everything first so a corrupt section fails before any state is applied.
@@ -551,9 +569,7 @@ function decodeBeings(sim: Sim, r: Reader): void {
     const y = r.u16();
     if (species >= SPECIES.length) throw new Error(`chronicle: being ${slot} has an unknown species ${species}`);
     if (x >= sim.realm.side || y >= sim.realm.side) throw new Error(`chronicle: being ${slot} stands outside the realm`);
-    raw.push({
-      slot,
-      fields: {
+    const fields: Record<string, number> = {
         species,
         x,
         y,
@@ -582,8 +598,22 @@ function decodeBeings(sim: Sim, r: Reader): void {
         mark2: r.u32(),
         mark3: r.u32(),
         mark4: r.u32(),
-      },
-    });
+        mood: r.i16(),
+        endurance: r.u16(),
+        sleepUntil: r.u32(),
+        sleepVit: r.i16(),
+        bondWith: r.i32(),
+        bondGen: r.u32(),
+        closeWith: r.i32(),
+        closeGen: r.u32(),
+        closeSince: r.u32(),
+    };
+    for (let c = 0; c < DECISION_ROWS.length; c++) fields[`cool${c}`] = r.u32();
+    // Shape checks (schema 4): mood in range, endurance within the species maximum, bond links name a
+    // being in this save (checked below once every slot is known).
+    if ((fields['mood'] ?? 0) < -100 || (fields['mood'] ?? 0) > 100) throw new Error(`chronicle: being ${slot} has a mood out of range`);
+    if ((fields['endurance'] ?? 0) > sim.beings.species(species).endurance) throw new Error(`chronicle: being ${slot} has endurance above its species`);
+    raw.push({ slot, fields });
   }
   const generation: number[] = [];
   for (let slot = 0; slot < capacity; slot++) generation.push(r.u32());
@@ -600,7 +630,15 @@ function decodeBeings(sim: Sim, r: Reader): void {
     throw new Error('chronicle: being list does not match the live records');
   }
   if (freeLen + count !== capacity) throw new Error('chronicle: free stack size mismatch');
+  for (const rec of raw) {
+    for (const link of [rec.fields['bondWith'] ?? -1, rec.fields['closeWith'] ?? -1]) {
+      if (link !== -1 && !seen.has(link)) throw new Error(`chronicle: being ${rec.slot} names a missing bond partner`);
+    }
+  }
 
+  // Tasks are not saved (07 section 14): every loaded Being picks again.
+  sim.beings.task.fill(-1);
+  sim.beings.cooldown.fill(0);
   for (const rec of raw) {
     const f = rec.fields;
     const slot = rec.slot;
@@ -627,6 +665,16 @@ function decodeBeings(sim: Sim, r: Reader): void {
     for (let k = 0; k < 4; k++) s.attrs[slot * 4 + k] = f[`attr${k}`] ?? 0;
     for (let k = 0; k < 5; k++) s.marks[slot * 5 + k] = f[`mark${k}`] ?? 0;
     if (!sim.beings.strains.get(s.strain[slot] ?? 0)) throw new Error(`chronicle: being ${slot} names a missing strain`);
+    s.mood[slot] = f['mood'] ?? 0;
+    s.endurance[slot] = f['endurance'] ?? 0;
+    s.sleepUntil[slot] = f['sleepUntil'] ?? 0;
+    s.sleepVit[slot] = f['sleepVit'] ?? 0;
+    s.bondWith[slot] = f['bondWith'] ?? -1;
+    s.bondGen[slot] = f['bondGen'] ?? 0;
+    s.closeWith[slot] = f['closeWith'] ?? -1;
+    s.closeGen[slot] = f['closeGen'] ?? 0;
+    s.closeSince[slot] = f['closeSince'] ?? 0;
+    for (let c = 0; c < DECISION_ROWS.length; c++) sim.beings.cooldown[slot * DECISION_ROWS.length + c] = f[`cool${c}`] ?? 0;
   }
   for (let slot = 0; slot < capacity; slot++) s.generation[slot] = generation[slot] ?? 0;
   s.restoreLayout(list, free);

@@ -40,8 +40,7 @@ test('a realm file imports, survives a reload, exports byte for byte, and delete
   await expect(page.locator('#realm-name')).toContainText('Realm');
 
   let chronicle = await openChronicle(page);
-  await expect(chronicle.getByRole('button', { name: 'Save to a new slot', exact: true })).toBeDisabled();
-  await expect(chronicle.getByText('Saving the live realm is not available in this build yet.')).toBeVisible();
+  await expect(chronicle.getByRole('button', { name: 'Save to a new slot', exact: true })).toBeEnabled();
 
   await chronicle.getByLabel('Import a realm file (.realm)').setInputFiles({
     name: 'Test Realm.realm',
@@ -51,12 +50,13 @@ test('a realm file imports, survives a reload, exports byte for byte, and delete
   await expect(chronicle.getByText('Saved the imported realm in slot 1.')).toBeVisible();
   await expect(chronicle.getByRole('button', { name: 'Export Test Realm, slot', exact: true })).toBeVisible();
 
-  // Load is refused in this build: the confirmation says why and its button stays disabled.
+  // Load replaces the live realm: the confirmation's Load button is enabled and the save reports it.
   await chronicle.getByRole('button', { name: 'Load Test Realm, slot', exact: true }).click();
   const confirm = page.getByRole('dialog', { name: 'Confirm', exact: true });
-  await expect(confirm.getByRole('button', { name: 'Load', exact: true })).toBeDisabled();
-  await expect(confirm.getByText('Loading a realm is not available in this build yet.')).toBeVisible();
-  await confirm.getByRole('button', { name: 'Back to Chronicle', exact: true }).click();
+  await expect(confirm.getByRole('button', { name: 'Load', exact: true })).toBeEnabled();
+  await confirm.getByRole('button', { name: 'Load', exact: true }).click();
+  await expect(page.getByText('Loaded the save.')).toBeVisible();
+  chronicle = await openChronicle(page);
 
   // The save is still there after a reload.
   await page.reload();

@@ -8,13 +8,14 @@ import { silentMusicState, type MusicState } from '../audio/music.ts';
 import { boolOption, numberOption, type Options } from '../ui/panels/options.ts';
 
 /**
- * The music state the view can supply: paused and zoom come from the game, the rest stays at its
- * silent default until the sim publishes it (age, biome share, mood, lineage). `zoom01` is the camera
- * zoom scaled to 0 (most zoomed out) .. 1 (most zoomed in); below 0.15 is the overview (16 B8).
+ * The music state the view can supply: paused and zoom come from the game; the Age, biome shares and
+ * mood come from the sim feed (`feed`, see src/audio/feed.ts) and stay silent until it arrives. The
+ * lineage stays unset. `zoom01` is the camera zoom scaled to 0 (most zoomed out) .. 1 (most zoomed
+ * in); below 0.15 is the overview (16 B8).
  */
-export function musicViewState(view: { paused: boolean; zoom01: number }): MusicState {
+export function musicViewState(view: { paused: boolean; zoom01: number }, feed?: Partial<MusicState>): MusicState {
   const zoom = Number.isFinite(view.zoom01) ? Math.min(1, Math.max(0, view.zoom01)) : 0;
-  return { ...silentMusicState(), paused: view.paused, zoom, isOverview: zoom < 0.15 };
+  return { ...silentMusicState(), ...feed, paused: view.paused, zoom, isOverview: zoom < 0.15 };
 }
 
 /** Engine options from the settings. Sliders are 0..100 on both sides. */

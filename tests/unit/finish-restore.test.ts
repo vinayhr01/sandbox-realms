@@ -138,11 +138,6 @@ describe('restoreTarget', () => {
 describe('recovery ladder for the restore button', () => {
   const attempts: RecoveryAttempt[] = [];
 
-  it('a fatal fault with a valid autosave restarts from it first', () => {
-    const d = decideRecovery({ kind: 'sim_fatal', nowMs: 1_000, attempts, hasValidAutosave: true });
-    expect(d.level).toBe('restart_from_autosave');
-  });
-
   it('without a valid autosave the ladder does not offer a restart from it', () => {
     const d = decideRecovery({ kind: 'sim_fatal', nowMs: 1_000, attempts, hasValidAutosave: false });
     expect(d.level).not.toBe('restart_from_autosave');

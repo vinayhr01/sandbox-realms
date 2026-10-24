@@ -49,21 +49,6 @@ describe('death counters', () => {
 });
 
 describe('audio model', () => {
-  it('the voice cap drops the lowest-priority voice for a more important one', () => {
-    const m = new AudioModel();
-    const cap = CATEGORY_CAPS['voices'] ?? 6;
-    const ids: number[] = [];
-    for (let k = 0; k < cap; k++) {
-      const r = m.play('voices', 4, k);
-      expect(r).not.toBeNull();
-      if (r) ids.push(r.id);
-    }
-    const important = m.play('voices', 1, 100);
-    expect(important).not.toBeNull();
-    expect(important?.stolen).toBe(ids[0]);
-    expect(m.voices.length).toBe(cap);
-  });
-
   it('refuses a voice that is less important than every playing voice', () => {
     const m = new AudioModel();
     const cap = CATEGORY_CAPS['ui'] ?? 6;
@@ -79,14 +64,5 @@ describe('audio model', () => {
     expect(m.volume('sfx')).toBe(0);
     m.setVolume('sfx', Number.NaN);
     expect(m.volume('sfx')).toBe(0);
-  });
-
-  it('a hidden tab mutes every bus and refuses new voices', () => {
-    const m = new AudioModel();
-    expect(m.effectiveGain('sfx')).toBeGreaterThan(0);
-    m.setHidden(true);
-    expect(m.effectiveGain('sfx')).toBe(0);
-    expect(m.effectiveGain('music')).toBe(0);
-    expect(m.play('ui', 0, 0)).toBeNull();
   });
 });

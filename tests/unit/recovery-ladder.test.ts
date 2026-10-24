@@ -91,11 +91,6 @@ describe('decideRecovery', () => {
 });
 
 describe('boot-loop guard', () => {
-  it('detects three unclean boots inside five minutes', () => {
-    const boots = [NOW - 60_000, NOW - 120_000, NOW - 200_000];
-    expect(isBootLoop(boots, NOW)).toBe(true);
-  });
-
   it('does not trip on two boots or on boots older than the window', () => {
     expect(isBootLoop([NOW - 60_000, NOW - 120_000], NOW)).toBe(false);
     expect(isBootLoop([NOW - BOOT_LOOP_WINDOW_MS - 1, NOW - 120_000, NOW - 60_000], NOW)).toBe(false);

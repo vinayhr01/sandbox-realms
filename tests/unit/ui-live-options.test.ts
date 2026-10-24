@@ -9,7 +9,7 @@ describe('live options (13 section 15)', () => {
     expect(DEFAULT_OPTIONS['game.confirmQuit']).toBe(true);
   });
 
-  it('the table still has 72 rows and the live count is recorded', () => {
+  it('the table has 75 rows (72 spec 13 plus 3 spec 16 audio) and the live count is recorded', () => {
     // 72 spec 13 rows plus three audio options from spec 16 (audio.mono, audio.visualCues, audio.reduceLoud).
     expect(SETTINGS.length).toBe(75);
     expect(SETTINGS.filter((s) => s.live).length).toBeGreaterThanOrEqual(22);

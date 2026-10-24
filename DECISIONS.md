@@ -9,21 +9,21 @@ Two parts. **Current state** is the latest verified state and wins over anything
 | Stack | Vite 8, TypeScript 7 strict, PixiJS 8 (WebGL), Vitest 5, Playwright. Single package, `src/` split by area. |
 | Realm sizes | Grid side is 64 x sizeStep. New Realm menu offers 3 to 5 (192, 256, 320). The 512 px realm is not offered. |
 | Sim | Pure `Sim` class in a worker, 20 ticks/s, MessageChannel pump, 8 ms budget (warning only; tests use a 50 ms gate). Heartbeat is never posted. |
-| Determinism | sfc32 seeded RNG, FNV-1a state hash. Golden replay `tests/unit/golden.test.ts`, `GOLDEN_HASH = 2562049680`. Lint `scripts/check-determinism.mjs` bans `Math.random`, `Date`, `performance.now` only. |
+| Determinism | sfc32 seeded RNG, FNV-1a state hash. Golden replay `tests/unit/golden.test.ts`, `GOLDEN_HASH = 2562049680`. Lint `scripts/check-determinism.mjs` (its own CI job) bans `Math.random`, `Date.now`, `new Date(`, `performance.now` and `crypto.getRandomValues` in `src/sim`, `src/shared` and `src/content`; `src/sim/worker.ts` is the one allowlisted file. |
 | Save format | `SCHEMA_VERSION = 3` (`src/sim/chronicle.ts`). Schema 2 and older are rejected. Sections 12 to 17 are optional where noted in the log. |
-| Saves in play | `encodeChronicle` and `decodeChronicle` have no caller outside tests. The Chronicle window lists slots only. No autosave, load, import or export in play. IndexedDB store `SaveService` exists and is opened only for listing. |
+| Saves in play | Wired. The sim worker runs `encodeChronicle` and `decodeChronicle` on capture and restore commands (`src/sim/worker.ts`; `liveRealm` in `src/app/main.ts`). `SaveController` runs save, load, delete, export, import, autosave (timer and on pause) and the restore prompt over `SaveService` (IndexedDB, memory fallback). Not run in a real browser: the IndexedDB backend (type-checked and model-tested only). Checksum quarantine not built. |
 | Beings | 90 SPECIES rows (84 beasts, 6 Folk). Folk never spawn in play (`spawnFolk` has no caller). Traits: 144 being, 154 strain. Ecosystem exit test not met (see below). |
 | Combat and statuses | 24 status definitions (spec roster 56). No status is applied in play. `meleeSwing` has no caller. |
 | Settlements, dominions, culture | Hamlets run (6 buildings). Dominions and culture are inert in play: `addDominion`, `addCustom`, `startIntrigue`, `addFamily` have no caller outside tests. |
-| Powers | 138 entries; 136 enabled in the UI; 122 dispatch to real sim code. Favour and Insight tabs are empty (`favour_bless`, `insight_lore` disabled). |
+| Powers | 138 entries; all 138 enabled in the UI (`powerStatus`); 122 dispatch to real sim code (not recounted in this pass). Favour has one power (Bless, `favour_bless`) and Insight has one (Lore, `insight_lore`); the rest of those tabs is not built. |
 | Rules, ages, calamities | 49 rules (about 18 never read), 11 ages, 16 calamities rolled every 80 ticks. |
-| UI | 12 window ids (spec lists 62). Options: 72 settings, about 44 live, saved to localStorage. Tutorial 4 steps. Edge pan, pinch and wheel zoom. Long-press, undo and minimap missing. |
-| Audio | `AudioModel` drives volumes only. `AudioEngine` (WebAudio) is not imported by the app. No music. |
-| Recovery | Sentinel, journal and fatal dialog wired. `decideRecovery`, `restoreOffers` and Safe Mode are tested but unreachable. |
-| Achievements | 63 defined and evaluated each sim-second (`stats-hooks.ts`). `src/sim/progression.ts` (taint, credit, codex) is tested but unused. |
+| UI | `WINDOW_CATALOG` has 74 entries: 62 of 62 spec window rows built (the nine `win_customize_*` ids are one row), plus 4 extras. Options: 75 settings (72 spec 13 rows and 3 spec 16 audio rows), saved to localStorage; 25 rows are flagged `live` (the older "about 44" figure was not reproduced). Tutorial 4 steps. Edge pan, pinch and wheel zoom. Long-press, undo and minimap missing. |
+| Audio | Wired. `AudioEngine` (WebAudio, `src/audio/engine.ts`) is built in `main.ts` and unlocks on the first pointer, key or touch (never in Safe Mode). A procedural music bed starts on unlock; its state follows pause and tab visibility. `AudioModel` holds voice caps, volumes and mutes. Not checked on a device. |
+| Recovery | Wired. Sentinel, journal and fatal dialog (`main.ts`). `decideRecovery` picks the ladder step on a fault; the restore offer uses `restoreOffers` (Safe Mode offers only the previous autosave generation); the boot-loop guard shows its own dialog. No crash record, consent or chaos test. |
+| Achievements | 63 defined and evaluated each sim-second (`stats-hooks.ts`). `src/sim/progression.ts` is used: `codexProgress` (`snapshot.ts`), `trophySummary` and `visibleText` (`snapshot-model.ts`). Its `countsCredited`, `grantAllowed` and `achievementProgress` are tested but have no caller outside tests. |
 | Build and CI | `npm run typecheck`, `check:determinism`, `build` (includes `check:budgets`) and Playwright in `.github/workflows/ci.yml`. Vitest config includes `tests/unit` only. |
 | Browsers | Chromium and WebKit ran in this project's runs (smoke and platform specs). Firefox cannot launch on the Windows dev machine; it is configured in Playwright and CI but has not run. Devices not tested. |
-| Ecosystem (M3 exit) | Not met. Old 7 or 8 of 8 species figures were measured before the 90-species roster and must be re-measured with `npm run soak`. |
+| Ecosystem (M3 exit) | Not met. The strict soak (`STRICT=1 npm run soak`) was run on the 90-species roster: year-10 totals were 1,103 to 1,573 on six seeds, and 32 to 41 of 90 species survived (the record gives year 10 only). All-species survival is not met. See Beings round 2. |
 
 ## Decision log
 
@@ -86,7 +86,7 @@ Two parts. **Current state** is the latest verified state and wins over anything
 - Settlements, dominions, culture, powers and calamities, stats and achievements were wired into `Sim` and the UI. Options dialog and power bar added.
 - Superseded: "Only Raise and Lower work on the map; other powers arm but do nothing." Now 136 of 138 powers are enabled in the UI, and 122 dispatch to sim code.
 - Superseded: "dominions are in the running sim". Dominion creation has no caller in play; the code runs only when a dominion exists (tests).
-- Save format at the merge: SCHEMA_VERSION 2. Chronicle sections culture 12, calamity 13, lifetime 14, dominions 15, hamlets 16 (12 to 16 optional). Older saves still load. Saves from before the flora regrowth change (schema 1) were rejected.
+- Save format at the merge: SCHEMA_VERSION 2. Chronicle sections culture 12, calamity 13, lifetime 14, dominions 15, hamlets 16 (12 to 16 optional). Older saves still load (superseded: schema 3 rejects schema 2 and older, see Beings round 2). Saves from before the flora regrowth change (schema 1) were rejected.
 
 ### Fix rounds
 
@@ -153,15 +153,15 @@ Two parts. **Current state** is the latest verified state and wins over anything
 ### Ecosystem and content counts (current)
 
 - Achievements 63 (spec 63); stat evaluation runs each sim-second.
-- Settings 72 (the spec 14 count in older notes was about 65).
-- Windows 12 in `WINDOW_CATALOG` (spec 13 lists 62).
+- Settings 72 (the spec 14 count in older notes was about 65). Superseded: the table has 75 rows (72 spec 13 rows and 3 spec 16 audio rows).
+- Windows 12 in `WINDOW_CATALOG` (spec 13 lists 62). Superseded: the catalog has 74 entries; 62 of 62 spec window rows are built, and 4 entries have no spec id.
 
 ### Open items
 
-- Re-measure the M3 exit with the 90-species roster (`npm run soak`) and record the result here.
+- ~~Re-measure the M3 exit with the 90-species roster (`npm run soak`) and record the result here.~~ Done: see Beings round 2 (strict soak, 90 species).
 - Decide whether the 06 section 6.1 partner cap is required.
 - Settle the milestone-to-spec mapping: `BUILD-PLAN.md` and `Spec/ROADMAP.md` disagree on some rows (e.g. M0 lists 13; M3 lists 18a and 18b). This project follows ROADMAP and adds 18a to 18e from BUILD-PLAN.
-- Save wiring, recovery wiring, audio engine wiring and the heartbeat are all unwired in the running game (see Current state).
+- ~~Save wiring, recovery wiring, audio engine wiring and the heartbeat are all unwired in the running game.~~ Superseded: save, recovery and audio are wired (see Current state). The heartbeat is still never posted.
 
 ## Powers round 3
 
@@ -171,7 +171,8 @@ Scope: `favour_bless` (Favour tab) and `insight_lore` (Insight tab), and the `ri
 - **Bless (`favour_bless`).** Ritual power, `requires: ['rituals']`. Gives status `warded` (60 s, taken x0.1; the nearest spec boon to "Ward", 12 section 8.7) to every living being within Chebyshev radius 3 of the target tile. Runs on empty ground too (counts as a use, no beings affected). Handler `bless` in `src/sim/powers/rites.ts`.
 - **Lore (`insight_lore`).** Records the species of every living being within radius 4 as a codex discovery (`discoveries` set, `species:<id>`, 14 section 5). Repeats record nothing. Read-only accessor `loreKnown(sim)`. The snapshot codex count already reads this set, so no snapshot field was added. Does not need `rituals`. Handler `lore`.
 - **Rituals rule effect.** `rituals` off refuses ritual powers: `executePower` now checks every rule in a power's `requires` before dispatch (12 section 8 soft gate; the rule still does not hide the power). Intrigue starts were already gated in `src/sim/culture/culture.ts`; culture code is unchanged. `RITUALS_RULE` constant in `src/sim/rules.ts`.
-- **Not done.** The UI toast `hint.rule_off` and the Lore window are not built. `powerStatus` (`src/ui/powerSupport.ts`) lists handlers in `SIM_HANDLERS`; `bless` and `lore` must be added there before the two powers show as enabled. `tests/unit/ui-powers.test.ts` and `tests/e2e/panels.spec.ts` (expects Bless to read "not available yet") follow from that.
+- **Superseded (done).** `bless` and `lore` are now in `SIM_HANDLERS` (`src/ui/powerSupport.ts`), so both powers are enabled. The earlier "must be added there" note and the `tests/e2e/panels.spec.ts` expectation that Bless reads "not available yet" no longer apply.
+- **Still not built.** The UI toast `hint.rule_off` and the Lore window (`win_lore` is not in `WINDOW_CATALOG`).
 - **Golden.** `GOLDEN_HASH` unchanged (2562049680); the golden replay uses no powers.
 
 ## Clans (kinbands)

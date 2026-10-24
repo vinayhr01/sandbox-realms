@@ -22,6 +22,7 @@ import { AudioEngine } from '../audio/engine.ts';
 import { audioOptionsFrom, CUE, musicViewState, type Cue } from './audio-wiring.ts';
 import { LAYER_CAP_DESKTOP, LAYER_CAP_PHONE } from '../audio/music.ts';
 import { panFor } from '../audio/mix.ts';
+import { MusicFeed } from '../audio/feed.ts';
 import { SimClient } from './sim-client.ts';
 import {
   bootGuard,
@@ -246,6 +247,12 @@ async function boot(): Promise<void> {
   const host = $('map');
   const renderer = await TerrainRenderer.create(host);
   const client = new SimClient();
+  // Audio feed: the Age, biome shares and mood from each snapshot (16 B8). Read by the music state below.
+  const musicFeed = new MusicFeed();
+  // A respawned worker has lost its realm: resume from the newest autosave when there is one.
+  client.onRespawn(() => {
+    if (autosaveRecovery) void autosaveRecovery.restore();
+  });
   restartRealm = () => {
     void client.newRealm(Math.floor(Math.random() * 0x7fffffff), DEFAULT_SIZE_STEP);
   };
@@ -739,6 +746,7 @@ async function boot(): Promise<void> {
         return;
       case Ev.Snapshot:
         simView.apply(event.snap);
+        musicFeed.ingest(event.snap);
         return;
       case Ev.QueryResult:
       case Ev.Heartbeat:
@@ -892,7 +900,7 @@ async function boot(): Promise<void> {
     if (audioUnlocked && cam && musicClockMs >= 1000) {
       musicClockMs = 0;
       const zoom01 = (cam.zoom - cam.minZoom) / (cam.maxZoom - cam.minZoom);
-      audio.setMusicState(musicViewState({ paused: state.paused || document.hidden, zoom01 }));
+      audio.setMusicState(musicViewState({ paused: state.paused || document.hidden, zoom01 }, musicFeed.partial()));
     }
 
     const cursor: CursorState = {

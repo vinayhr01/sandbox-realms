@@ -21,7 +21,9 @@ Four pure modules and one adapter. Only `engine.ts` touches WebAudio, and the si
 
 ## Not built yet (16 section B)
 
-- Music stems, the scheduler and the mood and biome state (B8). Only the smoothing function exists.
+- Music stems are synthesised stand-ins, not recorded stems. Built: the stem table, the scheduler, Bed A/B alternation, breathing and frequency rests (`breathing.ts`), the Age, biome and mood feed from the snapshot (`feed.ts`), the overview and pause low-pass.
+- The feed is realm-wide, not view-limited: the worker does not know the camera, so "biome share in view" and "mood in view" are realm approximations. Night and the calamity flag are not fed yet (they stay at 0 and false).
+- The biome-to-family map (`feed.ts`) and the mood scales are content guesses marked TUNE.
 - Most of the B2 file list (about 56 of about 660 files are represented). Voices are synthesised stand-ins, not recordings.
 - Per-category bus gains for ambience and voices are handled by sub-buses in the engine; the model still has four buses.
 - Mono downmix (B9 `mono`) and visual sound cues are stored as options but not applied.

@@ -9,14 +9,16 @@
 import { AudioModel, BUSES, busForCategory, type Bus } from './model.ts';
 import { DEFAULT_AUDIO_OPTIONS, optionOfCategory, sliderToGain, type AudioOptions } from './options.ts';
 import { dbToGain } from './mix.ts';
-import { SOUND_BY_ID, canStart, type SoundDef } from './sounds.ts';
+import { SOUND_BY_ID, ageBedLevelDb, canStart, type SoundDef } from './sounds.ts';
 import { renderSound } from './synth.ts';
 import {
   LAYER_CAP_DESKTOP,
+  OPEN_CUTOFF_HZ,
   STEPS_PER_LOOP,
   STEM_DEFS,
   barStepAtOrAfter,
   capLayers,
+  musicCutoffHz,
   noteSeconds,
   shouldStop,
   silenceSince,
@@ -31,6 +33,7 @@ import {
   type MusicState,
   type StemDef,
 } from './music.ts';
+import { NO_RESTS, RestPlanner, applyRests, sameRests, type Rests } from './breathing.ts';
 
 /** Gain changes use a 30 ms time constant to avoid zipper noise (B5). */
 const TIME_CONSTANT = 0.03;
@@ -41,6 +44,9 @@ const MASTER_REDUCED_DB = -4;
 /** Music ducking: the dip and the recovery time constants in seconds (B5). */
 const DUCK_ATTACK = 0.01;
 const DUCK_RELEASE = 0.2;
+/** Age change crossfade of the bed level (B "Audio loudness by Age": 4 s), and the bed A/B crossfade. */
+const AGE_TRIM_TAU_S = 1.3;
+const BED_XFADE_TAU_S = 1.0;
 
 export interface ParamLike {
   value: number;
@@ -114,6 +120,12 @@ interface StemVoice {
   def: StemDef;
   gain: GainLike;
   drones: OscLike[];
+  /**
+   * Drones with a B voicing: one gain per voicing, crossfaded at loop boundaries (B8 Bed A/B). A
+   * voicing's oscillators are built the first time it is heard, so a bed that never switches stays
+   * at one voicing's oscillators.
+   */
+  alt: { gains: [GainLike, GainLike]; built: [boolean, boolean] } | null;
   startStep: number;
   nextStep: number;
   level: number;
@@ -154,6 +166,13 @@ export class AudioEngine {
   private readonly stems = new Map<string, StemVoice>();
   private noise: BufferLike | null = null;
   private layerCap = LAYER_CAP_DESKTOP;
+  /** Music bus chain: music bus -> ageTrim (Age loudness) -> musicFilter (overview and pause) -> master. */
+  private ageTrim: GainLike | null = null;
+  private musicFilter: FilterLike | null = null;
+  private ageId: string | null | undefined = undefined;
+  private readonly rests = new RestPlanner();
+  private restState: Rests = NO_RESTS;
+  private bedLoop = -1;
 
   constructor(private readonly makeContext: ContextFactory = browserContextFactory) {}
 
@@ -192,6 +211,14 @@ export class AudioEngine {
     this.master = master;
     this.busNodes.set('master', master);
 
+    // Music goes through the Age trim and the overview and pause low-pass (B5, B8 rule 5).
+    const musicFilter = ctx.createBiquadFilter ? ctx.createBiquadFilter() : null;
+    if (musicFilter) {
+      musicFilter.type = 'lowpass';
+      musicFilter.frequency.value = OPEN_CUTOFF_HZ;
+      musicFilter.connect(master);
+      this.musicFilter = musicFilter;
+    }
     for (const bus of BUSES) {
       if (bus === 'master') continue;
       const node = ctx.createGain();
@@ -203,6 +230,16 @@ export class AudioEngine {
       const node = ctx.createGain();
       if (sfx) node.connect(sfx);
       this.subNodes.set(sub, node);
+    }
+    // The music bus goes through the Age trim, then the filter, then master (created last so the
+    // earlier node order is unchanged).
+    const ageTrim = ctx.createGain();
+    ageTrim.connect(musicFilter ?? master);
+    this.ageTrim = ageTrim;
+    const musicBus = this.busNodes.get('music');
+    if (musicBus) {
+      musicBus.disconnect();
+      musicBus.connect(ageTrim);
     }
     this.applyOptions(this.options);
     void ctx.resume();
@@ -351,6 +388,9 @@ export class AudioEngine {
       buffer.copyToChannel(data, 0);
       this.noise = buffer;
     }
+    this.rests.reset();
+    this.restState = NO_RESTS;
+    this.bedLoop = -1;
     this.musicTimer = setInterval(() => this.scheduleMusic(), SCHEDULE_TICK_MS);
     this.updateStems();
     this.scheduleMusic();
@@ -367,13 +407,30 @@ export class AudioEngine {
   setMusicState(state: MusicState): void {
     this.musicState = state;
     this.updateStems();
+    this.updateMusicBus(state);
   }
 
-  /** Moves each stem toward its capped target. Smoothing uses the attack and release constants. */
+  /**
+   * The music bus low-pass (open, overview, or paused; B5 and B8 rule 5) and the Age loudness trim,
+   * which crossfades when the Age changes (16 "Audio loudness by Age").
+   */
+  private updateMusicBus(state: MusicState): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    this.musicFilter?.frequency.setTargetAtTime(musicCutoffHz(state), now, TIME_CONSTANT * 10);
+    if (state.ageId !== this.ageId) {
+      this.ageId = state.ageId;
+      this.ageTrim?.gain.setTargetAtTime(dbToGain(ageBedLevelDb(state.ageId ?? '')), now, AGE_TRIM_TAU_S);
+    }
+  }
+
+  /** Moves each stem toward its capped target, less any rests. Smoothing uses the attack and release constants. */
   private updateStems(): void {
     const ctx = this.ctx;
     if (!ctx || this.musicTimer === null) return;
-    const targets = capLayers(stemTargets(this.musicState), STEM_DEFS, this.layerCap);
+    const capped = capLayers(stemTargets(this.musicState), STEM_DEFS, this.layerCap);
+    const targets = applyRests(capped, this.restState, STEM_DEFS);
     const now = ctx.currentTime;
     const nowMs = performance.now();
     for (const def of STEM_DEFS) {
@@ -387,7 +444,10 @@ export class AudioEngine {
     }
   }
 
-  /** Creates a stem's gain node and, for drones, its oscillators, starting on the next bar. */
+  /**
+   * Creates a stem's gain node and, for drones, its oscillators, starting on the next bar. A drone
+   * with a B voicing gets one gain per voicing; applyBedVariants picks which one is heard.
+   */
   private startStem(def: StemDef, now: number): StemVoice | null {
     const ctx = this.ctx;
     const bus = this.busNodes.get('music');
@@ -398,19 +458,66 @@ export class AudioEngine {
     const startStep = barStepAtOrAfter(this.musicOrigin, now);
     const at = stepTime(this.musicOrigin, startStep);
     const drones: OscLike[] = [];
+    let alt: StemVoice['alt'] = null;
     if (def.kind === 'drone') {
-      for (const degree of def.chord) {
-        const osc = ctx.createOscillator();
-        osc.type = def.wave;
-        osc.frequency.value = degreeHz(degree, def.octave);
-        osc.connect(gain);
-        osc.start(at);
-        drones.push(osc);
+      if (def.alt) {
+        const variant = variantFor(Math.floor(stepAtOrAfter(this.musicOrigin, now) / STEPS_PER_LOOP), def.id);
+        const a = ctx.createGain();
+        const b = ctx.createGain();
+        a.gain.value = variant === 0 ? 1 : 0;
+        b.gain.value = variant === 1 ? 1 : 0;
+        a.connect(gain);
+        b.connect(gain);
+        alt = { gains: [a, b], built: [false, false] };
+        this.buildVoicing(ctx, variant === 0 ? a : b, variant === 0 ? def : def.alt, at, drones);
+        alt.built[variant] = true;
+      } else {
+        this.buildVoicing(ctx, gain, def, at, drones);
       }
     }
-    const voice: StemVoice = { def, gain, drones, startStep, nextStep: startStep, level: 0, silentSince: null };
+    const voice: StemVoice = { def, gain, drones, alt, startStep, nextStep: startStep, level: 0, silentSince: null };
     this.stems.set(def.id, voice);
     return voice;
+  }
+
+  /** Starts one drone voicing (oscillators on a chord) into `dest`; the oscillators are added to `into`. */
+  private buildVoicing(
+    ctx: ContextLike,
+    dest: GainLike,
+    voicing: { wave: string; octave: number; chord: readonly number[] },
+    at: number,
+    into: OscLike[],
+  ): void {
+    if (!ctx.createOscillator) return;
+    for (const degree of voicing.chord) {
+      const osc = ctx.createOscillator();
+      osc.type = voicing.wave;
+      osc.frequency.value = degreeHz(degree, voicing.octave);
+      osc.connect(dest);
+      osc.start(at);
+      into.push(osc);
+    }
+  }
+
+  /**
+   * Crossfades every A/B drone to the voicing its loop asks for (B8: Bed A/B alternate at loop
+   * boundaries). A voicing heard for the first time gets its oscillators now.
+   */
+  private applyBedVariants(loop: number, now: number): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    for (const voice of this.stems.values()) {
+      if (!voice.alt) continue;
+      const variant = variantFor(loop, voice.def.id);
+      const idx: 0 | 1 = variant;
+      if (!voice.alt.built[idx]) {
+        const voicing = idx === 0 ? voice.def : voice.def.alt;
+        if (voicing) this.buildVoicing(ctx, voice.alt.gains[idx], voicing, now, voice.drones);
+        voice.alt.built[idx] = true;
+      }
+      voice.alt.gains[0].gain.setTargetAtTime(variant === 0 ? 1 : 0, now, BED_XFADE_TAU_S);
+      voice.alt.gains[1].gain.setTargetAtTime(variant === 1 ? 1 : 0, now, BED_XFADE_TAU_S);
+    }
   }
 
   private stopStem(id: string): void {
@@ -433,6 +540,17 @@ export class AudioEngine {
     if (!ctx) return;
     const horizon = ctx.currentTime + SCHEDULE_AHEAD_S;
     const nowStep = stepAtOrAfter(this.musicOrigin, ctx.currentTime);
+    // Breathing and frequency rests change which layers play; they are re-applied when they change.
+    const rests = this.rests.update(performance.now(), this.options.musicFrequency);
+    if (!sameRests(rests, this.restState)) {
+      this.restState = rests;
+      this.updateStems();
+    }
+    const loop = Math.floor(nowStep / STEPS_PER_LOOP);
+    if (loop !== this.bedLoop) {
+      this.bedLoop = loop;
+      this.applyBedVariants(loop, ctx.currentTime);
+    }
     for (const voice of this.stems.values()) {
       if (voice.def.kind === 'drone') continue;
       // A paused or hidden tab can leave steps behind the clock: skip them rather than play a burst.

@@ -9,6 +9,7 @@
 import { ACHIEVEMENTS } from '../content/achievements.ts';
 import { SPECIES } from '../content/beasts.ts';
 import { STRAIN_TRAIT_BY_ID } from '../content/traits.ts';
+import { BIOMES, biomeOfCover } from '../content/biomes.ts';
 import {
   SNAPSHOT_DETAIL_ROWS,
   SNAPSHOT_MAX_BYTES,
@@ -64,8 +65,23 @@ export function buildSnapshot(sim: Sim): Snapshot {
     detail: detailOf(sim),
     // windows-sim-data block (kept apart from other snapshot blocks so merges stay clean).
     pacts: pactsOf(sim),
+    // Audio feed (16 B8): the Age in effect and the tiles per biome over the realm. Read-only.
+    age: sim.currentAge,
+    biomes: biomeCountsOf(sim),
   };
   return fitSnapshot(snap);
+}
+
+/** Tiles per biome id over the whole realm: a read-only scan of the cover layer. */
+function biomeCountsOf(sim: Sim): Record<string, number> {
+  const counts: Record<string, number> = {};
+  const cover = sim.realm.cover;
+  for (let i = 0; i < cover.length; i++) {
+    const idx = biomeOfCover(cover[i] ?? 0);
+    const id = idx >= 0 ? BIOMES[idx]?.id : undefined;
+    if (id !== undefined) counts[id] = (counts[id] ?? 0) + 1;
+  }
+  return counts;
 }
 
 /**

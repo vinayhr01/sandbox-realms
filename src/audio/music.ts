@@ -106,6 +106,11 @@ export interface StemDef {
   gain: (s: MusicState) => number;
   /** Higher survives the layer cap. */
   priority: number;
+  /**
+   * Drones only: the B variant the engine alternates with the main voicing at loop boundaries
+   * (B8: Bed A/B). Absent for every other stem.
+   */
+  alt?: { wave: StemWave; octave: number; chord: readonly number[] };
 }
 
 /** D Dorian (B8): semitone offsets of degrees 0..6 from the root. */
@@ -189,8 +194,19 @@ export function motifIndexFor(lineageId: string): number {
 
 function buildStems(): StemDef[] {
   const stems: StemDef[] = [];
-  const bedA: StemDef = { id: 'bed_a', group: 'bed', kind: 'drone', wave: 'sine', octave: -2, chord: [0, 4], steps: [], gain: () => 1, priority: 100 };
-  // The bed's B variant is not alternated yet: two bed stems at full gain would sound together.
+  // The bed has A and B voicings; the engine alternates them at loop boundaries (see bedVariantFor).
+  const bedA: StemDef = {
+    id: 'bed_a',
+    group: 'bed',
+    kind: 'drone',
+    wave: 'sine',
+    octave: -2,
+    chord: [0, 4],
+    steps: [],
+    gain: () => 1,
+    priority: 100,
+    alt: { wave: 'triangle', octave: -1, chord: [0, 4] },
+  };
   stems.push(bedA);
   for (const id of AGE_IDS) {
     stems.push({ id: `age_${id}`, group: 'age', ...AGE_VOICING[id], gain: (s) => (s.ageId === id ? 0.9 : 0), priority: 90 });
@@ -292,6 +308,18 @@ export function stepAtOrAfter(originSec: number, nowSec: number): number {
 /** The first bar boundary (a multiple of STEPS_PER_BAR) at or after `nowSec`. New stems join here (B8 rule 4). */
 export function barStepAtOrAfter(originSec: number, nowSec: number): number {
   return Math.ceil(stepAtOrAfter(originSec, nowSec) / STEPS_PER_BAR) * STEPS_PER_BAR;
+}
+
+/** Music bus low-pass cut-offs (B5 and B8 rule 5): open, overview, and paused. */
+export const OPEN_CUTOFF_HZ = 20_000;
+export const OVERVIEW_CUTOFF_HZ = 6_000;
+export const PAUSE_CUTOFF_HZ = 1_200;
+
+/** The music bus cut-off for a state: paused is darkest, then overview, otherwise open. */
+export function musicCutoffHz(state: Pick<MusicState, 'paused' | 'isOverview'>): number {
+  if (state.paused) return PAUSE_CUTOFF_HZ;
+  if (state.isOverview) return OVERVIEW_CUTOFF_HZ;
+  return OPEN_CUTOFF_HZ;
 }
 
 /** Cosmetic A/B choice (B8): changes at each loop boundary, per stem. Never reads sim state. */

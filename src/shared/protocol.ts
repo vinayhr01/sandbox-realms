@@ -157,6 +157,10 @@ export interface Snapshot {
   /* windows-sim-data block: keep new fields of this window's data here, apart from other blocks. */
   /** Peace pacts between bordering dominions (pacts window). Optional: older readers ignore it. */
   pacts?: PactBlock;
+  /** Id of the Age in effect (02 section 5). Optional: older snapshot readers ignore it. */
+  age?: string;
+  /** Tiles per biome id over the whole realm (src/content/biomes.ts). Biomes with no tiles are absent. */
+  biomes?: Record<string, number>;
 }
 
 /**

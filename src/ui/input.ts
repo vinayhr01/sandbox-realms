@@ -14,6 +14,11 @@ export interface MapInputHandlers {
   onStrokeMove(sx: number, sy: number): void;
   onStrokeEnd(): void;
   onTap(sx: number, sy: number): void;
+  /**
+   * Settings: sticky hold (13 section 15). When on, releasing a stroke keeps it running; the pointer
+   * then paints by hovering, and the next press ends it. Optional, so off when not given.
+   */
+  stickyHold?(): boolean;
 }
 
 type Mode = 'idle' | 'pending' | 'stroke' | 'pan' | 'pinch';
@@ -42,6 +47,8 @@ export class MapInput {
   private pinchDist = 0;
   private pinchMidX = 0;
   private pinchMidY = 0;
+  /** A stroke kept running after release (sticky hold). */
+  private latched = false;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -78,6 +85,13 @@ export class MapInput {
 
   private readonly onDown = (e: PointerEvent): void => {
     if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1 && e.button !== 2) return;
+    if (this.latched) {
+      // The press that ends a latched stroke does nothing else.
+      this.latched = false;
+      this.mode = 'idle';
+      this.handlers.onStrokeEnd();
+      return;
+    }
     this.canvas.setPointerCapture(e.pointerId);
     const { x, y } = this.local(e);
     this.pointers.set(e.pointerId, {
@@ -105,7 +119,10 @@ export class MapInput {
     const { x, y } = this.local(e);
     const p = this.pointers.get(e.pointerId);
     if (!p) {
-      if (this.pointers.size === 0) this.handlers.onHover(x, y);
+      if (this.pointers.size === 0) {
+        if (this.latched) this.handlers.onStrokeMove(x, y);
+        this.handlers.onHover(x, y);
+      }
       return;
     }
     const prevX = p.x;
@@ -161,7 +178,8 @@ export class MapInput {
       this.handlers.onTap(x, y);
     }
     if (this.mode === 'stroke' && (this.pointers.size === 0 || cancelled)) {
-      this.handlers.onStrokeEnd();
+      if (!cancelled && this.pointers.size === 0 && this.handlers.stickyHold?.()) this.latched = true;
+      else this.handlers.onStrokeEnd();
     }
     if (this.pointers.size === 0) {
       this.mode = 'idle';

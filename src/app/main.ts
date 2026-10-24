@@ -4,6 +4,8 @@ import { TerrainRenderer, type CursorState } from '../render/terrain.ts';
 import { Camera } from '../render/camera.ts';
 import { MapInput } from '../ui/input.ts';
 import { edgePanVector } from '../ui/edgePan.ts';
+import { colourFilterMarkup, layoutMaxWidth, mapCanvasFilter, type ColourBlindPalette, type LayoutChoice } from '../ui/display.ts';
+import { Minimap, type MinimapView } from '../ui/minimap.ts';
 import { SaveService } from './saves.ts';
 import { CANNOT_CAPTURE, CANNOT_RESTORE, SaveController, type ActionOutcome, type AutosaveState, type ChronicleSource } from './save-controller.ts';
 import { setCalendar, setDebug, setStatus, toast } from '../ui/hud.ts';
@@ -326,6 +328,8 @@ async function boot(): Promise<void> {
   let realmSeed = 0;
   let calendarText = 'Y1 M1';
   let stroke: Stroke | null = null;
+  /** Step drag (Settings): the first tap of a two-tap stroke, or null. */
+  let stepAnchor: Tile | null = null;
   let cursorScreen: { x: number; y: number } | null = null;
   const canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   let pressed = false;
@@ -343,6 +347,34 @@ async function boot(): Promise<void> {
   let fpsSince = performance.now();
   let fps = 0;
 
+  // Display layers and the minimap (Settings). The vignette and minimap sit over the map canvas;
+  // the colour-blind filter markup is mounted once, and the map canvas gets its filter in applyOptions.
+  document.body.insertAdjacentHTML('beforeend', colourFilterMarkup());
+  const vignette = document.createElement('div');
+  vignette.className = 'map-vignette';
+  vignette.setAttribute('aria-hidden', 'true');
+  host.appendChild(vignette);
+  const minimapCanvas = document.createElement('canvas');
+  minimapCanvas.className = 'minimap';
+  minimapCanvas.setAttribute('aria-label', 'Minimap. Tap or drag to move the camera.');
+  minimapCanvas.setAttribute('role', 'img');
+  host.appendChild(minimapCanvas);
+  const minimap = new Minimap(minimapCanvas, (tx, ty) => {
+    const cam = camera;
+    if (!cam) return;
+    cam.offX = renderer.app.screen.width / 2 - (tx + 0.5) * cam.zoom;
+    cam.offY = renderer.app.screen.height / 2 - (ty + 0.5) * cam.zoom;
+    cam.panBy(0, 0);
+  });
+  const minimapView = (): MinimapView | null => {
+    const cam = camera;
+    if (!cam) return null;
+    const tl = cam.screenToTile(0, 0);
+    const br = cam.screenToTile(renderer.app.screen.width, renderer.app.screen.height);
+    return { x0: tl.x, y0: tl.y, x1: br.x, y1: br.y };
+  };
+  let minimapClockMs = 0;
+
   const brushRadius = (): number => BRUSH_RADII[state.sizeIndex] ?? 5;
 
   const tileAt = (sx: number, sy: number): Tile => {
@@ -359,8 +391,10 @@ async function boot(): Promise<void> {
     realmSide = side;
     realmSeed = seed;
     renderer.setSide(side);
+    minimap.reset(side);
     camera = new Camera(side, renderer.app.screen.width, renderer.app.screen.height);
     stroke = null;
+    stepAnchor = null;
     $('realm-name').textContent = `Realm ${seed.toString(36).toUpperCase().slice(-6)}`;
   };
 
@@ -490,6 +524,7 @@ async function boot(): Promise<void> {
       stroke = null;
     }
     state.armed = power;
+    stepAnchor = null;
     const op = strokeOp(power);
     for (const btn of document.querySelectorAll<HTMLButtonElement>('.tool')) {
       const tool = btn.dataset['tool'];
@@ -528,6 +563,11 @@ async function boot(): Promise<void> {
       return false;
     }
     if (before !== on) client.setRule(id, on);
+    // Natural disasters is a mirror of its Realm Rule (13 section 15): the Settings row follows the rule.
+    if (id === 'natural_calamities' && boolOption(options, 'game.disasters') !== on) {
+      options = setOption(options, 'game.disasters', on);
+      saveOptions(safeStorage(), options);
+    }
     updatePowerButtons();
     return true;
   };
@@ -700,6 +740,7 @@ async function boot(): Promise<void> {
       const base = boolOption(options, 'input.invertZoom') ? 1 / factor : factor;
       camera?.zoomAt(base ** (numberOption(options, 'input.zoomSpeed') / 100), sx, sy);
     },
+    stickyHold: () => boolOption(options, 'input.stickyHold'),
     onHover: (sx, sy) => {
       cursorScreen = { x: sx, y: sy };
     },
@@ -723,6 +764,20 @@ async function boot(): Promise<void> {
     onTap: (sx, sy) => {
       const t = tileAt(sx, sy);
       cursorScreen = { x: sx, y: sy };
+      const armedOp = state.armed ? strokeOp(state.armed) : null;
+      if (state.armed && armedOp && boolOption(options, 'input.stepDrag')) {
+        // Step drag: tap the first point, then the second; the stroke runs between them (13 section 15).
+        if (!stepAnchor) {
+          stepAnchor = t;
+          setStatus('Tap the second point to finish the stroke.');
+        } else {
+          client.stroke(armedOp, state.shape, brushRadius(), stepAnchor.x, stepAnchor.y, t.x, t.y, true);
+          playCueAt(CUE.paint, t.x);
+          stepAnchor = null;
+          setStatus('Stroke placed. Tap a first point for the next one.');
+        }
+        return;
+      }
       if (state.armed) {
         usePowerAt(state.armed, t.x, t.y);
         return;
@@ -746,6 +801,7 @@ async function boot(): Promise<void> {
       case Ev.Frame:
         if (event.rows) {
           renderer.applyRows(event.rows);
+          minimap.applyRows(event.rows, realmSide);
           client.returnBuffer(event.rows.data.buffer as ArrayBuffer);
         }
         simTick = event.stats.tick;
@@ -799,9 +855,13 @@ async function boot(): Promise<void> {
 
   // Settings: every change is validated, saved, and applied at once.
   const changeOption = (id: string, value: OptionValue): void => {
+    // The disasters row is a mirror of its Realm Rule: the rule changes first, and a refused change keeps the old value.
+    if (id === 'game.disasters' && !setRule('natural_calamities', value === true)) return;
     options = setOption(options, id, value);
     saveOptions(safeStorage(), options);
     if (id === 'ui.fullscreen') toggleFullscreen(options[id] === true);
+    // Hide status bar on phones: full screen is requested when the row is turned on (13 section 15).
+    if (id === 'ui.hideStatusBar' && value === true && window.matchMedia('(pointer: coarse)').matches) toggleFullscreen(true);
     applyOptions();
   };
   const toggleFullscreen = (on: boolean): void => {
@@ -822,6 +882,20 @@ async function boot(): Promise<void> {
     root.toggleAttribute('data-reduce-flash', safeMode || boolOption(options, 'ui.reduceFlash'));
     renderer.app.ticker.maxFPS = safeMode ? 30 : numberOption(options, 'ui.fpsCap');
     $('debug').hidden = !(boolOption(options, 'ui.showFps') || debugOverlay);
+    // Layout width, map layers, vignette and minimap.
+    const layout = stringOption(options, 'ui.layout') as LayoutChoice;
+    root.dataset['layout'] = layout;
+    const maxWidth = layoutMaxWidth(layout);
+    root.style.setProperty('--layout-max', maxWidth === null ? 'none' : `${maxWidth}px`);
+    renderer.app.canvas.style.filter = mapCanvasFilter(stringOption(options, 'ui.colorBlindPalette') as ColourBlindPalette, numberOption(options, 'map.layerBrightness'));
+    renderer.app.canvas.style.opacity = String(numberOption(options, 'map.layerOpacity') / 100);
+    vignette.hidden = !boolOption(options, 'map.vignette');
+    minimapCanvas.hidden = !boolOption(options, 'ui.minimap');
+    const minimapPx = `${numberOption(options, 'ui.minimapSize')}px`;
+    minimapCanvas.style.width = minimapPx;
+    minimapCanvas.style.height = minimapPx;
+    // Autosave on/off, interval and ring size (15 section 5).
+    saveController.configureAutosave(boolOption(options, 'game.autosave'), numberOption(options, 'game.autosaveMinutes'), numberOption(options, 'game.autosaveKeep'));
     const cueOpts = cueOptionsFrom(options);
     cueLayer.setEnabled(cueOpts.visualCues);
     audio.applyOptions({ ...audioOptionsFrom(options), mono: cueOpts.mono, reduceLoudSounds: cueOpts.reduceLoudSounds, visualCues: cueOpts.visualCues, haptics: cueOpts.haptics });
@@ -883,6 +957,10 @@ async function boot(): Promise<void> {
     }
   });
   window.addEventListener('keyup', (e: KeyboardEvent) => keysDown.delete(e.code));
+  // Pause when the window loses focus, when the Settings row asks for it. Focus does not resume the sim.
+  window.addEventListener('blur', () => {
+    if (boolOption(options, 'game.pauseOnBlur') && !state.paused) togglePause();
+  });
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       client.setSpeed(0);
@@ -936,6 +1014,12 @@ async function boot(): Promise<void> {
     }
     if (cam) {
       renderer.setView({ offX: cam.offX, offY: cam.offY, zoom: cam.zoom, dpr: renderer.app.renderer.resolution }, cursor);
+    }
+    // The minimap repaints about four times a second; it is skipped while hidden.
+    minimapClockMs += ticker.deltaMS;
+    if (minimapClockMs >= 250) {
+      minimapClockMs = 0;
+      if (!minimapCanvas.hidden) minimap.draw(minimapView());
     }
 
     fpsFrames++;

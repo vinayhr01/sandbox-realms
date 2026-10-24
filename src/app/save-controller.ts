@@ -8,6 +8,7 @@
 import {
   AUTOSAVE_INTERVAL_MS,
   AUTOSAVE_RETRY_MS,
+  AUTOSAVE_RING,
   AutosaveClock,
   SaveService,
   decideAutosave,
@@ -104,6 +105,9 @@ function settleWithin<T>(promise: Promise<T>, ms: number): Promise<T | null> {
 export class SaveController {
   private store: Promise<SaveService> | null = null;
   private readonly clock: AutosaveClock;
+  /** Settings: autosave on or off, and how many autosaves the ring keeps. Off stops the timer and the pause save. */
+  private autosaveOn = true;
+  private autosaveKeep = AUTOSAVE_RING;
   private readonly now: () => number;
   private readonly onAutosaved: (() => void) | null;
   private state: AutosaveState = { dirty: false, modalOpen: false, gestureActive: false, degradeLevel: 0 };
@@ -125,6 +129,13 @@ export class SaveController {
     this.loadedAtMs = this.now();
     // Autosave needs a capture. Without one the timer stays off rather than failing every interval.
     this.clock = new AutosaveClock(source.canCapture ? AUTOSAVE_INTERVAL_MS : 0);
+  }
+
+  /** Applies the Settings: `minutes` between autosaves and `keep` autosaves in the ring. Takes effect at once. */
+  configureAutosave(on: boolean, minutes: number, keep: number): void {
+    this.autosaveOn = on;
+    this.autosaveKeep = keep;
+    this.clock.setInterval(on && this.source.canCapture ? minutes * 60_000 : 0);
   }
 
   private service(): Promise<SaveService> {
@@ -298,7 +309,7 @@ export class SaveController {
   }
 
   private async autosave(): Promise<void> {
-    if (!this.source.canCapture) return;
+    if (!this.source.canCapture || !this.autosaveOn) return;
     const ctx: AutosaveContext = {
       dirty: this.state.dirty,
       inFlight: this.inFlight,
@@ -324,7 +335,7 @@ export class SaveController {
     try {
       const captured = await this.source.capture();
       if (!captured) return;
-      const result = await (await this.service()).writeAutosave(captured.bytes, captured.info, this.now());
+      const result = await (await this.service()).writeAutosave(captured.bytes, captured.info, this.now(), this.autosaveKeep);
       if (result.ok) {
         this.failures = 0;
         this.lastAutosaveMs = this.now();

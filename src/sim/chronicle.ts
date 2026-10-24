@@ -3,6 +3,8 @@ import { Sim } from './sim.ts';
 import type { WeatherState } from './weather.ts';
 import type { Projectile } from './combat.ts';
 import { culturePayload, cultureFromPayload, type CulturePayload } from './culture/adapter.ts';
+import { snapshotDominions, restoreDominions, type DominionSnapshot } from './dominions/adapter.ts';
+import { snapshotHamlets, restoreHamlets, type HamletSnapshot } from './settlements/adapter.ts';
 
 /**
  * Chronicle save codec (15-chronicle-saves, section 3 in spirit): a versioned, sectioned binary
@@ -15,7 +17,9 @@ import { culturePayload, cultureFromPayload, type CulturePayload } from './cultu
  * Covered: clock, realm arrays, ages, rules, stats, beings (with generations and exact list and
  * free-stack order), RNG streams, behaviour timers, tile runners, combat state, status effects and
  * weather (clouds, blast guard, projectiles), and the lifetime stats with the unlocked achievements
- * (optional section: saves written before it existed still load, with empty stats). A save
+ * (optional section: saves written before it existed still load, with empty stats), and the dominion
+ * state (tag 15: dominions, relations, borders, owner bytes) and the hamlet state (tag 16), both optional
+ * so older saves still load with no dominions or hamlets. A save
  * continued to any later tick matches an uninterrupted run (tests/unit/chronicle.test.ts). The pending command queue is empty between
  * ticks by construction, so it is not written.
  */
@@ -24,9 +28,9 @@ export const FORMAT_VERSION = 1;
 export const SCHEMA_VERSION = 2;
 const HEADER_BYTES = 16;
 
-const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14 } as const;
+const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14, dominions: 15, hamlets: 16 } as const;
 /** Sections a save may lack (written by later builds); absent means the empty default. */
-const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity, TAG.lifetime];
+const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity, TAG.lifetime, TAG.dominions, TAG.hamlets];
 const REALM_ARRAYS = [
   'elevation',
   'ground',
@@ -284,6 +288,9 @@ export function encodeChronicle(sim: Sim): Uint8Array {
     w.bytes(new TextEncoder().encode(JSON.stringify(payload)));
   });
 
+  section(body, TAG.dominions, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(snapshotDominions(sim)))));
+  section(body, TAG.hamlets, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(snapshotHamlets(sim)))));
+
   const bodyBytes = body.finish();
   const header = new Writer();
   for (let k = 0; k < CHRONICLE_MAGIC.length; k++) header.u8(CHRONICLE_MAGIC.charCodeAt(k));
@@ -393,6 +400,17 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
     sim.lifetime = { counters: life.counters, sets: life.sets };
     sim.unlocked.clear();
     for (const id of life.unlocked) sim.unlocked.add(id);
+  }
+
+  const dominionBytes = sections.get(TAG.dominions);
+  if (dominionBytes) {
+    const snap = parseJson<DominionSnapshot | null>(decoder, dominionBytes, 'dominions');
+    if (snap) restoreDominions(sim, snap);
+  }
+  const hamletBytes = sections.get(TAG.hamlets);
+  if (hamletBytes) {
+    const snap = parseJson<HamletSnapshot | null>(decoder, hamletBytes, 'hamlets');
+    if (snap) restoreHamlets(sim, snap);
   }
 
   realm.rebuildSets();

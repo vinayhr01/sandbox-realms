@@ -72,6 +72,81 @@ export function addBorder(sim: Sim, a: number, b: number, relation: Relation = '
   s.relations.set(a, b, relation);
 }
 
+/** Plain-data form of the dominion state, JSON-safe (Chronicle section 15). */
+export interface DominionSnapshot {
+  dominions: { id: number; parcels: number[]; strength: number; target: number; campaignSince: number }[];
+  /** Pairs whose relation is not the default peace: [a, b, relation]. */
+  relations: [number, number, Relation][];
+  borders: [number, number][];
+  /** Owner byte per parcel. */
+  owner: number[];
+}
+
+/** Plain copy of a sim's dominion state, or null when the state was never created. */
+export function snapshotDominions(sim: Sim): DominionSnapshot | null {
+  const s = states.get(sim);
+  if (!s) return null;
+  // Relations live in a keyed map, so every pair that can carry one is listed: all dominion pairs and all borders.
+  const pairs = new Map<string, [number, number]>();
+  const addPair = (a: number, b: number): void => {
+    const lo = Math.min(a, b);
+    const hi = Math.max(a, b);
+    pairs.set(`${lo}:${hi}`, [lo, hi]);
+  };
+  s.dominions.forEach((a, i) => s.dominions.slice(i + 1).forEach((b) => addPair(a.id, b.id)));
+  for (const [a, b] of s.borders) addPair(a, b);
+  const relations: [number, number, Relation][] = [];
+  for (const [a, b] of pairs.values()) {
+    const r = s.relations.get(a, b);
+    if (r !== 'peace') relations.push([a, b, r]);
+  }
+  return {
+    dominions: s.dominions.map((d) => ({ id: d.id, parcels: [...d.parcels], strength: d.strength, target: d.target, campaignSince: d.campaignSince })),
+    relations,
+    borders: s.borders.map(([a, b]) => [a, b]),
+    owner: [...s.owner],
+  };
+}
+
+/** Replaces the sim's dominion state with a snapshot (Chronicle load). Checks shape and ranges first. */
+export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
+  const bad = (what: string): never => {
+    throw new Error(`dominion state: ${what} is not valid`);
+  };
+  const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+  const perAxis = parcelsPerAxis(sim);
+  const parcelCount = perAxis * perAxis;
+  if (!Array.isArray(snap.owner) || snap.owner.length !== parcelCount || !snap.owner.every((v) => isNum(v) && v >= 0 && v <= 255)) bad('owner map');
+  if (!Array.isArray(snap.dominions) || !Array.isArray(snap.relations) || !Array.isArray(snap.borders)) bad('record');
+  const dominions: Dominion[] = [];
+  // Each parcel is held by at most one dominion, and the owner byte of a parcel names that dominion.
+  const claimed = new Map<number, number>();
+  for (const d of snap.dominions) {
+    if (!isNum(d.id) || !Number.isInteger(d.id) || d.id < 1 || d.id > 255 || dominions.some((x) => x.id === d.id)) bad(`dominion id ${d.id}`);
+    if (!isNum(d.strength) || !isNum(d.target) || !isNum(d.campaignSince) || !Array.isArray(d.parcels)) bad(`dominion ${d.id}`);
+    for (const p of d.parcels) {
+      if (!isNum(p) || !Number.isInteger(p) || p < 0 || p >= parcelCount) bad(`dominion ${d.id} parcels`);
+      if (claimed.has(p) || snap.owner[p] !== d.id) bad(`dominion ${d.id} parcel ${p} ownership`);
+      claimed.set(p, d.id);
+    }
+    dominions.push({ id: d.id, parcels: new Set(d.parcels), strength: d.strength, target: d.target, campaignSince: d.campaignSince });
+  }
+  snap.owner.forEach((id, p) => {
+    if (id !== UNOWNED && claimed.get(p) !== id) bad(`owner of parcel ${p}`);
+  });
+  const relations = new RelationMatrix();
+  for (const [a, b, r] of snap.relations) {
+    if (!isNum(a) || !isNum(b) || !(r === 'peace' || r === 'tension' || r === 'war')) bad('relation');
+    relations.set(a, b, r);
+  }
+  const borders: [number, number][] = [];
+  for (const [a, b] of snap.borders) {
+    if (!isNum(a) || !isNum(b)) bad('border');
+    borders.push([a, b]);
+  }
+  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner) });
+}
+
 /**
  * Runs the dominion step once per sim-second (on the tick the second starts). Parcel ownership
  * is read from the owner bytes, the step runs on the structural context, and changed parcels are

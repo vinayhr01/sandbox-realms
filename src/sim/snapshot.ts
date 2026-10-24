@@ -32,7 +32,7 @@ import {
 import { YEAR_TICKS } from '../shared/constants.ts';
 import { SS_TICKS } from './clock.ts';
 import { MAX_BEINGS } from './beings/store.ts';
-import { snapshotDominions } from './dominions/adapter.ts';
+import { dominionsOfSim, pactsOfSim, snapshotDominions } from './dominions/adapter.ts';
 import { hamletsOf } from './settlements/adapter.ts';
 import { codexProgress } from './progression.ts';
 import { clanSpeciesName, yearsSince, type Clan } from './clans/clans.ts';
@@ -284,42 +284,37 @@ function relationBetween(relations: readonly [number, number, string][], a: numb
 }
 
 /**
- * Peace pacts (pacts window): each border pair of dominions whose relation is peace, read from the
- * same relation data the stats use (stats-hooks: a border pair at peace is a pact). Pairs are listed
- * once, lower id first, in border order. Reads only.
+ * Pact records (pacts window): every pact in the sim, in id order, capped in rows. The row names the
+ * two founders and carries the members, power, renown and formation tick. Reads only.
  */
 function pactsOf(sim: Sim): PactBlock {
-  const snap = snapshotDominions(sim);
-  if (!snap) return { count: 0, rows: [] };
-  const byId = new Map(snap.dominions.map((d) => [d.id, d]));
-  const seen = new Set<number>();
+  const pacts = pactsOfSim(sim);
+  const byId = new Map(dominionsOfSim(sim).map((d) => [d.id, d]));
   const rows: PactRow[] = [];
-  let count = 0;
-  for (const [x, y] of snap.borders) {
-    const a = Math.min(x, y);
-    const b = Math.max(x, y);
-    const id = a * 256 + b;
-    if (seen.has(id)) continue;
-    seen.add(id);
+  for (const p of pacts.slice(0, SNAPSHOT_DETAIL_ROWS)) {
+    const a = p.founders[0];
+    const b = p.founders[1];
     const da = byId.get(a);
     const db = byId.get(b);
-    if (!da || !db || relationBetween(snap.relations, a, b) !== 'peace') continue;
-    count++;
-    if (rows.length < SNAPSHOT_DETAIL_ROWS) {
-      rows.push({
-        id,
-        a,
-        b,
-        nameA: `Dominion ${a}`,
-        nameB: `Dominion ${b}`,
-        strengthA: da.strength,
-        strengthB: db.strength,
-        parcelsA: da.parcels.length,
-        parcelsB: db.parcels.length,
-      });
-    }
+    const members = [...p.memberIds];
+    rows.push({
+      id: p.id,
+      name: p.name,
+      a,
+      b,
+      nameA: `Dominion ${a}`,
+      nameB: `Dominion ${b}`,
+      strengthA: da?.strength ?? 0,
+      strengthB: db?.strength ?? 0,
+      parcelsA: da?.parcels.size ?? 0,
+      parcelsB: db?.parcels.size ?? 0,
+      members,
+      power: members.reduce((sum, m) => sum + (byId.get(m)?.strength ?? 0), 0),
+      renown: p.renown,
+      formedTick: p.formedTick,
+    });
   }
-  return { count, rows };
+  return { count: pacts.length, rows };
 }
 
 function hamletsOfSim(sim: Sim): { hamlets: HamletRow[]; hamletCount: number } {

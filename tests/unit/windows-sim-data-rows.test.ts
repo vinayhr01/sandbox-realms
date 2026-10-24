@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Snapshot } from '../../src/shared/protocol.ts';
-import { addBorder, addDominion } from '../../src/sim/dominions/adapter.ts';
+import { addBorder, addDominion, addPact } from '../../src/sim/dominions/adapter.ts';
 import { buildSnapshot } from '../../src/sim/snapshot.ts';
 import { seedStartingBeasts } from '../../src/sim/beings/system.ts';
 import { generateRealm } from '../../src/sim/worldgen.ts';
@@ -14,19 +14,20 @@ function realmWithPeace(): Snapshot {
   addDominion(sim, 4, 60, [0]);
   addDominion(sim, 7, 25, [1]);
   addBorder(sim, 4, 7, 'peace');
+  addPact(sim, 4, 7);
   return buildSnapshot(sim);
 }
 
 describe('pacts rows', () => {
-  it('turns each peace pact into one row that opens its inspector', () => {
+  it('turns each pact record into one row that opens its inspector', () => {
     const rows = pactRowsOf(realmWithPeace());
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
-      id: 4 * 256 + 7,
+      id: 1,
       title: 'Dominion 4 and Dominion 7',
       detail: 'Peace · strength 60 and 25',
       inspector: 'win_pact',
-      params: { id: 4 * 256 + 7 },
+      params: { id: 1 },
     });
   });
 

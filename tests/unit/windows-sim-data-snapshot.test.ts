@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SNAPSHOT_DETAIL_ROWS, SNAPSHOT_MAX_BYTES } from '../../src/shared/protocol.ts';
-import { addBorder, addDominion } from '../../src/sim/dominions/adapter.ts';
+import { addBorder, addDominion, addPact } from '../../src/sim/dominions/adapter.ts';
 import { buildSnapshot, snapshotBytes } from '../../src/sim/snapshot.ts';
 import { seedStartingBeasts } from '../../src/sim/beings/system.ts';
 import { generateRealm } from '../../src/sim/worldgen.ts';
@@ -16,7 +16,7 @@ describe('snapshot pacts block', () => {
     expect(snap.pacts).toEqual({ count: 0, rows: [] });
   });
 
-  it('lists border pairs at peace, once each, lower id first', () => {
+  it('lists pact records in id order; a border at peace alone is not a pact', () => {
     const sim = emptyRealm();
     addDominion(sim, 1, 50, [0, 1]);
     addDominion(sim, 2, 30, [2]);
@@ -24,23 +24,22 @@ describe('snapshot pacts block', () => {
     addBorder(sim, 2, 1, 'peace');
     addBorder(sim, 1, 3);
     addBorder(sim, 2, 3, 'war');
+    expect(buildSnapshot(sim).pacts?.count).toBe(0);
+    addPact(sim, 1, 2);
     const block = buildSnapshot(sim).pacts;
-    expect(block?.count).toBe(2);
-    expect(block?.rows.map((r) => [r.a, r.b])).toEqual([
-      [1, 2],
-      [1, 3],
-    ]);
+    expect(block?.count).toBe(1);
+    expect(block?.rows.map((r) => [r.a, r.b])).toEqual([[1, 2]]);
     const first = block?.rows[0];
-    expect(first).toMatchObject({ id: 1 * 256 + 2, nameA: 'Dominion 1', nameB: 'Dominion 2', strengthA: 50, strengthB: 30, parcelsA: 2, parcelsB: 1 });
+    expect(first).toMatchObject({ id: 1, nameA: 'Dominion 1', nameB: 'Dominion 2', strengthA: 50, strengthB: 30, parcelsA: 2, parcelsB: 1, members: [1, 2] });
   });
 
   it('keeps the exact count and caps the rows; the snapshot stays under the byte budget', () => {
     const sim = emptyRealm();
-    const n = SNAPSHOT_DETAIL_ROWS + 9;
-    for (let id = 1; id <= n; id++) addDominion(sim, id, 10);
-    for (let id = 1; id < n; id++) addBorder(sim, id, id + 1);
+    const pairs = SNAPSHOT_DETAIL_ROWS + 9;
+    for (let id = 1; id <= 2 * pairs; id++) addDominion(sim, id, 10);
+    for (let k = 0; k < pairs; k++) addPact(sim, 2 * k + 1, 2 * k + 2);
     const snap = buildSnapshot(sim);
-    expect(snap.pacts?.count).toBe(n - 1);
+    expect(snap.pacts?.count).toBe(pairs);
     expect(snap.pacts?.rows.length).toBe(SNAPSHOT_DETAIL_ROWS);
     expect(snapshotBytes(snap)).toBeLessThanOrEqual(SNAPSHOT_MAX_BYTES);
   });

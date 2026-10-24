@@ -17,5 +17,46 @@ jobs:
       - run: npm test
       - run: npm run check:determinism
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
-      - run: npx playwright test --project=desktop-chromium --project=phone-portrait
+      - run: npm run check:budgets
+
+  determinism:
+    # Same sim lint as above, run on its own so a determinism break is visible at a glance.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run check:determinism
+      - run: npx vitest run tests/unit/golden.test.ts
+
+  playwright:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - browser: chromium
+            projects: --project=desktop-chromium --project=phone-portrait --project=chromium-360x640 --project=chromium-1920x1080
+          - browser: firefox
+            projects: --project=firefox-360x640 --project=firefox-1920x1080
+          - browser: webkit
+            projects: --project=webkit-360x640 --project=webkit-1920x1080
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: npx playwright test ${{ matrix.projects }}
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 7

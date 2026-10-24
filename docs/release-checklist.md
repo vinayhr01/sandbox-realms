@@ -14,12 +14,18 @@ Not legal advice. Items are marked from what the repository actually contains. "
 - [ ] Lawyer review before commercial release. Not done.
 
 ## Platform (from PLATFORM-REQUIREMENTS section 6)
-- [x] Playwright smoke suite exists at 4 viewports: 1280x720, 390x844 (touch), 844x390 (touch), 820x1180 (touch). Last run: 32 of 32 passed on Chromium only (8 tests at each of 4 projects).
-- [ ] Firefox and WebKit runs. Not done: only Chromium is installed here.
+- [x] Playwright smoke suite exists at 4 viewports: 1280x720, 390x844 (touch), 844x390 (touch), 820x1180 (touch). Last run in this change: `--project=desktop-chromium` passed 10 of 10 (smoke, panels and platform smoke). The other three original projects (phone-portrait, phone-landscape, tablet) were not re-run in this change.
+- [x] Platform projects for Chromium, Firefox and WebKit at 360x640 (touch) and 1920x1080 (playwright.config.ts). tests/e2e/platform-smoke.spec.ts (load, sim clock, no horizontal overflow, tap on the map) passes on Chromium and WebKit at both sizes here.
+- [ ] Firefox and WebKit full runs. Partial: WebKit runs only the platform smoke. Firefox is configured but cannot launch on this Windows machine ("side-by-side configuration is incorrect" at process start), so it has not run anywhere yet. The smoke and panels specs have not run on Firefox or WebKit.
+- [x] CI runs typecheck, unit tests, determinism lint, the golden replay test, build budgets, and one Playwright job per browser (.github/workflows/ci.yml). Not yet run on GitHub.
 - [ ] Per-milestone screenshot diffs of each layout class. Not done: screenshots are written but not compared.
 - [ ] Lighthouse mobile run (PWA, accessibility >= 90, performance budget). Not done.
 - [ ] Real-device checks on a low Android and an iPhone. Not done.
 - [ ] Golden replay hash identical across engines. Not done: only Node is checked.
+
+## PWA
+- [x] Maskable PNG icons at 192 and 512 generated from public/icon.svg by scripts/make-icons.mjs (artwork inside the 80% safe zone, full-bleed background) and listed in the manifest. The service worker precaches them.
+- [ ] Installability checked in a browser. Not done.
 
 ## Performance (from 17 section 13 and PERFORMANCE-PLAN)
 - [x] Build-size budgets: main chunk about 83 KB gzip (limit 350), worker chunk about 26 KB gzip (limit 250). Checked by scripts/check-budgets.mjs after `npm run build`.
@@ -38,5 +44,6 @@ Not legal advice. Items are marked from what the repository actually contains. "
 
 ## Save and recovery (from 19 and 15)
 - [x] Save round trip, corruption and version rejection, and resume determinism (tests/unit/chronicle.test.ts).
-- [ ] Autosave, slots, import and export UI. Not done.
-- [ ] Recovery ladder and user-facing recovery dialog. Not done: only a fatal dialog and a local journal exist.
+- [x] Save logic in src/app/saves.ts: slot model (12 manual, quick, autosave ring of 5, suspend), atomic write with previous generation, quota soft cap, autosave and suspend timing, import check, export file naming and delivery route. Tests: tests/unit/saves-model.test.ts and saves-service.test.ts (memory backend).
+- [ ] Autosave, slots, import and export UI. Not done: no UI calls SaveService yet. The IndexedDB backend is type-checked but has not run in a browser or under fake-indexeddb (not installed). Checksum-failure handling and the quarantine store are not implemented.
+- [ ] Recovery ladder and user-facing recovery dialog. Partial: decisions are in src/app/recovery.ts (decideRecovery for restart from autosave, reset Realm, fatal dialog; boot-loop guard; Safe Mode profile; restore offers), tested in tests/unit/recovery-ladder.test.ts. Not wired into main.ts, and the dialog has no restart, reset or Safe Mode actions yet.

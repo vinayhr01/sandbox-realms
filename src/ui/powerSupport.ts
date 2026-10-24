@@ -8,7 +8,25 @@ import type { BrushOp } from '../shared/protocol.ts';
 import { WINDOW_IDS } from './windowCatalog.ts';
 
 /** Handlers that src/sim/powers/handlers.ts executePower applies. tests/unit/ui-powers.test.ts checks this list against that file. */
-export const SIM_HANDLERS: readonly string[] = ['terraform_raise', 'terraform_lower', 'paint_ground', 'spawn_being', 'bomb', 'bolt', 'calamity'];
+export const SIM_HANDLERS: readonly string[] = [
+  'terraform_raise',
+  'terraform_lower',
+  'paint_ground',
+  'spawn_being',
+  'bomb',
+  'bolt',
+  'calamity',
+  'seed_biome',
+  'plant_flora',
+  'drop_rain',
+  'drop_freeze',
+  'start_fire',
+  'quench',
+  'add_heat',
+  'start_volcano',
+  'start_geyser',
+  'place_creep_hub',
+];
 
 /** Handlers the UI carries out itself: pause, speed, windows, hiding the interface, and Realm Rules. */
 export const UI_HANDLERS: readonly string[] = ['set_pause', 'cycle_speed', 'open_window', 'toggle_hud', 'toggle_rule'];

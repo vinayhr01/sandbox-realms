@@ -117,13 +117,13 @@ test('powers: a sim power arms, a tap sends it to the sim, and an unbuilt power 
   await expect.poll(() => call<number[]>('commands')).toContain(7);
 
   // A power whose system is not built stays disabled and says why.
-  await page.getByRole('tab', { name: 'Powers: Sky' }).click();
-  const rain = page.getByRole('button', { name: 'Rain', exact: true });
-  await expect(rain).toHaveAttribute('aria-disabled', 'true');
+  await page.getByRole('tab', { name: 'Powers: Favour' }).click();
+  const bless = page.getByRole('button', { name: 'Bless', exact: true });
+  await expect(bless).toHaveAttribute('aria-disabled', 'true');
   // aria-disabled keeps the tap working so the note can show; Playwright would refuse a plain click.
-  await rain.click({ force: true });
-  await expect(page.locator('#status')).toContainText('Rain is not available yet');
-  await expect(rain).toHaveAttribute('aria-pressed', 'false');
+  await bless.click({ force: true });
+  await expect(page.locator('#status')).toContainText('Bless is not available yet');
+  await expect(bless).toHaveAttribute('aria-pressed', 'false');
   await page.getByRole('tab', { name: 'Powers: Havoc' }).click();
   await expect(bomb).toHaveAttribute('aria-pressed', 'true');
 

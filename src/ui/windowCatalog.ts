@@ -20,6 +20,8 @@ export const WINDOW_CATALOG: readonly WindowInfo[] = [
   { id: 'win_keys', spec: 'win_keys', title: 'Keys' },
   { id: 'win_tutorial', spec: 'win_tutorial', title: 'Tutorial' },
   { id: 'win_privacy', spec: 'win_privacy', title: 'Privacy' },
+  { id: 'win_help', spec: 'win_help', title: 'Help' },
+  { id: 'win_chronicle', spec: 'win_chronicle', title: 'Chronicle' },
   { id: 'win_power_catalogue', spec: null, title: 'Power catalogue' },
 ];
 

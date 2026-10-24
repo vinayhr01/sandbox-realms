@@ -14,6 +14,7 @@ const deps: WindowDeps = {
   newRealm: () => undefined,
   activate: () => undefined,
   tutorial: () => ({ state: { index: 0, skipped: false, done: false }, restart: () => undefined, skip: () => undefined }),
+  saves: () => Promise.resolve([]),
   close: () => undefined,
 };
 
@@ -31,7 +32,7 @@ describe('window catalogue', () => {
       expect(built, w.id).not.toBeNull();
       expect(built?.title, w.id).toBe(w.title);
     }
-    expect(windowFor('win_chronicle', deps)).toBeNull();
+    expect(windowFor('win_codex', deps)).toBeNull();
     expect(windowFor('win_lore', deps)).toBeNull();
   });
 
@@ -45,7 +46,7 @@ describe('window catalogue', () => {
 
   it('spec ids are used where the spec names the window', () => {
     const spec = WINDOW_CATALOG.filter((w) => w.spec !== null);
-    expect(spec.length).toBe(9);
+    expect(spec.length).toBe(11);
     for (const w of spec) expect(w.spec).toBe(w.id);
   });
 });

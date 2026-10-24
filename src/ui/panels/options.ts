@@ -103,7 +103,7 @@ export const SETTINGS: readonly SettingDef[] = [
   I('input.panSpeed', 'input', 'Pan speed (%)', 50, 200, 100, true),
   I('input.zoomSpeed', 'input', 'Zoom speed (%)', 50, 200, 100, true),
   B('input.invertZoom', 'input', 'Invert zoom', false, true),
-  B('input.edgePan', 'input', 'Edge pan', false),
+  B('input.edgePan', 'input', 'Edge pan', false, true),
   // Audio (volumes feed the audio model; no WebAudio output yet)
   I('audio.master', 'audio', 'Master volume', 0, 100, 100, true),
   I('audio.music', 'audio', 'Music volume', 0, 100, 60, true),
@@ -114,7 +114,7 @@ export const SETTINGS: readonly SettingDef[] = [
   B('game.autosave', 'game', 'Autosave', true),
   I('game.autosaveMinutes', 'game', 'Autosave every (min)', 1, 30, 5),
   I('game.autosaveKeep', 'game', 'Autosaves kept', 3, 30, 10),
-  B('game.confirmQuit', 'game', 'Confirm before leaving a realm', true),
+  B('game.confirmQuit', 'game', 'Confirm before leaving a realm', true, true),
   B('game.pauseOnBlur', 'game', 'Pause when the window loses focus', false),
   C('game.defaultSpeed', 'game', 'Starting speed', ['0.5x', '1x', '2x', '5x', '10x'], '1x', true),
   B('game.disasters', 'game', 'Natural disasters', true),

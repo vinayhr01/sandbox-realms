@@ -111,6 +111,72 @@ export function hideFatal(): void {
 }
 
 /**
+ * Runtime health on the main thread (17 section 10 watchdog, 17 section 3.4 ladder applied to the render side).
+ * Pure: the caller supplies the clock and the frame times, and applies what comes back.
+ */
+
+/** The worker should post a heartbeat about this often (17 section 10). */
+export const HEARTBEAT_EXPECT_MS = 2_000;
+/** A worker silent this long is "not responding" (17 section 10: missing for 6 s). */
+export const HEARTBEAT_STALL_MS = 6_000;
+
+/** True when the last heartbeat is older than the stall threshold. Null means no heartbeat has been seen yet. */
+export function workerStalled(lastSeenMs: number | null, nowMs: number, stallMs: number = HEARTBEAT_STALL_MS): boolean {
+  return lastSeenMs !== null && nowMs - lastSeenMs > stallMs;
+}
+
+/** Mean frame time over this many times the frame budget counts as over budget. TUNE. */
+export const DEGRADE_OVER_FACTOR = 1.2;
+/** Mean frame time under this many times the budget counts as recovered. TUNE. */
+export const DEGRADE_UNDER_FACTOR = 0.8;
+/** Consecutive over-budget seconds before stepping down one level. TUNE (the spec says "N consecutive seconds"). */
+export const DEGRADE_DOWN_SECONDS = 2;
+/** Consecutive under-budget seconds before stepping back up one level (17 section 3.4 exit time). */
+export const DEGRADE_UP_SECONDS = 8;
+/** Minimum seconds between two level changes in either direction (17 section 3.4). */
+export const DEGRADE_HOLD_SECONDS = 2;
+/** Frames longer than this are gaps (hidden tab, debugger pause), not load; they are not sampled. */
+export const DEGRADE_MAX_FRAME_MS = 500;
+/** Highest degradation level. */
+export const DEGRADE_MAX_LEVEL = 4;
+/** Settings turned off, one per level from level 1 up. The saved settings are never written. */
+export const DEGRADE_OFF: readonly string[] = ['map.bloom', 'map.particles', 'map.shadows'];
+/** From this level on, the render scale is capped at DEGRADE_RENDER_SCALE percent. */
+export const DEGRADE_RENDER_SCALE_LEVEL = 4;
+export const DEGRADE_RENDER_SCALE = 50;
+
+export interface DegradeTrack {
+  level: number;
+  overSeconds: number;
+  underSeconds: number;
+  holdSeconds: number;
+}
+
+export const DEGRADE_START: DegradeTrack = { level: 0, overSeconds: 0, underSeconds: 0, holdSeconds: DEGRADE_HOLD_SECONDS };
+
+/**
+ * One step per one-second window. `meanFrameMs` is the mean frame interval over the window and
+ * `budgetMs` the frame budget for the current frame-rate cap. Steps down after DEGRADE_DOWN_SECONDS
+ * over budget, steps up after DEGRADE_UP_SECONDS under it, and never changes more than once per hold.
+ */
+export function stepDegrade(track: DegradeTrack, meanFrameMs: number, budgetMs: number): DegradeTrack {
+  const over = meanFrameMs > budgetMs * DEGRADE_OVER_FACTOR;
+  const under = meanFrameMs < budgetMs * DEGRADE_UNDER_FACTOR;
+  const overSeconds = over ? track.overSeconds + 1 : 0;
+  const underSeconds = under ? track.underSeconds + 1 : 0;
+  const holdSeconds = Math.min(track.holdSeconds + 1, DEGRADE_HOLD_SECONDS);
+  if (holdSeconds >= DEGRADE_HOLD_SECONDS) {
+    if (overSeconds >= DEGRADE_DOWN_SECONDS && track.level < DEGRADE_MAX_LEVEL) {
+      return { level: track.level + 1, overSeconds: 0, underSeconds: 0, holdSeconds: 0 };
+    }
+    if (underSeconds >= DEGRADE_UP_SECONDS && track.level > 0) {
+      return { level: track.level - 1, overSeconds: 0, underSeconds: 0, holdSeconds: 0 };
+    }
+  }
+  return { level: track.level, overSeconds, underSeconds, holdSeconds };
+}
+
+/**
  * Recovery ladder decisions (19 sections 2, 4, 7). Pure: the caller supplies the fault, the recent
  * history and whether a valid autosave exists, then acts on the result. Nothing here touches storage
  * or the DOM, so the policy tests run in Node.

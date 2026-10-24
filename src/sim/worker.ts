@@ -7,9 +7,10 @@
 import { PROTOCOL_VERSION, Cmd, Ev, type Command, type Event, type FrameRows, type FrameStats, type Speed } from '../shared/protocol.ts';
 import type { Sim } from './sim.ts';
 import { generateRealm } from './worldgen.ts';
-import { planPump, pumpFaultAction } from './scheduler.ts';
+import { heartbeatDue, planPump, pumpFaultAction } from './scheduler.ts';
 import { snapshotDue } from './snapshot.ts';
 import { decodeChronicle, encodeChronicle, MAX_SIZE_STEP, MIN_SIZE_STEP } from './chronicle.ts';
+import { contentHash } from '../content/content-hash.ts';
 
 /** Sim time budget per pump in ms (17 section 3.1; 8 ms desktop, 6 ms phones TUNE). Desktop default. */
 const FRAME_BUDGET_MS = 8;
@@ -25,6 +26,9 @@ let ticksThisPump = 0;
 let lastHash = 0;
 let lastPublishedTick = -1;
 let lastSnapshotTick = -1;
+/** Tick of the last Heartbeat posted (-1 before the first one for a realm) and pumps since then. */
+let lastHeartbeatTick = -1;
+let pumpsSinceHeartbeat = 0;
 const bufferPool: ArrayBuffer[] = [];
 
 const post = (event: Event, transfer: Transferable[] = []): void => {
@@ -117,6 +121,12 @@ function pump(): void {
   for (const detail of sim.takeRefusals()) post({ kind: Ev.Fault, severity: 'warn', code: 'COMMAND_REFUSED', detail });
   publishFrame(false);
   if (snapshotDue(lastSnapshotTick, sim.tick)) publishSnapshot();
+  pumpsSinceHeartbeat++;
+  if (heartbeatDue(sim.tick, lastHeartbeatTick, pumpsSinceHeartbeat)) {
+    lastHeartbeatTick = sim.tick;
+    pumpsSinceHeartbeat = 0;
+    post({ kind: Ev.Heartbeat, tick: sim.tick, avgTickMs });
+  }
 }
 
 function handle(cmd: Command): void {
@@ -131,7 +141,7 @@ function handle(cmd: Command): void {
         });
         return;
       }
-      post({ kind: Ev.Ready, reply: cmd.seq, protocolVersion: PROTOCOL_VERSION, side: 0, sizeStep: 0, seed: 0 });
+      post({ kind: Ev.Ready, reply: cmd.seq, protocolVersion: PROTOCOL_VERSION, side: 0, sizeStep: 0, seed: 0, contentHash: contentHash() });
       return;
     case Cmd.NewRealm: {
       const sizeStep = cmd.sizeStep;
@@ -144,6 +154,8 @@ function handle(cmd: Command): void {
       accMs = 0;
       lastPublishedTick = -1;
       lastSnapshotTick = -1;
+      lastHeartbeatTick = -1;
+      pumpsSinceHeartbeat = 0;
       lastHash = sim.stateHash();
       post({
         kind: Ev.Ready,
@@ -152,6 +164,7 @@ function handle(cmd: Command): void {
         side: sim.realm.side,
         sizeStep,
         seed: sim.realm.seed,
+        contentHash: contentHash(),
       });
       publishFrame(true);
       publishSnapshot();
@@ -168,8 +181,18 @@ function handle(cmd: Command): void {
         accMs = 0;
         lastPublishedTick = -1;
         lastSnapshotTick = -1;
+        lastHeartbeatTick = -1;
+        pumpsSinceHeartbeat = 0;
         lastHash = sim.stateHash();
-        post({ kind: Ev.Ready, reply: cmd.seq, protocolVersion: PROTOCOL_VERSION, side: sim.realm.side, sizeStep: sim.realm.sizeStep, seed: sim.realm.seed });
+        post({
+          kind: Ev.Ready,
+          reply: cmd.seq,
+          protocolVersion: PROTOCOL_VERSION,
+          side: sim.realm.side,
+          sizeStep: sim.realm.sizeStep,
+          seed: sim.realm.seed,
+          contentHash: contentHash(),
+        });
         publishFrame(true);
       } catch (error) {
         post({ kind: Ev.Loaded, reply: cmd.seq, ok: false, detail: error instanceof Error ? error.message : 'unreadable save' });

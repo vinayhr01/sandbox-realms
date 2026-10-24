@@ -104,3 +104,27 @@ Regrowth delay (1,200 ticks, TUNE) is in and sweeps show no change in outcome. T
 
 - **Stone:** the spec (09 sections 3, 8 and the job table) defines a quarry, stone outcrops and a miner. The hamlet slice now has a quarry (10 wood) that turns outcrop stock into 2 stone per growth step. Outcrops start at 40, regrow 1 per 5 steps, and cap at 60. Hamlets build a quarry when stone is below 10 and the first basics stand. Not built: miners as folk jobs, prospectors, the cleaner's ruin salvage, and other outcrop types.
 - **Counters:** `beings.stats.births` now counts only newborn children, and `newAdults` counts adults spawned, as 05 section 2 and 06 section 6.6 separate them. Not built: the per-parent and per-strain counters (`parent.births`, `strain.counters.reproduced`), since strains are not implemented.
+
+## Worldgen round 2
+
+Code: `src/sim/worldgen.ts` (pipeline, templates), `src/sim/worldgen/` (`noise.ts` moved from worldgen.ts, `pick.ts` weighted biome draw, `water.ts` rivers and lakes, `replace.ts` replace rules, `layouts.ts` Chessboard, Cells, Warren, starter volcano). Ground kinds: no new kinds; rivers and lakes use `shoal`, shores use `strand`, and the volcano uses `molten_4`.
+
+OPEN values and the defaults used (03 section 1, 7, 9; 18c section 3):
+- **minLand:** 6% default; 3% for Archipelago; 0 for Blank and Warren (03 section 1).
+- **Rivers:** 2 on Continent and Walled Plain (TUNE, 03 section 7). Lakes: 1 on Continent.
+- **Lake water:** shared with the sea (`shoal` is a sea kind, 03 section 7 default). No separate fresh-water kind.
+- **Layout RNG:** separate streams per feature (`hash3(worldSeed, step, n)`), so templates without rivers, lakes, replace rules or layouts keep their pre-round terrain.
+- **Biome share test:** 03 section 9 has no such test. The 10,000-sample test is taken from 18c section 3 rule 3. "Within 3%" is read as 3 percentage points of share (absolute), since a relative 3% is below sampling noise for weight-1 biomes.
+
+Deviations and interpretations (the spec is ambiguous or conflicts with itself):
+- **River landmass guard:** "landmass >= 4 regions" is read as a landmass of at least four Patches (1024 tiles). The "never cut a landmass into islets" guard is not built; rivers may split land.
+- **River walk:** a tile already on the river is never re-entered (stronger than "avoid last 8"); the walk stops when it touches water that is not part of the river, or after 700 steps. Rivers under 20 tiles are rolled back.
+- **Lake seeds:** the spec's "elevation between lowloam and highloam" with "20 tiles from sea" yields no candidates on a Continent (land of that elevation lies within 17 tiles of the sea because of the round-edge fade). Seeds are therefore lowloam or highloam tiles at least 20 tiles from sea.
+- **Replace rule test:** the spec writes `n255 > threshold`, but also states that threshold 0 means every water tile for Open Plains. The code uses `n255 >= threshold`. The edge ring is never replaced.
+- **Layout order:** Chessboard, Cells and Warren run after `removeMountains`, not before (03 section 2 step 14 before step 15). Otherwise `removeMountains` would flatten the Cells room walls to highloam.
+- **Cells walls:** each room's outline becomes crag, with no separate corner search. Doors are 3x3 knoll blocks at `randInt(3, len-3)` on a side that is still crag.
+- **Warren:** `rocky` means the blocked layer (crag, pinnacle). Carving stalls at walkable tiles, as specified.
+- **Starter volcano:** a 6x6 `molten_4` footprint on the largest landmass, centred on its centroid tile (knoll, crag or pinnacle when possible, else highloam). It is terrain only. The volcano structure (`volcano_cone`, 04 section 7.2) does not exist in the sim yet, so there is no emitter and the footprint cools in the normal magma sweep.
+- **Not done:** a separate fresh-water kind; the river landmass guard; the volcano emitter; `addResources` (03 section 8.2) is not part of this round.
+
+Known effect on existing tests: the Continent terrain changes (rivers, lakes, replace rule). The golden hash changes (see the commit). Two settlement tests that depend on the Continent terrain at fixed seeds fail (see the report), and the owner should choose new seeds or accept the new terrain.

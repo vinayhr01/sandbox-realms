@@ -32,6 +32,10 @@
 
       <main id="map" class="map" aria-label="Realm map. Drag with an armed tool to paint; drag or pinch to move the camera.">
         <div id="status" class="status" role="status" aria-live="polite">Tap the map to inspect a tile.</div>
+        <div id="coach" class="coach" hidden>
+          <p id="coach-text" class="coach-text"></p>
+          <button id="coach-skip" class="btn" type="button">Skip tutorial</button>
+        </div>
         <div id="debug" class="debug" hidden></div>
       </main>
 
@@ -77,24 +81,28 @@
         <section id="panel-powers" class="panel" role="tabpanel" aria-labelledby="tab-powers" hidden>
           <div id="power-tabs" class="power-tabs" role="tablist" aria-label="Power groups"></div>
           <div id="power-list" class="power-list" role="group" aria-label="Powers"></div>
+          <div class="power-actions" role="group" aria-label="Windows">
+            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_power_catalogue">All powers</button>
+            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_trophies">Achievements</button>
+            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_realm">Realm overview</button>
+            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_new_realm">New realm</button>
+            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_tutorial">Tutorial</button>
+            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_keys">Keys</button>
+            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_privacy">Privacy</button>
+          </div>
         </section>
       </nav>
     </div>
 
-    <dialog id="options" class="options" aria-labelledby="options-title">
-      <form method="dialog" class="options-card">
-        <h2 id="options-title">Settings</h2>
-        <label class="option">
-          <span>UI scale <output id="ui-scale-out" for="ui-scale">100%</output></span>
-          <input id="ui-scale" type="range" min="70" max="150" step="5" value="100" aria-label="UI scale" aria-describedby="ui-scale-out" />
-        </label>
-        <label class="option option-check">
-          <input id="reduce-motion" type="checkbox" />
-          <span>Reduce motion</span>
-        </label>
+    <dialog id="window" class="window" aria-labelledby="window-title">
+      <div class="window-card">
+        <header class="window-head">
+          <h2 id="window-title">Window</h2>
+          <button id="window-close" class="btn icon" type="button" aria-label="Close window">&#10005;</button>
+        </header>
+        <div id="window-body" class="window-body"></div>
         <p class="option-note">Saved on this device.</p>
-        <button id="options-close" class="btn primary" type="submit">Done</button>
-      </form>
+      </div>
     </dialog>
 
     <div id="toasts" class="toasts" role="status" aria-live="polite"></div>

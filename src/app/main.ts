@@ -4,11 +4,17 @@ import { TerrainRenderer, type CursorState } from '../render/terrain.ts';
 import { Camera } from '../render/camera.ts';
 import { MapInput } from '../ui/input.ts';
 import { setCalendar, setDebug, setStatus, toast } from '../ui/hud.ts';
-import { loadOptions, saveOptions, setOption, type KeyValueStorage, type Options } from '../ui/panels/options.ts';
-import { selectTab, type TabState } from '../ui/panels/powerBar.ts';
-import { POWER_BY_ID, TABS, powersInTab, type PowerDef, type TabId } from '../content/powers.ts';
+import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
+import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
+import { currentStep, parseTutorial, skipTutorial, TUTORIAL_TEXT, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
+import { cooldownSecondsLeft, linePoints, powerStatus, strokeOp } from '../ui/powerSupport.ts';
+import { WindowHost } from '../ui/windowHost.ts';
+import { windowFor, type WindowDeps } from '../ui/windowContent.ts';
+import { POWER_BY_ID, POWERS, TABS, powersInTab, type PowerDef, type TabId } from '../content/powers.ts';
 import { Ev, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
 import { MONTH_TICKS, YEAR_TICKS, DEFAULT_SIZE_STEP } from '../shared/constants.ts';
+import { RULE_BY_ID, RuleSet } from '../sim/rules.ts';
+import { AudioModel } from '../audio/model.ts';
 import { SimClient } from './sim-client.ts';
 import { installGlobalErrorHandlers, journal, showFatal, startSentinel } from './recovery.ts';
 
@@ -18,12 +24,10 @@ const DEFAULT_SIZE_INDEX = 5;
 const SPEED_CHOICES: readonly Speed[] = [0.5, 1, 2, 5, 10];
 /** Keyboard or arrow pan speed in CSS px per millisecond. */
 const KEY_PAN_PX_PER_MS = 0.6;
+/** Storage key for the first-run tutorial state (per device). */
+const TUTORIAL_KEY = 'tutorial';
 
 type Tile = { x: number; y: number };
-
-/** Brush powers the sim can apply today; every other power arms but does nothing on the map yet. */
-const BRUSH_OPS: Readonly<Record<string, BrushOp>> = { terraform_raise: 'raise', terraform_lower: 'lower' };
-const opOf = (power: PowerDef | null): BrushOp | null => (power ? (BRUSH_OPS[power.handler] ?? null) : null);
 
 /** Terrain tool buttons are shortcuts to the matching power. */
 const TOOL_POWERS: Readonly<Record<string, string>> = { raise: 'shape_raise', lower: 'shape_lower' };
@@ -38,7 +42,7 @@ interface UiState {
 }
 
 interface Stroke {
-  op: BrushOp;
+  power: PowerDef;
   last: Tile;
   target: Tile;
 }
@@ -61,6 +65,41 @@ function parseIntParam(params: URLSearchParams, key: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Storage access can throw (private windows, blocked site data); every read and write goes through here. */
+function safeStorage(): KeyValueStorage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function loadTutorial(): TutorialState {
+  try {
+    const raw = safeStorage()?.getItem(TUTORIAL_KEY);
+    return parseTutorial(raw ? JSON.parse(raw) : null);
+  } catch {
+    return parseTutorial(null);
+  }
+}
+
+function saveTutorial(state: TutorialState): void {
+  try {
+    safeStorage()?.setItem(TUTORIAL_KEY, JSON.stringify(state));
+  } catch {
+    // Not saved: the tutorial starts again on the next visit.
+  }
+}
+
+/** Reads the system preference for reduced motion or flashing; the default for both settings. */
+function osPrefers(query: string): boolean {
+  try {
+    return window.matchMedia(query).matches;
+  } catch {
+    return false;
+  }
+}
+
 async function boot(): Promise<void> {
   installGlobalErrorHandlers();
   startSentinel();
@@ -74,25 +113,39 @@ async function boot(): Promise<void> {
 
   const params = new URLSearchParams(location.search);
   const debugOverlay = params.has('debug');
-  if (debugOverlay) $('debug').hidden = false;
 
   const host = $('map');
   const renderer = await TerrainRenderer.create(host);
   const client = new SimClient();
+  const rules = new RuleSet();
+  const audio = new AudioModel();
+
+  // Settings: the OS preference fills reduce motion and flashing until the player chooses.
+  const osDefaults: Options = {
+    ...loadOptions(null),
+    'ui.reduceMotion': osPrefers('(prefers-reduced-motion: reduce)'),
+    'ui.reduceFlash': osPrefers('(prefers-reduced-motion: reduce)'),
+  };
+  let options: Options = loadOptions(safeStorage(), osDefaults);
+  const startSpeed = Number.parseFloat(stringOption(options, 'game.defaultSpeed'));
 
   const state: UiState = {
     armed: null,
     shape: 'circle',
     sizeIndex: DEFAULT_SIZE_INDEX,
-    speed: 1,
+    speed: SPEED_CHOICES.includes(startSpeed as Speed) ? (startSpeed as Speed) : 1,
     paused: false,
   };
 
+  let tutorial: TutorialState = loadTutorial();
   let camera: Camera | null = null;
   let realmSide = 0;
+  let realmSeed = 0;
+  let calendarText = 'Y1 M1';
   let stroke: Stroke | null = null;
   let cursorScreen: { x: number; y: number } | null = null;
   const keysDown = new Set<string>();
+  const cooldownUntil = new Map<string, number>();
 
   let simTick = 0;
   let simHash = 0;
@@ -117,6 +170,7 @@ async function boot(): Promise<void> {
 
   const setRealmSide = (side: number, seed: number): void => {
     realmSide = side;
+    realmSeed = seed;
     renderer.setSide(side);
     camera = new Camera(side, renderer.app.screen.width, renderer.app.screen.height);
     stroke = null;
@@ -133,11 +187,77 @@ async function boot(): Promise<void> {
     }
   };
 
-  const brushOp = (): BrushOp | null => opOf(state.armed);
+  const togglePause = (): void => {
+    state.paused = !state.paused;
+    applySpeed();
+  };
+
+  const cycleSpeed = (): void => {
+    const next = SPEED_CHOICES[(SPEED_CHOICES.indexOf(state.speed) + 1) % SPEED_CHOICES.length] ?? 1;
+    state.speed = next;
+    state.paused = false;
+    applySpeed();
+    feedTutorial('speed-changed');
+  };
+
+  /** Coach strip: the current tutorial step, hidden once the tutorial is done or skipped. */
+  const renderCoach = (): void => {
+    const step = currentStep(tutorial);
+    const coach = $('coach');
+    coach.hidden = step === null;
+    if (step) $('coach-text').textContent = TUTORIAL_TEXT[step.id] ?? '';
+  };
+
+  const feedTutorial = (event: string): void => {
+    const next = tutorialEvent(tutorial, event);
+    if (next === tutorial) return;
+    tutorial = next;
+    saveTutorial(tutorial);
+    renderCoach();
+  };
 
   // Power bar: one tab per power group; only the selected group's buttons exist in the DOM.
   let powerTab: TabState = { active: TABS[0], tabs: TABS };
   const tabLabel = (tab: TabId): string => tab.charAt(0).toUpperCase() + tab.slice(1);
+
+  /** Carries out a power button press: UI actions run at once, sim powers arm or disarm. */
+  const activatePower = (power: PowerDef): void => {
+    const status = powerStatus(power);
+    if (!status.enabled) {
+      setStatus(status.note);
+      return;
+    }
+    switch (power.handler) {
+      case 'set_pause':
+        togglePause();
+        return;
+      case 'cycle_speed':
+        cycleSpeed();
+        return;
+      case 'open_window':
+        openWindow(`win_${String(power.params['window'] ?? '')}`);
+        return;
+      case 'toggle_hud':
+        document.documentElement.classList.toggle('hide-ui');
+        return;
+      case 'toggle_rule':
+        setRule(String(power.params['rule'] ?? ''), !rules.isOn(String(power.params['rule'] ?? '')));
+        return;
+      default:
+        setArmed(state.armed?.id === power.id ? null : power);
+    }
+  };
+
+  /** Keeps aria-pressed on the power buttons in step with the armed power and the rules. */
+  const updatePowerButtons = (): void => {
+    for (const btn of document.querySelectorAll<HTMLButtonElement>('.power')) {
+      const power = POWER_BY_ID.get(btn.dataset['powerId'] ?? '');
+      if (!power) continue;
+      const pressed = power.handler === 'toggle_rule' ? rules.isOn(String(power.params['rule'])) : state.armed?.id === power.id;
+      btn.setAttribute('aria-pressed', String(pressed));
+    }
+  };
+
   const renderPowers = (): void => {
     const tabHost = $('power-tabs');
     tabHost.replaceChildren(
@@ -158,20 +278,22 @@ async function boot(): Promise<void> {
     );
     $('power-list').replaceChildren(
       ...powersInTab(powerTab.active as TabId).map((power) => {
+        const status = powerStatus(power);
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'power';
         btn.dataset['powerId'] = power.id;
-        btn.setAttribute('aria-pressed', String(state.armed?.id === power.id));
+        btn.setAttribute('aria-disabled', String(!status.enabled));
+        btn.title = status.enabled ? '' : status.note;
         btn.textContent = power.name;
-        btn.addEventListener('click', () => setArmed(state.armed?.id === power.id ? null : power));
+        btn.addEventListener('click', () => activatePower(power));
         return btn;
       }),
     );
+    updatePowerButtons();
   };
 
   /** Arms a power (null = inspect). Terrain tool buttons and the power bar both show the same state. */
-  const unsupportedNote = (power: PowerDef): string => `${power.name} is armed. Only Raise and Lower work on the map so far.`;
   const setArmed = (power: PowerDef | null): void => {
     // A stroke in progress belongs to the old power: end it before the new one takes over.
     if (stroke) {
@@ -179,17 +301,17 @@ async function boot(): Promise<void> {
       stroke = null;
     }
     state.armed = power;
-    const op = opOf(power);
+    const op = strokeOp(power);
     for (const btn of document.querySelectorAll<HTMLButtonElement>('.tool')) {
       const tool = btn.dataset['tool'];
       btn.setAttribute('aria-pressed', String(power === null ? tool === 'inspect' : tool === op));
     }
-    for (const btn of document.querySelectorAll<HTMLButtonElement>('.power')) {
-      btn.setAttribute('aria-pressed', String(btn.dataset['powerId'] === power?.id));
-    }
+    updatePowerButtons();
     if (!power) setStatus('Tap a tile to inspect it.');
     else if (op) setStatus(`${op === 'raise' ? 'Raise' : 'Lower'}: drag to shape the land.`);
-    else setStatus(unsupportedNote(power));
+    else if (power.kind === 'brush') setStatus(`${power.name}: drag or tap the map.`);
+    else setStatus(`${power.name} is armed: tap the map to use it.`);
+    if (power) feedTutorial('tool-armed');
   };
 
   const toolPower = (tool: string): PowerDef | null => {
@@ -204,29 +326,113 @@ async function boot(): Promise<void> {
     }
   };
 
+  /** Sets a Realm Rule on the mirror and in the sim. Returns false when the rule cannot change. */
+  const setRule = (id: string, on: boolean): boolean => {
+    if (!RULE_BY_ID.has(id) && !id.startsWith('age_enabled_')) return false;
+    const before = rules.isOn(id);
+    const ok = rules.set(id, on);
+    if (!ok) {
+      setStatus(`${id.replace(/_/g, ' ')} cannot be turned off once on.`);
+      return false;
+    }
+    if (before !== on) client.setRule(id, on);
+    updatePowerButtons();
+    return true;
+  };
+
+  /** Applies a power at one tile through the sim, or reports why it is cooling down. */
+  const usePowerAt = (power: PowerDef, x: number, y: number): void => {
+    const now = performance.now();
+    const readyAt = cooldownUntil.get(power.id) ?? 0;
+    if (now < readyAt) {
+      setStatus(`${power.name} is ready in ${cooldownSecondsLeft(now, readyAt)} s.`);
+      return;
+    }
+    if (power.cooldownMs > 0) cooldownUntil.set(power.id, now + power.cooldownMs);
+    const op = strokeOp(power);
+    if (op) client.stroke(op, state.shape, brushRadius(), x, y, x, y, true);
+    else client.power(power.id, x, y);
+    if (boolOption(options, 'input.haptics')) navigator.vibrate?.(8);
+  };
+
   const flushStroke = (): void => {
     if (!stroke) return;
     const { last, target } = stroke;
     if (target.x === last.x && target.y === last.y) return;
-    client.stroke(stroke.op, state.shape, brushRadius(), last.x, last.y, target.x, target.y, false);
+    const op = strokeOp(stroke.power);
+    if (op) {
+      client.stroke(op, state.shape, brushRadius(), last.x, last.y, target.x, target.y, false);
+    } else {
+      // Other brush powers are applied tile by tile along the drag; the first tile was done at the press.
+      for (const [x, y] of linePoints(last.x, last.y, target.x, target.y).slice(1)) client.power(stroke.power.id, x, y);
+    }
     stroke.last = target;
   };
 
-  // Listeners hold the handlers, so the input object needs no reference of its own.
+  const brushOp = (): BrushOp | null => strokeOp(state.armed);
+
+  // Windows: one dialog, filled by windowContent. Settings, rules, ages, and the rest open from here.
+  const openWindow = (id: string): void => {
+    const build = windowFor(id, windowDeps);
+    if (!build) {
+      setStatus('That window is not available yet.');
+      return;
+    }
+    windowHost.open(id, build.title, build.build);
+  };
+
+  const windowDeps: WindowDeps = {
+    options: () => options,
+    setOption: (id, value) => changeOption(id, value),
+    rules,
+    setRule,
+    realm: () => ({ seed: realmSeed, side: realmSide, calendar: calendarText }),
+    newRealm: (seed, sizeStep) => {
+      void client.newRealm(seed, sizeStep);
+    },
+    activate: (power) => activatePower(power),
+    tutorial: () => ({
+      state: tutorial,
+      restart: () => {
+        tutorial = parseTutorial(null);
+        saveTutorial(tutorial);
+        renderCoach();
+        openWindow('win_tutorial');
+      },
+      skip: () => {
+        tutorial = skipTutorial(tutorial);
+        saveTutorial(tutorial);
+        renderCoach();
+        openWindow('win_tutorial');
+      },
+    }),
+    close: () => windowHost.close(),
+  };
+
+  const windowHost = new WindowHost($<HTMLDialogElement>('window'), $('window-title'), $('window-body'));
+  $('window-close').addEventListener('click', () => windowHost.close());
+
+  // Map input. A brush power (raise, lower, ground paint) drags; everything else pans.
   new MapInput(renderer.app.canvas, {
-    brushArmed: () => brushOp() !== null && camera !== null,
-    onPan: (dx, dy) => camera?.panBy(dx, dy),
-    onZoom: (factor, sx, sy) => camera?.zoomAt(factor, sx, sy),
+    brushArmed: () => state.armed?.kind === 'brush' && camera !== null,
+    onPan: (dx, dy) => {
+      const k = numberOption(options, 'input.panSpeed') / 100;
+      camera?.panBy(dx * k, dy * k);
+    },
+    onZoom: (factor, sx, sy) => {
+      const base = boolOption(options, 'input.invertZoom') ? 1 / factor : factor;
+      camera?.zoomAt(base ** (numberOption(options, 'input.zoomSpeed') / 100), sx, sy);
+    },
     onHover: (sx, sy) => {
       cursorScreen = { x: sx, y: sy };
     },
     onStrokeStart: (sx, sy) => {
-      const op = brushOp();
-      if (!op) return;
+      const power = state.armed;
+      if (!power || power.kind !== 'brush') return;
       const t = tileAt(sx, sy);
-      stroke = { op, last: t, target: t };
+      stroke = { power, last: t, target: t };
       cursorScreen = { x: sx, y: sy };
-      client.stroke(op, state.shape, brushRadius(), t.x, t.y, t.x, t.y, true);
+      usePowerAt(power, t.x, t.y);
     },
     onStrokeMove: (sx, sy) => {
       cursorScreen = { x: sx, y: sy };
@@ -234,15 +440,14 @@ async function boot(): Promise<void> {
     },
     onStrokeEnd: () => {
       flushStroke();
+      if (stroke) feedTutorial('stroke-finished');
       stroke = null;
     },
     onTap: (sx, sy) => {
       const t = tileAt(sx, sy);
       cursorScreen = { x: sx, y: sy };
       if (state.armed) {
-        const op = brushOp();
-        if (op) client.stroke(op, state.shape, brushRadius(), t.x, t.y, t.x, t.y, true);
-        else setStatus(unsupportedNote(state.armed));
+        usePowerAt(state.armed, t.x, t.y);
         return;
       }
       void client.query(t.x, t.y).then((r) => {
@@ -251,6 +456,7 @@ async function boot(): Promise<void> {
           return;
         }
         setStatus(`Tile ${r.tileX}, ${r.tileY} · elevation ${r.elevation} · ${r.ground}`);
+        feedTutorial('tile-inspected');
       });
     },
   });
@@ -269,7 +475,8 @@ async function boot(): Promise<void> {
         simHash = event.stats.stateHash;
         simAvgTickMs = event.stats.avgTickMs;
         simSpeed = event.stats.speed;
-        setCalendar(`Y${Math.floor(simTick / YEAR_TICKS) + 1} M${(Math.floor(simTick / MONTH_TICKS) % 12) + 1}`);
+        calendarText = `Y${Math.floor(simTick / YEAR_TICKS) + 1} M${(Math.floor(simTick / MONTH_TICKS) % 12) + 1}`;
+        setCalendar(calendarText);
         return;
       case Ev.Fault:
         journal(event.code, event.detail);
@@ -283,52 +490,62 @@ async function boot(): Promise<void> {
   });
 
   // Controls.
-  $('pause').addEventListener('click', () => {
-    state.paused = !state.paused;
-    applySpeed();
-  });
+  $('pause').addEventListener('click', togglePause);
   for (const btn of document.querySelectorAll<HTMLButtonElement>('.speed-btn')) {
     btn.addEventListener('click', () => {
       state.speed = Number(btn.dataset['speed']) as Speed;
       state.paused = false;
       applySpeed();
+      feedTutorial('speed-changed');
     });
   }
   for (const btn of document.querySelectorAll<HTMLButtonElement>('.tool')) {
     btn.addEventListener('click', () => setArmed(toolPower(btn.dataset['tool'] ?? 'inspect')));
   }
 
-  // Options: stored through the options model; storage access can throw, so it is wrapped.
-  const safeStorage = (): KeyValueStorage | null => {
+  // Settings: every change is validated, saved, and applied at once.
+  const changeOption = (id: string, value: OptionValue): void => {
+    options = setOption(options, id, value);
+    saveOptions(safeStorage(), options);
+    if (id === 'ui.fullscreen') toggleFullscreen(options[id] === true);
+    applyOptions();
+  };
+  const toggleFullscreen = (on: boolean): void => {
     try {
-      return window.localStorage;
+      if (on) void document.documentElement.requestFullscreen?.().catch(() => undefined);
+      else if (document.fullscreenElement) void document.exitFullscreen?.().catch(() => undefined);
     } catch {
-      return null;
+      // Full screen is refused in some embedded contexts; the setting stays saved.
     }
   };
-  let options: Options = loadOptions(safeStorage());
-  const scaleInput = $<HTMLInputElement>('ui-scale');
-  const motionInput = $<HTMLInputElement>('reduce-motion');
   const applyOptions = (): void => {
-    document.documentElement.style.setProperty('--ui-scale', String(options.scale / 100));
-    document.documentElement.toggleAttribute('data-reduce-motion', options.reduceMotion);
-    scaleInput.value = String(options.scale);
-    $('ui-scale-out').textContent = `${options.scale}%`;
-    motionInput.checked = options.reduceMotion;
-  };
-  const changeOption = <K extends keyof Options>(key: K, value: Options[K]): void => {
-    options = setOption(options, key, value);
-    saveOptions(safeStorage(), options);
-    applyOptions();
+    const root = document.documentElement;
+    root.style.setProperty('--ui-scale', String(numberOption(options, 'ui.scale') / 100));
+    root.style.setProperty('--ui-scale-windows', String(numberOption(options, 'ui.scaleWindows') / 100));
+    root.style.setProperty('--ui-scale-tooltips', String(numberOption(options, 'ui.scaleTooltips') / 100));
+    root.dataset['theme'] = stringOption(options, 'ui.theme');
+    root.toggleAttribute('data-reduce-motion', boolOption(options, 'ui.reduceMotion'));
+    root.toggleAttribute('data-reduce-flash', boolOption(options, 'ui.reduceFlash'));
+    renderer.app.ticker.maxFPS = numberOption(options, 'ui.fpsCap');
+    $('debug').hidden = !(boolOption(options, 'ui.showFps') || debugOverlay);
+    audio.setVolume('master', numberOption(options, 'audio.master') / 100);
+    audio.setVolume('music', numberOption(options, 'audio.music') / 100);
+    audio.setVolume('sfx', numberOption(options, 'audio.sfx') / 100);
+    audio.setVolume('ui', numberOption(options, 'audio.ui') / 100);
+    audio.setHidden(document.hidden && boolOption(options, 'audio.muteOnBlur'));
   };
   applyOptions();
-  scaleInput.addEventListener('input', () => changeOption('scale', Number(scaleInput.value)));
-  motionInput.addEventListener('change', () => changeOption('reduceMotion', motionInput.checked));
-  const optionsDialog = $<HTMLDialogElement>('options');
-  $('settings-open').addEventListener('click', () => {
-    applyOptions();
-    optionsDialog.showModal();
+  $('settings-open').addEventListener('click', () => openWindow('win_settings'));
+  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-window]')) {
+    btn.addEventListener('click', () => openWindow(btn.dataset['window'] ?? ''));
+  }
+  $('coach-skip').addEventListener('click', () => {
+    tutorial = skipTutorial(tutorial);
+    saveTutorial(tutorial);
+    renderCoach();
   });
+  renderCoach();
+
   for (const btn of document.querySelectorAll<HTMLButtonElement>('.shape')) {
     btn.addEventListener('click', () => setShape(btn.dataset['shape'] as BrushShape));
   }
@@ -362,8 +579,9 @@ async function boot(): Promise<void> {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
     keysDown.add(e.code);
     if (e.code === 'KeyP') {
-      state.paused = !state.paused;
-      applySpeed();
+      togglePause();
+    } else if (e.code === 'KeyH') {
+      document.documentElement.classList.toggle('hide-ui');
     } else if (e.code === 'BracketLeft' || e.code === 'BracketRight') {
       const step = e.code === 'BracketLeft' ? -1 : 1;
       sizeInput.value = String(Math.max(0, Math.min(BRUSH_RADII.length - 1, state.sizeIndex + step)));
@@ -376,6 +594,7 @@ async function boot(): Promise<void> {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) client.setSpeed(0);
     else applySpeed();
+    audio.setHidden(document.hidden && boolOption(options, 'audio.muteOnBlur'));
   });
 
   // Keep the camera viewport in step with the map element.
@@ -387,7 +606,7 @@ async function boot(): Promise<void> {
   const onFrame = (ticker: Ticker): void => {
     const cam = camera;
     if (cam && keysDown.size > 0) {
-      const dt = ticker.deltaMS * KEY_PAN_PX_PER_MS;
+      const dt = ticker.deltaMS * KEY_PAN_PX_PER_MS * (numberOption(options, 'input.panSpeed') / 100);
       const dx = (keysDown.has('ArrowRight') || keysDown.has('KeyD') ? 1 : 0) - (keysDown.has('ArrowLeft') || keysDown.has('KeyA') ? 1 : 0);
       const dy = (keysDown.has('ArrowDown') || keysDown.has('KeyS') ? 1 : 0) - (keysDown.has('ArrowUp') || keysDown.has('KeyW') ? 1 : 0);
       if (dx !== 0 || dy !== 0) cam.panBy(-dx * dt, -dy * dt);
@@ -395,7 +614,7 @@ async function boot(): Promise<void> {
     flushStroke();
 
     const cursor: CursorState = {
-      tile: brushOp() !== null && cursorScreen && camera ? tileAt(cursorScreen.x, cursorScreen.y) : null,
+      tile: strokeOp(state.armed) !== null && cursorScreen && camera ? tileAt(cursorScreen.x, cursorScreen.y) : null,
       radius: brushRadius(),
       shape: state.shape,
     };
@@ -431,11 +650,12 @@ async function boot(): Promise<void> {
   await client.init();
   await client.newRealm(seed, sizeStep);
   client.setSpeed(state.paused ? 0 : state.speed);
+  applySpeed();
   renderPowers();
   setArmed(null);
   setShape('circle');
 
-  // Hooks for the Playwright smoke tests; read-only except newRealm/speed through the UI.
+  // Hooks for the Playwright tests; read-only except newRealm/speed through the UI.
   (window as unknown as { __sr: unknown }).__sr = {
     tick: () => simTick,
     hash: () => simHash,
@@ -453,6 +673,14 @@ async function boot(): Promise<void> {
       state.paused = false;
       applySpeed();
     },
+    commands: () => [...client.sentKinds],
+    openWindow: () => windowHost.current,
+    rule: (id: string) => rules.isOn(id),
+    cooldownFraction: (id: string) => {
+      const power = POWER_BY_ID.get(id);
+      return power ? cooldownFraction(performance.now(), cooldownUntil.get(id) ?? 0, power.cooldownMs) : 0;
+    },
+    powerCount: () => POWERS.length,
   };
 
   setStatus('Tap a tile to inspect it.');

@@ -11,6 +11,10 @@ export enum Cmd {
   Stroke = 4,
   Query = 5,
   ReturnBuffer = 6,
+  /** Applies one power from content/powers.ts at a tile (UI powers path). */
+  Power = 7,
+  /** Sets one Realm Rule (src/sim/rules.ts). */
+  SetRule = 8,
 }
 
 export enum Ev {
@@ -33,7 +37,9 @@ export type Command =
   /** Dabs along the line (x0,y0)->(x1,y1). includeStart=false skips the first tile, which an earlier segment already painted. */
   | { kind: Cmd.Stroke; seq: number; op: BrushOp; shape: BrushShape; size: number; x0: number; y0: number; x1: number; y1: number; includeStart: boolean }
   | { kind: Cmd.Query; seq: number; tileX: number; tileY: number }
-  | { kind: Cmd.ReturnBuffer; seq: number; buffer: ArrayBuffer };
+  | { kind: Cmd.ReturnBuffer; seq: number; buffer: ArrayBuffer }
+  | { kind: Cmd.Power; seq: number; powerId: string; x: number; y: number }
+  | { kind: Cmd.SetRule; seq: number; rule: string; on: boolean };
 
 /** Rows of the index texture: RGBA8 per tile = [ground, cover, elevation, flags & 0xff]. */
 export interface FrameRows {

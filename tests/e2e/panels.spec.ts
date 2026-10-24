@@ -100,8 +100,7 @@ test('powers: arming Raise shows the armed state and a drag on the map raises te
   await expect(raise).toHaveAttribute('aria-pressed', 'false');
 });
 
-test('powers: the bar lists each group and an unsupported power arms with a note', async ({ page }) => {
-  await openRealm(page);
+test('powers: a sim power arms, a tap sends it to the sim, and an unbuilt power is disabled with a note', async ({ page }) => {
   const call = await openRealm(page);
   await page.getByRole('tab', { name: 'Powers', exact: true }).click();
   await page.getByRole('tab', { name: 'Powers: Havoc' }).click();
@@ -110,9 +109,25 @@ test('powers: the bar lists each group and an unsupported power arms with a note
 
   await bomb.click();
   await expect(bomb).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#status')).toContainText('Only Raise and Lower work on the map so far');
+  await expect(page.locator('#status')).toContainText('Bomb is armed');
 
-  // An armed power that the map cannot apply must not block panning. The default view fits the whole
+  // A tap on the map applies the armed power: the sim gets a Power command (kind 7).
+  const target = await call<{ x: number; y: number }>('tileToScreen', 100, 100);
+  await page.mouse.click(target.x, target.y);
+  await expect.poll(() => call<number[]>('commands')).toContain(7);
+
+  // A power whose system is not built stays disabled and says why.
+  await page.getByRole('tab', { name: 'Powers: Sky' }).click();
+  const rain = page.getByRole('button', { name: 'Rain', exact: true });
+  await expect(rain).toHaveAttribute('aria-disabled', 'true');
+  // aria-disabled keeps the tap working so the note can show; Playwright would refuse a plain click.
+  await rain.click({ force: true });
+  await expect(page.locator('#status')).toContainText('Rain is not available yet');
+  await expect(rain).toHaveAttribute('aria-pressed', 'false');
+  await page.getByRole('tab', { name: 'Powers: Havoc' }).click();
+  await expect(bomb).toHaveAttribute('aria-pressed', 'true');
+
+  // An armed power that is not a brush must not block panning. The default view fits the whole
   // realm, so zoom in first to leave room to pan.
   const center = await call<{ x: number; y: number }>('tileToScreen', 128, 128);
   const zoomed0 = await call<{ x: number; y: number }>('tileToScreen', 0, 0);

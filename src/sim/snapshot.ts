@@ -20,10 +20,15 @@ import {
   type ClanRow,
   type DominionRow,
   type HamletRow,
+  MAP_BUILDING_CAP,
   MAP_MARK_CAP,
   MAP_POINT_CAP,
+  type MapBuilding,
+  type MapKind,
+  type MapKindGroup,
   type MapMarks,
   type MapPoint,
+  type MapSizeClass,
   type NotableRows,
   type PactBlock,
   type PactRow,
@@ -84,6 +89,8 @@ export function buildSnapshot(sim: Sim): Snapshot {
     // Map feed (src/render/marks.ts): read-only positions of living beings, capped.
     mapPoints: mapPointsOf(sim),
     mapMarks: mapMarksOf(sim),
+    mapKinds: mapKindsOf(sim),
+    mapBuildings: mapBuildingsOf(sim),
   };
   return fitSnapshot(snap);
 }
@@ -164,6 +171,53 @@ function mapPointsOf(sim: Sim): MapPoint[] {
   });
 }
 
+/** Species group letter (18a section 2) to the map sprite group; 'folk' is the Folk row group. */
+const MAP_GROUP_OF_LETTER: Record<string, MapKindGroup> = {
+  A: 'beast',
+  B: 'beast',
+  C: 'beast',
+  D: 'sea',
+  E: 'insect',
+  F: 'undead',
+  G: 'monster',
+  H: 'divine',
+  folk: 'folk',
+};
+
+/**
+ * Sprite kind (group and size class) of each point in mapPoints, same ids and order. Read-only; capped at
+ * MAP_POINT_CAP like mapPoints. Dropped first by fitSnapshot.
+ */
+function mapKindsOf(sim: Sim): MapKind[] {
+  const s = sim.beings.store;
+  const alive: number[] = [];
+  for (let k = 0; k < s.size; k++) alive.push(s.at(k));
+  alive.sort((a, b) => (s.born[a] ?? 0) - (s.born[b] ?? 0) || a - b);
+  return alive.slice(0, MAP_POINT_CAP).map((slot) => {
+    const def = SPECIES[s.species[slot] ?? 0];
+    return {
+      id: (s.generation[slot] ?? 0) * MAX_BEINGS + slot,
+      group: MAP_GROUP_OF_LETTER[def?.group ?? ''] ?? 'beast',
+      size: (def?.size ?? 'S') as MapSizeClass,
+    };
+  });
+}
+
+/**
+ * Buildings of every hamlet in hamlet order, with their tile positions, capped at MAP_BUILDING_CAP. Reads only.
+ * The hamlet rows carry counts only, and the notable rows are capped at 16, so the map gets its own list.
+ */
+function mapBuildingsOf(sim: Sim): MapBuilding[] {
+  const out: MapBuilding[] = [];
+  for (const h of hamletsOf(sim)) {
+    for (const b of h.buildings) {
+      if (out.length >= MAP_BUILDING_CAP) return out;
+      out.push({ id: b.y * 1024 + b.x, kind: b.def.id, x: b.x, y: b.y });
+    }
+  }
+  return out;
+}
+
 /** Tiles per biome id over the whole realm: a read-only scan of the cover layer. */
 function biomeCountsOf(sim: Sim): Record<string, number> {
   const counts: Record<string, number> = {};
@@ -205,7 +259,15 @@ function clansOf(sim: Sim): ClanBlock {
  */
 export function fitSnapshot(snap: Snapshot): Snapshot {
   let out = snap;
-  // Map marks and map points go first: the map simply draws without them.
+  // Map sprite feeds go first, then map marks and map points: the map simply draws without them.
+  if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapBuildings !== undefined) {
+    const { mapBuildings: _buildings, ...rest } = out;
+    out = { ...rest, truncated: true };
+  }
+  if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapKinds !== undefined) {
+    const { mapKinds: _kinds, ...rest } = out;
+    out = { ...rest, truncated: true };
+  }
   if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapMarks !== undefined) {
     const { mapMarks: _marks, ...rest } = out;
     out = { ...rest, truncated: true };

@@ -8,11 +8,10 @@
  * is started in play, so no position is carried) and boats (the sim has no boat entity). Both rows stay
  * non-live in the Settings table.
  */
-import { Application, Container, Graphics, Text } from 'pixi.js';
-import type { MapMarks, Snapshot } from '../shared/protocol.ts';
+import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
+import type { MapKind, MapMarks, Snapshot } from '../shared/protocol.ts';
+import { buildingKindOf, SpriteFactory, type SpriteTex } from './sprites.ts';
 
-const FOLK_COLOUR = 0xf2d18b;
-const WILD_COLOUR = 0x8fd3a4;
 const ITEM_COLOUR = 0xffb020;
 const FAVOURITE_COLOUR = 0xff5fd2;
 const ARMY_COLOUR = 0xff8c42;
@@ -20,7 +19,8 @@ const CAMPAIGN_COLOUR = 0xff3b3b;
 const BATTLE_COLOUR = 0xffffff;
 const LINK_COLOUR = 0x9fb6ff;
 const HAMLET_COLOUR = 0xffe9a8;
-const BEING_RADIUS_PX = 1.5;
+/** Sprites this far outside the viewport (CSS px) are not placed: keeps a sprite whose anchor is off screen. */
+const SPRITE_MARGIN_PX = 16;
 const ITEM_RADIUS_PX = 4;
 const ARMY_HALF_PX = 3;
 const CAMPAIGN_RADIUS_PX = 6;
@@ -47,19 +47,36 @@ export interface MarkView {
   offX: number;
   offY: number;
   zoom: number;
+  /** Viewport size in CSS px (for culling sprites to the screen). */
+  viewW: number;
+  viewH: number;
+}
+
+/** Screen position of a tile centre under the camera. */
+function toScreen(view: MarkView, x: number, y: number): { sx: number; sy: number } {
+  return { sx: view.offX + (x + 0.5) * view.zoom, sy: view.offY + (y + 0.5) * view.zoom };
 }
 
 export class MarkLayer {
   private readonly root = new Container();
+  private readonly buildings = new Container();
+  private readonly beings = new Container();
   private readonly graphics = new Graphics();
   private readonly labels = new Container();
   private readonly labelPool: Text[] = [];
+  private readonly beingPool: Sprite[] = [];
+  private readonly buildingPool: Sprite[] = [];
+  private readonly sprites: SpriteFactory;
   private key = '';
 
   constructor(app: Application) {
+    // Buildings under beings, beings under the mark graphics and the labels.
+    this.root.addChild(this.buildings);
+    this.root.addChild(this.beings);
     this.root.addChild(this.graphics);
     this.root.addChild(this.labels);
     app.stage.addChild(this.root);
+    this.sprites = new SpriteFactory(app.renderer);
   }
 
   /** Redraws when something it shows has changed; otherwise does nothing. */
@@ -78,26 +95,22 @@ export class MarkLayer {
       view.offX,
       view.offY,
       view.zoom,
+      view.viewW,
+      view.viewH,
     ].join('|');
     if (key === this.key) return;
     this.key = key;
     const g = this.graphics;
     g.clear();
     this.hideLabels();
+    // Sprites are rebuilt from the snapshot and only repositioned on a camera change: no texture work per frame.
+    this.placeSprites(snap, view);
     if (!snap) return;
-    const toScreen = (x: number, y: number): { sx: number; sy: number } => ({
-      sx: view.offX + (x + 0.5) * view.zoom,
-      sy: view.offY + (y + 0.5) * view.zoom,
-    });
 
-    // Beings: a dot each, by species group.
+    // Beings have a sprite (placeSprites). Items below need their tile on screen, so the ids are mapped here.
     const points = snap.mapPoints ?? [];
     const byId = new Map<number, { sx: number; sy: number }>();
-    for (const p of points) {
-      const { sx, sy } = toScreen(p.x, p.y);
-      byId.set(p.id, { sx, sy });
-      g.circle(sx, sy, BEING_RADIUS_PX).fill(p.folk ? FOLK_COLOUR : WILD_COLOUR);
-    }
+    for (const p of points) byId.set(p.id, toScreen(view, p.x, p.y));
 
     // Items: a ring on each worn item whose holder has a position. Stored items have no tile.
     for (const item of snap.items?.rows ?? []) {
@@ -111,35 +124,83 @@ export class MarkLayer {
     }
 
     const marks = snap.mapMarks;
-    if (marks) this.drawMarks(marks, toggles, toScreen);
+    if (marks) this.drawMarks(marks, toggles, view);
   }
 
-  private drawMarks(marks: MapMarks, toggles: MarkToggles, toScreen: (x: number, y: number) => { sx: number; sy: number }): void {
+  /**
+   * Places the building and being sprites that fall inside the viewport (plus SPRITE_MARGIN_PX). Pools grow
+   * to the largest count seen and extra sprites are hidden, not destroyed. Beings with no MapKind use the
+   * Folk flag (folk) or the beast group (wild), and size S.
+   */
+  private placeSprites(snap: Snapshot | null, view: MarkView): void {
+    let nb = 0;
+    let nbeing = 0;
+    if (snap) {
+      for (const b of snap.mapBuildings ?? []) {
+        const { sx, sy } = toScreen(view, b.x, b.y);
+        if (!this.onScreen(sx, sy, view)) continue;
+        const tex = this.sprites.building(buildingKindOf(b.kind));
+        this.place(this.buildingPool, this.buildings, nb++, tex, sx, sy);
+      }
+      const kinds = new Map<number, MapKind>();
+      for (const k of snap.mapKinds ?? []) kinds.set(k.id, k);
+      for (const p of snap.mapPoints ?? []) {
+        const { sx, sy } = toScreen(view, p.x, p.y);
+        if (!this.onScreen(sx, sy, view)) continue;
+        const kind = kinds.get(p.id);
+        const tex = this.sprites.being(kind?.group ?? (p.folk ? 'folk' : 'beast'), kind?.size ?? 'S');
+        this.place(this.beingPool, this.beings, nbeing++, tex, sx, sy);
+      }
+    }
+    for (let i = nb; i < this.buildingPool.length; i++) this.buildingPool[i]!.visible = false;
+    for (let i = nbeing; i < this.beingPool.length; i++) this.beingPool[i]!.visible = false;
+  }
+
+  private onScreen(sx: number, sy: number, view: MarkView): boolean {
+    return sx >= -SPRITE_MARGIN_PX && sy >= -SPRITE_MARGIN_PX && sx <= view.viewW + SPRITE_MARGIN_PX && sy <= view.viewH + SPRITE_MARGIN_PX;
+  }
+
+  /** Puts sprite i of a pool on (sx, sy), creating it on first use. */
+  private place(pool: Sprite[], parent: Container, i: number, tex: SpriteTex, sx: number, sy: number): void {
+    let sprite = pool[i];
+    if (!sprite) {
+      sprite = new Sprite();
+      pool.push(sprite);
+      parent.addChild(sprite);
+    }
+    sprite.texture = tex.texture;
+    sprite.anchor.set(tex.anchorX, tex.anchorY);
+    sprite.position.set(sx, sy);
+    sprite.visible = true;
+  }
+
+  private drawMarks(marks: MapMarks, toggles: MarkToggles, view: MarkView): void {
     const g = this.graphics;
+    const toScreenAt = (x: number, y: number): { sx: number; sy: number } => toScreen(view, x, y);
 
     // Pact links sit under the army squares. They are drawn with the armies toggle (pacts have no toggle of their own).
     if (toggles.armies) {
       for (const [x1, y1, x2, y2] of marks.pactLinks) {
-        const a = toScreen(x1, y1);
-        const b = toScreen(x2, y2);
+        const a = toScreenAt(x1, y1);
+        const b = toScreenAt(x2, y2);
         g.moveTo(a.sx, a.sy).lineTo(b.sx, b.sy).stroke({ width: 1, color: LINK_COLOUR, alpha: 0.6 });
       }
       for (const army of marks.armies) {
-        const { sx, sy } = toScreen(army.x, army.y);
+        const { sx, sy } = toScreenAt(army.x, army.y);
         g.rect(sx - ARMY_HALF_PX, sy - ARMY_HALF_PX, ARMY_HALF_PX * 2, ARMY_HALF_PX * 2).fill(ARMY_COLOUR);
       }
     }
 
     if (toggles.campaigns) {
       for (const c of marks.campaigns) {
-        const { sx, sy } = toScreen(c.x, c.y);
+        const { sx, sy } = toScreenAt(c.x, c.y);
         g.circle(sx, sy, CAMPAIGN_RADIUS_PX).stroke({ width: 1.5, color: CAMPAIGN_COLOUR });
       }
     }
 
     if (toggles.battles) {
       for (const b of marks.battles) {
-        const { sx, sy } = toScreen(b.x, b.y);
+        const { sx, sy } = toScreenAt(b.x, b.y);
         g.moveTo(sx - BATTLE_HALF_PX, sy - BATTLE_HALF_PX).lineTo(sx + BATTLE_HALF_PX, sy + BATTLE_HALF_PX).stroke({ width: 1.5, color: BATTLE_COLOUR });
         g.moveTo(sx + BATTLE_HALF_PX, sy - BATTLE_HALF_PX).lineTo(sx - BATTLE_HALF_PX, sy + BATTLE_HALF_PX).stroke({ width: 1.5, color: BATTLE_COLOUR });
       }
@@ -150,7 +211,7 @@ export class MarkLayer {
     const showText = toggles.names === 'full';
     let used = 0;
     for (const h of marks.hamlets) {
-      const { sx, sy } = toScreen(h.x, h.y);
+      const { sx, sy } = toScreenAt(h.x, h.y);
       g.circle(sx, sy, HAMLET_DOT_PX).fill(HAMLET_COLOUR);
       if (!showText) continue;
       const label = this.labelAt(used++);

@@ -24,6 +24,8 @@ export interface CombatContext {
   might(slot: number): number;
   /** Plating the slot's worn gear adds (08 section 6, items hook). Absent means none. */
   equipPlating?(slot: number): number;
+  /** Called after a melee Weapon hit lands (not blocked); the items hook wears gear here (08 section 7.4). */
+  onWeaponHit?(attacker: number, victim: number): void;
 }
 
 /** Per-being combat state: plating, the hit window and the attack timer. */
@@ -93,7 +95,9 @@ export function meleeSwing(ctx: CombatContext, attacker: number, victim: number,
   const spread = 0.5 + ctx.rng.next() * 0.5;
   let raw = Math.floor(ctx.might(attacker) * spread * ctx.effects.multiplier(attacker, 'damage'));
   if (ctx.rng.next() < 0.05) raw *= 2;
-  return applyDamage(ctx, victim, raw, 'Weapon', true);
+  const hit = applyDamage(ctx, victim, raw, 'Weapon', true);
+  if (!hit.blocked) ctx.onWeaponHit?.(attacker, victim);
+  return hit;
 }
 
 /** Flying projectile (08 section 3.1, reduced): flies to a tile at a speed and hits what is there. */

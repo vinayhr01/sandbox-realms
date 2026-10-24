@@ -516,7 +516,7 @@ const HELP_TOPICS: ReadonlyArray<[string, string]> = [
   ['Rules and ages', 'Realm Rules change the running realm. Turning an age off keeps it out of the rotation.'],
   ['Settings', 'Changes apply at once. Settings marked saved; not active yet are kept but have no effect yet.'],
   ['New realm', 'Creates a world from a seed and a size. This ends the current realm.'],
-  ['Chronicle', 'Lists the realms saved on this device.'],
+  ['Chronicle', 'Saves, loads, exports and imports realms kept on this device.'],
   ['Privacy', 'This build sends no data. The privacy switches only record your choice.'],
 ];
 

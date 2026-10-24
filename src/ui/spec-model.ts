@@ -12,9 +12,9 @@ export type Facts = [label: string, value: string][];
 
 /** What the sim does not store yet, per window. Shown as a note so nothing looks finished when it is not. */
 export const MISSING = {
-  items: 'Items are not in the sim yet, so there is nothing to show here.',
+  items: 'Only items the realm holds are listed. Wear, durability, repair and crafting are not built.',
   pacts: 'Pacts are not stored in the realm yet. Dominion relations are kept only as peace, tension or war.',
-  clans: 'Clans are not stored in the realm yet. Families are; see the Families list.',
+  clans: 'Clans are read from the realm. The member limit is recorded, not enforced, and clans do not split or merge.',
   armies: 'The sim keeps one army strength per dominion. Captains, kills and deaths are not stored yet.',
   structures: 'Hit points, residents and produce are not stored per building yet.',
   annals: 'The realm has no event log yet. The annals list changes to the lifetime counters, as the snapshots show them.',

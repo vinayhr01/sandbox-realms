@@ -26,7 +26,16 @@ export interface Hamlet {
   outcrops: number;
   /** Growth steps taken, used for outcrop regrowth. */
   steps: number;
+  /** Hamlet gold: the purse that building costs and gear coins are paid from (09 section 10.5). */
+  gold: number;
 }
+
+/** Coins a completing builder earns (09 section 8). The sim has no builder beings, so the coins go to the hamlet gold (TUNE). */
+export const BUILDER_COINS = 6;
+/** Garrison build gates (09 section 6 order: pop 50, bldg 16, parcels 20). The spec's hall tier 2 gate is cut: no hall exists (TUNE). */
+export const GARRISON_FOLK = 50;
+export const GARRISON_BUILDINGS = 16;
+export const GARRISON_PARCELS = 20;
 
 /** Structural context: the hamlet step needs no Sim import. */
 export interface HamletContext {
@@ -79,7 +88,8 @@ export const OUTCROP_CAP = 60;
 export const OUTCROP_REGROW_STEPS = 5;
 
 export function createHamlet(parcelIndex: number, folk: number): Hamlet {
-  return { parcels: new Set([parcelIndex]), food: BASE_FOOD_STORE, wood: 60, stone: 30, folk, buildings: [], growTimer: 0, outcrops: OUTCROP_START, steps: 0 };
+  // Gold starts at 0: the spec gives no starting gold for a hamlet (10.1 lists deposits, tax, trade and loot only).
+  return { parcels: new Set([parcelIndex]), food: BASE_FOOD_STORE, wood: 60, stone: 30, folk, buildings: [], growTimer: 0, outcrops: OUTCROP_START, steps: 0, gold: 0 };
 }
 
 /** Food capacity of the store: the base store plus the capacity each granary adds. */
@@ -106,7 +116,7 @@ export function buildable(ctx: HamletContext, x: number, y: number, h: Hamlet): 
 
 /** Tries to place a building of `def` in the first free spot of the hamlet's parcels (scan order). */
 export function placeBuilding(ctx: HamletContext, h: Hamlet, def: BuildingDef): boolean {
-  if (h.wood < def.wood || h.stone < def.stone) return false;
+  if (h.wood < def.wood || h.stone < def.stone || h.gold < (def.gold ?? 0)) return false;
   const side = ctx.realm.side;
   const ordered = [...h.parcels].sort((a, b) => a - b);
   const perAxis = side / PARCEL;
@@ -124,6 +134,7 @@ export function placeBuilding(ctx: HamletContext, h: Hamlet, def: BuildingDef): 
         if (!ok) continue;
         h.wood -= def.wood;
         h.stone -= def.stone;
+        h.gold -= def.gold ?? 0;
         h.buildings.push({ def, x, y });
         return true;
       }
@@ -183,11 +194,17 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
   const wells = h.buildings.filter((b) => b.def.id === 'well').length;
   const houses = h.buildings.filter((b) => b.def.id === 'house').length;
   const quarries = h.buildings.filter((b) => b.def.id === 'quarry').length;
+  const garrisons = h.buildings.filter((b) => b.def.id === 'garrison').length;
+  // The garrison comes once the hamlet is large and built up (09 build order gates, see GARRISON_*).
+  const garrisonDue = garrisons === 0 && h.folk >= GARRISON_FOLK && h.buildings.length >= GARRISON_BUILDINGS && h.parcels.size >= GARRISON_PARCELS;
   // Stone runs out without a quarry: build one once the first basics stand and stone is low.
-  const wanted = h.folk > housing ? 'house' : granaries === 0 ? 'granary' : wells === 0 ? 'well' : quarries === 0 && h.stone < 10 && houses >= 2 ? 'quarry' : houses < 4 ? 'house' : null;
+  const wanted = h.folk > housing ? 'house' : granaries === 0 ? 'granary' : wells === 0 ? 'well' : quarries === 0 && h.stone < 10 && houses >= 2 ? 'quarry' : garrisonDue ? 'garrison' : houses < 4 ? 'house' : null;
   const def = wanted ? BUILDING_BY_ID.get(wanted) : undefined;
-  // Territory grows only after an affordable building is actually placed.
-  if (def && h.wood >= def.wood && h.stone >= def.stone && placeBuilding(ctx, h, def)) expandTerritory(ctx, h);
+  // Territory grows only after an affordable building is actually placed; the builder's coins follow the placement.
+  if (def && h.wood >= def.wood && h.stone >= def.stone && placeBuilding(ctx, h, def)) {
+    h.gold += BUILDER_COINS;
+    expandTerritory(ctx, h);
+  }
   // Wells yield food per step; granaries only raise the store cap. Yield stops at the cap; stock above it is kept.
   const cap = foodCapacity(h);
   if (h.food < cap) h.food = Math.min(h.food + h.buildings.reduce((s, b) => s + b.def.foodYield, 0), cap);

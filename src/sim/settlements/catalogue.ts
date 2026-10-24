@@ -21,6 +21,8 @@ export interface BuildingDef {
   woodYield: number;
   /** Stone taken from outcrops per growth step (quarry); 0 for other buildings. */
   stoneYield?: number;
+  /** Gold cost paid from the hamlet purse (18c section 4.1); absent means 0. */
+  gold?: number;
 }
 
 export const BUILDINGS: readonly BuildingDef[] = [
@@ -31,6 +33,9 @@ export const BUILDINGS: readonly BuildingDef[] = [
   { id: 'workshop', name: 'Workshop', wood: 14, stone: 4, footprint: 2, foodCapacity: 0, foodYield: 0, housing: 0, storage: 0, woodYield: 3 },
   // Quarry (09 section 7): works stone outcrops; yield per growth step is set by `stoneYield`.
   { id: 'quarry', name: 'Quarry', wood: 10, stone: 0, footprint: 2, foodCapacity: 0, foodYield: 0, housing: 0, storage: 0, woodYield: 0, stoneYield: 2 },
+  // Garrison (18c section 4.1: 3x3, cost 0/6/2/14 wood/stone/iron/gold). Iron 2 is cut: the hamlet holds no iron.
+  // Holds gear and repairs gear (09 section 7, 08 section 7.4). Its soldier and gear-capacity effects are not built.
+  { id: 'garrison', name: 'Garrison', wood: 0, stone: 6, footprint: 3, foodCapacity: 0, foodYield: 0, housing: 0, storage: 0, woodYield: 0, gold: 14 },
 ];
 
 export const BUILDING_BY_ID = new Map(BUILDINGS.map((b) => [b.id, b]));

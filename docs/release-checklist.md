@@ -1,4 +1,4 @@
-# Release checklist (status at main 0172ff0)
+# Release checklist (status at main 2fc292c)
 
 Not legal advice. Each item is marked from what the repository contains and from the runs recorded here. "Not done" means no evidence in the repo, not that the work is impossible. Spec references are to `../Spec/`.
 
@@ -7,7 +7,7 @@ Browser and device status, in one place:
 - **Browsers that ran:** Chromium (desktop smoke, panels and platform specs) and WebKit (platform smoke at 360x640 and 1920x1080, from the last recorded local run).
 - **Firefox:** configured in `playwright.config.ts` and in CI (`.github/workflows/ci.yml`), but it could not launch on the Windows dev machine ("side-by-side configuration is incorrect"). It has not run anywhere.
 - **Devices:** no real-device checks have been done (no low Android, no iPhone).
-- **Not run in CI:** the tablet and phone-landscape Playwright projects; `npm run bench`; the a11y, perf and soak Vitest configs (`vitest.config.ts` includes `tests/unit` only).
+- **Not run in CI:** the tablet and phone-landscape Playwright projects. They are defined in `playwright.config.ts` but no CI matrix entry lists them, so they never run in CI. This is documented here; CI was not changed. Run them locally with `npx playwright test --project=tablet --project=phone-landscape`. Also not in CI: `npm run bench`, `npm run test:a11y` and `npm run soak`. `vitest.config.ts` includes `tests/unit` only.
 
 ## Legal and originality (LEGAL-CHECKLIST)
 - [ ] Art, audio, fonts and text created or licensed; `ASSET-LICENSES.md` written. Not done: no art or audio beyond placeholder SVG and code-drawn tiles.
@@ -26,7 +26,7 @@ Browser and device status, in one place:
 - [x] Platform smoke (`tests/e2e/platform-smoke.spec.ts`: load, sim clock, no horizontal overflow, tap on the map) passed on Chromium and WebKit at 360x640 and 1920x1080 in the last recorded run.
 - [ ] Firefox runs. Not done: cannot launch on this Windows machine. CI has the job, not yet run on GitHub.
 - [ ] Full runs on WebKit beyond platform smoke. Not done.
-- [ ] Tablet and phone-landscape projects run. Not done: defined but not in CI.
+- [ ] Tablet and phone-landscape projects run in CI. Not done: the CI matrix does not list them (see the note above; documented, CI unchanged).
 - [x] CI (`.github/workflows/ci.yml`) runs typecheck, determinism lint, build, budgets, unit tests and one Playwright job per browser. Not yet verified on GitHub in this state.
 - [ ] Per-milestone screenshot diffs. Not done: screenshots are written but not compared.
 - [ ] Lighthouse mobile run (PWA, accessibility >= 90, performance budget). Not done.
@@ -35,18 +35,18 @@ Browser and device status, in one place:
 - [ ] COOP and COEP headers and the SharedArrayBuffer mode. Not built.
 
 ## PWA
-- [x] Maskable PNG icons at 192 and 512 generated from `public/icon.svg` by `scripts/make-icons.mjs`, listed in `public/manifest.webmanifest`, precached by `public/sw.js`.
+- [x] Maskable PNG icons at 192 and 512 generated from `public/icon.svg` by `scripts/make-icons.mjs` (`npm run icons`), listed in `public/manifest.webmanifest`, precached by `public/sw.js`.
 - [ ] Installability checked in a browser. Not done.
 - [ ] Offline play checked in a browser. Not done.
 
 ## Performance (17 section 13, PERFORMANCE-PLAN)
 - [x] Build-size budgets gate CI: `scripts/check-budgets.mjs` runs after `npm run build` (main about 83 KB gzip against 350 KB; worker about 26 KB against 250 KB). Last recorded values; re-check after changes.
-- [x] Determinism lint: no `Math.random`, `Date` or `performance.now` in sim or shared code (`scripts/check-determinism.mjs`). Note: `Math.exp`, `Math.pow` and `Math.hypot` are used in sim code and the lint does not ban them.
+- [x] Determinism lint: no `Math.random`, `Date.now`, `new Date(`, `performance.now` or `crypto.getRandomValues` in `src/sim`, `src/shared` or `src/content` (`scripts/check-determinism.mjs`; runs in CI's `determinism` job). Note: `Math.exp`, `Math.pow` and `Math.hypot` are used in sim code and the lint does not ban them.
 - [x] Sim tick cost measured in `tests/unit/tick-cost.test.ts` (median, 50 ms gate; the 8 ms budget is a warning).
-- [~] Ecosystem soak. Not met: the M3 exit (all species alive for 10 years) was not reached. The chosen criterion (total beasts 300 to 3,000 each year on every seed) was met on the 8-species roster; it has not been re-run on the 90-species roster. See `DECISIONS.md`.
+- [~] Ecosystem soak. Not met: the M3 exit (all species alive for 10 years) was not reached; 32 to 41 of 90 species survived year 10 on six seeds. The chosen criterion (total beasts 300 to 3,000) was run on the 90-species roster: year-10 totals were 1,103 to 1,573. The 8-species result is stale. See `DECISIONS.md` (Beings round 2).
 - [ ] Frame-rate target (60 fps at 512x512 on mid phones). Not done: headless WebGL runs at 1 to 3 fps.
 - [ ] Memory soak (60 minutes at 10x, heap growth under 5%). Not done.
-- [ ] Benchmark scenes and a CI perf gate. Not done: `tests/perf/budgets.ts` holds constants only.
+- [ ] Benchmark scenes and a CI perf gate. Not done: there are no benchmark scenes, and `npm run bench` (the tick-cost test) is not in CI.
 - [ ] Quality ladder (degradation). Not done: `degradeLevel` is read in `src/app/saves.ts` and never set.
 
 ## Accessibility (13 section 14)
@@ -59,9 +59,9 @@ Browser and device status, in one place:
 ## Save and recovery (15, 19)
 - [x] Save codec round trip, corruption and version rejection, resume determinism (`tests/unit/chronicle.test.ts`).
 - [x] Save service model in `src/app/saves.ts`: slots (12 manual, quick, autosave ring of 5, suspend), atomic write with previous generation, quota soft cap, autosave timing, import check, export file naming. Tests: `tests/unit/saves-model.test.ts`, `tests/unit/saves-service.test.ts` (memory backend).
-- [ ] Autosave, slots, import and export in the running game. Not done: `encodeChronicle` and `decodeChronicle` have no caller outside tests, and the Chronicle window lists slots only.
+- [x] Save, load, delete, export, import and autosave (timer and on pause) run in the game through the sim worker's capture and restore commands (`src/app/main.ts` `liveRealm`, `src/sim/worker.ts`, `src/app/save-controller.ts`). No recorded browser run of this path.
 - [ ] IndexedDB backend in a real browser. Not done (type-checked only).
 - [ ] Checksum-failure handling and the quarantine store. Not done.
 - [x] Sentinel, local journal and fatal dialog are wired in `src/app/main.ts`.
-- [ ] Recovery ladder and recovery dialog actions. Not done in play: `decideRecovery`, `restoreOffers` and Safe Mode run only in `tests/unit/recovery-ladder.test.ts`.
+- [x] Recovery ladder and restore prompt wired in `src/app/main.ts`: `decideRecovery` on a fault, `restoreOffers` for the restore prompt (Safe Mode offers only the previous autosave generation), and the boot-loop dialog. No recorded browser run of the dialog actions.
 - [ ] Crash record, consent, export and chaos test (19 section 14 release gate). Not done.

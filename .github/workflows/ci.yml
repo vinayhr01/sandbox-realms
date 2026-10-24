@@ -15,12 +15,11 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
-      - run: npm run check:determinism
       - run: npm run build
       - run: npm run check:budgets
 
   determinism:
-    # Same sim lint as above, run on its own so a determinism break is visible at a glance.
+    # The sim determinism lint runs only here, in its own job, so a determinism break is visible at a glance.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

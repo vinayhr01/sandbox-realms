@@ -173,3 +173,16 @@ Scope: `favour_bless` (Favour tab) and `insight_lore` (Insight tab), and the `ri
 - **Rituals rule effect.** `rituals` off refuses ritual powers: `executePower` now checks every rule in a power's `requires` before dispatch (12 section 8 soft gate; the rule still does not hide the power). Intrigue starts were already gated in `src/sim/culture/culture.ts`; culture code is unchanged. `RITUALS_RULE` constant in `src/sim/rules.ts`.
 - **Not done.** The UI toast `hint.rule_off` and the Lore window are not built. `powerStatus` (`src/ui/powerSupport.ts`) lists handlers in `SIM_HANDLERS`; `bless` and `lore` must be added there before the two powers show as enabled. `tests/unit/ui-powers.test.ts` and `tests/e2e/panels.spec.ts` (expects Bless to read "not available yet") follow from that.
 - **Golden.** `GOLDEN_HASH` unchanged (2562049680); the golden replay uses no powers.
+
+## Clans (kinbands)
+
+- **Rule.** A clan is the living members of one strain (`src/sim/clans/clans.ts`). A strain with at least `CLAN_FOUND_MIN = 4` living members and no clan founds one, once per strain. Scans run once per Month (100 ticks, `CLAN_SCAN_TICKS`), inside `sim.step()` after the beings step (`clansStep`). Names come from the `clans` RNG stream, drawn only when a clan forms.
+- **Chief.** The oldest living member (birth tick, then lowest slot), re-picked at each scan. Members and chief are read from the beings store; nothing is written to beings, strains or the realm.
+- **Extinction.** A clan whose strain has no living member is marked extinct (`extinctTick`) and stays on record. Births need a living parent, so the strain cannot come back.
+- **Deviation: families.** Spec 11 founds clans from families. Beings store one parent link, `culture.families` is written only by tests, and there are no family records. Clans therefore found from strains, which the task allowed. Families can feed clans later.
+- **Deviation: species.** Spec 11 is about Folk. Folk enter the realm only through powers, so a run with no player input has only beast strains. Clans form from any strain (a kinband, which is what the Clans window calls it). A Folk-only rule is a one-line change if Folk spawning becomes automatic.
+- **Limit.** `CLAN_DEFAULT_LIMIT = 50` is recorded on each clan and shown in the inspector. It is not enforced: births are not refused, and clans do not split or merge (spec 11 `limitMembers` and traits are not built).
+- **Save.** Optional chronicle tag 18 (`clans`, JSON `{ next, list }`). Written after the strain registry, listed in `OPTIONAL_TAGS`. `SCHEMA_VERSION` stays 3: saves without tag 18 load with no clans, and older builds ignore the unknown tag. `restoreClans` rejects a malformed record and restores nothing.
+- **Snapshot.** Optional `Snapshot.clans` (`ClanBlock`: `count`, `living`, `rows` capped at `SNAPSHOT_DETAIL_ROWS`, living first). Read-only. `clanRowsOf` in `src/ui/specWindows.ts` builds the Clans list; `win_clan` takes `{ id }` and links to the strain window.
+- **Golden.** `GOLDEN_HASH` unchanged (2562049680). `stateHash` does not include clan records, and the clan step draws no shared RNG.
+- **Not done.** The 14 counters `clansFounded` and the `clan.founded` bus event are not emitted. Clan renown, leadership and the spec 11 chief decisions are not built.

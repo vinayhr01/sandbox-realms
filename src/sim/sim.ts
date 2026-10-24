@@ -38,6 +38,7 @@ import { cultureTick, createCultureState, type CultureState } from './culture/ad
 import { rollAndRunCalamity, usePowerById } from './powers/handlers.ts';
 import { buildSnapshot } from './snapshot.ts';
 import type { Snapshot } from '../shared/protocol.ts';
+import { clansStep, createClanState, type ClanState } from './clans/clans.ts';
 
 export { TICK_MS };
 
@@ -70,6 +71,8 @@ export class Sim {
   readonly projectiles: Projectile[] = [];
   weather: WeatherState = createWeatherState();
   readonly culture: CultureState = createCultureState();
+  /** Clan records (src/sim/clans): founded from strains, saved as chronicle tag 18. */
+  readonly clans: ClanState = createClanState();
   /** Lifetime counters (14 section 3). Counted from events; never read back by the sim. */
   lifetime: StatsRecord = emptyStats();
   /** Achievement ids unlocked so far (14 section 2). Each id is added once and never removed. */
@@ -182,6 +185,7 @@ export class Sim {
     settlementsStep(this);
     cultureTick(this);
     stepBeings(this);
+    clansStep(this);
     this.runCombatAndWeather();
     stepDominions(this);
     if (this.due('achievements', SS_TICKS)) unlockAchievements(this);

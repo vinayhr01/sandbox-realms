@@ -16,6 +16,8 @@ import {
   SNAPSHOT_VERSION,
   type AchievementRow,
   type BeingRow,
+  type ClanBlock,
+  type ClanRow,
   type DominionRow,
   type HamletRow,
   type NotableRows,
@@ -33,6 +35,7 @@ import { MAX_BEINGS } from './beings/store.ts';
 import { snapshotDominions } from './dominions/adapter.ts';
 import { hamletsOf } from './settlements/adapter.ts';
 import { codexProgress } from './progression.ts';
+import { clanSpeciesName, yearsSince, type Clan } from './clans/clans.ts';
 import type { Sim } from './sim.ts';
 
 /** Sim ticks between periodic snapshots: two sim-seconds (13 section 1, 10 Hz UI budget). */
@@ -68,6 +71,7 @@ export function buildSnapshot(sim: Sim): Snapshot {
     // Audio feed (16 B8): the Age in effect and the tiles per biome over the realm. Read-only.
     age: sim.currentAge,
     biomes: biomeCountsOf(sim),
+    clans: clansOf(sim),
   };
   return fitSnapshot(snap);
 }
@@ -82,6 +86,29 @@ function biomeCountsOf(sim: Sim): Record<string, number> {
     if (id !== undefined) counts[id] = (counts[id] ?? 0) + 1;
   }
   return counts;
+}
+
+/**
+ * Clan rows for the kinbands window: living clans first, then by id, capped at SNAPSHOT_DETAIL_ROWS.
+ * Reads only (the clan records and the strain registry are not written).
+ */
+function clansOf(sim: Sim): ClanBlock {
+  const list: Clan[] = sim.clans.list.slice();
+  list.sort((a, b) => Number(a.extinctTick >= 0) - Number(b.extinctTick >= 0) || a.id - b.id);
+  const rows: ClanRow[] = list.slice(0, SNAPSHOT_DETAIL_ROWS).map((c) => ({
+    id: c.id,
+    name: c.name,
+    strain: c.strain,
+    strainName: sim.beings.strains.get(c.strain)?.name ?? '',
+    species: clanSpeciesName(c),
+    foundedTick: c.foundedTick,
+    members: c.members,
+    limit: c.limit,
+    chief: c.chief,
+    chiefAgeYears: c.chief >= 0 ? yearsSince(sim.tick, c.chiefBorn) : -1,
+    extinct: c.extinctTick >= 0,
+  }));
+  return { count: list.length, living: list.filter((c) => c.extinctTick < 0).length, rows };
 }
 
 /**

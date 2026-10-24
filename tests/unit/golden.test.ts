@@ -8,7 +8,7 @@ import { seedStartingBeasts } from '../../src/sim/beings/system.ts';
  * must always produce the same checkpoint hash. If this fails after an intentional sim change,
  * update GOLDEN_HASH and say so in the commit message.
  */
-const GOLDEN_HASH = 974101606;
+const GOLDEN_HASH = 776383781;
 
 function replay(): number[] {
   const sim = generateRealm({ seed: 20240601, sizeStep: 2, template: 'continent' }).sim;

@@ -3,6 +3,7 @@ import { biomeOfCover, coverFireChance } from '../../content/biomes.ts';
 import { FLAG } from '../realm.ts';
 import { n4 } from '../grid.ts';
 import type { Sim } from '../sim.ts';
+import type { Rng } from '../../shared/rng.ts';
 import { thaw } from './freeze.ts';
 
 /** Ticks after ignition before a fire may spread (04 section 6: 2 ss). */
@@ -69,8 +70,12 @@ export function stopFire(sim: Sim, i: number): void {
   realm.setFlag(i, FLAG.burning, false);
   if (realm.flora[i] !== 0) realm.setFlora(i, 0, 0);
   if (realm.cover[i] !== 0) realm.setCover(i, 0);
-  const rng = sim.rng('fire');
-  realm.setScar(i, 15 - rng.int(11));
+  realm.setScar(i, scarStage(sim.rng('fire')));
+}
+
+/** Scar stage drawn for a new scar: 6..15 (04 section 6). */
+export function scarStage(rng: Rng): number {
+  return 15 - rng.int(10);
 }
 
 /** The fire sweep of 04 section 11 (every 20 ticks), over the burning set. */

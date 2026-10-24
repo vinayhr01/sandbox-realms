@@ -2,6 +2,7 @@ import { ssToTicks } from './clock.ts';
 import type { Realm } from './realm.ts';
 import type { Rng } from '../shared/rng.ts';
 import { explode, type ExplosionContext } from './explosions.ts';
+import { raiseHeat } from './terrain/heat.ts';
 
 /** Live cloud cap (02 section 6: 200). */
 export const MAX_CLOUDS = 200;
@@ -13,6 +14,19 @@ const DROP_RADIUS = 1;
 const LIGHTNING_CHANCE = 0.01;
 /** Ticks a cloud must live before it drops (02 section 6: 3 ss). */
 const DROP_AFTER = 60;
+/** Heat a lightning strike adds to every tile within the strike radius (04 section 7.1: 9). */
+const STRIKE_HEAT = 9;
+/** Radius in tiles of the heat from a lightning strike (TUNE; 04 gives no radius). */
+const STRIKE_HEAT_RADIUS = 2;
+
+/** Adds lightning heat to the tiles around a strike, without effects (applied by the heat step). */
+export function strikeHeat(realm: Realm, cx: number, cy: number): void {
+  for (let y = cy - STRIKE_HEAT_RADIUS; y <= cy + STRIKE_HEAT_RADIUS; y++) {
+    for (let x = cx - STRIKE_HEAT_RADIUS; x <= cx + STRIKE_HEAT_RADIUS; x++) {
+      if (realm.inBounds(x, y) && Math.hypot(x - cx, y - cy) <= STRIKE_HEAT_RADIUS) raiseHeat(realm, y * realm.side + x, STRIKE_HEAT);
+    }
+  }
+}
 
 export interface Cloud {
   type: string;
@@ -153,7 +167,10 @@ export function weatherStep(ctx: WeatherContext, state: WeatherState): void {
       // Lightning lands on the right half of the storm (02 section 6).
       const lx = Math.round(cloud.x) - ctx.rng.int(4);
       const ly = Math.round(cloud.y) + ctx.rng.int(5) - 2;
-      if (ctx.realm.inBounds(lx, ly)) explode(ctx.blast, lx, ly, 1, 20, 'Other', -1);
+      if (ctx.realm.inBounds(lx, ly)) {
+        strikeHeat(ctx.realm, lx, ly);
+        explode(ctx.blast, lx, ly, 1, 20, 'Other', -1);
+      }
     }
   }
   state.clouds.length = w;

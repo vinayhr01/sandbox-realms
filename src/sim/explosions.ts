@@ -2,6 +2,7 @@ import { ground } from '../content/grounds.ts';
 import { biomeOfCover, coverFireChance } from '../content/biomes.ts';
 import type { Realm } from './realm.ts';
 import { applyDamage, type CombatContext, type DamageType } from './combat.ts';
+import { scarStage } from './terrain/fire.ts';
 
 /** Explosions in the guard window before further blasts are refused (04 section 8.5, TUNE). */
 export const GUARD_MAX = 20;
@@ -84,6 +85,7 @@ export function explode(
       const cover = realm.cover[i] ?? 0;
       const flammable = biomeOfCover(cover) >= 0 ? coverFireChance(cover) > 0 : kind.flammable;
       realm.setCover(i, 0);
+      realm.setScar(i, scarStage(ctx.rng));
       if (radius >= 2) {
         const sink = Math.floor((damage / 10) * falloff);
         if (sink > 0) realm.setElevation(i, (realm.elevation[i] ?? 0) - sink);

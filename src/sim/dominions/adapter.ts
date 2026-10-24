@@ -8,7 +8,7 @@ import { ground } from '../../content/grounds.ts';
 import { FOUND_FOLK, foundingYear, type FoundingEnv, type Truce } from './founding.ts';
 import { pairKey, RelationMatrix, type Dominion, type DominionContext, type Relation } from './types.ts';
 import { addPactRenown, makePact, newPactState, pactOf, pactYear, PACT_RENOWN_PER_DEFEAT, type Pact, type PactState } from './pacts.ts';
-import { armyWon, raiseArmies, syncArmies, type Army } from './armies.ts';
+import { armyWon, centroidParcel, marchArmies, raiseArmies, setCaptains, syncArmies, type Army } from './armies.ts';
 
 /**
  * Sim adapter for the dominions slice. The dominion state is kept beside the Sim (not on it) and
@@ -126,7 +126,7 @@ export interface DominionSnapshot {
   /** Truces (founding.ts). Optional: saves written before the yearly pass have none. */
   truce?: { a: number; b: number; until: number; declared: boolean }[];
   /** Armies (armies.ts). Optional: saves written before armies have none. */
-  armies?: { id: number; name: string; dominionId: number; soldiers: number; renown: number }[];
+  armies?: { id: number; name: string; dominionId: number; soldiers: number; renown: number; captains?: number; parcel?: number }[];
 }
 
 /** Plain-data form of the pact records (chronicle tag 20, pacts.ts). */
@@ -160,7 +160,7 @@ export function snapshotDominions(sim: Sim): DominionSnapshot | null {
     borders: s.borders.map(([a, b]) => [a, b]),
     owner: [...s.owner],
     truce: [...s.truce.values()].map((t) => ({ a: t.a, b: t.b, until: t.until, declared: t.declared })),
-    armies: s.armies.map((a) => ({ id: a.id, name: a.name, dominionId: a.dominionId, soldiers: a.soldiers, renown: a.renown })),
+    armies: s.armies.map((a) => ({ id: a.id, name: a.name, dominionId: a.dominionId, soldiers: a.soldiers, renown: a.renown, captains: a.captains, parcel: a.parcel })),
   };
 }
 
@@ -247,7 +247,8 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
     if (!isNum(a.id) || !isNum(a.dominionId) || !dominions.some((d) => d.id === a.dominionId) || !isNum(a.soldiers) || !isNum(a.renown) || typeof a.name !== 'string') {
       bad(`army ${a.id}`);
     }
-    armies.push({ id: a.id, name: a.name, dominionId: a.dominionId, soldiers: a.soldiers, renown: a.renown });
+    const parcel = a.parcel ?? centroidParcel(dominions.find((d) => d.id === a.dominionId)?.parcels ?? new Set(), perAxis);
+    armies.push({ id: a.id, name: a.name, dominionId: a.dominionId, soldiers: a.soldiers, renown: a.renown, captains: a.captains ?? 1, parcel });
   }
   states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies });
 }
@@ -273,8 +274,27 @@ export function dominionsYearly(sim: Sim): void {
     },
   };
   foundingYear(s, settlements, env);
-  pactYear(s.pacts, s.dominions, s.borders, s.relations, sim.tick);
-  raiseArmies(s.armies, s.dominions);
+  pactYear(s.pacts, s.dominions, s.borders, s.relations, sim.tick, s.truce);
+  raiseArmies(s.armies, s.dominions, perAxis);
+  // Captains: one per hamlet, counted by the hamlet's majority owner (no hamlet data leaves one captain).
+  const hamlets = new Map<number, number>();
+  for (const h of settlements) {
+    const counts = new Map<number, number>();
+    for (const p of h.parcels) {
+      const o = s.owner[p] ?? UNOWNED;
+      if (o !== UNOWNED) counts.set(o, (counts.get(o) ?? 0) + 1);
+    }
+    let best = UNOWNED;
+    let bestN = 0;
+    for (const [id, n] of counts) {
+      if (n > bestN || (n === bestN && id < best)) {
+        best = id;
+        bestN = n;
+      }
+    }
+    if (best !== UNOWNED) hamlets.set(best, (hamlets.get(best) ?? 0) + 1);
+  }
+  setCaptains(s.armies, hamlets);
   syncArmies(s.armies, s.dominions);
 }
 
@@ -292,6 +312,9 @@ export function stepDominions(sim: Sim): void {
     const id = s.owner[p] ?? UNOWNED;
     if (id !== UNOWNED) owner.set(p, id);
   }
+  const perAxis = parcelsPerAxis(sim);
+  // Armies march one parcel a second toward their enemy (armies.ts); the strength exchange needs contact.
+  marchArmies(s.armies, s.dominions, s.relations, perAxis);
   const ctx: DominionContext = {
     rng: sim.rng('dominions'),
     tick: sim.tick,
@@ -299,6 +322,9 @@ export function stepDominions(sim: Sim): void {
     dominions: s.dominions,
     borders: s.borders,
     owner,
+    pacts: s.pacts.pacts,
+    armyParcel: new Map(s.armies.map((a) => [a.dominionId, a.parcel])),
+    perAxis,
     onDefeat: (winnerId) => {
       addPactRenown(s.pacts, winnerId, PACT_RENOWN_PER_DEFEAT);
       armyWon(s.armies, winnerId);

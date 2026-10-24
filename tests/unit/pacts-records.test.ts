@@ -68,7 +68,7 @@ describe('pact formation (10 section 12)', () => {
 });
 
 describe('leaving and dissolving', () => {
-  it('a war between two members: the stronger (the declarer) leaves; a pact left with one member dissolves', () => {
+  it('a war between two members dissolves the whole pact (round 4 mapping of 10 section 12 dissolve)', () => {
     const ds = [dom(1, 100), dom(2, 20), dom(3, 10)];
     const rel = new RelationMatrix();
     rel.set(2, 3, 'war');

@@ -5,12 +5,11 @@
  * in transfer mode (Mode T; Mode S is a later optimisation, see DECISIONS.md).
  */
 import { PROTOCOL_VERSION, Cmd, Ev, type Command, type Event, type FrameRows, type FrameStats, type Speed } from '../shared/protocol.ts';
-import { DEFAULT_SIZE_STEP } from '../shared/constants.ts';
 import type { Sim } from './sim.ts';
 import { generateRealm } from './worldgen.ts';
-import { planPump } from './scheduler.ts';
+import { planPump, pumpFaultAction } from './scheduler.ts';
 import { snapshotDue } from './snapshot.ts';
-import { decodeChronicle, encodeChronicle } from './chronicle.ts';
+import { decodeChronicle, encodeChronicle, MAX_SIZE_STEP, MIN_SIZE_STEP } from './chronicle.ts';
 
 /** Sim time budget per pump in ms (17 section 3.1; 8 ms desktop, 6 ms phones TUNE). Desktop default. */
 const FRAME_BUDGET_MS = 8;
@@ -99,7 +98,7 @@ function pump(): void {
     accMs = 0;
     ticksThisPump = 0;
   } else {
-    const plan = planPump(accMs, elapsed, speed, Number.POSITIVE_INFINITY);
+    const plan = planPump(accMs, elapsed, speed);
     accMs = plan.accMs;
     const start = performance.now();
     let ran = 0;
@@ -115,6 +114,7 @@ function pump(): void {
     // Ticks not run inside the budget are discarded: the world runs slower instead (17 section 3.1).
     ticksThisPump = ran;
   }
+  for (const detail of sim.takeRefusals()) post({ kind: Ev.Fault, severity: 'warn', code: 'COMMAND_REFUSED', detail });
   publishFrame(false);
   if (snapshotDue(lastSnapshotTick, sim.tick)) publishSnapshot();
 }
@@ -122,10 +122,23 @@ function pump(): void {
 function handle(cmd: Command): void {
   switch (cmd.kind) {
     case Cmd.Init:
+      if (cmd.protocolVersion !== PROTOCOL_VERSION) {
+        post({
+          kind: Ev.Fault,
+          severity: 'fatal',
+          code: 'PROTOCOL_MISMATCH',
+          detail: `worker speaks protocol ${PROTOCOL_VERSION}, client sent ${cmd.protocolVersion}`,
+        });
+        return;
+      }
       post({ kind: Ev.Ready, reply: cmd.seq, protocolVersion: PROTOCOL_VERSION, side: 0, sizeStep: 0, seed: 0 });
       return;
     case Cmd.NewRealm: {
-      const sizeStep = cmd.sizeStep || DEFAULT_SIZE_STEP;
+      const sizeStep = cmd.sizeStep;
+      if (!Number.isInteger(sizeStep) || sizeStep < MIN_SIZE_STEP || sizeStep > MAX_SIZE_STEP) {
+        post({ kind: Ev.Fault, severity: 'error', code: 'BAD_SIZE', detail: `size step ${sizeStep} is outside ${MIN_SIZE_STEP}..${MAX_SIZE_STEP}` });
+        return;
+      }
       const built = generateRealm({ seed: cmd.seed, sizeStep, template: cmd.template });
       sim = built.sim;
       accMs = 0;
@@ -154,6 +167,7 @@ function handle(cmd: Command): void {
         sim = decodeChronicle(cmd.bytes);
         accMs = 0;
         lastPublishedTick = -1;
+        lastSnapshotTick = -1;
         lastHash = sim.stateHash();
         post({ kind: Ev.Ready, reply: cmd.seq, protocolVersion: PROTOCOL_VERSION, side: sim.realm.side, sizeStep: sim.realm.sizeStep, seed: sim.realm.seed });
         publishFrame(true);
@@ -210,17 +224,23 @@ self.onmessage = (event: MessageEvent<Command>) => {
 
 /** MessageChannel ping-pong pump: avoids setTimeout's 4 ms clamp (17 section 3.1). */
 const channel = new MessageChannel();
+/** Pump throws in a row; reset by every pump that completes. */
+let pumpFaults = 0;
 channel.port1.onmessage = () => {
   try {
     pump();
+    pumpFaults = 0;
   } catch (err: unknown) {
+    pumpFaults++;
+    const fatal = pumpFaultAction(pumpFaults) === 'fatal';
     post({
       kind: Ev.Fault,
-      severity: 'fatal',
+      severity: fatal ? 'fatal' : 'error',
       code: 'SIM_PUMP',
       detail: err instanceof Error ? err.message : String(err),
     });
-    return;
+    // A single fault keeps the pump running (the world must not stop until reload); repeats end it.
+    if (fatal) return;
   }
   channel.port2.postMessage(0);
 };

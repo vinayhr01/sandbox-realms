@@ -18,7 +18,7 @@ export class SparseSet {
   }
 
   has(i: number): boolean {
-    return this.slot[i] !== -1;
+    return (this.slot[i] ?? -1) !== -1;
   }
 
   add(i: number): void {

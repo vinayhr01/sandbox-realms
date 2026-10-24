@@ -49,8 +49,16 @@ export function clampRadius(radius: number): number {
   return r < 0 ? 0 : r > MAX_BRUSH_RADIUS ? MAX_BRUSH_RADIUS : r;
 }
 
-/** Integer line between two tiles (Bresenham), both ends included. Deterministic for equal inputs. */
-export function lineTiles(x0: number, y0: number, x1: number, y1: number, visit: (x: number, y: number) => void): void {
+/**
+ * Integer line between two tiles (Bresenham), both ends included. Deterministic for equal inputs.
+ * Endpoints are rounded to whole tiles; a non-finite endpoint visits nothing (it would never be reached).
+ */
+export function lineTiles(fx0: number, fy0: number, fx1: number, fy1: number, visit: (x: number, y: number) => void): void {
+  if (!Number.isFinite(fx0) || !Number.isFinite(fy0) || !Number.isFinite(fx1) || !Number.isFinite(fy1)) return;
+  const x0 = Math.round(fx0);
+  const y0 = Math.round(fy0);
+  const x1 = Math.round(fx1);
+  const y1 = Math.round(fy1);
   let x = x0;
   let y = y0;
   const dx = Math.abs(x1 - x0);
@@ -89,11 +97,15 @@ export function applyStroke(
   y1: number,
   includeStart: boolean,
 ): number {
+  if (![x0, y0, x1, y1].every(Number.isFinite)) return 0;
+  // Endpoints are clamped to the realm first, so a far-off stroke costs no more than an on-map one.
+  const last = realm.side - 1;
+  const tile = (v: number): number => Math.min(last, Math.max(0, Math.round(v)));
   const offsets = brushOffsets(shape, radius);
   const delta = op === 'raise' ? RAISE_STEP : -RAISE_STEP;
   let changed = 0;
   let first = true;
-  lineTiles(x0, y0, x1, y1, (cx, cy) => {
+  lineTiles(tile(x0), tile(y0), tile(x1), tile(y1), (cx, cy) => {
     const skip = first && !includeStart;
     first = false;
     if (skip) return;

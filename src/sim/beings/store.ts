@@ -196,6 +196,18 @@ export class BeingStore {
    * per-being fields. Iteration order and future slot allocation then match the saved sim exactly.
    */
   restoreLayout(list: readonly number[], free: readonly number[]): void {
+    // Checked before anything is touched: every slot in range, named once, and a free slot is never live.
+    const seen = new Uint8Array(this.capacity);
+    const inRange = (slot: number): boolean => Number.isInteger(slot) && slot >= 0 && slot < this.capacity;
+    for (const slot of list) {
+      if (!inRange(slot) || seen[slot] === 1) throw new Error(`beings: layout names bad live slot ${slot}`);
+      seen[slot] = 1;
+    }
+    for (const slot of free) {
+      if (!inRange(slot) || seen[slot] === 1) throw new Error(`beings: layout names bad free slot ${slot}`);
+      seen[slot] = 1;
+    }
+    if (list.length + free.length > this.capacity) throw new Error('beings: layout larger than capacity');
     this.alive.fill(0);
     this.slotPos.fill(-1);
     for (let k = 0; k < list.length; k++) {

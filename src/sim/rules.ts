@@ -86,6 +86,11 @@ export function ageRuleId(ageId: string): string {
   return `age_enabled_${ageId}`;
 }
 
+/** True for a rule id in RULES or an age enable flag (`age_enabled_<age id>`). */
+export function isKnownRule(id: string): boolean {
+  return RULE_BY_ID.has(id) || AGES.some((a) => ageRuleId(a.id) === id);
+}
+
 export class RuleSet {
   private readonly values = new Map<string, boolean>();
   private readonly listeners: ((id: string, on: boolean) => void)[] = [];
@@ -99,8 +104,9 @@ export class RuleSet {
     return this.values.get(id) ?? false;
   }
 
-  /** Sets a rule; forbidden_lore cannot be switched off once on. Returns false when refused. */
+  /** Sets a rule; forbidden_lore cannot be switched off once on. Unknown ids are refused. Returns false when refused. */
   set(id: string, on: boolean): boolean {
+    if (!isKnownRule(id)) return false;
     const def = RULE_BY_ID.get(id);
     if (def && !def.canDisable && this.isOn(id) && !on) return false;
     if (this.values.get(id) === on) return true;

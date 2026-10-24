@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { Cmd, type Command } from '../../src/shared/protocol.ts';
-import { Sim, MAX_TICKS_PER_PUMP } from '../../src/sim/sim.ts';
+import { Sim } from '../../src/sim/sim.ts';
 import { Realm } from '../../src/sim/realm.ts';
 import { applyStroke, brushOffsets, lineTiles, RAISE_STEP } from '../../src/sim/brush.ts';
-import { planPump } from '../../src/sim/scheduler.ts';
+import { MAX_TICKS_PER_PUMP, planPump } from '../../src/sim/scheduler.ts';
 import { GROUND_BY_ELEVATION, GROUNDS } from '../../src/content/grounds.ts';
 import { MAX_CATCHUP_MS, TICK_MS } from '../../src/shared/constants.ts';
 
@@ -142,7 +142,7 @@ describe('sim core', () => {
       let acc = 0;
       let ticks = 0;
       while (ticks < 200) {
-        const plan = planPump(acc, TICK_MS * 2, speed, Number.POSITIVE_INFINITY);
+        const plan = planPump(acc, TICK_MS * 2, speed);
         acc = plan.accMs;
         for (let k = 0; k < plan.ticks && ticks < 200; k++) {
           s.step();
@@ -166,7 +166,7 @@ describe('scheduler pacing', () => {
     let acc = 0;
     let ticks = 0;
     for (let frame = 0; frame < 60; frame++) {
-      const plan = planPump(acc, 1000 / 60, 1, Number.POSITIVE_INFINITY);
+      const plan = planPump(acc, 1000 / 60, 1);
       acc = plan.accMs;
       ticks += plan.ticks;
     }
@@ -175,18 +175,18 @@ describe('scheduler pacing', () => {
   });
 
   it('clamps a stall to MAX_CATCHUP_MS of world time, never replaying the excess', () => {
-    const stall = planPump(0, 4000, 10, Number.POSITIVE_INFINITY);
+    const stall = planPump(0, 4000, 10);
     expect(stall.ticks).toBe(Math.floor(MAX_CATCHUP_MS / TICK_MS));
     expect(stall.accMs).toBeLessThan(TICK_MS);
   });
 
   it('caps ticks per pump by speed', () => {
-    const plan = planPump(0, 1000, 10, Number.POSITIVE_INFINITY);
+    const plan = planPump(0, 1000, 10);
     expect(plan.ticks).toBeLessThanOrEqual(MAX_TICKS_PER_PUMP[10]);
-    expect(planPump(0, 1000, 2, Number.POSITIVE_INFINITY).ticks).toBeLessThanOrEqual(MAX_TICKS_PER_PUMP[2]);
+    expect(planPump(0, 1000, 2).ticks).toBeLessThanOrEqual(MAX_TICKS_PER_PUMP[2]);
   });
 
   it('pauses at speed 0', () => {
-    expect(planPump(0, 5000, 0, Number.POSITIVE_INFINITY).ticks).toBe(0);
+    expect(planPump(0, 5000, 0).ticks).toBe(0);
   });
 });

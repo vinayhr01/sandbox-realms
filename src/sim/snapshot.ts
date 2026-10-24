@@ -20,7 +20,9 @@ import {
   type ClanRow,
   type DominionRow,
   type HamletRow,
+  MAP_MARK_CAP,
   MAP_POINT_CAP,
+  type MapMarks,
   type MapPoint,
   type NotableRows,
   type PactBlock,
@@ -34,8 +36,10 @@ import {
 import { YEAR_TICKS } from '../shared/constants.ts';
 import { SS_TICKS } from './clock.ts';
 import { MAX_BEINGS } from './beings/store.ts';
-import { dominionsOfSim, pactsOfSim, snapshotDominions } from './dominions/adapter.ts';
+import { dominionsOfSim, pactsOfSim, parcelsPerAxis, snapshotDominions } from './dominions/adapter.ts';
+import { centroidParcel } from './dominions/armies.ts';
 import { hamletsOf } from './settlements/adapter.ts';
+import { PARCEL } from './settlements/hamlet.ts';
 import { codexProgress } from './progression.ts';
 import { clanSpeciesName, yearsSince, type Clan } from './clans/clans.ts';
 import { itemsOf } from './items/summary.ts';
@@ -79,8 +83,65 @@ export function buildSnapshot(sim: Sim): Snapshot {
     items: itemsOf(sim),
     // Map feed (src/render/marks.ts): read-only positions of living beings, capped.
     mapPoints: mapPointsOf(sim),
+    mapMarks: mapMarksOf(sim),
   };
   return fitSnapshot(snap);
+}
+
+/**
+ * Positions for the map marks: armies at their parcel, campaigns at the attacker's army, battles at the
+ * midpoint of a war pair whose armies are in contact (Chebyshev distance <= 1, as in step.ts), pact links
+ * between consecutive members that have an army, and hamlet names at each hamlet's centroid parcel.
+ * Tile = parcel centre (col * PARCEL + PARCEL / 2, row * PARCEL + PARCEL / 2). Reads only; capped.
+ */
+function mapMarksOf(sim: Sim): MapMarks {
+  const perAxis = parcelsPerAxis(sim);
+  const tileOf = (p: number): { x: number; y: number } => ({
+    x: (p % perAxis) * PARCEL + PARCEL / 2,
+    y: Math.floor(p / perAxis) * PARCEL + PARCEL / 2,
+  });
+  const cap = MAP_MARK_CAP;
+  const dom = snapshotDominions(sim);
+  const armyAt = new Map<number, number>();
+  for (const a of dom?.armies ?? []) if (a.parcel !== undefined) armyAt.set(a.dominionId, a.parcel);
+
+  const armies = [...armyAt].slice(0, cap).map(([dominionId, p]) => ({ dominionId, ...tileOf(p) }));
+
+  const campaigns: MapMarks['campaigns'] = [];
+  for (const d of dom?.dominions ?? []) {
+    const p = armyAt.get(d.id);
+    if (d.target >= 0 && p !== undefined && campaigns.length < cap) campaigns.push({ dominionId: d.id, ...tileOf(p) });
+  }
+
+  const battles: MapMarks['battles'] = [];
+  for (const [a, b] of dom?.borders ?? []) {
+    if (battles.length >= cap) break;
+    const pa = armyAt.get(a);
+    const pb = armyAt.get(b);
+    if (pa === undefined || pb === undefined || relationBetween(dom?.relations ?? [], a, b) !== 'war') continue;
+    const ta = tileOf(pa);
+    const tb = tileOf(pb);
+    if (Math.max(Math.abs(pa % perAxis - pb % perAxis), Math.abs(Math.floor(pa / perAxis) - Math.floor(pb / perAxis))) > 1) continue;
+    battles.push({ x: (ta.x + tb.x) / 2, y: (ta.y + tb.y) / 2 });
+  }
+
+  const pactLinks: MapMarks['pactLinks'] = [];
+  for (const pact of pactsOfSim(sim)) {
+    const placed = pact.memberIds.filter((m) => armyAt.has(m)).map((m) => tileOf(armyAt.get(m) ?? 0));
+    for (let i = 1; i < placed.length && pactLinks.length < cap; i++) {
+      const a = placed[i - 1];
+      const b = placed[i];
+      if (a && b) pactLinks.push([a.x, a.y, b.x, b.y]);
+    }
+  }
+
+  const hamlets = hamletsOf(sim)
+    .map((h, i) => ({ name: `Hamlet ${i + 1}`, parcel: h.parcels.size > 0 ? centroidParcel(h.parcels, perAxis) : -1 }))
+    .filter((h) => h.parcel >= 0)
+    .slice(0, cap)
+    .map((h) => ({ name: h.name, ...tileOf(h.parcel) }));
+
+  return { armies, campaigns, battles, pactLinks, hamlets };
 }
 
 /**
@@ -144,7 +205,11 @@ function clansOf(sim: Sim): ClanBlock {
  */
 export function fitSnapshot(snap: Snapshot): Snapshot {
   let out = snap;
-  // Map points go first: the map simply draws without them.
+  // Map marks and map points go first: the map simply draws without them.
+  if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapMarks !== undefined) {
+    const { mapMarks: _marks, ...rest } = out;
+    out = { ...rest, truncated: true };
+  }
   if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapPoints !== undefined) {
     const { mapPoints: _points, ...rest } = out;
     out = { ...rest, truncated: true };

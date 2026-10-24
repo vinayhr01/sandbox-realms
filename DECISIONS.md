@@ -17,7 +17,7 @@ Two parts. **Current state** is the latest verified state and wins over anything
 | Settlements, dominions, culture | Hamlets run (6 buildings). Dominions and culture are inert in play: `addDominion`, `addCustom`, `startIntrigue`, `addFamily` have no caller outside tests. |
 | Powers | 138 entries; all 138 enabled in the UI (`powerStatus`); 122 dispatch to real sim code (not recounted in this pass). Favour has one power (Bless, `favour_bless`) and Insight has one (Lore, `insight_lore`); the rest of those tabs is not built. |
 | Rules, ages, calamities | 49 rules (about 18 never read), 11 ages, 16 calamities rolled every 80 ticks. |
-| UI | `WINDOW_CATALOG` has 74 entries: 62 of 62 spec window rows built (the nine `win_customize_*` ids are one row), plus 4 extras. Options: 75 settings (72 spec 13 rows and 3 spec 16 audio rows), saved to localStorage; 25 rows are flagged `live` (the older "about 44" figure was not reproduced). Tutorial 4 steps. Edge pan, pinch and wheel zoom. Long-press, undo and minimap missing. |
+| UI | `WINDOW_CATALOG` has 74 entries: 62 of 62 spec window rows built (the nine `win_customize_*` ids are one row), plus 4 extras. Options: 75 settings (72 spec 13 rows and 3 spec 16 audio rows), saved to localStorage; 49 rows are flagged `live` after Map layers round 6 (the older "about 44" figure was not reproduced). Tutorial 4 steps. Edge pan, pinch and wheel zoom. Long-press, undo and minimap missing. |
 | Audio | Wired. `AudioEngine` (WebAudio, `src/audio/engine.ts`) is built in `main.ts` and unlocks on the first pointer, key or touch (never in Safe Mode). A procedural music bed starts on unlock; its state follows pause and tab visibility. `AudioModel` holds voice caps, volumes and mutes. Not checked on a device. |
 | Recovery | Wired. Sentinel, journal and fatal dialog (`main.ts`). `decideRecovery` picks the ladder step on a fault; the restore offer uses `restoreOffers` (Safe Mode offers only the previous autosave generation); the boot-loop guard shows its own dialog. No crash record, consent or chaos test. |
 | Achievements | 63 defined and evaluated each sim-second (`stats-hooks.ts`). `src/sim/progression.ts` is used: `codexProgress` (`snapshot.ts`), `trophySummary` and `visibleText` (`snapshot-model.ts`). Its `countsCredited`, `grantAllowed` and `achievementProgress` are tested but have no caller outside tests. |
@@ -388,3 +388,36 @@ Scope: a garrison building (09 build order, 18c section 4.1 cost), a hamlet gold
 - **Persisted state (changed).** `Hamlet.gold` is a new field, saved in the settlements section (`adapter.ts`). `snapshotHamlets` writes `gold`. `restoreHamlets` checks that `gold` is a finite non-negative number. A save written before this field has no `gold`, and loads with 0 (the field is optional in the snapshot type). No new chronicle section, no `FORMAT_VERSION` change, no chronicle header change.
 - **Cut.** Iron cost of the garrison; hall tier gate; soldier halving and gear cap of the garrison; personal coins for Beings; tax, trade boats and gold deposits as sources; any personal coin payout to a builder being.
 - **Tests.** No new tests were added and no tests were run this round. The existing `tests/unit/items-gear.test.ts` helper still says the catalogue has no garrison, which is now stale. Persist and settlement tests that compare hamlet snapshot shapes may need the new `gold` key; check when testing resumes.
+
+## Map layers round 6
+
+Scope: the rows the mark and name layers can drive, the render scale, and additive read-only map fields in the snapshot. Code: `src/sim/snapshot.ts` (`mapMarksOf`; `fitSnapshot` drops `mapMarks` before `mapPoints`), `src/shared/protocol.ts` (`MapMarks`, `MAP_MARK_CAP` = 32, optional `Snapshot.mapMarks`), `src/render/marks.ts` (rewritten: toggles in, hamlet name labels), `src/render/terrain.ts` (`setRenderScale`), `src/app/main.ts` (toggles passed to the mark layer; render scale applied in `applyOptions`), `src/ui/panels/options.ts` (6 rows flipped to live). `PROTOCOL_VERSION` (3) and `SNAPSHOT_VERSION` (1) are unchanged; the new field is optional. Nothing in `src/sim/dominions/`, `src/sim/settlements/`, `src/sim/items/` or sim state is written: the new code only reads armies (`snapshotDominions`), pacts (`pactsOfSim`) and hamlets (`hamletsOf`). No randomness, so the golden hash should not move (expected, not measured).
+
+Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). Types were checked by reading.
+
+- **Positions for the new marks.** The snapshot had no tile for armies. Each army's `parcel` (armies.ts) is mapped to a tile at the parcel centre, using the same parcel layout as the dominion ground sample (`dominions/adapter.ts`): column = parcel % perAxis, row = floor(parcel / perAxis), tile = row or column * PARCEL + PARCEL / 2, with perAxis = side / PARCEL.
+- **Campaigns.** A dominion with `target >= 0` and an army is marked at the attacker's army. The target is not marked.
+- **Battles.** A war border pair whose armies are in contact (Chebyshev distance <= 1, the test `inContact` uses in step.ts) is marked at the midpoint of the two armies. Pairs with no army record are not marked.
+- **Pact links.** Consecutive members of a pact that have an army are joined by a line. Pacts have no toggle of their own, so the links are drawn under `marks.armies`.
+- **Hamlet names.** `Hamlet N` (the same name as `hamlets[].name`) at the hamlet's centroid parcel. Beings have no name in the snapshot, so no being is named.
+- **Caps and budget.** Each list is capped at 32. `fitSnapshot` drops `mapMarks` first, then `mapPoints`, before it cuts dominions or hamlets.
+
+Wired (6 new live rows; live count 43 to 49 of 75):
+- `marks.armies`: a square at each army; pact links under it.
+- `marks.campaigns`: a ring at the attacker's army.
+- `marks.battles`: a cross at each war pair in contact.
+- `map.names`: `full` draws the hamlet dot and name, `banner` draws the dot only, `off` draws nothing for hamlets.
+- `map.favouritesOnlyNames`: hides hamlet names. No hamlet or being carries a favourite flag, so the literal rule hides every name while it is on. It needs a favourite flag on hamlets (or beings) before it means more.
+- `perf.renderScale`: `TerrainRenderer.setRenderScale(percent)` sets the Pixi resolution to min(devicePixelRatio, 2) times percent / 100 and resizes the renderer with it. Called from `applyOptions`. The terrain shader's device-pixel offsets read `renderer.resolution` each frame, so the camera stays in step.
+
+Cut, still non-live, reasons updated:
+- `marks.intrigues`: the snapshot's intrigue rows carry a group id that is a dominion or a hamlet id, with no field saying which. `startIntrigue` has no caller in play, so there is nothing to place. Needs a group-kind field and a caller first.
+- `marks.boats`: the sim has no boat entity and no boat positions. Nothing to draw.
+- `ui.scaleNames`: hamlet names draw at a fixed 11 px; the name-scale setting is not applied. No zoom threshold either, so labels can overlap when zoomed out.
+- Other reasons are unchanged from Settings round 4 and Map layers round 5.
+
+Unverified (not run, not checked against typings; node_modules is absent in the worktree):
+- The Pixi v8 calls: `new Text({ text, style })` and its `text` setter, `Graphics.moveTo().lineTo().stroke({ alpha })`, `renderer.resolution` as a read, and `renderer.resize(width, height, resolution)` as the render-scale path.
+- Whether Pixi's own `resizeTo` resize (on window or host resize) keeps the chosen resolution, or resets it to the devicePixelRatio value. If it resets, the render scale is lost until the next settings change.
+- Whether battles and campaigns appear in play at all (the war and campaign paths were not run).
+- Tests: any test that asserts the live count (43 before this round), the snapshot key set, or the mark layer's old `MarkToggles` shape may need an update. Not checked.

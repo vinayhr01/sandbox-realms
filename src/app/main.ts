@@ -884,6 +884,7 @@ async function boot(): Promise<void> {
     root.toggleAttribute('data-reduce-motion', safeMode || boolOption(options, 'ui.reduceMotion'));
     root.toggleAttribute('data-reduce-flash', safeMode || boolOption(options, 'ui.reduceFlash'));
     renderer.app.ticker.maxFPS = safeMode ? 30 : numberOption(options, 'ui.fpsCap');
+    renderer.setRenderScale(numberOption(options, 'perf.renderScale'));
     $('debug').hidden = !(boolOption(options, 'ui.showFps') || debugOverlay);
     // Layout width, map layers, vignette and minimap.
     const layout = stringOption(options, 'ui.layout') as LayoutChoice;
@@ -1018,7 +1019,15 @@ async function boot(): Promise<void> {
     if (cam) {
       marks.update(
         simView.current,
-        { items: boolOption(options, 'marks.items'), favourites: boolOption(options, 'marks.favourites') },
+        {
+          items: boolOption(options, 'marks.items'),
+          favourites: boolOption(options, 'marks.favourites'),
+          armies: boolOption(options, 'marks.armies'),
+          campaigns: boolOption(options, 'marks.campaigns'),
+          battles: boolOption(options, 'marks.battles'),
+          names: stringOption(options, 'map.names') as 'full' | 'banner' | 'off',
+          favouritesOnlyNames: boolOption(options, 'map.favouritesOnlyNames'),
+        },
         { offX: cam.offX, offY: cam.offY, zoom: cam.zoom },
       );
       renderer.setView({ offX: cam.offX, offY: cam.offY, zoom: cam.zoom, dpr: renderer.app.renderer.resolution }, cursor);

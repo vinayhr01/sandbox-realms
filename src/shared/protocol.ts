@@ -179,10 +179,15 @@ export interface Snapshot {
   items?: ItemBlock;
   /** Living beings' tile positions for the map layers (src/render/marks.ts). Capped at MAP_POINT_CAP; optional. */
   mapPoints?: MapPoint[];
+  /** Positions of armies, campaigns, battles, pact links and hamlet names for the map (src/render/marks.ts). Optional. */
+  mapMarks?: MapMarks;
 }
 
 /** Most beings that carry a position in one snapshot. Keeps the message inside SNAPSHOT_MAX_BYTES. */
 export const MAP_POINT_CAP = 96;
+
+/** Most rows of each kind in MapMarks. Keeps the message inside SNAPSHOT_MAX_BYTES. */
+export const MAP_MARK_CAP = 32;
 
 /** One living being on the map: `id` is the BeingRow id (generation * MAX_BEINGS + slot); x, y are tile coordinates. */
 export interface MapPoint {
@@ -190,6 +195,18 @@ export interface MapPoint {
   x: number;
   y: number;
   folk: boolean;
+}
+
+/**
+ * Map marks with tile positions (tile = parcel centre, from the army's parcel record). Each list is capped at
+ * MAP_MARK_CAP. `pactLinks` rows are [x1, y1, x2, y2] between consecutive members of a pact that have an army.
+ */
+export interface MapMarks {
+  armies: { dominionId: number; x: number; y: number }[];
+  campaigns: { dominionId: number; x: number; y: number }[];
+  battles: { x: number; y: number }[];
+  pactLinks: [number, number, number, number][];
+  hamlets: { name: string; x: number; y: number }[];
 }
 
 /** One clan (src/sim/clans). `chiefAgeYears` is -1 when the clan has no living member. */

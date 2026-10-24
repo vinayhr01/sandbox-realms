@@ -38,7 +38,7 @@ export function hamletsOf(host: SettlementHost): readonly Hamlet[] {
 
 /** Plain-data form of one hamlet, JSON-safe; buildings are kept by catalogue id (Chronicle section 16). */
 export interface HamletSnapshot {
-  hamlets: { parcels: number[]; food: number; wood: number; stone: number; folk: number; buildings: { id: string; x: number; y: number }[]; growTimer: number }[];
+  hamlets: { parcels: number[]; food: number; wood: number; stone: number; folk: number; buildings: { id: string; x: number; y: number }[]; growTimer: number; outcrops: number; steps: number }[];
 }
 
 /** Plain copy of a host's hamlet state, or null when the state was never created (no settlementsStep yet). */
@@ -54,6 +54,8 @@ export function snapshotHamlets(host: SettlementHost): HamletSnapshot | null {
       folk: h.folk,
       buildings: h.buildings.map((b) => ({ id: b.def.id, x: b.x, y: b.y })),
       growTimer: h.growTimer,
+      outcrops: h.outcrops,
+      steps: h.steps,
     })),
   };
 }
@@ -71,7 +73,7 @@ export function restoreHamlets(host: SettlementHost, snap: HamletSnapshot): void
       if (!Number.isInteger(p) || p < 0 || p >= perAxis * perAxis || taken.has(p)) throw new Error('hamlet state: parcels are not valid');
       taken.add(p);
     }
-    if (!isNum(h.food) || !isNum(h.wood) || !isNum(h.stone) || !isNum(h.folk) || !isNum(h.growTimer) || !Array.isArray(h.parcels) || !Array.isArray(h.buildings)) {
+    if (!isNum(h.food) || !isNum(h.wood) || !isNum(h.stone) || !isNum(h.folk) || !isNum(h.growTimer) || !isNum(h.outcrops) || !isNum(h.steps) || !Array.isArray(h.parcels) || !Array.isArray(h.buildings)) {
       throw new Error('hamlet state: record is not valid');
     }
     const buildings: Placed[] = h.buildings.map((b) => {
@@ -79,7 +81,7 @@ export function restoreHamlets(host: SettlementHost, snap: HamletSnapshot): void
       if (!def || !isNum(b.x) || !isNum(b.y)) throw new Error(`hamlet state: building ${b.id} is not valid`);
       return { def, x: b.x, y: b.y };
     });
-    return { parcels: new Set(h.parcels), food: h.food, wood: h.wood, stone: h.stone, folk: h.folk, buildings, growTimer: h.growTimer };
+    return { parcels: new Set(h.parcels), food: h.food, wood: h.wood, stone: h.stone, folk: h.folk, buildings, growTimer: h.growTimer, outcrops: h.outcrops, steps: h.steps };
   });
   states.set(host, { hamlets });
 }

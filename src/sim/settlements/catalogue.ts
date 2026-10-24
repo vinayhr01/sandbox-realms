@@ -19,6 +19,8 @@ export interface BuildingDef {
   storage: number;
   /** Wood produced per 100 ticks when staffed (workshop). */
   woodYield: number;
+  /** Stone taken from outcrops per growth step (quarry); 0 for other buildings. */
+  stoneYield?: number;
 }
 
 export const BUILDINGS: readonly BuildingDef[] = [
@@ -27,6 +29,8 @@ export const BUILDINGS: readonly BuildingDef[] = [
   { id: 'well', name: 'Well', wood: 2, stone: 6, footprint: 1, foodCapacity: 0, foodYield: 10, housing: 0, storage: 0, woodYield: 0 },
   { id: 'storehouse', name: 'Storehouse', wood: 12, stone: 6, footprint: 3, foodCapacity: 0, foodYield: 0, housing: 0, storage: 300, woodYield: 0 },
   { id: 'workshop', name: 'Workshop', wood: 14, stone: 4, footprint: 2, foodCapacity: 0, foodYield: 0, housing: 0, storage: 0, woodYield: 3 },
+  // Quarry (09 section 3): works stone outcrops; yield per growth step is set by `stoneYield`.
+  { id: 'quarry', name: 'Quarry', wood: 10, stone: 0, footprint: 2, foodCapacity: 0, foodYield: 0, housing: 0, storage: 0, woodYield: 0, stoneYield: 2 },
 ];
 
 export const BUILDING_BY_ID = new Map(BUILDINGS.map((b) => [b.id, b]));

@@ -99,3 +99,8 @@ Regrowth delay (1,200 ticks, TUNE) is in and sweeps show no change in outcome. T
 - **Hamlets:** births no longer stop building or wood; food is capped and wells produce food; territory grows only when a building is placed; hamlets can no longer claim a parcel another hamlet owns (regression test on seed 11, which failed before the fix). Open: stone has no income, so once stone runs out no more buildings are placed.
 - **Tests:** the tick-cost test uses a median with a 50 ms gate (the 8 ms budget is a warning only); regrowth rules have tests; the stats births test uses real starting beasts on seed 1.
 - **Counters:** `sim.beings.stats.births` counts every spawn (starting beasts and adults included), while the lifetime `beingsBorn` counts only newborn children. They are not a double count, but the names are misleading.
+
+## Stone income and birth counters (spec sections checked)
+
+- **Stone:** the spec (09 sections 3, 8 and the job table) defines a quarry, stone outcrops and a miner. The hamlet slice now has a quarry (10 wood) that turns outcrop stock into 2 stone per growth step. Outcrops start at 40, regrow 1 per 5 steps, and cap at 60. Hamlets build a quarry when stone is below 10 and the first basics stand. Not built: miners as folk jobs, prospectors, the cleaner's ruin salvage, and other outcrop types.
+- **Counters:** `beings.stats.births` now counts only newborn children, and `newAdults` counts adults spawned, as 05 section 2 and 06 section 6.6 separate them. Not built: the per-parent and per-strain counters (`parent.births`, `strain.counters.reproduced`), since strains are not implemented.

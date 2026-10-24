@@ -41,7 +41,9 @@ const DIRS: readonly (readonly [number, number])[] = [
 
 /** Counters read by the HUD and tests. */
 export interface BeingStats {
+  /** Newborn children (06 6.6 counters.born). Adults are counted in newAdults (05 section 2). */
   births: number;
+  newAdults: number;
   deaths: number;
   starved: number;
   eaten: number;
@@ -62,7 +64,7 @@ interface SpeciesRuntime {
  */
 export class Beings {
   readonly store = new BeingStore();
-  readonly stats: BeingStats = { births: 0, deaths: 0, starved: 0, eaten: 0, aged: 0 };
+  readonly stats: BeingStats = { births: 0, newAdults: 0, deaths: 0, starved: 0, eaten: 0, aged: 0 };
   readonly runtime: readonly SpeciesRuntime[];
   private readonly cellsPerRow: number;
   private readonly head: Int32Array;
@@ -246,7 +248,8 @@ export function spawnBeing(sim: Sim, speciesIdx: number, x: number, y: number, a
   const slot = sim.beings.store.spawn(speciesIdx, x, y, born, def.vitality, adult ? 100 : 25, female);
   if (slot < 0) return -1;
   sim.beings.store.vit[slot] = vit;
-  sim.beings.stats.births++;
+  if (adult) sim.beings.stats.newAdults++;
+  else sim.beings.stats.births++;
   recordStat(sim, adult ? { kind: 'being.spawned', count: 1 } : { kind: 'being.born', count: 1 });
   return slot;
 }

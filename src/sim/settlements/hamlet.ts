@@ -21,6 +21,10 @@ export interface Hamlet {
   buildings: Placed[];
   /** Ticks until the next growth check. */
   growTimer: number;
+  /** Stone left in the outcrops quarries work (09 section 8; regrows slowly). */
+  outcrops: number;
+  /** Growth steps taken, used for outcrop regrowth. */
+  steps: number;
 }
 
 /** Structural context: the hamlet step needs no Sim import. */
@@ -37,8 +41,14 @@ export interface HamletContext {
 /** Food the hamlet store holds before any granary is built (matches the starting stock). */
 export const BASE_FOOD_STORE = 200;
 
+/** Outcrop stock a new hamlet starts with, and the cap regrowth fills back to (TUNE). */
+export const OUTCROP_START = 40;
+export const OUTCROP_CAP = 60;
+/** Growth steps between one unit of outcrop regrowth (TUNE). */
+export const OUTCROP_REGROW_STEPS = 5;
+
 export function createHamlet(parcelIndex: number, folk: number): Hamlet {
-  return { parcels: new Set([parcelIndex]), food: BASE_FOOD_STORE, wood: 60, stone: 30, folk, buildings: [], growTimer: 0 };
+  return { parcels: new Set([parcelIndex]), food: BASE_FOOD_STORE, wood: 60, stone: 30, folk, buildings: [], growTimer: 0, outcrops: OUTCROP_START, steps: 0 };
 }
 
 /** Food capacity of the store: the base store plus the capacity each granary adds. */
@@ -141,7 +151,9 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
   const granaries = h.buildings.filter((b) => b.def.id === 'granary').length;
   const wells = h.buildings.filter((b) => b.def.id === 'well').length;
   const houses = h.buildings.filter((b) => b.def.id === 'house').length;
-  const wanted = h.folk > housing ? 'house' : granaries === 0 ? 'granary' : wells === 0 ? 'well' : houses < 4 ? 'house' : null;
+  const quarries = h.buildings.filter((b) => b.def.id === 'quarry').length;
+  // Stone runs out without a quarry: build one once the first basics stand and stone is low.
+  const wanted = h.folk > housing ? 'house' : granaries === 0 ? 'granary' : wells === 0 ? 'well' : quarries === 0 && h.stone < 10 && houses >= 2 ? 'quarry' : houses < 4 ? 'house' : null;
   const def = wanted ? BUILDING_BY_ID.get(wanted) : undefined;
   // Territory grows only after an affordable building is actually placed.
   if (def && h.wood >= def.wood && h.stone >= def.stone && placeBuilding(ctx, h, def)) expandTerritory(ctx, h);
@@ -149,5 +161,11 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
   const cap = foodCapacity(h);
   if (h.food < cap) h.food = Math.min(h.food + h.buildings.reduce((s, b) => s + b.def.foodYield, 0), cap);
   h.wood += h.buildings.reduce((s, b) => s + b.def.woodYield, 0);
+  // Quarries take stone from the outcrops; the outcrops regrow slowly, up to their cap.
+  const take = Math.min(h.outcrops, h.buildings.reduce((s, b) => s + (b.def.stoneYield ?? 0), 0));
+  h.outcrops -= take;
+  h.stone += take;
+  h.steps += 1;
+  if (h.steps % OUTCROP_REGROW_STEPS === 0 && h.outcrops < OUTCROP_CAP) h.outcrops += 1;
 }
 

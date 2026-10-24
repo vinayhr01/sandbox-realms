@@ -59,16 +59,48 @@ function chronicleConfirmWindow(deps: WindowDeps, params: WindowParams): WindowB
   const action = params.action ?? '';
   const verb = CONFIRM_VERB[action];
   const slot = params.slot ?? 'this save';
+  const slotId = params.slotId ?? '';
+  const actions = deps.chronicle;
   return {
     title: windowTitle('win_chronicle_confirm'),
     build: (body) => {
-      if (verb === undefined) {
+      if (verb === undefined || slotId === '') {
         body.append(note('Nothing to confirm.'));
-      } else {
-        body.append(el('p', undefined, `${verb} ${slot}?`));
-        body.append(note('Saving, loading and deleting saves are not available yet, so this cannot be confirmed.'));
-        body.append(disabledButton(verb));
+        body.append(button('Back to Chronicle', () => deps.open('win_chronicle')));
+        return;
       }
+      body.append(el('p', undefined, `${verb} ${slot}?`));
+      const status = note('');
+      status.setAttribute('role', 'status');
+      const blocked: string | null = !actions
+        ? 'Saves cannot be changed from this window.'
+        : action === 'save'
+          ? actions.saveBlocked
+          : action === 'load'
+            ? actions.loadBlocked
+            : null;
+      const confirm = button(
+        verb,
+        () => {
+          if (!actions || (action !== 'save' && action !== 'load' && action !== 'delete')) return;
+          confirm.disabled = true;
+          status.textContent = 'Working...';
+          void actions.run(action, slotId).then((out) => {
+            if (!status.isConnected) return;
+            if (out.ok) deps.open('win_chronicle', { notice: out.message });
+            else {
+              status.textContent = out.message;
+              confirm.disabled = false;
+            }
+          });
+        },
+        true,
+      );
+      if (blocked !== null) {
+        body.append(note(blocked));
+        confirm.disabled = true;
+      }
+      body.append(confirm, status);
       body.append(button('Back to Chronicle', () => deps.open('win_chronicle')));
     },
   };

@@ -1,7 +1,7 @@
 /**
- * Crash capture skeleton (19 sections 3-8): unclean-exit sentinel, a small local journal,
- * and a fatal dialog. Storage access is wrapped because it can throw in private windows.
- * Nothing leaves the device (no telemetry in v1).
+ * Crash capture and recovery (19 sections 3-8): unclean-exit sentinel, a small local journal, the
+ * fatal dialog with its recovery actions, the boot-loop guard and Safe Mode. Storage access is
+ * wrapped because it can throw in private windows. Nothing leaves the device (no telemetry in v1).
  */
 const SENTINEL_KEY = 'sr.session';
 const JOURNAL_KEY = 'sr.journal';
@@ -53,16 +53,45 @@ export function startSentinel(): boolean {
   return unclean;
 }
 
-/** Shows the fatal dialog with a reload action. Safe to call more than once. */
-export function showFatal(title: string, detail: string): void {
+/** One button on the fatal dialog. `run` is called when it is clicked. */
+export interface FatalAction {
+  label: string;
+  primary?: boolean;
+  run: () => void;
+}
+
+/**
+ * Shows the fatal dialog with a reload action plus any extra actions (19 section 7). Safe to call
+ * more than once: the extra buttons are rebuilt each time.
+ */
+export function showFatal(title: string, detail: string, actions: readonly FatalAction[] = []): void {
   const dialog = document.getElementById('fatal');
   const titleEl = document.getElementById('fatal-title');
   const detailEl = document.getElementById('fatal-detail');
   if (!dialog || !titleEl || !detailEl) return;
   titleEl.textContent = title;
   detailEl.textContent = detail;
+  const host = document.getElementById('fatal-actions');
+  if (host) {
+    host.replaceChildren(
+      ...actions.map((action) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = action.primary ? 'btn primary' : 'btn';
+        btn.textContent = action.label;
+        btn.addEventListener('click', () => action.run(), { once: true });
+        return btn;
+      }),
+    );
+  }
   dialog.hidden = false;
   document.getElementById('fatal-reload')?.addEventListener('click', () => location.reload(), { once: true });
+}
+
+/** Closes the fatal dialog without reloading. */
+export function hideFatal(): void {
+  const dialog = document.getElementById('fatal');
+  if (dialog) dialog.hidden = true;
 }
 
 /**
@@ -224,15 +253,98 @@ export function chooseRestore(candidates: readonly RestoreCandidate[], safeMode:
   return restoreOffers(candidates, safeMode)[0] ?? null;
 }
 
-export function installGlobalErrorHandlers(): void {
+// Boot history and Safe Mode storage. localStorage keeps the boot times across reloads; sessionStorage
+// keeps Safe Mode and the fault attempts for this tab only. Every access can throw, so each is wrapped.
+
+const BOOTS_KEY = 'sr.boots';
+const SAFE_KEY = 'sr.safeMode';
+const ATTEMPTS_KEY = 'sr.attempts';
+
+function safeStore(kind: 'local' | 'session'): Storage | null {
+  try {
+    return kind === 'local' ? window.localStorage : window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function readJsonArray(storage: Storage | null, key: string): unknown[] {
+  try {
+    const raw = storage?.getItem(key);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeJson(storage: Storage | null, key: string, value: unknown): void {
+  try {
+    storage?.setItem(key, JSON.stringify(value));
+  } catch {
+    // Not stored: the guard simply has less history next time.
+  }
+}
+
+/** Unclean-boot times kept for the boot-loop guard. */
+export function loadBoots(): number[] {
+  return readJsonArray(safeStore('local'), BOOTS_KEY).filter((n): n is number => typeof n === 'number' && Number.isFinite(n));
+}
+
+export function storeBoots(boots: readonly number[]): void {
+  writeJson(safeStore('local'), BOOTS_KEY, boots);
+}
+
+/**
+ * Runs at boot, after startSentinel. When the previous session did not exit cleanly the boot is
+ * recorded; `loop` is true when the recent unclean boots reach the boot-loop count (19 section 4).
+ */
+export function bootGuard(nowMs: number, unclean: boolean): { loop: boolean } {
+  if (!unclean) return { loop: false };
+  const boots = recordBoot(loadBoots(), nowMs);
+  storeBoots(boots);
+  return { loop: isBootLoop(boots, nowMs) };
+}
+
+/** True when this tab chose Safe Mode. It lasts until the tab closes. */
+export function safeModeOn(): boolean {
+  try {
+    return safeStore('session')?.getItem(SAFE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function setSafeMode(on: boolean): void {
+  try {
+    if (on) safeStore('session')?.setItem(SAFE_KEY, '1');
+    else safeStore('session')?.removeItem(SAFE_KEY);
+  } catch {
+    // Without session storage Safe Mode does not survive the reload.
+  }
+}
+
+/** Fault attempts in this tab, for the ladder's repeat counts. */
+export function loadAttempts(): RecoveryAttempt[] {
+  return readJsonArray(safeStore('session'), ATTEMPTS_KEY) as RecoveryAttempt[];
+}
+
+export function storeAttempt(attempt: RecoveryAttempt): void {
+  writeJson(safeStore('session'), ATTEMPTS_KEY, [...loadAttempts(), attempt].slice(-20));
+}
+
+/** Reports a crash to the recovery dialog. The app supplies it; the default only shows the fatal dialog. */
+export type CrashReporter = (kind: FaultKind, title: string, detail: string) => void;
+
+export function installGlobalErrorHandlers(report: CrashReporter = (_kind, title, detail) => showFatal(title, detail)): void {
   window.addEventListener('error', (event: ErrorEvent) => {
     journal('UNCAUGHT', event.message);
-    showFatal('Something went wrong', event.message);
+    report('js_main', 'Something went wrong', event.message);
   });
   window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
     const reason: unknown = event.reason;
     const message = reason instanceof Error ? reason.message : String(reason);
     journal('UNHANDLED_REJECTION', message);
-    showFatal('Something went wrong', message);
+    report('js_main', 'Something went wrong', message);
   });
 }

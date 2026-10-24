@@ -13,18 +13,22 @@ Query parameters: `seed` (integer), `size` (sizeStep: 3 Small, 4 Standard, 5 Lar
 
 ## Checks
 
+Scripts from `package.json`:
+
 ```bash
-npm run typecheck          # both tsconfigs
-npm test                   # unit tests (Vitest)
-npm run bench              # sim tick cost report
-npm run check:determinism
-npm run build
-npm run check:budgets      # after build
-npm run test:a11y          # contrast checks
-npm run soak               # long ecosystem run (slow; not a pass/fail gate yet)
+npm run typecheck         # tsc on tsconfig.json and tsconfig.sim.json (no emit)
+npm test                  # unit tests (vitest run, tests/unit)
+npm run bench             # sim tick cost (tests/unit/tick-cost.test.ts, verbose)
+npm run check:determinism # no Math.random, Date or performance.now in sim/shared
+npm run build             # both typechecks, then vite build
+npm run check:budgets     # gzip size budgets; run after build
+npm run test:a11y         # contrast checks (vitest.a11y.config.ts)
+npm run soak              # ecosystem soak (vitest.soak.config.ts); slow, not a pass/fail gate
 npx playwright install chromium
-npm run test:e2e           # desktop, phone portrait/landscape, tablet (Chromium only)
+npm run test:e2e          # Playwright projects in playwright.config.ts (desktop, phone, tablet, 360x640 and 1920x1080 per browser)
 ```
+
+CI (`.github/workflows/ci.yml`) runs typecheck, determinism, build, budgets, unit tests and one Playwright job per browser. Firefox could not launch on the Windows dev machine; WebKit and Chromium have run here. See `docs/release-checklist.md` for the full status.
 
 ## Layout
 

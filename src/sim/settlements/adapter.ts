@@ -2,13 +2,17 @@ import type { Rng } from '../../shared/rng.ts';
 import { ssToTicks } from '../clock.ts';
 import type { Realm } from '../realm.ts';
 import type { BeingStore } from '../beings/store.ts';
-import { buildable, createHamlet, hamletStep, PARCEL, type Hamlet, type HamletContext, type Placed } from './hamlet.ts';
+import { buildable, createHamlet, goodFoundingParcel, hamletStep, PARCEL, type Hamlet, type HamletContext, type Placed } from './hamlet.ts';
 import { BUILDING_BY_ID } from './catalogue.ts';
 
-/** Hamlets placed per realm (TUNE). */
+/** Hamlets placed per realm at worldgen (TUNE). Kept: 09 does not place hamlets at worldgen, but the worldgen placement stays as it was. */
 export const HAMLETS_WANTED = 3;
 /** Random tile draws tried while placing hamlets before giving up (TUNE). */
 const PLACEMENT_ATTEMPTS = 400;
+/** Adult Folk of one lineage needed within BAND_RANGE to found a hamlet (09 section 2 path A, MIN_BAND; TUNE). */
+export const MIN_BAND = 2;
+/** Band radius in tiles (09 section 2 path A, BAND_RANGE; TUNE). */
+export const BAND_RANGE = 20;
 /** Ticks in one sim-second (hamlets step once per sim-second). */
 const SECOND = ssToTicks(1);
 
@@ -19,7 +23,7 @@ const SECOND = ssToTicks(1);
 export interface SettlementHost {
   readonly realm: Realm;
   readonly rules: { isOn(id: string): boolean };
-  readonly beings: { readonly store: BeingStore };
+  readonly beings: { readonly store: BeingStore; species(index: number): { readonly folk: boolean } };
   readonly tick: number;
   rng(name: string): Rng;
 }
@@ -112,6 +116,57 @@ function placeHamlets(host: SettlementHost, state: SettlementState): void {
   }
 }
 
+/**
+ * Founds hamlets where Folk gather (09 section 2 path A; 12 spawn_folk: two or more adults of one lineage meet on
+ * suitable ground with no hamlet nearby). Founders are scanned in slot order. A founder's band is the adults of
+ * its lineage within BAND_RANGE, itself included; a band of MIN_BAND or more on a goodFoundingParcel founds
+ * there: the parcel and every unowned neighbour parcel become the hamlet's territory (09 foundHamlet step 2).
+ * No dominion is made here; the yearly dominion pass creates one once the hamlet reaches FOUND_FOLK.
+ * Draws no randomness.
+ */
+function foundHamlets(host: SettlementHost, state: SettlementState): void {
+  const s = host.beings.store;
+  const perAxis = host.realm.side / PARCEL;
+  const adults: number[] = [];
+  for (let k = 0; k < s.size; k++) {
+    const slot = s.at(k);
+    if (s.baby[slot] === 0 && host.beings.species(s.species[slot] ?? 0).folk) adults.push(slot);
+  }
+  if (adults.length < MIN_BAND) return;
+  const owned = new Set<number>();
+  for (const h of state.hamlets) for (const p of h.parcels) owned.add(p);
+  const range2 = BAND_RANGE * BAND_RANGE;
+  for (const founder of adults) {
+    const fx = s.x[founder] ?? 0;
+    const fy = s.y[founder] ?? 0;
+    const species = s.species[founder];
+    let band = 0;
+    for (const o of adults) {
+      if (s.species[o] !== species) continue;
+      const dx = (s.x[o] ?? 0) - fx;
+      const dy = (s.y[o] ?? 0) - fy;
+      if (dx * dx + dy * dy <= range2) band++;
+    }
+    if (band < MIN_BAND) continue;
+    const p = Math.floor(fy / PARCEL) * perAxis + Math.floor(fx / PARCEL);
+    if (owned.has(p) || !goodFoundingParcel(host.realm, p, owned)) continue;
+    const h = createHamlet(p, band);
+    const px = p % perAxis;
+    const py = Math.floor(p / perAxis);
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = px + dx;
+        const ny = py + dy;
+        if (nx < 0 || ny < 0 || nx >= perAxis || ny >= perAxis) continue;
+        const q = ny * perAxis + nx;
+        if (!owned.has(q)) h.parcels.add(q);
+      }
+    }
+    for (const q of h.parcels) owned.add(q);
+    state.hamlets.push(h);
+  }
+}
+
 /** Counts living beings standing in any parcel of the hamlet. Species is not distinguished. */
 function census(host: SettlementHost, h: Hamlet): number {
   const s = host.beings.store;
@@ -138,6 +193,7 @@ export function settlementsStep(host: SettlementHost): void {
     placeHamlets(host, state);
   }
   if (host.tick % SECOND !== 0) return;
+  foundHamlets(host, state);
   const ctx = contextOf(host);
   for (const h of state.hamlets) {
     h.folk = census(host, h);

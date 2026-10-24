@@ -312,3 +312,31 @@ Scope: pact records and one army per dominion, built on the yearly pass. Code: `
 - **Test files outside the listed pattern.** `tests/unit/windows-sim-data-snapshot.test.ts` and `tests/unit/windows-sim-data-rows.test.ts` asserted that a border at peace is a pact. Both now form a pact record first (`addPact`), and the expected ids change. They fall outside the `*pact*/*dominion*/*army*` pattern, but no other change keeps them passing under the new rule.
 - **Save header placeholder (decision, kept).** The chronicle header's content-hash u32 is written as 0 and never read. Filling it changes the byte layout of every save, so it stays reserved; `FORMAT_VERSION` is not bumped. Revisit only with a format migration.
 - **Follow-up, UI (done).** `src/ui/specWindows.ts` now describes the pact records (the old "not updated" note is resolved): its `PACT_LIMITS` note still says a pact is peace between two bordering dominions, and its rows show the two founders only, not the members. Rows still read `nameA`, `nameB` and the strengths, so they do not break.
+
+## Settings round 4
+
+Scope: the same 75 rows of `src/ui/panels/options.ts`. Checked the features that now exist (pacts, armies, items, hamlets, dominion borders) against `src/render` and `src/ui`, and the being state in the protocol. Result: no row could be wired this round, so the live count stays at 41 and the non-live count at 34. No code changed; the table, its `live` flags and the test expectations are unchanged.
+
+What `src/render` has: `terrain.ts`, `terrain-shader.ts`, `camera.ts`. Terrain and the brush only. There is no being, mark, border, nameplate or effect layer. Pacts, armies, items, hamlets and dominion borders exist in the sim and the snapshot, but none of them is drawn on the map, so the mark and name rows have nothing to drive.
+
+What the protocol carries: no being happiness, task, talk or tip data. No tip source in `src/sim` or `src/ui`.
+
+Wired (0). Non-live (34), with the reason for each:
+- `ui.scaleNames`, `map.names`, `map.favouritesOnlyNames`: no nameplate layer in `src/render`; beings are not drawn on the map. A nameplate layer needs a being-position draw path, which is not cheap, so it is not built here.
+- `map.nightLights`, `map.shadows`, `map.bloom`, `map.particles`, `map.treeWind`, `map.cursorLights`: no such effects in `src/render`; terrain only.
+- `map.ageEffects`: ages exist in `src/sim/ages.ts`, but no age data reaches the render rows and there is no overlay.
+- `marks.favourites`, `marks.items`, `marks.intrigues`, `marks.armies`, `marks.battles`, `marks.boats`, `marks.campaigns`: no mark layer in `src/render`. Items and armies exist in the sim, but the map cannot show them yet.
+- `ui.worldTooltips`: no world-space tooltip layer.
+- `ui.talkBubbles`, `ui.happinessIcons`, `ui.taskIcons`: being talk, happiness and task are not in the snapshot or frame rows.
+- `ui.tips`: no tip source in `src/sim` or `src/ui`; toasts carry status and errors only.
+- `ui.moneyFlow`, `ui.cursorArrows`: no flow or arrow data and no layer.
+- `ui.autoOpenContextTab`: no context tab exists.
+- `ui.quickStrip`: no pinned strip exists.
+- `input.touchOrder`: no being selection and no move-order command.
+- `perf.preloadWindows`: windows are built on open; there is no cache to preload into.
+- `perf.renderScale`: a runtime change needs a Pixi resolution and resize call in `TerrainRenderer` (`src/render/terrain.ts`, which sets `resolution` and `autoDensity` at init). The worktree had no installed dependencies, so the Pixi API could not be checked against its typings this round. Kept non-live until it is checked.
+- `perf.simBudgetMs`, `perf.maxBeingsHint`: need sim changes; skipped under the sim rule.
+- `privacy.telemetry`, `privacy.errorReports`: no telemetry or error-report sender exists in the build.
+- `lang`: only the English string table exists.
+
+Follow-ups: a map mark layer (items, armies, pacts, borders) would unlock the 7 `marks.*` rows; a being draw path would unlock the nameplate and being-icon rows; `perf.renderScale` needs a Pixi API check with dependencies installed.

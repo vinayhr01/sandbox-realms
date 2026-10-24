@@ -126,7 +126,7 @@ export const POWERS: readonly PowerDef[] = [
   click('sky_ignite', 'sky', 'Ignite', 'start_fire', {}),
   click('sky_quench', 'sky', 'Quench', 'quench', {}),
   // Beings tab: one spawner per roster species (section 8.5, scheme spawn_<group>_<id>).
-  ...SPECIES.map((sp): PowerDef => ({
+  ...SPECIES.filter((sp) => sp.wild).map((sp): PowerDef => ({
     id: `spawn_beast_${sp.id}`,
     tab: 'beings',
     kind: 'spawn',

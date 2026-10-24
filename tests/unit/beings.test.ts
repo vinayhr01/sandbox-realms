@@ -95,6 +95,9 @@ describe('beings', () => {
       }
       sim.step();
     }
-    expect(sim.beings.stats.births).toBeGreaterThan(2);
+    // 06 section 6.1: with the first litter alive (cap ceil(litter) = 2) the pair stops; one litter may
+    // overshoot the cap by its brood. The old "more than two" held only while children never counted.
+    expect(sim.beings.stats.births).toBeGreaterThanOrEqual(2);
+    expect(sim.beings.stats.births).toBeLessThanOrEqual(3);
   });
 });

@@ -36,6 +36,7 @@ import { snapshotDominions } from './dominions/adapter.ts';
 import { hamletsOf } from './settlements/adapter.ts';
 import { codexProgress } from './progression.ts';
 import { clanSpeciesName, yearsSince, type Clan } from './clans/clans.ts';
+import { itemsOf } from './items/summary.ts';
 import type { Sim } from './sim.ts';
 
 /** Sim ticks between periodic snapshots: two sim-seconds (13 section 1, 10 Hz UI budget). */
@@ -72,6 +73,8 @@ export function buildSnapshot(sim: Sim): Snapshot {
     age: sim.currentAge,
     biomes: biomeCountsOf(sim),
     clans: clansOf(sim),
+    // Items block (windows-sim-data, 08 section 6): read-only summary of the item store.
+    items: itemsOf(sim),
   };
   return fitSnapshot(snap);
 }

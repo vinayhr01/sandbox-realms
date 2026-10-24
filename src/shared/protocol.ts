@@ -25,6 +25,14 @@ export enum Cmd {
   Snapshot = 9,
   SaveRealm = 10,
   LoadRealm = 11,
+  /** Equips a plain item kind in one gear slot of a Being, or empties it (item null). Gear editor. */
+  SetGear = 12,
+  /** Replaces the item-rain list (kind ids, src/content/items.ts). Item rain editor. */
+  SetItemRain = 13,
+  /** Gives one item from the rain list to each Being near a tile (radius in tiles). */
+  ItemRain = 14,
+  /** Marks or unmarks an item as a favourite (inspector star). */
+  SetItemFavourite = 15,
 }
 
 export enum Ev {
@@ -57,7 +65,12 @@ export type Command =
   /** Encodes the live realm as a Chronicle save (src/sim/chronicle.ts). Replies with Ev.Saved. */
   | { kind: Cmd.SaveRealm; seq: number }
   /** Replaces the live realm with a decoded Chronicle save. Replies with Ev.Ready or Ev.Loaded. */
-  | { kind: Cmd.LoadRealm; seq: number; bytes: Uint8Array };
+  | { kind: Cmd.LoadRealm; seq: number; bytes: Uint8Array }
+  /** `beingId` is the id the snapshot gives a Being (generation * MAX_BEINGS + slot); `slot` is an equipment slot name; `item` a kind id or null. */
+  | { kind: Cmd.SetGear; seq: number; beingId: number; slot: string; item: string | null }
+  | { kind: Cmd.SetItemRain; seq: number; ids: string[] }
+  | { kind: Cmd.ItemRain; seq: number; x: number; y: number; radius: number }
+  | { kind: Cmd.SetItemFavourite; seq: number; itemId: number; on: boolean };
 
 /** Rows of the index texture: RGBA8 per tile = [ground, cover, elevation, flags & 0xff]. */
 export interface FrameRows {
@@ -163,6 +176,8 @@ export interface Snapshot {
   biomes?: Record<string, number>;
   /** Clans (kinbands window): counts and the capped rows, living clans first. Optional: older readers ignore it. */
   clans?: ClanBlock;
+  /** Item summary (src/sim/items/summary.ts): counts, capped rows, worn gear and the rain list. Optional. */
+  items?: ItemBlock;
 }
 
 /** One clan (src/sim/clans). `chiefAgeYears` is -1 when the clan has no living member. */
@@ -187,6 +202,42 @@ export interface ClanBlock {
   count: number;
   living: number;
   rows: ClanRow[];
+}
+
+/** One item instance (items window). `holder` says where it is kept; `at` is a being id, a hamlet index or -1. */
+export interface ItemRow {
+  id: number;
+  kind: string;
+  name: string;
+  /** Equipment slot name (weapon, helm, body, boots, ring, amulet). */
+  slot: string;
+  group: string;
+  quality: number;
+  value: number;
+  durability: number;
+  /** Modifier display names. */
+  mods: string[];
+  holder: 'worn' | 'stock' | 'none';
+  at: number;
+  favourite: boolean;
+}
+
+/** Worn gear of one Being: the kind id in each equipment slot (ITEM_SLOTS order), '' when empty. */
+export interface GearRow {
+  being: number;
+  kinds: string[];
+}
+
+/** Items block: totals are exact; `rows` and `gear` are capped at SNAPSHOT_DETAIL_ROWS. */
+export interface ItemBlock {
+  count: number;
+  equipped: number;
+  stored: number;
+  /** Favourites first, then worn, then stored. */
+  rows: ItemRow[];
+  gear: GearRow[];
+  /** Kind ids the item rain draws from (empty: every kind). */
+  rain: string[];
 }
 
 /**

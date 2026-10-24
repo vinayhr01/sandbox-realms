@@ -5,7 +5,7 @@
 import { POWERS, type PowerDef } from '../content/powers.ts';
 import { AGES } from '../sim/ages.ts';
 import { RULES, RuleSet, ageRuleId, type RuleDef } from '../sim/rules.ts';
-import type { BrushShape, Snapshot } from '../shared/protocol.ts';
+import type { BrushShape, Command, Snapshot } from '../shared/protocol.ts';
 import { buildList } from './listView.ts';
 import { detailWindowFor } from './detailWindows.ts';
 import { staticWindowFor } from './staticWindows.ts';
@@ -47,7 +47,12 @@ export interface ChronicleActions {
   importFile(file: File): Promise<ChronicleOutcome>;
 }
 
+/** A command without its sequence number (the sim client adds it). */
+export type CommandDraft = Command extends infer C ? (C extends { seq: number } ? Omit<C, 'seq'> : never) : never;
+
 export interface WindowDeps {
+  /** Sends a player command to the sim (item and gear editors). Absent in tests: the controls then do nothing. */
+  sendCommand?: (command: CommandDraft) => void;
   options(): Options;
   setOption(id: string, value: OptionValue): void;
   rules: RuleSet;

@@ -37,6 +37,8 @@ import { stepDominions } from './dominions/adapter.ts';
 import { cultureTick, createCultureState, type CultureState } from './culture/adapter.ts';
 import { rollAndRunCalamity, usePowerById } from './powers/handlers.ts';
 import { buildSnapshot } from './snapshot.ts';
+import { ItemStore } from './items/store.ts';
+import { itemRain, itemsStep, setGear, setItemFavourite, setItemRain } from './items/system.ts';
 import type { Snapshot } from '../shared/protocol.ts';
 import { clansStep, createClanState, type ClanState } from './clans/clans.ts';
 
@@ -67,6 +69,8 @@ export class Sim {
   readonly beings: Beings;
   readonly effects: EffectStore;
   readonly combat: CombatState;
+  /** Item instances, worn gear, hamlet stock and item rain (08 section 6; src/sim/items). */
+  readonly items: ItemStore;
   readonly guard = new ExplosionGuard();
   readonly projectiles: Projectile[] = [];
   weather: WeatherState = createWeatherState();
@@ -92,6 +96,7 @@ export class Sim {
     this.beings = new Beings(this.realm.side);
     this.effects = new EffectStore(this.beings.store.capacity);
     this.combat = new CombatState(this.beings.store.capacity);
+    this.items = new ItemStore(this.beings.store.capacity);
     this.ages = newAgeState(this.rng('age'), 0);
   }
 
@@ -186,6 +191,7 @@ export class Sim {
     cultureTick(this);
     stepBeings(this);
     clansStep(this);
+    itemsStep(this);
     this.runCombatAndWeather();
     stepDominions(this);
     if (this.due('achievements', SS_TICKS)) unlockAchievements(this);
@@ -199,7 +205,9 @@ export class Sim {
       combat: this.combat,
       tick: this.tick,
       rng: this.rng('combat'),
-      might: (slot) => this.beings.species(this.beings.store.species[slot] ?? 0).might,
+      // Worn gear adds its might and plating (08 section 6); both are 0 for a Being with no gear.
+      might: (slot) => this.beings.species(this.beings.store.species[slot] ?? 0).might + this.items.mightOf(slot),
+      equipPlating: (slot) => this.items.platingOf(slot),
     };
   }
 
@@ -264,6 +272,18 @@ export class Sim {
         break;
       case Cmd.SetRule:
         this.rules.set(cmd.rule, cmd.on);
+        break;
+      case Cmd.SetGear:
+        setGear(this, cmd.beingId, cmd.slot, cmd.item);
+        break;
+      case Cmd.SetItemRain:
+        setItemRain(this, cmd.ids);
+        break;
+      case Cmd.ItemRain:
+        itemRain(this, cmd.x, cmd.y, cmd.radius);
+        break;
+      case Cmd.SetItemFavourite:
+        setItemFavourite(this, cmd.itemId, cmd.on);
         break;
       default:
         break;

@@ -170,6 +170,10 @@ function handle(cmd: Command): void {
     case Cmd.Stroke:
     case Cmd.Power:
     case Cmd.SetRule:
+    case Cmd.SetGear:
+    case Cmd.SetItemRain:
+    case Cmd.ItemRain:
+    case Cmd.SetItemFavourite:
       sim?.enqueue(cmd);
       return;
     case Cmd.Query: {

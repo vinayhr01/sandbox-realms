@@ -17,7 +17,11 @@ import { seaRefill } from './terrain/water.ts';
 import { fireSweep, scarFade } from './terrain/fire.ts';
 import { freezeSweep, summitFreeze, thawSweep } from './terrain/freeze.ts';
 import { biomeSweep } from './terrain/biome-spread.ts';
-import { droughtPass, floraPass, frostPass, wildSeeding } from './flora.ts';
+import { droughtPass, floraPass, floraSpreadStep, frostPass, mineralSeeding, wildSeeding } from './flora.ts';
+import { quakeStep } from './terrain/quake.ts';
+import { slimeSweep } from './terrain/slime.ts';
+import { eruptionStep } from './terrain/eruption.ts';
+import { creepStep } from './terrain/creep.ts';
 import { Beings } from './beings/system.ts';
 import { TUNING } from './beings/tuning.ts';
 import { EffectStore, MAX_EFFECTS, STATUSES, UNTIL_CLEARED } from './effects.ts';
@@ -255,14 +259,20 @@ export class Sim {
     const side = r.side;
     if (this.due('fireSweep', 20)) fireSweep(this);
     if (this.due('heat', 20)) heatStep(this);
+    quakeStep(this);
     if (this.due('seaRefill', 4)) seaRefill(this);
+    if (this.due('slime', 2)) slimeSweep(this);
     if (this.due('magma', 2) && r.molten.size > 0) magmaSweep(this);
+    eruptionStep(this);
     const bonus = this.ageDef().biomeGrowthBonus;
     if (this.due('biome', 2)) biomeSweep(this, Math.floor(side / 16) * (5 + bonus));
     if (this.due('freeze', 2) && this.ageDef().freezeWorld) freezeSweep(this, Math.floor(side / 16) * 10);
     if (this.due('thaw', 2) && this.ageDef().thawWorld && !this.rules.isOn('eternal_cold')) {
       thawSweep(this, Math.floor(side / 16) * 10);
     }
+    creepStep(this);
+    if (this.due('mineral', 40)) mineralSeeding(this, 3);
+    floraSpreadStep(this);
   }
 
   /** Behaviour runner: `timer -= 1; when <= 0 run; reset to interval + random` (02 section 7). */

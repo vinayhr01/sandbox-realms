@@ -74,6 +74,13 @@ export const RULES: readonly RuleDef[] = [
 
 export const RULE_BY_ID = new Map(RULES.map((r) => [r.id, r]));
 
+/**
+ * The `rituals` rule (02 section 9): off means no new Intrigue or ritual starts. Intrigue starts are
+ * gated in src/sim/culture/culture.ts; ritual powers (favour_bless) list it in `requires`, and
+ * executePower refuses them while it is off (src/sim/powers/handlers.ts).
+ */
+export const RITUALS_RULE = 'rituals';
+
 /** Per-age enable flags are stored as `age_enabled_<id>`, default on (02 section 9). */
 export function ageRuleId(ageId: string): string {
   return `age_enabled_${ageId}`;

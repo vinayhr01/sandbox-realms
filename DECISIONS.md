@@ -162,3 +162,14 @@ Two parts. **Current state** is the latest verified state and wins over anything
 - Decide whether the 06 section 6.1 partner cap is required.
 - Settle the milestone-to-spec mapping: `BUILD-PLAN.md` and `Spec/ROADMAP.md` disagree on some rows (e.g. M0 lists 13; M3 lists 18a and 18b). This project follows ROADMAP and adds 18a to 18e from BUILD-PLAN.
 - Save wiring, recovery wiring, audio engine wiring and the heartbeat are all unwired in the running game (see Current state).
+
+## Powers round 3
+
+Scope: `favour_bless` (Favour tab) and `insight_lore` (Insight tab), and the `rituals` Realm Rule effect they need.
+
+- **Spec gap.** `12-powers-catalogue.md` has no Bless or Lore entry (8.7 and 8.8 list no `fav_bless` or `ins_lore`), and no spec section gives their effects. The effects below are defaults chosen here (OPEN, default recorded), not spec text.
+- **Bless (`favour_bless`).** Ritual power, `requires: ['rituals']`. Gives status `warded` (60 s, taken x0.1; the nearest spec boon to "Ward", 12 section 8.7) to every living being within Chebyshev radius 3 of the target tile. Runs on empty ground too (counts as a use, no beings affected). Handler `bless` in `src/sim/powers/rites.ts`.
+- **Lore (`insight_lore`).** Records the species of every living being within radius 4 as a codex discovery (`discoveries` set, `species:<id>`, 14 section 5). Repeats record nothing. Read-only accessor `loreKnown(sim)`. The snapshot codex count already reads this set, so no snapshot field was added. Does not need `rituals`. Handler `lore`.
+- **Rituals rule effect.** `rituals` off refuses ritual powers: `executePower` now checks every rule in a power's `requires` before dispatch (12 section 8 soft gate; the rule still does not hide the power). Intrigue starts were already gated in `src/sim/culture/culture.ts`; culture code is unchanged. `RITUALS_RULE` constant in `src/sim/rules.ts`.
+- **Not done.** The UI toast `hint.rule_off` and the Lore window are not built. `powerStatus` (`src/ui/powerSupport.ts`) lists handlers in `SIM_HANDLERS`; `bless` and `lore` must be added there before the two powers show as enabled. `tests/unit/ui-powers.test.ts` and `tests/e2e/panels.spec.ts` (expects Bless to read "not available yet") follow from that.
+- **Golden.** `GOLDEN_HASH` unchanged (2562049680); the golden replay uses no powers.

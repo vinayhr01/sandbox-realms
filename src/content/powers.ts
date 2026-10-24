@@ -162,9 +162,9 @@ export const POWERS: readonly PowerDef[] = [
     cooldownMs: 1500,
     requires: [],
   })),
-  // Favour and Insight: placeholders for systems not built yet (hamlets, rites, lore).
-  click('favour_bless', 'favour', 'Bless', 'bless', {}, 0, ['rituals']),
-  click('insight_lore', 'insight', 'Lore', 'open_window', { window: 'lore' }),
+  // Favour and Insight (12 section 8.7-8.8; effects not in spec, defaults in DECISIONS.md "Powers round 3").
+  click('favour_bless', 'favour', 'Bless', 'bless', { radius: 3, status: 'warded' }, 0, ['rituals']),
+  click('insight_lore', 'insight', 'Lore', 'lore', { radius: 4 }),
 ];
 
 export const POWER_BY_ID = new Map(POWERS.map((p) => [p.id, p]));

@@ -19,7 +19,7 @@ import { MONTH_TICKS } from '../../shared/constants.ts';
 import { terrainState, type CreepHub } from '../terrain/state.ts';
 import { garrisonStep, garrisonsOf, restoreGarrisons } from './garrison-adapter.ts';
 import { rulesOf } from './custom-rules.ts';
-import type { GarrisonRecord } from './garrison.ts';
+import type { GarrisonRecord, GarrisonSave } from './garrison.ts';
 
 /** Hamlets placed per realm at worldgen (TUNE). Kept: 09 does not place hamlets at worldgen, but the worldgen placement stays as it was. */
 export const HAMLETS_WANTED = 3;
@@ -80,7 +80,7 @@ export interface HamletSnapshot {
   /** Tile and the tick until which it may not re-spread creep (18e 1.5 acid guard); absent in older saves. */
   creepGuard?: [number, number][];
   /** Garrison records (garrison.ts): one per hamlet with a garrison, once one has been seen. Absent when none exists. */
-  garrisons?: GarrisonRecord[];
+  garrisons?: GarrisonSave[];
 }
 
 /** Plain copy of a host's hamlet state, or null when the state was never created (no settlementsStep yet). */

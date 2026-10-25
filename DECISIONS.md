@@ -1386,3 +1386,16 @@ Scope: three failing unit tests in the beings and chronicle area. Development on
 
 - Firefox projects are removed from `playwright.config.ts` and from the CI browser matrix. The Playwright Firefox build does not launch on the Windows development machine (side-by-side configuration error), so it could not be tested. The app is tested on Chromium (desktop, tablet, phone and 360x640 and 1920x1080 projects) and WebKit (360x640 and 1920x1080).
 - Firefox support is therefore not verified. Add it back when a machine can launch it.
+
+## Garrison build 3
+
+Scope: soldier wages, recruit cost, leader warfare, and the Barracks row. Code: `src/sim/settlements/garrison.ts` (constants, `GarrisonRecord.wage`, `GarrisonSave`), `src/sim/settlements/garrison-adapter.ts` (wage day, desertion, recruit cost, restore default), `src/sim/settlements/adapter.ts` (snapshot type), `src/sim/chronicle.ts` (`checkHamlets` shape check for `garrisons[].wage`). Not touched: `GOLDEN_HASH`, `SCHEMA_VERSION`, `FORMAT_VERSION`, `catalogue.ts`, `src/sim/dominions/`. Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). Types were checked by reading.
+
+- **Spec gaps (read first).** Checked 09 and 10 and the rest of `Spec/`. The spec has no soldier wage, no desertion rule, and no recruit cost; "desert" appears only as a biome. The brief said unpaid soldiers desert "as the spec states": the spec does not say so. The three values below are TUNE, not spec.
+- **Barracks: no row added.** 09 section 7 lists `Barracks` and `Armory` as draft names that `garrison` replaces (table row `garrison`; 18e `arsenal` is the Armory). The spec gives no separate Barracks cost or footprint, so a second row would duplicate the garrison. The existing `garrison` row (6 stone, 14 gold, 3x3) is the Barracks. Revisit only if a Barracks is wanted as its own building; the numbers would then need the designer.
+- **Recruit cost (TUNE).** `RECRUIT_COST_GOLD` = 4 gold, paid from the hamlet purse when a soldier is drawn. The existing gate (gold > 10) still decides whether a draw is attempted.
+- **Wages and desertion (TUNE).** `SOLDIER_WAGE_GOLD` = 2 gold per garrisoned soldier per year. Each record has a wage timer (`WAGE_PERIOD` = `YEAR_TICKS`, 1200 ticks). On a wage day the hamlet pays `min(soldiers, floor(gold / 2))` soldiers' worth; the soldiers it cannot pay for desert. Deserters are not returned to the dominion: they were drawn from its strength already, so they leave the game. Order within a pass: wage day, then recruit timer, then recruit.
+- **Leader warfare: fixed 0.** The spec's timer and army formulas use `leader.warfare`, but the sim has no leader Being or leader stat at hamlet level (`hamlet.ts` has no leader field). `LEADER_WARFARE` stays 0 (TUNE). Wiring it to the hamlet's leader Being is a follow-up once a hamlet leader exists in the sim.
+- **Determinism.** No rng is drawn by wages or desertion. A pass is still a pure function of the hamlet and dominion state.
+- **Save impact.** No schema bump. `wage` is an optional field on each garrison record; saves without it load with a full wage period (`restoreGarrisons` default). `checkHamlets` checks `wage` when present.
+- **Not verified.** Runs with a built garrison diverge from `GOLDEN_HASH`, which is not edited here. Expect the golden test to fail once a garrison is built in a run.

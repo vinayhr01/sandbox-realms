@@ -4,6 +4,8 @@
  * The sim-touching part is garrison-adapter.ts.
  */
 
+import { YEAR_TICKS } from '../../shared/constants.ts';
+
 /** Soldiers a garrison holds at most (TUNE: the spec gives no company size). */
 export const GARRISON_COMPANY = 5;
 /** Hamlet gold above which a soldier may be recruited (09 section 8 soldier gate: gold > 10). */
@@ -14,6 +16,12 @@ export const SOLDIER_TIMER_BASE = 300;
 export const SOLDIER_TIMER_FLOOR = 20;
 /** Leader warfare used in the timer. The sim has no leader model, so the term is 0 (TUNE). */
 export const LEADER_WARFARE = 0;
+/** Gold a recruit costs, paid from the hamlet purse when the soldier is drawn (TUNE: the spec gives no recruit cost). */
+export const RECRUIT_COST_GOLD = 4;
+/** Gold per garrisoned soldier per year, paid from the hamlet purse (TUNE: the spec gives no wage). */
+export const SOLDIER_WAGE_GOLD = 2;
+/** Ticks between wage days: one sim year (TUNE: the spec gives no pay period). */
+export const WAGE_PERIOD = YEAR_TICKS;
 
 /**
  * Soldier timer in ticks (09 section 8): `300 - warfare x 10`, floor 20, and halved while the hamlet has a garrison.
@@ -34,4 +42,9 @@ export interface GarrisonRecord {
   soldiers: number;
   /** Ticks until the next recruit may be drawn; at or below 0 the draw is attempted each second. */
   timer: number;
+  /** Ticks until the next wage day (WAGE_PERIOD). Absent in saves written before wages: loads with a full period. */
+  wage: number;
 }
+
+/** A garrison record as saved: `wage` is absent in saves written before wages. */
+export type GarrisonSave = Omit<GarrisonRecord, 'wage'> & { wage?: number };

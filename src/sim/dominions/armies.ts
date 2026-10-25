@@ -1,4 +1,4 @@
-import type { Dominion, RelationMatrix } from './types.ts';
+import type { Dominion, RelationMatrix, UnitGuard } from './types.ts';
 import type { Sim } from '../sim.ts';
 import { addAggro } from '../beings/aggro.ts';
 import { ground } from '../../content/grounds.ts';
@@ -145,34 +145,38 @@ function nearestEnemyParcel(army: Army, d: Dominion, relations: RelationMatrix, 
  * `owner` is the owner map of the step (parcel to dominion id; unowned parcels are absent) and is edited in place,
  * as are the dominions' parcel sets. Draws no randomness. Does nothing when perAxis is 0.
  */
-export function attackOrders(armies: readonly Army[], dominions: readonly Dominion[], relations: RelationMatrix, owner: Map<number, number>, perAxis: number): void {
+export function attackOrders(armies: readonly Army[], dominions: readonly Dominion[], relations: RelationMatrix, owner: Map<number, number>, perAxis: number, unit?: UnitGuard): void {
   if (perAxis <= 0) return;
+  // Each army is one unit (17 section 9, `dominion:<id>`): a throw in one leaves the other armies to take their orders.
+  const guard: UnitGuard = unit ?? ((_, run) => run());
   const byId = new Map(dominions.map((d) => [d.id, d]));
   // Army positions do not change inside this step, so the positions by dominion are read once.
   const posByDom = new Map<number, number[]>();
   for (const a of armies) posByDom.set(a.dominionId, [...(posByDom.get(a.dominionId) ?? []), a.parcel]);
   const defended = (p: number, holder: number): boolean => (posByDom.get(holder) ?? []).some((q) => inReach(q, p, perAxis));
   for (const army of armies) {
-    const d = byId.get(army.dominionId);
-    if (!d) {
+    guard(army.dominionId, () => {
+      const d = byId.get(army.dominionId);
+      if (!d) {
+        army.order = -1;
+        return;
+      }
+      if (army.order >= 0) {
+        const holder = owner.get(army.order);
+        if (holder === undefined || holder === d.id || relations.get(d.id, holder) !== 'war' || d.strength <= 0) army.order = -1;
+      }
+      if (army.order < 0 && isReady(army)) army.order = nearestEnemyParcel(army, d, relations, owner, perAxis);
+      if (army.order < 0 || d.strength <= 0 || !inReach(army.parcel, army.order, perAxis)) return;
+      const target = army.order;
+      if (defended(target, owner.get(target) ?? -1)) return;
+      const from = byId.get(owner.get(target) ?? -1);
+      from?.parcels.delete(target);
+      owner.set(target, d.id);
+      d.parcels.add(target);
+      d.strength -= Math.floor(d.strength * ATTACK_CASUALTY_RATE);
+      army.renown += ARMY_RENOWN_PER_DEFEAT;
       army.order = -1;
-      continue;
-    }
-    if (army.order >= 0) {
-      const holder = owner.get(army.order);
-      if (holder === undefined || holder === d.id || relations.get(d.id, holder) !== 'war' || d.strength <= 0) army.order = -1;
-    }
-    if (army.order < 0 && isReady(army)) army.order = nearestEnemyParcel(army, d, relations, owner, perAxis);
-    if (army.order < 0 || d.strength <= 0 || !inReach(army.parcel, army.order, perAxis)) continue;
-    const target = army.order;
-    if (defended(target, owner.get(target) ?? -1)) continue;
-    const from = byId.get(owner.get(target) ?? -1);
-    from?.parcels.delete(target);
-    owner.set(target, d.id);
-    d.parcels.add(target);
-    d.strength -= Math.floor(d.strength * ATTACK_CASUALTY_RATE);
-    army.renown += ARMY_RENOWN_PER_DEFEAT;
-    army.order = -1;
+    });
   }
 }
 
@@ -182,36 +186,40 @@ export function attackOrders(armies: readonly Army[], dominions: readonly Domini
  * is at war with: the campaign target when that is at war with it, else the lowest-id dominion at war with it.
  * An army already adjacent to the target stays. Draws no randomness. Does nothing when perAxis is 0.
  */
-export function marchArmies(armies: readonly Army[], dominions: readonly Dominion[], relations: RelationMatrix, perAxis: number): void {
+export function marchArmies(armies: readonly Army[], dominions: readonly Dominion[], relations: RelationMatrix, perAxis: number, unit?: UnitGuard): void {
   if (perAxis <= 0) return;
+  // Each army is one unit (17 section 9, `dominion:<id>`): a throw in one leaves the other armies to march.
+  const guard: UnitGuard = unit ?? ((_, run) => run());
   const byId = new Map(dominions.map((d) => [d.id, d]));
   for (const army of armies) {
-    const d = byId.get(army.dominionId);
-    if (!d) continue;
-    const ax = army.parcel % perAxis;
-    const ay = Math.floor(army.parcel / perAxis);
-    let tp = army.order;
-    if (tp < 0) {
-      let enemy: Dominion | undefined;
-      if (d.target >= 0 && relations.get(d.id, d.target) === 'war') enemy = byId.get(d.target);
-      if (!enemy) {
-        const foes = dominions.filter((e) => e.id !== d.id && e.parcels.size > 0 && relations.get(d.id, e.id) === 'war');
-        enemy = foes.sort((x, y) => x.id - y.id)[0];
-      }
-      if (!enemy || enemy.parcels.size === 0) continue;
-      let tpD = Infinity;
-      for (const p of enemy.parcels) {
-        const dist = (p % perAxis - ax) ** 2 + (Math.floor(p / perAxis) - ay) ** 2;
-        if (dist < tpD || (dist === tpD && p < tp)) {
-          tp = p;
-          tpD = dist;
+    guard(army.dominionId, () => {
+      const d = byId.get(army.dominionId);
+      if (!d) return;
+      const ax = army.parcel % perAxis;
+      const ay = Math.floor(army.parcel / perAxis);
+      let tp = army.order;
+      if (tp < 0) {
+        let enemy: Dominion | undefined;
+        if (d.target >= 0 && relations.get(d.id, d.target) === 'war') enemy = byId.get(d.target);
+        if (!enemy) {
+          const foes = dominions.filter((e) => e.id !== d.id && e.parcels.size > 0 && relations.get(d.id, e.id) === 'war');
+          enemy = foes.sort((x, y) => x.id - y.id)[0];
+        }
+        if (!enemy || enemy.parcels.size === 0) return;
+        let tpD = Infinity;
+        for (const p of enemy.parcels) {
+          const dist = (p % perAxis - ax) ** 2 + (Math.floor(p / perAxis) - ay) ** 2;
+          if (dist < tpD || (dist === tpD && p < tp)) {
+            tp = p;
+            tpD = dist;
+          }
         }
       }
-    }
-    const tx = tp % perAxis;
-    const ty = Math.floor(tp / perAxis);
-    if (Math.max(Math.abs(tx - ax), Math.abs(ty - ay)) <= 1) continue;
-    army.parcel = (ay + Math.sign(ty - ay)) * perAxis + (ax + Math.sign(tx - ax));
+      const tx = tp % perAxis;
+      const ty = Math.floor(tp / perAxis);
+      if (Math.max(Math.abs(tx - ax), Math.abs(ty - ay)) <= 1) return;
+      army.parcel = (ay + Math.sign(ty - ay)) * perAxis + (ax + Math.sign(tx - ax));
+    });
   }
 }
 

@@ -7,7 +7,7 @@ import { YEAR_TICKS } from '../../shared/constants.ts';
 import { dominionStep } from './step.ts';
 import { ground } from '../../content/grounds.ts';
 import { ARMY_DIVISOR, FOUND_FOLK, foundingYear, type FoundingEnv, type Truce } from './founding.ts';
-import { pairKey, RelationMatrix, type Dominion, type DominionContext, type Rank, type Relation } from './types.ts';
+import { pairKey, RelationMatrix, type Dominion, type DominionContext, type Rank, type Relation, type UnitGuard } from './types.ts';
 import { addPactRenown, forcePact as forcePactRecord, makePact, newPactState, pactOf, pactYear, PACT_RENOWN_PER_DEFEAT, type Pact, type PactState } from './pacts.ts';
 import { armyWon, attackOrders, centroidParcel, engageArmies, marchArmies, raiseArmies, setCaptains, setSlots, syncArmies, type Army } from './armies.ts';
 import {
@@ -634,9 +634,11 @@ export function stepDominions(sim: Sim): void {
   // Parley off stops every campaign (10 section 3), so armies neither order attacks nor march.
   // Attack orders move parcels, so they need `border_creep` (09 section 3: border-taking needs the explicit flag). With
   // HAMLET_CAPTURE on, a hamlet changes hands by capture (10 section 7) instead, so the orders do not take parcels.
+  // Each dominion's army is one unit of the fault gate (17 section 9, `dominion:<id>`).
+  const unit: UnitGuard = (id, run) => sim.unit('dominion', id, run);
   if (sim.rules.isOn('parley')) {
-    if (sim.rules.isOn('border_creep') && !HAMLET_CAPTURE) attackOrders(s.armies, s.dominions, s.relations, owner, perAxis);
-    marchArmies(s.armies, s.dominions, s.relations, perAxis);
+    if (sim.rules.isOn('border_creep') && !HAMLET_CAPTURE) attackOrders(s.armies, s.dominions, s.relations, owner, perAxis, unit);
+    marchArmies(s.armies, s.dominions, s.relations, perAxis, unit);
     engageContacts(sim, s, perAxis);
   }
   const ctx: DominionContext = {
@@ -676,6 +678,7 @@ export function stepDominions(sim: Sim): void {
       ruleOf: (id) => successionRuleOf(traitsOfGroup(sim, id)),
       onInstall: (id, slot, capital) =>
         rulerInstalled(sim, id, slot, capital.parcels, (p) => s.owner[p] ?? UNOWNED),
+      unit,
     },
     s.dominions,
   );

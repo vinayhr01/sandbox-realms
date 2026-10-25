@@ -220,6 +220,27 @@ export class Sim {
     }
   }
 
+  /**
+   * Runs one unit of a part under the fault gate (17 section 9): one hamlet (`hamlet`), one dominion (`dominion`) or one
+   * being (`being`). The unit is counted under its own part name (`hamlet:3`, `dominion:4`, `being:12`), with the same
+   * thresholds as a part, so a throw in one unit does not take the rest of its slice for the tick. A switched-off unit is
+   * skipped. With no gate (tests, tools) a throw propagates, as in `part()`.
+   */
+  unit(kind: 'hamlet' | 'dominion' | 'being', id: number, run: () => void): void {
+    const gate = this.gate;
+    if (gate === null) {
+      run();
+      return;
+    }
+    const name = `${kind}:${id}`;
+    if (gate.isOff(name, this.tick)) return;
+    try {
+      run();
+    } catch (err: unknown) {
+      gate.fault(name, this.tick, err);
+    }
+  }
+
   /** Applies queued commands without advancing the clock (paused edit mode, 17 section 3.1). */
   applyQueued(): void {
     if (this.queue.length === 0) return;

@@ -1,5 +1,8 @@
 import type { Rng } from '../../shared/rng.ts';
 
+/** Runs one unit of a dominion slice (dominion id, body) under the fault gate (17 section 9). Sim.unit('dominion', ...) fits. */
+export type UnitGuard = (id: number, run: () => void) => void;
+
 /** Diplomatic state between two dominions (10 section 2, reduced to three levels). */
 export type Relation = 'peace' | 'tension' | 'war';
 

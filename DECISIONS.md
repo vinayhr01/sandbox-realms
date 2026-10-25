@@ -2660,3 +2660,30 @@ Scope: the decision "A part is a system call of `step`" in "Pump isolation close
 - Deviation 2 of "Pump isolation close 7" (the ping part) is unchanged.
 
 **Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Needed with test access: a unit test where one hamlet, being or dominion throws and the others still run and the fault is counted as `hamlet:<i>`, `being:<slot>` or `dominion:<id>`; a check that three faults on one unit switch only that unit off for 600 ticks; and a no-fault hash check with and without a gate, which should match `GOLDEN_HASH` as before.
+
+## Possess wiring close 11
+
+Closes the gap left by "Replay and worker log close 10": `Cmd.Possess` had no client send and no worker case, so the Possess row stayed disabled. The Possess power is now live, and the sim path (`possessCommand` and the `possessAbilities` flags, beings close 5) runs from a player command. Spec: 07 section 13 (control, `puppeted` 200 ticks refreshed by input, release, tagalong), 12 section 8.8 row `ins_possess` (directly control a being, move plus 3 actions, Esc releases, the being keeps its life state), 13 section 10 (Follow / possess keys F / G).
+
+**Built.**
+- `src/app/sim-client.ts`: `SimClient.possess(beingId, on, x, y, attack)` sends `Cmd.Possess`.
+- `src/sim/worker.ts`: `Cmd.Possess` joins the command group that enqueues the command, respects the `command` part switch and feeds the replay ring, as the other player commands do. The sim's `apply` already handled it (`sim.ts`).
+- `src/app/main.ts`: the `possess` handler in `activatePower`. A press arms a pick (`possessPending`); the next tap on a Being sends an order to that Being's own tile (so it stands still until told otherwise) and holds it (`possessedId`). Later taps on the ground send move orders (`attack` false). A second press, or Esc, sends `on: false` and releases. A new or loaded realm clears the held Being (control is not saved, 07 section 14). The button's aria-pressed shows armed or held.
+- `src/content/powers.ts`: `ins_possess` drops the `waiting` note. `src/ui/powerSupport.ts`: `possess` moves from the "not on main" special case to `UI_HANDLERS`, since the UI sends the command itself and it is not an `executePower` handler (so the SIM_HANDLERS check in tests/unit/ui-powers.test.ts is unchanged).
+- The Architect ability flags (`kick`, `jump`, `talk`, `dash`, `steal`, `swear`) are not sent by the UI. The sim applies them when present (close 5, unchanged).
+
+**Decisions (TUNE or gap, not from spec).**
+- Tap-to-order is the input mapping. 13 section 10 binds only F / G (follow / possess), and 12 section 8.8 names "dual-stick on touch, keys on desktop". Those control schemes (move vector, 2 tiles ahead, and the action keys) have no defined bindings, so they are not built.
+- The first order goes to the picked Being's own tile, so possession starts with no movement. A possessed Being returns to its AI after 200 ticks (`possessTicks`) unless a further order arrives. The UI does not show that expiry, and a held id whose Being has died or been replaced is refused by `possessCommand` (`possess refused`).
+- An armed tool wins over a held Being on a tap (the armed branch runs first in `onTap`), so arming a power while possessing sends no order until it is disarmed.
+- Pan does not release possession (only Esc or a second press does). Follow is not set on possess.
+
+**Remaining (recorded, not built).**
+- Key or touch bindings for move, attack and the six actions (spec gives only F / G and the names). Needs a binding decision.
+- `attack` is always false from the UI. 07 section 13 says attack aims at the cursor; the aim and the strike input need the same binding decision.
+- `canControl.*` species flags (07 section 13) are not read: every Being can be possessed and every ability runs. The spec gives the flags as the gate, and the data is not on main.
+- Expiry display and the `iron_will` yell (07 section 13, mark `iron_will`) are not built.
+
+**GOLDEN_HASH will drift.** Possession is a new player action, so a realm with a possess command gives a different result. A run with no possess command should be unchanged. `GOLDEN_HASH` was not edited.
+
+**Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Needed with test access: a worker test that a Possess command reaches `possessCommand` and a stale id refuses; a UI test that the possess power is enabled and that `ui-powers` still passes; and a hash check that a no-command run still matches `GOLDEN_HASH`.

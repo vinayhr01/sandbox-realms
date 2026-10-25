@@ -382,9 +382,9 @@ export const POWERS: readonly PowerDef[] = [
   click('ins_knowledge', 'insight', 'Codex', 'open_window', { window: 'list_codex' }),
   click('ins_compare', 'insight', 'Compare Chart', 'open_window', { window: 'win_compare' }),
   // Built in "Insight build 3" (DECISIONS.md). Select hamlet and the layers and overlays use UI state and
-  // snapshot feeds only. Possess waits on the beings possession command, which is not on main.
+  // snapshot feeds only. Possess (07 section 13) arms a tap on a Being and sends Cmd.Possess (app/main.ts).
   click('ins_select_hamlet', 'insight', 'Hamlet Select', 'select_hamlet'),
-  click('ins_possess', 'insight', 'Possess', 'possess', { waiting: 'beings-possession-command' }),
+  click('ins_possess', 'insight', 'Possess', 'possess'),
   ...LAYER_ROWS.map(([layer, name]): PowerDef => layerToggle(layer, name)),
   optionToggle('ins_overlay_happiness', 'Happiness icons', 'ui.happinessIcons'),
   optionToggle('ins_overlay_tasks', 'Task icons', 'ui.taskIcons'),

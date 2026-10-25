@@ -23,6 +23,7 @@ import {
   type Strand,
 } from './beings/genome.ts';
 import { restoreClans, type ClanState } from './clans/clans.ts';
+import { snapshotBoats, restoreBoats, type BoatSave } from './boats/boats.ts';
 import { fnv1a } from '../shared/rng.ts';
 
 /** FNV-1a over raw bytes (the same hash as Sim.stateHash); re-exported for the save tests and tools. */
@@ -69,9 +70,9 @@ const HEADER_BYTES = 16;
 export const MIN_SIZE_STEP = 2;
 export const MAX_SIZE_STEP = 9;
 
-const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14, dominions: 15, hamlets: 16, strains: 17, clans: 18, items: 19, pacts: 20 } as const;
+const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14, dominions: 15, hamlets: 16, strains: 17, clans: 18, items: 19, pacts: 20, boats: 21 } as const;
 /** Sections a save may lack (written by later builds); absent means the empty default. */
-const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity, TAG.lifetime, TAG.dominions, TAG.hamlets, TAG.clans, TAG.items, TAG.pacts];
+const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity, TAG.lifetime, TAG.dominions, TAG.hamlets, TAG.clans, TAG.items, TAG.pacts, TAG.boats];
 const REALM_ARRAYS = [
   'elevation',
   'ground',
@@ -380,6 +381,10 @@ export function encodeChronicle(sim: Sim): Uint8Array {
   // without pacts saves exactly as before.
   const pactSnap = snapshotPacts(sim);
   if (pactSnap) section(body, TAG.pacts, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(pactSnap))));
+  // Optional boat section (tag 21, 10 section 13): written only when a boat or a dock build timer exists, so a realm
+  // without boats saves exactly as before.
+  const boatSnap = snapshotBoats(sim);
+  if (boatSnap) section(body, TAG.boats, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(boatSnap))));
 
   const bodyBytes = body.finish();
   const header = new Writer();
@@ -515,6 +520,9 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
   const itemBytes = sections.get(TAG.items);
   if (itemBytes) restoreItems(sim, parseJson<ItemSave>(decoder, itemBytes, 'items'));
 
+  const boatBytes = sections.get(TAG.boats);
+  if (boatBytes) restoreBoats(sim, checkBoats(parseJson<unknown>(decoder, boatBytes, 'boats'), realm.side));
+
   realm.rebuildSets();
   realm.markAllDirty();
   sim.beings.rebuildBuckets();
@@ -640,6 +648,34 @@ function checkHamlets(raw: unknown): HamletSnapshot | null {
     }
   }
   return raw as unknown as HamletSnapshot;
+}
+
+const BOAT_KINDS: readonly string[] = ['trading', 'transport', 'fishing'];
+const BOAT_TRIPS: readonly string[] = ['idle', 'trade', 'fish', 'home'];
+
+/**
+ * Checks the boat section's shape before any of it is applied: a next id, boat rows with known kinds and trips,
+ * tiles inside the realm (target may be -1), finite non-negative cargo, and [tile, tick] build pairs.
+ */
+function checkBoats(raw: unknown, side: number): BoatSave {
+  const fail = new Error('chronicle: boat section is not valid');
+  if (!isRecord(raw) || !isFiniteNumber(raw.nextId) || !Array.isArray(raw.boats) || !Array.isArray(raw.builds)) throw fail;
+  const cells = side * side;
+  const tile = (v: unknown, min: number): boolean => Number.isInteger(v) && (v as number) >= min && (v as number) < cells;
+  const num = (v: unknown): boolean => isFiniteNumber(v);
+  for (const b of raw.boats) {
+    if (!isRecord(b) || !Number.isInteger(b.id) || typeof b.kind !== 'string' || !BOAT_KINDS.includes(b.kind)) throw fail;
+    if (typeof b.trip !== 'string' || !BOAT_TRIPS.includes(b.trip)) throw fail;
+    const xOk = Number.isInteger(b.x) && (b.x as number) >= 0 && (b.x as number) < side;
+    const yOk = Number.isInteger(b.y) && (b.y as number) >= 0 && (b.y as number) < side;
+    if (!xOk || !yOk || !tile(b.home, -1) || !tile(b.berth, 0) || !tile(b.target, -1)) throw fail;
+    if (!num(b.hp) || !num(b.wait) || !num(b.progress) || !num(b.orphan)) throw fail;
+    if (!num(b.cargoGold) || !num(b.cargoFood) || (b.cargoGold as number) < 0 || (b.cargoFood as number) < 0) throw fail;
+  }
+  for (const pair of raw.builds) {
+    if (!Array.isArray(pair) || pair.length !== 2 || !Number.isInteger(pair[0]) || !isFiniteNumber(pair[1])) throw fail;
+  }
+  return raw as unknown as BoatSave;
 }
 
 /** Checks the pact section's shape; restorePacts checks the records. */

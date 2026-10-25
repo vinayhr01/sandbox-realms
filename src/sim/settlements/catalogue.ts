@@ -6,12 +6,13 @@
  * Numbers are TUNE. Construction is instant in this sim, so 18c progress times are not used.
  *
  * Cut from the 09 catalogue (not in this table; reasons in DECISIONS.md "Settlements round 4"):
- * springwell, drill_post, watchspire, shrine, archive, fishers_pier, harbor, mill_a, mill_b,
+ * springwell, drill_post, watchspire, shrine, archive, mill_a, mill_b,
  * farmstead, smithy, apothecary, palisade, gatehouse, beacon_tower, lecture_stone, pyre, and the
  * 18e extended set except quarry_lodge (bastion, brazier_tower, slipway, arsenal, paddock, sea_lantern,
  * stargazer, hide_works, brewhouse, bake_oven, bee_shed, grove_lodge). The 18c section 4.2 wild, hazard,
  * resource and wonder objects are map fixtures, not hamlet buildings, and are not in this table.
  */
+import type { BoatKind } from '../boats/types.ts';
 
 /** Jobs a building can employ (09 section 8). Output and rules live in jobs.ts. */
 export type JobId = 'forager' | 'miner' | 'woodcutter';
@@ -57,6 +58,8 @@ export interface BuildingDef {
   needs?: readonly string[];
   /** Job slots this building employs (09 section 8). */
   jobs?: readonly JobSlot[];
+  /** Dock only: the boat kinds it berths (10 section 13). Absent for buildings that are not docks. */
+  boatTypes?: readonly BoatKind[];
 }
 
 const NONE = { foodCapacity: 0, foodYield: 0, housing: 0, storage: 0, woodYield: 0 } as const;
@@ -93,6 +96,10 @@ export const BUILDINGS: readonly BuildingDef[] = [
   { id: 'bazaar', name: 'Bazaar', role: 'trade', wood: 8, stone: 5, gold: 90, footprint: 4, height: 3, hp: 500, ...NONE, needs: [] },
   // 18e section 3.1 quarry_lodge: one extra digger and +25% outcrop yield, beside a quarry (the 6-tile range is not checked).
   { id: 'quarry_lodge', name: 'Quarry Lodge', role: 'work', wood: 6, stone: 6, gold: 10, footprint: 3, height: 2, hp: 300, ...NONE, outcropBonus: 0.25, jobs: [{ job: 'miner', slots: 1 }], needs: ['quarry'] },
+  // Docks (18c 4.1 rows; 10 section 13). Ocean siting and the boat build are in src/sim/boats. Fisher's Pier is
+  // the base dock; the harbor is its upgrade. The transport boat is left out: it needs the slipway (18e, cut).
+  { id: 'fishers_pier', name: "Fisher's Pier", role: 'food', wood: 9, stone: 0, footprint: 3, height: 2, hp: 200, ...NONE, boatTypes: ['fishing'] },
+  { id: 'harbor', name: 'Harbor', role: 'trade', wood: 9, stone: 6, footprint: 3, height: 3, hp: 400, ...NONE, boatTypes: ['fishing', 'trading'], needs: ['fishers_pier'] },
 ];
 
 export const BUILDING_BY_ID = new Map(BUILDINGS.map((b) => [b.id, b]));

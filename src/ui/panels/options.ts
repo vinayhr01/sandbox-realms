@@ -81,7 +81,7 @@ export const SETTINGS: readonly SettingDef[] = [
   B('marks.intrigues', 'marks', 'Mark intrigues', true, true),
   B('marks.armies', 'marks', 'Mark armies', true, true),
   B('marks.battles', 'marks', 'Mark battles', true, true),
-  B('marks.boats', 'marks', 'Mark boats', true),
+  B('marks.boats', 'marks', 'Mark boats', true, true),
   B('marks.campaigns', 'marks', 'Mark campaigns', true, true),
   // HUD
   B('ui.minimap', 'hud', 'Minimap', true, true),

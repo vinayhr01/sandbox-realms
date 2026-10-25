@@ -216,3 +216,21 @@ export function armyWon(armies: readonly Army[], dominionId: number): void {
   const army = armies.find((a) => a.dominionId === dominionId);
   if (army) army.renown += ARMY_RENOWN_PER_DEFEAT;
 }
+
+/**
+ * Garrison draw (09 garrison): moves up to `n` soldiers from a dominion's strength into a hamlet garrison. Takes no more than
+ * the dominion holds. The army, when there is one, mirrors the strength, so it is set to match. Returns the number drawn.
+ * Draws no randomness.
+ */
+export function drawToGarrison(d: Dominion, army: Army | undefined, n: number): number {
+  const k = Math.max(0, Math.min(Math.floor(n), d.strength));
+  d.strength -= k;
+  if (army) army.soldiers = d.strength;
+  return k;
+}
+
+/** Returns `n` garrison soldiers to a dominion's strength (and its army, when there is one). Draws no randomness. */
+export function returnFromGarrison(d: Dominion, army: Army | undefined, n: number): void {
+  d.strength += Math.max(0, Math.floor(n));
+  if (army) army.soldiers = d.strength;
+}

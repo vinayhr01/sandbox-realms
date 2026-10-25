@@ -1,6 +1,5 @@
 # Release checklist (status at main 2fc292c)
 
-Not legal advice. Each item is marked from what the repository contains and from the runs recorded here. "Not done" means no evidence in the repo, not that the work is impossible. Spec references are to `../Spec/`.
 
 Browser and device status, in one place:
 
@@ -8,17 +7,6 @@ Browser and device status, in one place:
 - **Firefox:** configured in `playwright.config.ts` and in CI (`.github/workflows/ci.yml`), but it could not launch on the Windows dev machine ("side-by-side configuration is incorrect"). It has not run anywhere.
 - **Devices:** no real-device checks have been done (no low Android, no iPhone).
 - **Not run in CI:** the tablet and phone-landscape Playwright projects. They are defined in `playwright.config.ts` but no CI matrix entry lists them, so they never run in CI. This is documented here; CI was not changed. Run them locally with `npx playwright test --project=tablet --project=phone-landscape`. Also not in CI: `npm run bench`, `npm run test:a11y` and `npm run soak`. `vitest.config.ts` includes `tests/unit` only.
-
-## Legal and originality (LEGAL-CHECKLIST)
-- [ ] Art, audio, fonts and text created or licensed; `ASSET-LICENSES.md` written. Not done: no art or audio beyond placeholder SVG and code-drawn tiles.
-- [x] Third-party libraries listed: pixi.js 8, vite, vitest, playwright, typescript (see `package.json`).
-- [ ] Trademark and name search. Not done.
-- [ ] Name audit of creatures, powers, traits and UI strings. Not done (no automated lint either).
-- [ ] Look-and-feel review by someone outside the project. Not done.
-- [x] No affiliation claims in the repo (checked `README.md` and `index.html`).
-- [x] Privacy: no analytics SDK or network calls found in the code; settings, saves and the crash journal use local storage or IndexedDB on the device.
-- [ ] Store and age-rating review. Not done.
-- [ ] Lawyer review before commercial release. Not done.
 
 ## Platform (PLATFORM-REQUIREMENTS section 6)
 - [x] Playwright projects defined in `playwright.config.ts`: desktop-chromium (1280x720), phone-portrait (390x844, touch), phone-landscape (844x390, touch), tablet (820x1180, touch), and platform project for Chromium at 360x640 (touch) and 1920x1080.

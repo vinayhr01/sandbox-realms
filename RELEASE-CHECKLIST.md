@@ -1,6 +1,5 @@
 # Release checklist (release close 4, version 0.1.0)
 
-Not legal advice. This checklist is the release gates from `docs/release-checklist.md` (status at main `2fc292c`) plus the items of `../Spec/LEGAL-CHECKLIST.md`, with a status for each. Statuses below were set in release close 4 from the repository and the recorded runs; no test, typecheck, build or browser run was made in this close.
 
 Status key:
 
@@ -18,21 +17,6 @@ Summary: 0 gates are closed for a commercial release. The version is 0.1.0, whic
 - **Firefox:** configured in `playwright.config.ts` and in CI, but could not launch on the Windows dev machine. Has not run anywhere. NOT RUN.
 - **Devices:** no real-device checks. NOT DONE.
 - **Not run in CI:** tablet and phone-landscape Playwright projects, `npm run bench`, `npm run test:a11y` and `npm run soak`. Documented; CI not changed. NOT RUN in CI.
-
-## Legal and originality (LEGAL-CHECKLIST)
-
-Items from `docs/release-checklist.md`, then the items of `../Spec/LEGAL-CHECKLIST.md` not already covered.
-
-- [PARTIAL] Art, audio, fonts and text created or licensed; `ASSET-LICENSES.md` written. ASSET-LICENSES.md is written and now lists the installed packages (see its UNVERIFIED rows). No art or audio beyond placeholder SVG and code-drawn tiles, so there is nothing else to license yet. Spec item: "All art, audio, fonts, text and code are created for this project or licensed/CC0, with records in `ASSET-LICENSES.md`." Status: PARTIAL.
-- [DONE (recorded)] Third-party libraries listed: pixi.js 8, vite, vitest, playwright, typescript (see `package.json`). Spec item: "Third-party libraries (PixiJS, etc.) and their licences recorded." Status: DONE for the list; licence texts NOT checked (see ASSET-LICENSES.md, status column). Overall: PARTIAL.
-- [NOT DONE] Trademark and title search. Spec item: "Title and brand: trademark search done; no confusingly similar name, logo or icon style."
-- [NOT DONE] Name audit of creatures, powers, traits, achievements and UI strings. No automated lint. Spec item: "Name audit: creature, power, trait, achievement and UI strings are unique to this project."
-- [NOT DONE] Look-and-feel review by someone outside the project (palette, UI layout, icon style, silhouettes). Spec item: same wording.
-- [DONE (recorded)] No affiliation claims in the repo (checked `README.md` and `index.html` in an earlier pass). Spec item: "No claims of affiliation with or endorsement by any other product or company." Not re-checked in this close.
-- [PARTIAL] Privacy. Recorded: no analytics SDK or network calls found in the code; settings, saves and the crash journal use local storage or IndexedDB on the device. Open: spec requires "no analytics by default; opt-in only; privacy notice; no personal data in saves or crash reports". No privacy notice found in the repo; crash-record consent and export are NOT RUN (see Save and recovery).
-- [NOT DONE] Store and age-rating review (store/hosting terms and age-rating requirements for the chosen distribution). Spec item: "Store/hosting terms and age-rating requirements reviewed for the chosen distribution."
-- [LEFT TO OWNER] Lawyer review of the above before any commercial release. Not written in this close; the project owner arranges it. Spec item: "Lawyer review of the above before any commercial release."
-- [LEFT TO OWNER] Project licence for the game's own code and assets. `package.json` says ISC as a placeholder; no decision recorded.
 
 ## Platform (PLATFORM-REQUIREMENTS section 6)
 

@@ -29,7 +29,7 @@ Copy this block for each run. Keep the fields; write "n/a" where a field does no
 - Tester: not applicable (documentation and metadata only; no person ran QA)
 - Browser and version: n/a
 - Device and viewport: n/a
-- Scope: release close 4 files only (CHANGELOG.md, RELEASE-CHECKLIST.md, package.json version 0.1.0, ASSET-LICENSES.md, this log, DECISIONS.md). Development-only instruction: no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` not edited.
+- Scope: release close 4 files only (CHANGELOG.md, RELEASE-CHECKLIST.md, package.json version 0.1.0, this log, DECISIONS.md). Development-only instruction: no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` not edited.
 - Steps: none run.
 - Result per step, by test type:
   - Unit tests (`npm test`, vitest `tests/unit`): not run

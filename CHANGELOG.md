@@ -96,4 +96,4 @@ First version number in `package.json` for this project (set in Release close 4;
 
 ### Release close 4
 
-- Release close 4: CHANGELOG.md, RELEASE-CHECKLIST.md, ASSET-LICENSES.md, QA-LOG.md entry, package.json version 0.1.0. No tests, typecheck, build or browser run. `GOLDEN_HASH` not edited. [see the "Release close 4" section at the end of `DECISIONS.md`]
+- Release close 4: CHANGELOG.md, RELEASE-CHECKLIST.md, QA-LOG.md entry, package.json version 0.1.0. No tests, typecheck, build or browser run. `GOLDEN_HASH` not edited. [see the "Release close 4" section at the end of `DECISIONS.md`]

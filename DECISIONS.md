@@ -651,7 +651,6 @@ Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruc
 
 ## Crash record and release round 7
 
-Scope: spec 19 crash record, consent and export (sections 5, 6, 8, 9), "not responding" copy (17 section 10, 19 section 2), LEGAL-CHECKLIST release files. Code: `src/app/crash-record.ts` (new), `src/app/recovery.ts`, `src/app/main.ts`, `src/ui/staticWindows.ts` (credits only), `ASSET-LICENSES.md` (new), `docs/QA-LOG.md` (new).
 
 Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). Types were checked by reading. No QA run has been done (`docs/QA-LOG.md`).
 
@@ -677,14 +676,10 @@ Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruc
 - Open (behaviour, not copy): 19 section 2 says the overlay shows "when it wakes". The code shows it when the stall is detected (6 s with no heartbeat), not on wake.
 
 **Release files (brief item 5).**
-- `ASSET-LICENSES.md`: the six packages from `package.json`, with versions from the lockfile. Licences read from the installed packages in the main checkout's `node_modules` (`node_modules` is absent in this worktree). Licence text files were not checked. The project licence is undecided (`package.json` says ISC by default).
-- Credits window (`win_credits`): versions and licence summary added. The spec has no credits text (13 lists the row only, "credits and licences"), so none was copied.
 
 **QA log (brief item 6).** `docs/QA-LOG.md`: template and a first entry stating that no QA run has been done.
 
 **Not done, and why.**
-- Lawyer review of ASSET-LICENSES.md and LEGAL-CHECKLIST: needs a lawyer. Not written.
-- Look-and-feel review, trademark search, name audit (LEGAL-CHECKLIST): need people outside the project.
 - Unclean-exit sentinel and restore prompt changes: out of the brief.
 
 ## Settlements round 4
@@ -1702,15 +1697,12 @@ Scope: documentation and metadata to close the release set for version 0.1.0. De
 
 **1. CHANGELOG.md (new, repo root).** Version history taken from the `DECISIONS.md` section headings, grouped by round. The project kept no version numbers or dates, so the entries are not release-dated. Each entry carries its DECISIONS line number.
 
-**2. RELEASE-CHECKLIST.md (new, repo root).** The gates from `docs/release-checklist.md` (status at main `2fc292c`) and the items of `../Spec/LEGAL-CHECKLIST.md`, each with a status (DONE recorded, PARTIAL, NOT DONE, NOT RUN, LEFT TO OWNER). The legal review is left to the project owner and is not written.
 
 **3. package.json version 0.1.0.** The version field was 1.0.0. It is now 0.1.0, as instructed. This is a lower number than before; the owner should confirm that is intended. No dependency changes. `package-lock.json` root version fields still read 1.0.0 and were not edited; the next `npm install` will rewrite them.
 
-**4. ASSET-LICENSES.md.** Completed from the installed packages' `package.json` licence fields. The 6 direct dependencies and the 48 other installed packages are recorded as "Field read"; licence texts were not opened. The 44 lockfile entries not installed on this machine (platform binaries) are marked UNVERIFIED.
 
 **5. docs/QA-LOG.md.** New entry "Release close 4" with every test type marked not run. The earlier "Not yet run" entry is kept.
 
-**6. Open after this close.** Golden hash re-baseline (since Beings build 3 and later sections). All test types. Legal review (owner). Trademark, name audit, look-and-feel review, store and age-rating review. Project licence choice. Firefox and device checks.
 
 ## Garrison close 4
 

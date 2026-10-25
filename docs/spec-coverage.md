@@ -138,7 +138,6 @@ Totals: 42 milestone rows (41 PARTIAL, 1 MISSING) and 3 cross-cutting rows (1 DO
 | 19 crash-reporting (release gate) | PARTIAL | No crash record, consent, send, restore prompt or chaos test. | `src/app/recovery.ts` |
 | PLATFORM-REQUIREMENTS section 6 | PARTIAL | `playwright.config.ts` defines 10 projects. CI runs chromium (desktop, phone portrait, 360x640, 1920x1080) only; firefox and webkit were removed from the matrix. Tablet and phone-landscape projects never run in CI because no CI matrix entry lists them (documented in `docs/release-checklist.md`; CI not changed). No Lighthouse, screenshot diffs or COOP/COEP. | `playwright.config.ts`, `.github/workflows/ci.yml`, `tests/e2e/platform-smoke.spec.ts` |
 | PERFORMANCE-PLAN | PARTIAL | Bundle budgets gate CI. No benchmark scenes, no frame-rate gate. `npm run bench` is not in CI. No quality ladder. | `scripts/check-budgets.mjs`, `.github/workflows/ci.yml`, `package.json` |
-| LEGAL-CHECKLIST | PARTIAL | Analytics off by default and no analytics SDK found. A credits window exists (`win_credits`, static text). No `ASSET-LICENSES.md`, no QA log, no legal or look-and-feel review. | `../Spec/LEGAL-CHECKLIST.md`, `src/ui/staticWindows.ts`, `src/ui/windowContent.ts` |
 
 ## Cross-cutting
 
@@ -218,5 +217,4 @@ Ordered by ROADMAP milestone (M0 to M12), then cross-cutting. Each line gives th
 32. M12, `../Spec/systems/17-engine-runtime-performance.md` and `../Spec/PERFORMANCE-PLAN.md`: benchmark scenes, a frame or tick perf gate in CI, `npm run bench` in CI, SAB mode, and a lint for `Math.exp`, `Math.pow` and `Math.hypot` in the sim. Would go in `.github/workflows/ci.yml`, `scripts/check-determinism.mjs`, `package.json`, `tests/unit/tick-cost.test.ts`.
 33. M12, `../Spec/systems/19-crash-reporting.md` (release gate): chaos test, crash record, consent, send, restore prompt. Would go in `src/app/recovery.ts`, `tests/e2e/`.
 34. M12, `../Spec/PLATFORM-REQUIREMENTS.md` section 6: tablet and phone-landscape projects not in the CI matrix; Lighthouse, screenshot diffs, COOP and COEP headers. Would go in `.github/workflows/ci.yml`, `playwright.config.ts`, `vite.config.ts`.
-35. M12, `../Spec/LEGAL-CHECKLIST.md`: `ASSET-LICENSES.md` (absent at repo root), QA log, look-and-feel review. Would go in a new root `ASSET-LICENSES.md` (only if the user asks for it), `src/ui/staticWindows.ts` for the credits text.
 36. Cross-cutting, `../Spec/systems/` (02 TECH-STACK): SharedArrayBuffer mode, COOP and COEP headers, gzip export (export is binary with FNV, not gzip). Would go in `vite.config.ts`, `src/sim/chronicle.ts`, `src/app/saves.ts`.

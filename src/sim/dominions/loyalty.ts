@@ -1,9 +1,9 @@
 /**
  * Hamlet loyalty (10 section 5): the sum of the terms the sim has. Pure: no sim, no rng. The caller reads the facts
  * (adapter.ts loyaltyStep). The cache and isHappy are here too (10 section 5, 09 section 4 checkLoyalty). Terms the sim
- * lacks are not here and are listed in DECISIONS.md "Loyalty terms close 8" and "Loyalty reader close 9": the rebellion
- * reader and uprising, the hamlet cap, the sea link, the leader's loyaltyMood and trait mod, the Age loyalty bonus, and
- * the strain `bond` modifier.
+ * lacks are not here and are listed in DECISIONS.md "Loyalty terms close 8" and "Loyalty reader close 9": the hamlet cap,
+ * the sea link, the leader's loyaltyMood and trait mod, the Age loyalty bonus, and the strain `bond` modifier. The rebellion
+ * reader reads isHappy (rebellion.ts, "Rebellion close 14").
  */
 import { rankLoyalty } from './rank.ts';
 import type { Rank } from './types.ts';

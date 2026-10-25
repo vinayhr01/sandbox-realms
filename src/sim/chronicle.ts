@@ -712,6 +712,11 @@ function checkDominions(raw: unknown): DominionSnapshot | null {
   if (raw.intrigues !== undefined && (!isRecord(raw.intrigues) || !Array.isArray(raw.intrigues.items) || !Array.isArray(raw.intrigues.cooldowns))) {
     throw new Error('chronicle: dominion section intrigues are not valid');
   }
+  // Optional campaign records (dominions/campaigns.ts, 10 section 11): an item list and a next id. restoreDominions checks each
+  // campaign's kind, ids and sides.
+  if (raw.campaigns !== undefined && (!isRecord(raw.campaigns) || !Array.isArray(raw.campaigns.items) || !isFiniteNumber(raw.campaigns.nextId))) {
+    throw new Error('chronicle: dominion section campaigns are not valid');
+  }
   // Optional tax records (dominions/tax.ts): the hamlet gold list is a list of [parcel, gold] pairs, and each dominion's
   // traits (when present) are a list of strings. restoreDominions checks the values.
   if (raw.taxSeen !== undefined && (!Array.isArray(raw.taxSeen) || !raw.taxSeen.every((p) => Array.isArray(p) && p.length === 2))) {

@@ -1,10 +1,12 @@
 /**
  * Strains (05 section 2 and 6): a sub-population of one species that shares a trait set and three
  * counters (born, newAdults, reproduced). Members keep the strain id in the store; the strain keeps
- * its traits and parent. Lineage codes (05 section 5) are not built.
+ * its traits and parent. Each strain may hold a lineage code (genome.ts, 05 section 5) in `Strains`, outside the
+ * `Strain` record; the code is mutated by `mutateFrom` and does not feed the stats yet (DECISIONS.md "Beings round 7").
  */
 import { AWAKENING_TRAITS, STRAIN_MUTATION_POT, STRAIN_TRAIT_BY_ID, STRAIN_TRAITS } from '../../content/traits.ts';
 import type { Rng } from '../../shared/rng.ts';
+import { mutateGenome, type Genome } from './genome.ts';
 
 export interface StrainCounters {
   /** Newborn children (06 section 6.6). */
@@ -97,12 +99,18 @@ export function mutateFrom(strains: Strains, parent: Strain, speciesName: string
   }
   const same = traits.length === parent.traits.length && traits.every((id) => parent.traits.includes(id));
   if (same) return null;
-  return strains.create(parent.species, speciesName, parent.generation + 1, parent.id, traits);
+  // The code step (05 6.3): k + 1 slot mutations per Strand, on a copy of the parent's code. A strain without a
+  // code (only possible outside the normal founding path) has none to mutate.
+  const parentCode = strains.genomeOf(parent.id);
+  const code = parentCode ? mutateGenome(parentCode, k, rng) : null;
+  return strains.create(parent.species, speciesName, parent.generation + 1, parent.id, traits, code);
 }
 
 /** Strain registry for one Sim. Ids start at 1; 0 means no strain. */
 export class Strains {
   private readonly byId = new Map<number, Strain>();
+  /** Lineage codes by strain id (05 section 5). Saved in the beings section of the chronicle, not in section 17. */
+  private readonly codes = new Map<number, Genome>();
   private nextId = 1;
 
   get size(): number {
@@ -113,8 +121,23 @@ export class Strains {
     return this.byId.get(id);
   }
 
+  /** The lineage code of a strain, or undefined when it has none. */
+  genomeOf(id: number): Genome | undefined {
+    return this.codes.get(id);
+  }
+
+  /** Sets a strain's lineage code (the caller has checked the strain exists). */
+  setGenome(id: number, genome: Genome): void {
+    this.codes.set(id, genome);
+  }
+
+  /** Codes in strain id order, for saving. */
+  genomeEntries(): [number, Genome][] {
+    return [...this.codes.entries()].sort((a, b) => a[0] - b[0]);
+  }
+
   /** Creates a strain; the name is the species name and the id (no lineage naming yet). */
-  create(species: number, speciesName: string, generation: number, parent: number, traits: readonly string[]): Strain {
+  create(species: number, speciesName: string, generation: number, parent: number, traits: readonly string[], genome: Genome | null = null): Strain {
     const id = this.nextId++;
     const strain: Strain = {
       id,
@@ -126,17 +149,19 @@ export class Strains {
       counters: { born: 0, newAdults: 0, reproduced: 0 },
     };
     this.byId.set(id, strain);
+    if (genome) this.codes.set(id, genome);
     return strain;
   }
 
-  /** Saved form (chronicle section 17). */
+  /** Saved form (chronicle section 17). Codes are not in it. */
   snapshot(): { next: number; list: Strain[] } {
     return { next: this.nextId, list: [...this.byId.values()].sort((a, b) => a.id - b.id) };
   }
 
-  /** Restores a snapshot; the caller has validated the records. */
+  /** Restores a snapshot; the caller has validated the records. Codes are restored separately (chronicle beings section). */
   restore(data: { next: number; list: Strain[] }): void {
     this.byId.clear();
+    this.codes.clear();
     for (const s of data.list) this.byId.set(s.id, s);
     this.nextId = data.next;
   }

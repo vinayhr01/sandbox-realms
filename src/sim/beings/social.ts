@@ -7,7 +7,6 @@ import { MOOD_VALUE, type MoodEvent } from '../../content/moods.ts';
 import { STRAIN_TRAIT_BY_ID } from '../../content/traits.ts';
 import type { Rng } from '../../shared/rng.ts';
 import type { Sim } from '../sim.ts';
-import { isAwakened } from './strains.ts';
 import { ROUND6 } from './tuning.ts';
 
 /** Mood bounds (06 section 4.1). */
@@ -15,13 +14,17 @@ const MOOD_MIN = -100;
 const MOOD_MAX = 100;
 
 /**
- * Whether a Being's strain feels mood (06 section 4.1: only strains with the `emotions` tag do). The spec names
- * the tag but no trait in the data grants it. OPEN default here: awakened strains (all four brain organs,
- * 18b section 0). Change this one predicate to widen it.
+ * The strain trait that grants the `emotions` tag (06 section 4.1: only strains with it feel mood). The spec
+ * names the tag but no trait grants it. From the 18b data, `fear_organ` ("Gains fear/flee responses") is the
+ * only trait whose text is an emotional capacity; every awakened strain holds it, so the awakened set is a
+ * subset of this one. Change this constant to move the grant.
  */
+export const EMOTIONS_TRAIT = 'fear_organ';
+
+/** Whether a Being's strain feels mood (06 section 4.1, the `emotions` tag). */
 export function feelsMood(sim: Sim, slot: number): boolean {
   const strain = sim.beings.strains.get(sim.beings.store.strain[slot] ?? 0);
-  return strain !== undefined && isAwakened(strain.traits);
+  return strain !== undefined && strain.traits.includes(EMOTIONS_TRAIT);
 }
 
 /** Applies one mood event (06 section 4.1, `changeMood`): mood = clamp(mood + value + extra). */

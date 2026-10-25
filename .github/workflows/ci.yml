@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   build-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
@@ -27,7 +27,7 @@ jobs:
 
   determinism:
     # The sim determinism lint runs only here, in its own job, so a determinism break is visible at a glance.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
@@ -41,7 +41,7 @@ jobs:
 
   playwright:
     # Runs in parallel with the other jobs. Each browser is split into four shards.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false

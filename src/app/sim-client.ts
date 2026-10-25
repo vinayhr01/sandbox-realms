@@ -5,6 +5,7 @@ type Draft<T> = T extends unknown ? Omit<T, 'seq'> : never;
 export type CommandDraft = Draft<Command>;
 
 export type QueryResult = Extract<Event, { kind: typeof Ev.QueryResult }>;
+export type ReplayRead = Extract<Event, { kind: typeof Ev.Replay }>;
 
 const SENT_LOG_MAX = 64;
 
@@ -34,6 +35,9 @@ export function fallbackReply(kind: number, reply: number): Event {
       return { kind: Ev.Loaded, reply, ok: false, detail: 'The simulation was restarted before the save loaded.' };
     case Cmd.Query:
       return { kind: Ev.QueryResult, reply, tileX: 0, tileY: 0, elevation: 0, ground: '', inBounds: false };
+    case Cmd.Replay:
+      // The ring died with the worker, so an empty ring is the true answer for the new one.
+      return { kind: Ev.Replay, reply, commands: [], dropped: 0 };
     default:
       // Empty contentHash: no worker answered, so the page does not treat it as a build mismatch.
       return { kind: Ev.Ready, reply, protocolVersion: PROTOCOL_VERSION, side: 0, sizeStep: 0, seed: 0, contentHash: '' };
@@ -205,6 +209,11 @@ export class SimClient {
     return this.request({ kind: Cmd.Query, tileX, tileY }) as Promise<QueryResult>;
   }
 
+  /** The replay ring of this realm's player commands (17 section 7.3). A worker that never answers leaves the caller waiting. */
+  replayCommands(): Promise<ReplayRead> {
+    return this.request({ kind: Cmd.Replay }) as Promise<ReplayRead>;
+  }
+
   returnBuffer(buffer: ArrayBuffer): void {
     this.send({ kind: Cmd.ReturnBuffer, buffer }, [buffer]);
   }
@@ -293,7 +302,13 @@ export class SimClient {
       this.resumedListener?.(event);
       return;
     }
-    if (event.kind === Ev.Ready || event.kind === Ev.QueryResult || event.kind === Ev.Saved || event.kind === Ev.Loaded) {
+    if (
+      event.kind === Ev.Ready ||
+      event.kind === Ev.QueryResult ||
+      event.kind === Ev.Saved ||
+      event.kind === Ev.Loaded ||
+      event.kind === Ev.Replay
+    ) {
       const pending = this.replies.get(event.reply);
       if (pending) {
         this.replies.delete(event.reply);

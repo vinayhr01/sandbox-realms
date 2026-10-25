@@ -2,6 +2,8 @@
  * Main <-> sim worker protocol (17 section 2.2). Numeric kinds, plain objects,
  * every command carries `seq`, every reply echoes it.
  */
+import type { ReplayEntry } from './replay-ring.ts';
+
 export const PROTOCOL_VERSION = 3;
 
 /** Version of the Snapshot payload (Ev.Snapshot). Bump when a field changes meaning or shape. */
@@ -49,6 +51,8 @@ export enum Cmd {
    * does not judge a hidden page, since browsers throttle its timers. The worker answers with Ev.Pong. Additive kind.
    */
   Ping = 17,
+  /** Asks for the replay ring of player commands (17 section 7.3). Replies with Ev.Replay. Additive kind; PROTOCOL_VERSION unchanged. */
+  Replay = 18,
 }
 
 export enum Ev {
@@ -65,6 +69,8 @@ export enum Ev {
   WorldgenProgress = 110,
   /** Reply to Cmd.Ping (19 section 2, main_hang). Additive kind; PROTOCOL_VERSION unchanged. */
   Pong = 111,
+  /** Reply to Cmd.Replay: the replay ring, oldest first, and how many older entries were dropped. Additive kind. */
+  Replay = 112,
 }
 
 export type Speed = 0 | 0.5 | 1 | 2 | 5 | 10;
@@ -114,7 +120,8 @@ export type Command =
       steal?: boolean;
       swear?: boolean;
     }
-  | { kind: Cmd.Ping; seq: number; hidden: boolean };
+  | { kind: Cmd.Ping; seq: number; hidden: boolean }
+  | { kind: Cmd.Replay; seq: number };
 
 /** Rows of the index texture: RGBA8 per tile = [ground, cover, elevation, flags & 0xff]. */
 export interface FrameRows {
@@ -611,6 +618,8 @@ export type Event =
   | { kind: Ev.Fault; severity: 'warn' | 'error' | 'fatal'; code: string; detail: string; sys?: string; sysOff?: boolean }
   /** Reply to Cmd.Ping. Not a request reply: no seq is waited on. */
   | { kind: Ev.Pong; reply: number }
+  /** Reply to Cmd.Replay. Entries are the player commands queued in this realm, oldest first (replay-ring.ts). */
+  | { kind: Ev.Replay; reply: number; commands: ReplayEntry[]; dropped: number }
   | { kind: Ev.Snapshot; snap: Snapshot }
   /** Reply to Cmd.SaveRealm. Empty bytes when there is no realm. */
   | { kind: Ev.Saved; reply: number; bytes: Uint8Array }

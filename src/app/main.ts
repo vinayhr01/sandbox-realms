@@ -150,7 +150,16 @@ let autosaveRecovery: AutosaveRecovery | null = null;
 let emergencySave: (() => Promise<string>) | null = null;
 
 /** The page state the diagnostics bundle reads at export time (17 section 9). Set in boot once the quality ladder exists. */
-let diagnosticsSource: () => DiagnosticsSource = () => ({ degradeLevel: 0, degradedOff: [], renderScale: 100, safeMode: false, realmSeed: 0, realmSide: 0 });
+let diagnosticsSource: () => DiagnosticsSource = () => ({
+  degradeLevel: 0,
+  degradedOff: [],
+  renderScale: 100,
+  safeMode: false,
+  realmSeed: 0,
+  realmSide: 0,
+  // Before boot there is no worker to ask: the read never settles, so the export reports commandLog false.
+  readCommands: () => new Promise<never>(() => undefined),
+});
 
 /** Settings that change the picture's cost. A change to one is a QUALITY breadcrumb (19 section 3). */
 const QUALITY_OPTIONS: ReadonlySet<string> = new Set(['ui.fpsCap', 'perf.renderScale', 'map.shadows', 'map.bloom', 'map.particles', 'map.treeWind']);
@@ -535,6 +544,7 @@ async function boot(): Promise<void> {
     safeMode,
     realmSeed,
     realmSide,
+    readCommands: () => client.replayCommands(),
   });
   const showNotResponding = (): void => {
     const wait: FatalAction = {

@@ -314,7 +314,7 @@ function uniqueKinds(): ItemKindDef[] {
   const staff = { aether: 40, critMult: 0.5 };
   return [
     kind({ ...base, id: 'energy_blaster', name: 'Energy blaster', group: 'bow', stats: { might: 30 }, attack: 'ranged', reach: 20, spread: GROUP_SPREAD.bow, extra: { projectile: 'arc_sphere' } }),
-    kind({ ...base, id: 'scatter_gun', name: 'Scatter gun', group: 'bow', stats: { might: 10 }, attack: 'ranged', reach: 8, spread: GROUP_SPREAD.bow, extra: { volley: 12, projectile: 'flint_dart' } }),
+    kind({ ...base, id: 'scatter_gun', name: 'Scatter gun', group: 'bow', stats: { might: 10 }, attack: 'ranged', reach: 8, spread: GROUP_SPREAD.bow, extra: { volley: 12, projectile: 'scatter_shot' } }),
     kind({ ...base, id: 'flame_maul', name: 'Flame maul', group: 'maul', stats: { might: 11 }, targets: 3, spread: GROUP_SPREAD.maul, modifiers: ['blaze'], extra: { damageSpec: 'not stated; TUNE' }, cost: { coins: 10, resources: [{ id: 'wyrm_scale', n: 3 }] } }),
     kind({ ...base, id: 'frost_maul', name: 'Frost maul', group: 'maul', stats: { might: 11 }, targets: 3, spread: GROUP_SPREAD.maul, modifiers: ['concussive', 'rime_touch'], extra: { damageSpec: 'not stated; TUNE' } }),
     kind({ ...base, id: 'flame_blade', name: 'Flame blade', group: 'blade', stats: { might: 33 }, targets: 2, spread: GROUP_SPREAD.blade }),

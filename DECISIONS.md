@@ -13,7 +13,7 @@ Two parts. **Current state** is the latest verified state and wins over anything
 | Save format | `SCHEMA_VERSION = 3` (`src/sim/chronicle.ts`). Schema 2 and older are rejected. Sections 12 to 17 are optional where noted in the log. |
 | Saves in play | Wired. The sim worker runs `encodeChronicle` and `decodeChronicle` on capture and restore commands (`src/sim/worker.ts`; `liveRealm` in `src/app/main.ts`). `SaveController` runs save, load, delete, export, import, autosave (timer and on pause) and the restore prompt over `SaveService` (IndexedDB, memory fallback). Not run in a real browser: the IndexedDB backend (type-checked and model-tested only). Checksum quarantine not built. |
 | Beings | 90 SPECIES rows (84 beasts, 6 Folk). Folk never spawn in play (`spawnFolk` has no caller). Traits: 144 being, 154 strain. Ecosystem exit test not met (see below). |
-| Combat and statuses | 24 status definitions (spec roster 56); 10 applied in play, 14 cut (see "Combat release"). `meleeSwing` is called by `predate` (eat_hunt). 6 projectile kinds launched from gear; 8 bomb profiles in play. Not tested (development instruction). |
+| Combat and statuses | 24 status definitions (spec roster 56); 15 applied in play, 9 cut (see "Combat build 3"). `meleeSwing` and the bites are called by `predate` (eat_hunt). 9 projectile kinds launched (3 with owners added in Combat build 3). Device bombs (4) in play. Not tested (development instruction). |
 | Settlements, dominions, culture | Hamlets run (6 buildings). Dominions and culture are inert in play: `addDominion`, `addCustom`, `startIntrigue`, `addFamily` have no caller outside tests. |
 | Powers | 159 entries (138 before Powers round 4, plus 21). Favour: 21 entries (Bless and 20 round-4 entries); Insight: 2 (Lore and Compare). Favour and Insight rows the sim cannot express are cut (see Powers round 4). Enablement is by `powerStatus` (`src/ui/powerSupport.ts`). |
 | Rules, ages, calamities | 49 rules (about 18 never read), 11 ages, 16 calamities rolled every 80 ticks. |
@@ -1498,3 +1498,49 @@ Scope: the Insight rows (12 section 8.8) that the renderer or the UI can express
 **Tests to update (not run, not edited).** `tests/unit/ui-powers.test.ts` checks the handler lists against `SIM_HANDLERS` and `UI_HANDLERS`, so its expected counts move with the new rows (183 to 198 entries in POWERS). `POWERS` is hashed in `src/content/content-hash.ts`, so the content hash changes; `GOLDEN_HASH` is not edited and the golden replay uses no powers, so the sim hash should not move. Check both when the suite runs. Snapshot shape tests, if any compare whole `mapKinds` rows, move too.
 
 **Not verified.** Nothing was run: no tests, tsc, vitest, build or Playwright (instruction). Types were checked by reading against `noUncheckedIndexedAccess` and `strict`. The layer colours, the 40-mood threshold and the snapshot size are first choices, not tuned.
+
+## Combat build 3
+
+Scope: 08 sections 2.4, 3.3, 4 and 5.3 (sources), 04 section 8.4 (device triggers and chains), 12 section 8.6 (the four device bombs), 10 section 8 (army contact). Development instruction: code only, no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` is not edited and will not match (the bite and claw rolls, lobs and device triggers change the replay).
+
+Files: `src/sim/combat.ts` (predate: bite and claw statuses), `src/sim/effects.ts` (`BITE_STATUSES`, `ROT_TOUCHED_TRAIT`, `CLAW_BLEED_CHANCE`), `src/sim/projectiles.ts` (lob action, device step and hidden-charge hit), `src/sim/devices.ts` (new: device grounds), `src/sim/powers/handlers.ts` (bomb case with `device`; `detonateBomb` exported), `src/sim/dominions/armies.ts` (additive: `engageArmies`), `src/content/powers.ts` (four device powers), `src/content/items.ts` (scatter gun names `scatter_shot`). `sim.ts`, `beings/system.ts`, the dominion step and adapter, and the settlements were not touched.
+
+Supersedes the projectile, status, and bomb cut lists of "Combat release" where they conflict with this section.
+
+**1. Projectile owners (08 3.3, 2.4).** The ten kinds below were data with no launch. Now:
+- `scatter_shot`: launched by the scatter gun. Its data named `flint_dart`; it now names `scatter_shot`. Volley of 12 as before.
+- `powder_flask` and `pitch_torch`: thrown by a Being with the trait `powderhurler` or `torchhurler` (18b SKL) when it has no ranged weapon. It lobs at the nearest prey 6 to 50 tiles away, with a cooldown of 160 ticks. A ready thrower rolls 0.2 on stream `projectiles`; on a miss it waits one basic interval (20 ticks). Trait-based only: no skill pool exists yet.
+- Without an owner in this build (data only): `blaze_sphere` (brazier tower and magmaling gear, neither built), `siege_ball` and `acid_glob` (vessel cannon and mortar; boats carry no weapon), `snow_pellet`, `knuckle_bone`, `hurled_stone` and `frenzy_sphere` (18c names no owner for them). Their blockable, stay-on-ground, freeze, shake and look-at flags remain unmodelled.
+
+**2. Status sources (18c section 5 `source` column).** Five of the 14 ids cut before now have a source in play, all from predation (`predate`, eat_hunt). The Folk strike and brawl paths in `beings/system.ts` do not call these rules.
+- `numbed`: bite by a `stingtail`. The glowbell aura is not modelled.
+- `itchy`: bite by a `gnatveil`.
+- `blinded`: bite by an `inkreaver`. Ink and mist are not modelled.
+- `rotting`: bite by a `rotstride`, or by any predator with trait `rot_touched` (18b ACQ).
+- `bleeding`: a claw swing that lands leaves its victim bleeding with chance 0.2 (TUNE; 08 gives no source for it).
+
+Still cut (9), and why:
+- `coughing`: source is a drop and contagion. No drop exists, and contagion is not built.
+- `ash_sickness`: source is ash fall. Weather does not drop ash.
+- `taking_root`, `sprouting`: plant Beings and the rooting birth are not built.
+- `bewildered`: source is a spore puff and the quake (04 section 9). Both sit in files outside this change (`beings/system.ts`, `terrain/quake.ts`).
+- `lull`, `expecting`, `sheltered`: pairing, pregnancy and birth live in `beings/system.ts`. Pregnancy is the bearer's `expecting` field there, not the effect. Wiring needs that file.
+- `hexed`: source is the Favour Hex drop (`favour.ts`) and the `hex_cast` spell, which has no spell system.
+
+**3. Device bombs (04 8.4, 12 8.6).** `havoc_powder` (thunderpowder), `havoc_timed` (timedpowder), `havoc_hidden` (hidden_charge) and `havoc_sparkler` (festive_glimmer) are click powers with handler `bomb` and the param `device`. Placing one sets the device ground on a land tile (water and existing devices are refused). The triggers in `devices.ts`:
+- thunderpowder: fire on its tile or beside it (n4). Radius 9.
+- timedpowder: 100 ticks after its own tile ignites (5 s). Radius 7.
+- hidden_charge: a Being stands on its tile, or a projectile lands there (`landProjectile`). Radius 6.
+- festive_glimmer: fire on or beside it. Its fireworks have no sim effect, so it is spent with no blast.
+
+A blast device goes off with the `blast` profile of 04 8.1 at its device radius, through `detonateBomb`. A blast device also detonates the blast devices it touches (n4, 04 8.4), up to 400 per trigger. If the guard refuses a blast, the device stays. The triggers run each tick from `shootStep`, since `sim.ts` is not in this change.
+
+The device registry is read from the realm's device grounds once a second, so a loaded realm keeps its devices. The ground a device replaced is not saved; a device found without one is restored to `lowloam` when it goes off. Armed timers are not saved. Not modelled: the flight rule for step-on (no species has a flying flag), the 0.9 s drop, and the falloff of 04 8.2.
+
+**4. Army contact (10 section 8).** `engageArmies(sim, a, b, perAxis)` in `armies.ts`. The Folk on each army's parcel are its members (Beings carry no dominion, so the parcel is their side). Up to `CONTACT_MAX` (4) pairs are taken in slot order. Each member of `b` steps onto a free land tile beside its partner in `a`, and the two grudge each other (`addAggro`), so the normal fight and brawl code runs from their next decision. It draws no randomness.
+
+Not wired. The strength exchange runs in `dominions/step.ts`, called from `stepDominions` in `dominions/adapter.ts`, and both sit outside this change. In play, dominions are inert too (`addDominion` has no caller outside tests), so no army fights happen until a dominion exists. Folk spawn only through the Found powers (`spawnFolk`).
+
+**Determinism.** New draws: the `projectiles` stream (lob roll) and the `combat` stream (claw bleed roll, drawn only on a landed swing). Devices and contact draw nothing. Device state lives in a WeakMap keyed by the sim and is derived from the realm, so no save field was added and the schema is unchanged.
+
+**Remaining, and why.** Everything above is unverified. Not done: the 9 statuses and the 7 unowned projectile kinds listed in sections 1 and 2 (their sources sit in files outside this change or in systems not built); the army contact call (needs `dominions/step.ts` or `adapter.ts`); a Folk brawl path for the bite rules (needs `beings/system.ts`).

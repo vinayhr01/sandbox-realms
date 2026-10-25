@@ -15,6 +15,7 @@ import { hamletsOf, structuresOf } from '../settlements/adapter.ts';
 import { placeStructure } from '../settlements/landmarks.ts';
 import { explode } from '../explosions.ts';
 import { applyDamage } from '../combat.ts';
+import { placeDevice } from '../devices.ts';
 import { scarStage, startFire } from '../terrain/fire.ts';
 import { meteorImpact } from '../terrain/meteor.ts';
 import { startQuake } from '../terrain/quake.ts';
@@ -79,7 +80,7 @@ function blastAt(sim: Sim, x: number, y: number, radius: number, damage: number,
  * a sink for radius 2 and up, fire by the profile's rule, and the ground changes of the profile.
  * Urchin shrapnel are detonated after the main blast on random tiles of its radius (stream `bombs`).
  */
-function detonateBomb(sim: Sim, prof: BombProfile, x: number, y: number, withShrapnel: boolean): boolean {
+export function detonateBomb(sim: Sim, prof: BombProfile, x: number, y: number, withShrapnel: boolean): boolean {
   if (!sim.guard.tryAcquire()) return false;
   const realm = sim.realm;
   const s = sim.beings.store;
@@ -244,6 +245,8 @@ export function executePower(sim: Sim, def: PowerDef, x: number, y: number): boo
     case 'bomb':
     case 'bolt': {
       if (!inBounds) return false;
+      // Device bombs place a device ground that triggers later (04 section 8.4) instead of detonating now.
+      if (p.device !== undefined) return placeDevice(sim, String(p.device), x, y);
       const prof = BOMB_PROFILE_BY_ID.get(String(p.profile));
       return prof !== undefined && detonateBomb(sim, prof, x, y, true);
     }

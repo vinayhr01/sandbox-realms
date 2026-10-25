@@ -50,6 +50,7 @@ import { hamletMood, PARCEL, tierOf } from './settlements/hamlet.ts';
 import { codexProgress } from './progression.ts';
 import { clanSpeciesName, yearsSince, type Clan } from './clans/clans.ts';
 import { itemsOf } from './items/summary.ts';
+import { boatMarksOf } from './boats/boats.ts';
 import type { Sim } from './sim.ts';
 
 /** Sim ticks between periodic snapshots: two sim-seconds, 40 ticks at 20 Hz (13 section 1). */
@@ -94,6 +95,7 @@ export function buildSnapshot(sim: Sim): Snapshot {
     mapKinds: mapKindsOf(sim),
     mapBuildings: mapBuildingsOf(sim),
     mapIntrigues: mapIntriguesOf(sim),
+    mapBoats: boatMarksOf(sim),
   };
   return fitSnapshot(snap);
 }
@@ -289,7 +291,11 @@ function clansOf(sim: Sim): ClanBlock {
  */
 export function fitSnapshot(snap: Snapshot): Snapshot {
   let out = snap;
-  // Map feeds go first (intrigues, then sprite feeds), then map marks and map points: the map simply draws without them.
+  // Map feeds go first (boats, intrigues, then sprite feeds), then map marks and map points: the map simply draws without them.
+  if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapBoats !== undefined) {
+    const { mapBoats: _boats, ...rest } = out;
+    out = { ...rest, truncated: true };
+  }
   if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapIntrigues !== undefined) {
     const { mapIntrigues: _intrigues, ...rest } = out;
     out = { ...rest, truncated: true };

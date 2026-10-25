@@ -4,11 +4,11 @@
  * coordinates from the snapshot; the layer converts them with the camera (CSS px per tile, offset of
  * tile (0,0)). It redraws only when the snapshot, the toggles or the camera change.
  *
- * Intrigues are drawn at the tile of the dominion or hamlet they target, for running intrigues only. Not drawn
- * here: boats (the sim has no boat entity; spec 10 section 13 is unbuilt), so `marks.boats` stays non-live.
+ * Intrigues are drawn at the tile of the dominion or hamlet they target, for running intrigues only. Boats
+ * (`snap.mapBoats`, src/sim/boats) are drawn as dots in their kind's colour when `marks.boats` is on.
  */
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
-import type { MapIntrigue, MapKind, MapMarks, Snapshot } from '../shared/protocol.ts';
+import type { MapBoat, MapIntrigue, MapKind, MapMarks, Snapshot } from '../shared/protocol.ts';
 import { buildingKindOf, SpriteFactory, type SpriteTex } from './sprites.ts';
 
 const ITEM_COLOUR = 0xffb020;
@@ -20,6 +20,8 @@ const LINK_COLOUR = 0x9fb6ff;
 const HAMLET_COLOUR = 0xffe9a8;
 const REBELLION_COLOUR = 0xff4d6d;
 const SCHEME_COLOUR = 0xb388ff;
+const BOAT_COLOUR: Readonly<Record<MapBoat['kind'], number>> = { trading: 0x7fd3ff, fishing: 0xa8e6a1, transport: 0xffd27f };
+const BOAT_RADIUS_PX = 3;
 /** Sprites this far outside the viewport (CSS px) are not placed: keeps a sprite whose anchor is off screen. */
 const SPRITE_MARGIN_PX = 16;
 const ITEM_RADIUS_PX = 4;
@@ -43,6 +45,8 @@ export interface MarkToggles {
   battles: boolean;
   /** `marks.intrigues`: running intrigues at their target. */
   intrigues: boolean;
+  /** `marks.boats`: boats at their tile. Optional; absent means off. */
+  boats?: boolean;
   /** `map.names`: full draws the name, banner draws only the dot, off draws nothing. */
   names: 'full' | 'banner' | 'off';
   /** `map.favouritesOnlyNames`: only favourites get a name. No hamlet is a favourite, so hamlet names are hidden. */
@@ -118,6 +122,8 @@ export class MarkLayer {
       toggles.campaigns,
       toggles.battles,
       toggles.intrigues,
+      toggles.boats ?? false,
+      snap?.mapBoats?.length ?? 0,
       toggles.names,
       toggles.favouritesOnlyNames,
       toggles.nameScale,
@@ -153,6 +159,7 @@ export class MarkLayer {
     }
 
     if (toggles.intrigues && snap.mapIntrigues) this.drawIntrigues(snap.mapIntrigues, view);
+    if (toggles.boats && snap.mapBoats) this.drawBoats(snap.mapBoats, view);
 
     const marks = snap.mapMarks;
     if (marks) this.drawMarks(marks, toggles, view);
@@ -275,6 +282,15 @@ export class MarkLayer {
       } else {
         g.moveTo(sx, sy - r).lineTo(sx + r, sy).lineTo(sx, sy + r).lineTo(sx - r, sy).closePath().stroke({ width: 1.5, color: colour });
       }
+    }
+  }
+
+  /** Boats as filled dots in their kind's colour, at the boat's tile. */
+  private drawBoats(boats: readonly MapBoat[], view: MarkView): void {
+    const g = this.graphics;
+    for (const b of boats) {
+      const { sx, sy } = toScreen(view, b.x, b.y);
+      g.circle(sx, sy, BOAT_RADIUS_PX).fill(BOAT_COLOUR[b.kind]);
     }
   }
 

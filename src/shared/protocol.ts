@@ -197,6 +197,19 @@ export interface Snapshot {
   mapBuildings?: MapBuilding[];
   /** Intrigues for the map (src/render/marks.ts): kind, whether still running, and the target's tile. Capped at MAP_INTRIGUE_CAP; optional; dropped first. */
   mapIntrigues?: MapIntrigue[];
+  /** Boats for the map (src/render/marks.ts): kind and tile. Capped at MAP_BOAT_CAP; optional; dropped first. */
+  mapBoats?: MapBoat[];
+}
+
+/** Most boats in one snapshot's map feed. */
+export const MAP_BOAT_CAP = 32;
+
+/** One boat on the map: `id` is the boat id, `x`, `y` its tile. */
+export interface MapBoat {
+  id: number;
+  kind: 'trading' | 'transport' | 'fishing';
+  x: number;
+  y: number;
 }
 
 /** Most intrigues in one snapshot's map feed. */

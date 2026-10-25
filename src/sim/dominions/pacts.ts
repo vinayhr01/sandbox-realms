@@ -136,9 +136,10 @@ export function pactYear(
   truce: ReadonlyMap<string, Truce> = new Map(),
   rulerOf?: OpinionContext['rulerOf'],
   lens?: OpinionContext['lens'],
+  hamlets?: OpinionContext['hamlets'],
 ): void {
   const byId = new Map(dominions.map((d) => [d.id, d]));
-  const ctx = (): OpinionContext => ({ dominions, borders, relations, truce, pacts: state.pacts, tick, rulerOf, lens });
+  const ctx = (): OpinionContext => ({ dominions, borders, relations, truce, pacts: state.pacts, tick, rulerOf, lens, hamlets });
 
   for (const p of state.pacts) p.memberIds = p.memberIds.filter((id) => byId.has(id));
   state.pacts = state.pacts.filter((p) => !warPair(p.memberIds, relations));

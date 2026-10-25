@@ -53,13 +53,33 @@ export interface OpinionContext {
   rulerOf?: ((dominionId: number) => RulerStats | undefined) | undefined;
   /** Custom and strain lens (DominionLens). Optional. */
   lens?: DominionLens | undefined;
+  /** Hamlets per dominion id for the power formula (10 section 2; adapter.ts hamletCountsOf). Optional: absent counts as 0. */
+  hamlets?: ReadonlyMap<number, number> | undefined;
 }
 
-/** The supreme dominion id (most strength, ties to the lower id), or -1. */
-export function supremeOf(dominions: readonly Dominion[]): number {
+/** Power per soldier, per hamlet and the base (10 section 2: power = soldiers x 2 + hamlets x 5 + 1, TUNE). */
+export const POWER_PER_SOLDIER = 2;
+export const POWER_PER_HAMLET = 5;
+export const POWER_BASE = 1;
+
+/**
+ * Power of a dominion (10 section 2). Soldiers are the dominion's strength (armies mirror it). Hamlets are the count
+ * from `hamlets` (hamletCountsOf in adapter.ts); absent counts as 0.
+ */
+export function powerOf(d: Dominion, hamlets?: ReadonlyMap<number, number>): number {
+  return d.strength * POWER_PER_SOLDIER + (hamlets?.get(d.id) ?? 0) * POWER_PER_HAMLET + POWER_BASE;
+}
+
+/** The supreme dominion id (highest power, ties to the lower id), or -1. */
+export function supremeOf(dominions: readonly Dominion[], hamlets?: ReadonlyMap<number, number>): number {
   let best: Dominion | undefined;
+  let bestPower = 0;
   for (const d of dominions) {
-    if (!best || d.strength > best.strength || (d.strength === best.strength && d.id < best.id)) best = d;
+    const p = powerOf(d, hamlets);
+    if (!best || p > bestPower || (p === bestPower && d.id < best.id)) {
+      best = d;
+      bestPower = p;
+    }
   }
   return best?.id ?? -1;
 }
@@ -79,7 +99,7 @@ export function opinion(ctx: OpinionContext, a: number, b: number): number {
   let sum = rulerB ? rulerB.diplomacy * OPINION_PER_RAPPORT : OPINION_RULER_STAND_IN;
   const rulerA = ctx.rulerOf?.(a);
   if (rulerA) sum += Math.trunc(rulerA.mood / OPINION_MOOD_DIVISOR);
-  if (ctx.dominions.length >= 3 && supremeOf(ctx.dominions) === b) sum += OPINION_SUPREME;
+  if (ctx.dominions.length >= 3 && supremeOf(ctx.dominions, ctx.hamlets) === b) sum += OPINION_SUPREME;
   const bordering = ctx.borders.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
   sum += bordering ? OPINION_BORDER_CLOSE : OPINION_BORDER_FAR;
   const rel = ctx.relations.get(a, b);

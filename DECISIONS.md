@@ -1649,3 +1649,22 @@ Scope: 02 section 7 `pathDecay` (`wayworn` roads outside any Custom's hamlet ter
 - OPEN: a road tile with no record never decays. Such tiles come from a painted `wayworn` (power `shape_wayworn`), whose base is unknown. The spec does not say what base such a tile has.
 - OPEN: `heat` turning a road into `strand` drops the record on the next sim-second (the tile is no longer road). That is the existing ground rule, not a new one.
 - Not run: the golden hash is not re-baselined. It moves only in a golden run that lays a road and reaches a decay run.
+
+## Rulers close 4
+
+Scope: `supremeOf` (10 section 2 power formula, `power = soldiers x 2 + hamlets x 5 + 1`, highest is supreme, ties to the lower id). It was the last open item of the Rulers release (`supremeOf` ranked by strength alone). Files: `src/sim/dominions/opinion.ts` (`powerOf`, `supremeOf`, `OpinionContext.hamlets`), `src/sim/dominions/intrigue.ts` (the callers: `formPactOk`, `joinPactOk`, `dissolvePactOk`, and the top-two ranking in `dissolvePactOk`), `src/sim/dominions/pacts.ts` (`pactYear` takes the counts and passes them to its opinion context), `src/sim/dominions/adapter.ts` (`hamletCountsOf`, `ownerOfHamlet`, and `dominionsYearly`). Branch: `worktree-agent-ad09bdf4c85be9e1e`. `GOLDEN_HASH` is not edited.
+
+**Decisions.**
+- Soldiers are `Dominion.strength`. The army mirrors it and the garrison draws from it, so it is the soldier count the spec names.
+- Hamlets are counted by the settlements adapter (`hamletsOf`, read-only). A settlement counts once, for the dominion that owns most of its parcels, the same majority rule the captain and slot count already used. That loop now calls the shared `ownerOfHamlet`, so there is one majority rule, not two.
+- The counts are taken once per yearly pass, after founding, and passed down. Every pact and intrigue gate in the pass reads the same counts. Between passes the owner bytes move, so the counts are a year old when a gate reads them. The spec ranks every 40 ticks. This is a timing compromise, not the spec.
+- `dissolvePactOk` ranks its "supreme or second" check by power too (it had ranked by strength). This is the second-place check, which the spec ties to the same power formula.
+- The new `OpinionContext.hamlets` and `IntrigueEnv.hamlets` are optional. Absent counts are 0, which matches the optional `rulerOf` pattern. Existing unit tests call `opinion` and `pactYear` without counts and keep working.
+
+**Closed.** `supremeOf` uses the spec power formula and the settlements hamlet count. Its callers are updated: the opinion supreme term (-100 when at least three dominions), the three intrigue gates, and the top-two ranking in `dissolvePactOk`.
+
+**Remains, and why.**
+- The rank cadence (every 40 ticks) and the rank effects (loyalty +100 for supreme, +50 for second) are not built. Only the opinion term and the intrigue gates read supremacy. Loyalty lives in the hamlet layer and is outside this change.
+- `pactPower` and the other places that sum strength as "power" still use strength alone. The spec's per-dominion power formula is only applied to the ranking here, so the pact power total and the dissolve power ratio still use strength. Changing them is a separate step.
+- A `second` flag is not stored on `Dominion`. The `second` check lives in `dissolvePactOk` only.
+- Not verified: no tests, typecheck, build or Playwright were run (instruction). The `GOLDEN_HASH` is not edited, and this change alters the ranking, so the golden run will likely move. It needs a re-baseline when a golden run is allowed.

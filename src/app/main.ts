@@ -55,6 +55,7 @@ import {
   type DegradeTrack,
 } from './recovery.ts';
 import { contentHash } from '../content/content-hash.ts';
+import { exportCrashRecord, noteCrashRun, recordCrash, setCrashConsent } from './crash-record.ts';
 
 /** Brush radii in tiles for slider positions 0..10 (04 section 1.1 sizes, trimmed for M1). */
 const BRUSH_RADII = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16] as const;
@@ -130,8 +131,15 @@ function safeModeAction(primary: boolean): FatalAction {
   };
 }
 
+/** Writes the crash record and downloads it when the player asks. Nothing is sent (19 section 9). */
+async function exportCrashAndDownload(): Promise<void> {
+  const out = await exportCrashRecord();
+  if (out.ok && out.name !== undefined && out.bytes !== undefined) downloadFile(out.name, out.bytes);
+  setFatalDetail(out.message);
+}
+
 /** Crash reporter for the recovery dialog. The ladder (19 section 7) decides which recovery buttons it offers. */
-function reportCrash(kind: FaultKind, title: string, detail: string): void {
+function reportCrash(kind: FaultKind, title: string, detail: string, stack?: string, ctx: 'main' | 'worker' = 'main'): void {
   // The dialog shows at once; the restore button waits until the save list has been read.
   showFatal(title, detail, [restoreAction(null, false), safeModeAction(false)]);
   void (async () => {
@@ -139,6 +147,7 @@ function reportCrash(kind: FaultKind, title: string, detail: string): void {
     const now = Date.now();
     const decision = decideRecovery({ kind, nowMs: now, attempts: loadAttempts(), hasValidAutosave: hasSave });
     storeAttempt({ atMs: now, kind, level: decision.level ?? 'fatal_dialog' });
+    void recordCrash({ kind, ctx, message: detail, stack, recovery: decision.level ?? 'none' });
     const actions: FatalAction[] = [restoreAction(hasSave, decision.level === 'restart_from_autosave')];
     if (kind === 'sim_fatal' && decision.level === 'reset_realm' && restartRealm) {
       const restart = restartRealm;
@@ -151,6 +160,7 @@ function reportCrash(kind: FaultKind, title: string, detail: string): void {
         },
       });
     }
+    actions.push({ label: 'Export crash record', run: exportCrashAndDownload });
     actions.push(safeModeAction(decision.enterSafeMode));
     showFatal(title, detail, actions);
   })();
@@ -254,6 +264,7 @@ async function boot(): Promise<void> {
 
   // Safe Mode (19 section 7) lasts for this tab: audio off, reduced motion and flashing, 30 fps.
   const safeMode = safeModeOn();
+  noteCrashRun({ safeMode });
   const params = new URLSearchParams(location.search);
   const debugOverlay = params.has('debug');
 
@@ -281,6 +292,7 @@ async function boot(): Promise<void> {
     'ui.reduceFlash': osPrefers('(prefers-reduced-motion: reduce)'),
   };
   let options: Options = loadOptions(safeStorage(), osDefaults);
+  setCrashConsent(boolOption(options, 'privacy.errorReports'));
   const startSpeed = Number.parseFloat(stringOption(options, 'game.defaultSpeed'));
 
   // Audio starts on the first gesture (16 B6), never before. Safe Mode keeps it off.
@@ -407,8 +419,9 @@ async function boot(): Promise<void> {
         hideFatal();
       },
     };
+    // Copy follows 17 section 10 and 19 section 2: "Simulation not responding", with Reload and Wait.
     const restart: FatalAction = {
-      label: 'Restart simulation',
+      label: 'Reload',
       primary: true,
       run: () => {
         watchdogShown = false;
@@ -418,7 +431,7 @@ async function boot(): Promise<void> {
     };
     showFatal(
       'Simulation not responding',
-      'The simulation has not reported for six seconds. Restart it to resume from the newest autosave, or wait a little longer.',
+      'The simulation has not reported for six seconds. Reload to resume from the newest autosave, or wait a little longer.',
       [restart, wait],
     );
   };
@@ -429,6 +442,7 @@ async function boot(): Promise<void> {
     if (stalled && !watchdogShown) {
       watchdogShown = true;
       journal('WORKER_STALL', 'no heartbeat for 6 s');
+      void recordCrash({ kind: 'worker_dead', ctx: 'worker', message: 'no heartbeat for 6 s', recovery: 'none' });
       showNotResponding();
     } else if (!stalled && watchdogShown) {
       watchdogShown = false;
@@ -897,15 +911,18 @@ async function boot(): Promise<void> {
         simHash = event.stats.stateHash;
         simAvgTickMs = event.stats.avgTickMs;
         simSpeed = event.stats.speed;
+        noteCrashRun({ tick: simTick, speed: simSpeed });
         calendarText = `Y${Math.floor(simTick / YEAR_TICKS) + 1} M${(Math.floor(simTick / MONTH_TICKS) % 12) + 1}`;
         setCalendar(calendarText);
         return;
       case Ev.Fault:
         journal(event.code, event.detail);
-        if (event.severity === 'fatal') reportCrash(event.code === 'WORKER_ERROR' ? 'worker_dead' : 'sim_fatal', 'The simulation stopped', event.detail);
+        if (event.severity === 'fatal')
+          reportCrash(event.code === 'WORKER_ERROR' ? 'worker_dead' : 'sim_fatal', 'The simulation stopped', event.detail, undefined, 'worker');
         else notify(event.detail, CUE.error);
         return;
       case Ev.Snapshot:
+        noteCrashRun({ age: event.snap.age ?? null });
         simView.apply(event.snap);
         musicFeed.ingest(event.snap);
         for (const id of stingers.ingest(event.snap.age ?? null, event.snap.dominions.filter((d) => d.atWar).length)) playCue(id);
@@ -948,6 +965,7 @@ async function boot(): Promise<void> {
     if (id === 'game.disasters' && !setRule('natural_calamities', value === true)) return;
     options = setOption(options, id, value);
     saveOptions(safeStorage(), options);
+    if (id === 'privacy.errorReports') setCrashConsent(boolOption(options, 'privacy.errorReports'));
     if (id === 'ui.fullscreen') toggleFullscreen(options[id] === true);
     // Hide status bar on phones: full screen is requested when the row is turned on (13 section 15).
     if (id === 'ui.hideStatusBar' && value === true && window.matchMedia('(pointer: coarse)').matches) toggleFullscreen(true);

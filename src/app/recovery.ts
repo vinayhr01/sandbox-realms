@@ -7,7 +7,7 @@ const SENTINEL_KEY = 'sr.session';
 const JOURNAL_KEY = 'sr.journal';
 const JOURNAL_MAX = 20;
 
-interface JournalEntry {
+export interface JournalEntry {
   at: string;
   code: string;
   detail: string;
@@ -21,6 +21,11 @@ function readJournal(): JournalEntry[] {
   } catch {
     return [];
   }
+}
+
+/** The newest journal entries, oldest first. Used as the breadcrumbs of a crash record (19 section 3). */
+export function recentJournal(limit: number): JournalEntry[] {
+  return readJournal().slice(-Math.max(0, limit));
 }
 
 export function journal(code: string, detail: string): void {
@@ -415,18 +420,20 @@ export function storeAttempt(attempt: RecoveryAttempt): void {
   writeJson(safeStore('session'), ATTEMPTS_KEY, [...loadAttempts(), attempt].slice(-20));
 }
 
-/** Reports a crash to the recovery dialog. The app supplies it; the default only shows the fatal dialog. */
-export type CrashReporter = (kind: FaultKind, title: string, detail: string) => void;
+/** Reports a crash to the recovery dialog. `stack` is the JS stack when the fault has one. */
+export type CrashReporter = (kind: FaultKind, title: string, detail: string, stack?: string) => void;
 
 export function installGlobalErrorHandlers(report: CrashReporter = (_kind, title, detail) => showFatal(title, detail)): void {
   window.addEventListener('error', (event: ErrorEvent) => {
     journal('UNCAUGHT', event.message);
-    report('js_main', 'Something went wrong', event.message);
+    const stack = event.error instanceof Error ? event.error.stack : undefined;
+    report('js_main', 'Something went wrong', event.message, stack);
   });
   window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
     const reason: unknown = event.reason;
     const message = reason instanceof Error ? reason.message : String(reason);
     journal('UNHANDLED_REJECTION', message);
-    report('js_main', 'Something went wrong', message);
+    const stack = reason instanceof Error ? reason.stack : undefined;
+    report('js_main', 'Something went wrong', message, stack);
   });
 }

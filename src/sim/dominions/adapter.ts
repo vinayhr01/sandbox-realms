@@ -14,6 +14,9 @@ import { newIntrigueState, proposeIntrigues, resolveIntrigues, type Intrigue, ty
 import { taxRatesOf, taxSplit } from './tax.ts';
 import { rulersStep, rulerStatsOf, type RulerRef, type RulerStats } from './rulers.ts';
 import { cultureYearly } from '../culture/adapter.ts';
+import { blockedWarMood, campaignMood, rulerInstalled, traitsOfGroup, warBlocked as warBlockedBy } from '../culture/effects.ts';
+import { successionRuleOf } from '../culture/trait-rules.ts';
+import type { DominionLens } from './opinion.ts';
 
 /** Dominion traits a dominion may hold (tax.ts reads the four tax ones; `markFate` is a locked marker, 11 section 9.4). */
 const DOMINION_TRAITS = ['highLocal', 'lowLocal', 'highTribute', 'lowTribute', 'markFate'] as const;
@@ -71,6 +74,11 @@ export function dominionState(sim: Sim): DominionState {
     states.set(sim, s);
   }
   return s;
+}
+
+/** Owner byte per parcel of a sim, read only: undefined when the dominion state was never created. */
+export function dominionOwnerOf(sim: Sim): Uint8Array | undefined {
+  return states.get(sim)?.owner;
 }
 
 /** Pact records of a sim, read only: empty when the dominion state was never created. */
@@ -385,11 +393,17 @@ export function dominionsYearly(sim: Sim): void {
       return ground(sim.realm.ground[i] ?? 0).layer === 'land';
     },
   };
-  foundingYear(s, settlements, env);
+  // Custom hooks (culture/effects.ts): a bigger side with peaceable or serenity does not declare war.
+  foundingYear(s, settlements, {
+    ...env,
+    warBlocked: (id) => warBlockedBy(sim, id),
+    onWarBlocked: (id) => blockedWarMood(sim, id, (p) => s.owner[p] ?? UNOWNED),
+  });
   const rulerOf = rulerLookup(sim, s.dominions);
-  pactYear(s.pacts, s.dominions, s.borders, s.relations, sim.tick, s.truce, rulerOf);
+  const lens = lensOf(sim, s);
+  pactYear(s.pacts, s.dominions, s.borders, s.relations, sim.tick, s.truce, rulerOf, lens);
   // Pact intrigues (intrigue.ts): last year's intrigues resolve through the pact functions, then new ones are proposed.
-  const ienv: IntrigueEnv = { dominions: s.dominions, borders: s.borders, relations: s.relations, truce: s.truce, pacts: s.pacts, tick: sim.tick, rulerOf };
+  const ienv: IntrigueEnv = { dominions: s.dominions, borders: s.borders, relations: s.relations, truce: s.truce, pacts: s.pacts, tick: sim.tick, rulerOf, lens };
   resolveIntrigues(ienv, s.intrigues);
   proposeIntrigues(ienv, s.intrigues);
   // Culture (11 sections 2 and 3): each dominion gets a custom once, and a scheme while none runs (culture/adapter.ts).
@@ -475,16 +489,78 @@ export function stepDominions(sim: Sim): void {
       addPactRenown(s.pacts, winnerId, PACT_RENOWN_PER_DEFEAT);
       armyWon(s.armies, winnerId);
     },
+    // Campaign mood (culture/effects.ts, warlikeJoy). The owner map is the live one, since parcels change hands mid-step.
+    onCampaign: (kind, winnerId, loserId) => campaignMood(sim, kind, winnerId, loserId, (p) => owner.get(p) ?? UNOWNED),
   };
   dominionStep(ctx, s.relations);
   syncArmies(s.armies, s.dominions);
   for (const [p, id] of owner) s.owner[p] = id;
   // Rulers (rulers.ts, 10 section 4): once the owner bytes are written back, the leading hamlet of each dominion is
   // read and any dead ruler is replaced (after its wait). The 'rulers' stream is taken only when a ruler dies.
+  // Succession rules and install moods come from the dominion's custom (culture/effects.ts).
   rulersStep(
-    { tick: sim.tick, perAxis, beings: sim.beings, hamlets: hamletsOf(sim), owner: s.owner, rng: () => sim.rng('rulers') },
+    {
+      tick: sim.tick,
+      perAxis,
+      beings: sim.beings,
+      hamlets: hamletsOf(sim),
+      owner: s.owner,
+      rng: () => sim.rng('rulers'),
+      ruleOf: (id) => successionRuleOf(traitsOfGroup(sim, id)),
+      onInstall: (id, slot, capital) =>
+        rulerInstalled(sim, id, slot, capital.parcels, (p) => s.owner[p] ?? UNOWNED),
+    },
     s.dominions,
   );
+}
+
+/**
+ * Custom and strain lens for the opinion terms (opinion.ts DominionLens). A dominion's strain is the majority strain of
+ * its folk on its parcels, read once per call (lazily, on the first opinion term that asks).
+ */
+function lensOf(sim: Sim, s: DominionState): DominionLens {
+  let strains: Map<number, number> | undefined;
+  return {
+    traitsOf: (id) => traitsOfGroup(sim, id),
+    strainOf: (id) => {
+      strains ??= majorityStrains(sim, s.owner);
+      return strains.get(id);
+    },
+  };
+}
+
+/** Majority strain of the folk on each dominion's parcels (ties to the lower strain id). Draws no randomness. */
+function majorityStrains(sim: Sim, owner: Uint8Array): Map<number, number> {
+  const st = sim.beings.store;
+  const perAxis = parcelsPerAxis(sim);
+  const counts = new Map<number, Map<number, number>>();
+  for (let k = 0; k < st.size; k++) {
+    const slot = st.at(k);
+    if (!sim.beings.species(st.species[slot] ?? 0).folk) continue;
+    const p = Math.floor((st.y[slot] ?? 0) / PARCEL) * perAxis + Math.floor((st.x[slot] ?? 0) / PARCEL);
+    const dom = owner[p] ?? UNOWNED;
+    if (dom === UNOWNED) continue;
+    let byStrain = counts.get(dom);
+    if (!byStrain) {
+      byStrain = new Map();
+      counts.set(dom, byStrain);
+    }
+    const strain = st.strain[slot] ?? 0;
+    byStrain.set(strain, (byStrain.get(strain) ?? 0) + 1);
+  }
+  const out = new Map<number, number>();
+  for (const [dom, byStrain] of counts) {
+    let best = -1;
+    let bestN = 0;
+    for (const [strain, n] of byStrain) {
+      if (n > bestN || (n === bestN && strain < best)) {
+        best = strain;
+        bestN = n;
+      }
+    }
+    out.set(dom, best);
+  }
+  return out;
 }
 
 /** Ruler stats per dominion id for the opinion terms (rulers.ts). Reads the being store; draws no randomness. */

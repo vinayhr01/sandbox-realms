@@ -13,6 +13,7 @@ import { BeingStore } from './store.ts';
 import { newGenome, SEED_SALT_RANGE, speciesBudget } from './genome.ts';
 import { addStrainTrait, mutateFrom, strainMutation, Strains } from './strains.ts';
 import { addMood, beginSleep, bondCheck, isAsleep, sleepCheck } from './social.ts';
+import { heritageAttr, talkOutcome, talksWithBeasts } from '../culture/effects.ts';
 import { ROUND6, ROUND8, TUNING } from './tuning.ts';
 import { MONTH_TICKS, YEAR_TICKS } from '../../shared/constants.ts';
 import { predate } from '../combat.ts';
@@ -659,6 +660,7 @@ function spawnCopy(sim: Sim, from: number, x: number, y: number, o: CopyOpts): n
   for (let k = 0; k < 4; k++) s.attrs[slot * 4 + k] = s.attrs[from * 4 + k] ?? 0;
   for (let k = 0; k < 5; k++) s.marks[slot * 5 + k] = s.marks[from * 5 + k] ?? 0;
   if (o.link) s.setParent(slot, from);
+  if (o.baby && o.link) heritageAttr(sim, from, slot);
   b.bumpStrain(strainId, 1);
   refreshStats(sim, slot);
   s.vit[slot] = Math.min(o.vit, s.maxVit[slot] ?? 0);
@@ -869,6 +871,21 @@ function partnerFor(sim: Sim, slot: number): number {
   const s = sim.beings.store;
   const sp = s.species[slot] ?? 0;
   return sim.beings.nearest(slot, (o) => s.species[o] === sp && !isAsleep(sim, o), ROUND6.partnerRadius);
+}
+
+/**
+ * Chat partner (06 section 4.3). Same species, as partnerFor; a Folk whose custom holds beastFriends (11 section 9.1) also
+ * talks with the nearest beast of any species.
+ */
+function talkPartnerFor(sim: Sim, slot: number): number {
+  const s = sim.beings.store;
+  const sp = s.species[slot] ?? 0;
+  if (!sim.beings.species(sp).folk || !talksWithBeasts(sim, slot)) return partnerFor(sim, slot);
+  return sim.beings.nearest(
+    slot,
+    (o) => !isAsleep(sim, o) && (s.species[o] === sp || !sim.beings.species(s.species[o] ?? 0).folk),
+    ROUND6.partnerRadius,
+  );
 }
 
 /** Herd member to follow (07 section 3.6 `herd_follow`): the nearest same-species Being, when it is beyond the herd gap. */
@@ -1185,7 +1202,7 @@ const TASKS: Record<string, TaskFn> = {
     return true;
   },
   chat: (sim, slot) => {
-    const partner = partnerFor(sim, slot);
+    const partner = talkPartnerFor(sim, slot);
     if (partner < 0) return false;
     const s = sim.beings.store;
     const gap = Math.max(Math.abs((s.x[partner] ?? 0) - (s.x[slot] ?? 0)), Math.abs((s.y[partner] ?? 0) - (s.y[slot] ?? 0)));
@@ -1198,6 +1215,7 @@ const TASKS: Record<string, TaskFn> = {
     const event = sim.rng('beings').next() < 0.7 ? 'talked_well' : 'talked_badly';
     addMood(sim, slot, event);
     addMood(sim, partner, event);
+    talkOutcome(sim, slot, partner);
     setNext(sim, slot, 20);
     return false;
   },
@@ -1311,7 +1329,7 @@ function eligible(sim: Sim, slot: number, id: string, fleeing: boolean): boolean
     case 'herd_follow':
       return herdTarget(sim, slot) >= 0;
     case 'chat':
-      return partnerFor(sim, slot) >= 0;
+      return talkPartnerFor(sim, slot) >= 0;
     case 'eat_grass':
       return (def.diet === 'grass' || def.diet === 'omni') && canForage(sim, slot, 'grass');
     case 'eat_nectar':

@@ -37,6 +37,8 @@ export interface DominionContext {
   owner: Map<number, number>;
   /** Called once when a strength exchange defeats a dominion (its strength reaches 0). Optional. */
   onDefeat?(winnerId: number): void;
+  /** Campaign hooks: `start` when the winner's campaign begins, `end` when the loser's strength reaches 0. Optional. */
+  onCampaign?(kind: 'start' | 'end', winnerId: number, loserId: number): void;
   /** Pact member lists for campaign joining (pacts.ts). Optional: without it no pact joins a war. */
   pacts?: { id: number; memberIds: number[] }[];
   /** Army parcel per dominion id (armies.ts). Optional: without it every border war pair is in contact. */

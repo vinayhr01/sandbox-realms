@@ -2,7 +2,9 @@ import type { Sim } from '../sim.ts';
 import { dominionsOfSim, dominionState, UNOWNED } from '../dominions/adapter.ts';
 import { drawToGarrison, returnFromGarrison } from '../dominions/armies.ts';
 import { SS_TICKS } from '../clock.ts';
+import { PARCEL } from '../../shared/constants.ts';
 import type { Hamlet } from './hamlet.ts';
+import type { LevySex } from './custom-rules.ts';
 import { GARRISON_COMPANY, LEADER_WARFARE, SOLDIER_GOLD_GATE, soldierTimer, type GarrisonRecord } from './garrison.ts';
 
 /**
@@ -49,6 +51,22 @@ function drawOne(sim: Sim, dominionId: number): number {
   return drawToGarrison(d, army, 1);
 }
 
+/** Living adult Folk of the levied sex standing in the hamlet's parcels. Draws no rng. */
+function levyRoom(sim: Sim, hamlet: Hamlet, levy: LevySex): number {
+  const s = sim.beings.store;
+  const perAxis = sim.realm.side / PARCEL;
+  const female = levy === 'female' ? 1 : 0;
+  let n = 0;
+  for (let k = 0; k < s.size; k++) {
+    const slot = s.at(k);
+    if (!sim.beings.species(s.species[slot] ?? 0).folk || (s.baby[slot] ?? 0) !== 0) continue;
+    if ((s.female[slot] ?? 0) !== female) continue;
+    const p = Math.floor((s.y[slot] ?? 0) / PARCEL) * perAxis + Math.floor((s.x[slot] ?? 0) / PARCEL);
+    if (hamlet.parcels.has(p)) n++;
+  }
+  return n;
+}
+
 /** Returns a garrison's soldiers to the dominion they came from, when that dominion still exists. */
 function release(sim: Sim, rec: GarrisonRecord): void {
   if (rec.soldiers <= 0 || dominionsOfSim(sim).length === 0) {
@@ -69,7 +87,12 @@ function release(sim: Sim, rec: GarrisonRecord): void {
  * - the timer counts down; at or below 0, with gold above the gate and room in the company, one soldier is drawn from the
  *   owner's strength and the timer resets. A refused draw leaves the timer at or below 0 so the next pass tries again.
  */
-export function garrisonStep(sim: Sim, hamlets: readonly Hamlet[], ownerOf: (h: Hamlet) => number): void {
+export function garrisonStep(
+  sim: Sim,
+  hamlets: readonly Hamlet[],
+  ownerOf: (h: Hamlet) => number,
+  levyOf?: (h: Hamlet) => LevySex | undefined,
+): void {
   let state = states.get(sim);
   const hasDominions = dominionsOfSim(sim).length > 0;
   if (!state) {
@@ -100,6 +123,10 @@ export function garrisonStep(sim: Sim, hamlets: readonly Hamlet[], ownerOf: (h: 
     rec.timer = Math.max(0, rec.timer - PASS_TICKS);
     if (rec.timer > 0 || rec.soldiers >= GARRISON_COMPANY || rec.dominion === UNOWNED) return;
     if (hamlet.gold <= SOLDIER_GOLD_GATE) return;
+    // Levy (11 section 9.1, 09 section 8 soldier gate): only folk of the levied sex may serve, so a recruit needs one more
+    // such adult in the hamlet than the company holds.
+    const levy = levyOf?.(hamlet);
+    if (levy !== undefined && levyRoom(sim, hamlet, levy) <= rec.soldiers) return;
     if (drawOne(sim, rec.dominion) > 0) {
       rec.soldiers += 1;
       rec.timer = soldierTimer(LEADER_WARFARE, true);

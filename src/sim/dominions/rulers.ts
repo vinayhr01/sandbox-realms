@@ -2,6 +2,7 @@ import { PARCEL, YEAR_TICKS } from '../../shared/constants.ts';
 import type { Rng } from '../../shared/rng.ts';
 import type { BeingStore } from '../beings/store.ts';
 import type { Hamlet } from '../settlements/hamlet.ts';
+import type { SuccessionRule } from '../culture/trait-rules.ts';
 import type { Dominion } from './types.ts';
 
 /**
@@ -42,6 +43,10 @@ export interface RulerEnv {
   /** Owner byte per parcel (dominion id, 0 = unowned). */
   owner: Uint8Array;
   rng(): Rng;
+  /** Succession rule of a dominion's custom (culture/trait-rules.ts). Optional: without it the base order holds. */
+  ruleOf?(dominionId: number): SuccessionRule | undefined;
+  /** Called when a successor takes the crown; `capital` is the leading hamlet it was found in. Optional. */
+  onInstall?(dominionId: number, slot: number, capital: Hamlet): void;
 }
 
 /** Index of rapport in the being store's four aptitudes (rapport, valor, husbandry, wit). */
@@ -95,28 +100,64 @@ export function leadingHamlet(dominionId: number, hamlets: readonly Hamlet[], ow
   return best;
 }
 
+/** Ordering stat of a being for a succession rule (rapport, valor, or fame as the sum of the four aptitudes). */
+function statOf(s: BeingStore, slot: number, stat: 'rapport' | 'valor' | 'fame'): number {
+  const a = slot * 4;
+  if (stat === 'rapport') return s.attrs[a] ?? 0;
+  if (stat === 'valor') return s.attrs[a + 1] ?? 0;
+  return (s.attrs[a] ?? 0) + (s.attrs[a + 1] ?? 0) + (s.attrs[a + 2] ?? 0) + (s.attrs[a + 3] ?? 0);
+}
+
 /**
- * Successor from a hamlet: the oldest living adult folk Being standing in the hamlet's parcels that rules no other
- * dominion (`taken`). Ties go to the lower slot. Undefined when none qualifies.
+ * Whether slot `a` ranks before slot `b` for the crown (10 section 4): the rule's stat first (higher first), then age
+ * (oldest first, or youngest first under youngestFirst), then the lower slot.
  */
-function successorIn(env: RulerEnv, hamlet: Hamlet, taken: ReadonlySet<number>): RulerRef | undefined {
+function ranksBefore(s: BeingStore, a: number, b: number, rule?: SuccessionRule): boolean {
+  if (rule?.stat !== undefined) {
+    const va = statOf(s, a, rule.stat);
+    const vb = statOf(s, b, rule.stat);
+    if (va !== vb) return va > vb;
+  }
+  const ba = s.born[a] ?? 0;
+  const bb = s.born[b] ?? 0;
+  if (ba !== bb) return rule?.youngest ? ba > bb : ba < bb;
+  return a < b;
+}
+
+/**
+ * Successor from a hamlet: a living adult folk Being standing in the hamlet's parcels that rules no other dominion
+ * (`taken`). A sex preference (patriarchy, matriarchy) takes the preferred sex when any candidate has it. Then the order
+ * of ranksBefore. Undefined when none qualifies.
+ */
+function successorIn(env: RulerEnv, hamlet: Hamlet, taken: ReadonlySet<number>, rule?: SuccessionRule): RulerRef | undefined {
   const s = env.beings.store;
-  let best = -1;
+  const pool: number[] = [];
   for (let k = 0; k < s.size; k++) {
     const slot = s.at(k);
     if (taken.has(slot) || !env.beings.species(s.species[slot] ?? 0).folk) continue;
     if ((env.tick - (s.born[slot] ?? 0)) / YEAR_TICKS < (s.adultA[slot] ?? 1)) continue;
     const p = Math.floor((s.y[slot] ?? 0) / PARCEL) * env.perAxis + Math.floor((s.x[slot] ?? 0) / PARCEL);
     if (!hamlet.parcels.has(p)) continue;
-    if (best < 0 || (s.born[slot] ?? 0) < (s.born[best] ?? 0) || ((s.born[slot] ?? 0) === (s.born[best] ?? 0) && slot < best)) best = slot;
+    pool.push(slot);
   }
-  return best < 0 ? undefined : { slot: best, gen: s.generation[best] ?? 0 };
+  if (pool.length === 0) return undefined;
+  let cands = pool;
+  if (rule?.sex !== undefined) {
+    const sex = rule.sex;
+    const preferred = pool.filter((sl) => (s.female[sl] ?? 0) === sex);
+    if (preferred.length > 0) cands = preferred;
+  }
+  let best = cands[0] ?? -1;
+  for (const sl of cands) if (ranksBefore(s, sl, best, rule)) best = sl;
+  if (best < 0) return undefined;
+  return { slot: best, gen: s.generation[best] ?? 0 };
 }
 
 /**
  * One ruler step per sim-second (10 section 4, checkRuler). A dominion with a living ruler is left alone. A ruler found
  * dead is cleared and a wait of randomInt(100, 400) ticks starts. Once the wait is over, a dominion with no ruler takes
- * the oldest adult folk of its leading hamlet, if there is one. Dominions are visited in array order.
+ * the first folk its succession rule ranks (default: the oldest adult of its leading hamlet). Under unbrokenLine, when the
+ * leading hamlet has none, the dominion's other hamlets are searched in order. Dominions are visited in array order.
  */
 export function rulersStep(env: RulerEnv, dominions: readonly Dominion[]): void {
   const s = env.beings.store;
@@ -135,10 +176,19 @@ export function rulersStep(env: RulerEnv, dominions: readonly Dominion[]): void 
     if (env.tick < (d.rulerWaitUntil ?? 0)) continue;
     const hamlet = leadingHamlet(d.id, env.hamlets, env.owner);
     if (!hamlet) continue;
-    const next = successorIn(env, hamlet, taken);
+    const rule = env.ruleOf?.(d.id);
+    let next = successorIn(env, hamlet, taken, rule);
+    if (!next && rule?.unbroken) {
+      for (const h of env.hamlets) {
+        if (h === hamlet || hamletOwner(h, env.owner) !== d.id) continue;
+        next = successorIn(env, h, taken, rule);
+        if (next) break;
+      }
+    }
     if (!next) continue;
     d.ruler = next;
     taken.add(next.slot);
     delete d.rulerWaitUntil;
+    env.onInstall?.(d.id, next.slot, hamlet);
   }
 }

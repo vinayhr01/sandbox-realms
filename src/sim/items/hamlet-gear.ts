@@ -6,7 +6,8 @@
  */
 import { ITEM_KINDS, ITEM_KIND_BY_ID, type ItemGroup, type ItemKindDef } from '../../content/items.ts';
 import { refreshStats } from '../beings/system.ts';
-import { hamletsOf } from '../settlements/adapter.ts';
+import { customOf, hamletsOf } from '../settlements/adapter.ts';
+import { CRAFT_UNIQUE_IDS, craftGroupWeights, SMITH_SKILL } from '../culture/trait-rules.ts';
 import type { Hamlet } from '../settlements/hamlet.ts';
 import type { Sim } from '../sim.ts';
 import { createItem, hamletAt, stockPut, unwear, wear } from './system.ts';
@@ -26,6 +27,9 @@ const WORN_SLOTS = ['helm', 'body', 'boots', 'ring', 'amulet'] as const;
 const WEAPON_GROUPS: readonly ItemGroup[] = ['blade', 'cleaver', 'maul', 'pike', 'bow', 'staff'];
 /** Kinds a hamlet can craft: every non-unique kind, highest tier first (stable on registry order). */
 const CRAFTABLE: readonly ItemKindDef[] = ITEM_KINDS.filter((k) => !k.unique).sort((a, b) => b.tier - a.tier);
+/** Kinds a `craft` hamlet may build: the non-unique kinds plus the eight named uniques (11 section 9.1, trait-rules.ts). */
+const CRAFTABLE_WITH_UNIQUES: readonly ItemKindDef[] = ITEM_KINDS.filter((k) => !k.unique || CRAFT_UNIQUE_IDS.has(k.id)).sort((a, b) => b.tier - a.tier);
+const NO_TRAITS: readonly string[] = [];
 
 /**
  * Coins a crafter or repairer can spend (08 section 7.2 and 7.4). The default purse is the hamlet's
@@ -179,35 +183,58 @@ export function craftPass(sim: Sim, purse?: Purse): void {
     const crafter = slots[rng.int(slots.length)];
     if (!hamlet || crafter === undefined) continue;
     const wallet = purse ?? hamletPurse(hamlet);
-    craftSlot(sim, h, hamlet, wallet, crafter, 'weapon');
+    // The hamlet's custom traits (11 section 9.1: weaponLovers, smithMastery, craft) shape what it builds.
+    const traits = customOf(sim, hamlet)?.traits ?? NO_TRAITS;
+    craftSlot(sim, h, hamlet, wallet, crafter, 'weapon', traits);
     for (let k = 0; k < 5; k++) {
-      const armour = craftSlot(sim, h, hamlet, wallet, crafter, WORN_SLOTS[rng.int(WORN_SLOTS.length)] ?? 'body');
-      const weapon = craftSlot(sim, h, hamlet, wallet, crafter, 'weapon');
+      const armour = craftSlot(sim, h, hamlet, wallet, crafter, WORN_SLOTS[rng.int(WORN_SLOTS.length)] ?? 'body', traits);
+      const weapon = craftSlot(sim, h, hamlet, wallet, crafter, 'weapon', traits);
       if (!armour && !weapon) break;
     }
   }
 }
 
 /**
+ * Weapon group of one weapon attempt. Uniform over the six groups (the draw the sim always made), or weighted by
+ * weaponLovers (culture/trait-rules.ts) with the same single rng draw scale.
+ */
+function pickGroup(sim: Sim, traits: readonly string[]): ItemGroup {
+  const rng = sim.rng('items');
+  const weights = craftGroupWeights(traits);
+  if (!weights) return WEAPON_GROUPS[rng.int(WEAPON_GROUPS.length)] ?? 'blade';
+  let total = 0;
+  for (const g of WEAPON_GROUPS) total += weights[g] ?? 1;
+  let r = rng.next() * total;
+  for (const g of WEAPON_GROUPS) {
+    r -= weights[g] ?? 1;
+    if (r < 0) return g;
+  }
+  return 'blade';
+}
+
+/**
  * One craft attempt for one slot of the crafter. Candidates are the kinds of the slot (for weapons,
- * one random group), highest tier first. The first kind that beats the worn item's value and that the
+ * one group, picked by pickGroup), highest tier first. The first kind that beats the worn item's value and that the
  * hamlet stock and the purse can pay for is built, paid, and worn. The old item goes to hamlet stock.
  * A worn accursed item blocks crafting. Returns true when an item was built.
  */
-function craftSlot(sim: Sim, h: number, hamlet: Hamlet, purse: Purse, crafter: number, slotName: string): boolean {
+function craftSlot(sim: Sim, h: number, hamlet: Hamlet, purse: Purse, crafter: number, slotName: string, traits: readonly string[]): boolean {
   const store = sim.items;
   const index = ItemStore.indexOfSlot(slotName);
   if (index < 0) return false;
-  const group = slotName === 'weapon' ? (WEAPON_GROUPS[sim.rng('items').int(WEAPON_GROUPS.length)] ?? 'blade') : null;
+  const group = slotName === 'weapon' ? pickGroup(sim, traits) : null;
   const current = store.get(store.gearAt(crafter, index));
   if (current && isAccursed(current)) return false;
   const currentValue = current ? valueOf(current) : 0;
-  for (const kind of CRAFTABLE) {
+  const kinds = traits.includes('craft') ? CRAFTABLE_WITH_UNIQUES : CRAFTABLE;
+  // smithMastery adds its skill to the crafter's rolls (the roll count is the crafter skill, 08 section 7.1).
+  const tries = CRAFT_TRIES + (traits.includes('smithMastery') ? SMITH_SKILL : 0);
+  for (const kind of kinds) {
     if (kind.slot !== slotName || (group !== null && kind.group !== group)) continue;
     if (kind.equipmentValue <= currentValue) continue;
     if (!canPay(hamlet, purse, crafter, kind)) continue;
     pay(hamlet, purse, crafter, kind);
-    const inst = createItem(sim, kind.id, CRAFT_TRIES);
+    const inst = createItem(sim, kind.id, tries);
     if (!inst) return false;
     if (current) {
       unwear(sim, crafter, index);

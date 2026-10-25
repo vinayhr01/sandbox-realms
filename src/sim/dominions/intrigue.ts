@@ -56,10 +56,12 @@ export interface IntrigueEnv {
   tick: number;
   /** Ruler stats per dominion (rulers.ts). Optional: without it the opinion ruler stand-in holds. */
   rulerOf?: OpinionContext['rulerOf'];
+  /** Custom and strain lens for the opinion terms (opinion.ts). Optional. */
+  lens?: OpinionContext['lens'];
 }
 
 function opinionOf(env: IntrigueEnv): OpinionContext {
-  return { dominions: env.dominions, borders: env.borders, relations: env.relations, truce: env.truce, pacts: env.pacts.pacts, tick: env.tick, rulerOf: env.rulerOf };
+  return { dominions: env.dominions, borders: env.borders, relations: env.relations, truce: env.truce, pacts: env.pacts.pacts, tick: env.tick, rulerOf: env.rulerOf, lens: env.lens };
 }
 
 function dom(env: IntrigueEnv, id: number): Dominion | undefined {

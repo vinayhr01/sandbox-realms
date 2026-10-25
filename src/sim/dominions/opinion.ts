@@ -3,6 +3,7 @@ import { TRUCE_TICKS, type Truce } from './founding.ts';
 import type { Dominion, RelationMatrix } from './types.ts';
 import { pairKey } from './types.ts';
 import type { RulerStats } from './rulers.ts';
+import { opinionTerm } from '../culture/trait-rules.ts';
 
 /**
  * Ruler diplomacy stand-in, used for a dominion with no living ruler (10 section 10, TUNE). With a ruler, the term is the
@@ -30,6 +31,15 @@ export const OPINION_PARCEL_CAP = 20;
 /** Peace-time bonus cap, earned per year after the first five (10 section 10, TUNE). */
 export const OPINION_PEACE_CAP = 20;
 
+/**
+ * Custom and strain of each dominion, for the custom opinion terms (culture/trait-rules.ts): the trait ids of its custom
+ * and the majority strain of its folk. Built by the dominion adapter; optional, without it the custom terms are 0.
+ */
+export interface DominionLens {
+  traitsOf(dominionId: number): readonly string[];
+  strainOf(dominionId: number): number | undefined;
+}
+
 /** The state the opinion terms read. Plain data: no sim, no rng. */
 export interface OpinionContext {
   dominions: readonly Dominion[];
@@ -41,6 +51,8 @@ export interface OpinionContext {
   tick: number;
   /** Ruler stats of a dominion, or undefined without a living ruler (rulers.ts). Optional: without it the stand-in holds. */
   rulerOf?: (dominionId: number) => RulerStats | undefined;
+  /** Custom and strain lens (DominionLens). Optional. */
+  lens?: DominionLens;
 }
 
 /** The supreme dominion id (most strength, ties to the lower id), or -1. */
@@ -88,6 +100,12 @@ export function opinion(ctx: OpinionContext, a: number, b: number): number {
     }
   }
   if (ctx.pacts.some((p) => p.memberIds.includes(a) && p.memberIds.includes(b))) sum += OPINION_SAME_PACT;
+  // Custom terms (insular, welcoming, kinGuard): a's custom against the strains of a and b (culture/trait-rules.ts).
+  const lens = ctx.lens;
+  if (lens) {
+    const traits = lens.traitsOf(a);
+    if (traits.length > 0) sum += opinionTerm(traits, lens.strainOf(a), lens.strainOf(b));
+  }
   return sum;
 }
 

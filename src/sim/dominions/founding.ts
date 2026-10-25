@@ -56,6 +56,10 @@ export interface FoundingEnv {
   land(parcel: number): boolean;
   /** Soldiers a dominion has stationed in hamlet garrisons (garrison-adapter.ts). Absent: none. */
   garrisoned?(dominionId: number): number;
+  /** True when the dominion may not declare a campaign (custom peaceable or serenity). Optional: without it none is blocked. */
+  warBlocked?(dominionId: number): boolean;
+  /** Called when a declaration by the bigger side is blocked. Optional. */
+  onWarBlocked?(dominionId: number): void;
 }
 
 /** Ids a new dominion may take: 1..255 (the owner byte). Returns 0 when none is free. */
@@ -254,8 +258,12 @@ export function foundingYear(state: FoundingState, settlements: readonly Settlem
     }
     // Tension: declare when the bigger side has an army and still holds the power gap; otherwise the tension eases.
     if (outweighs(big, small, TENSION_RATIO) && big.strength > DECLARE_ARMY) {
-      relations.set(a, b, 'war');
-      state.truce.set(key, { a, b, until: tick + TRUCE_TICKS, declared: true });
+      if (env.warBlocked?.(big.id)) {
+        env.onWarBlocked?.(big.id);
+      } else {
+        relations.set(a, b, 'war');
+        state.truce.set(key, { a, b, until: tick + TRUCE_TICKS, declared: true });
+      }
     } else if (!outweighs(big, small, TENSION_RATIO)) {
       relations.set(a, b, 'peace');
     }

@@ -32,8 +32,14 @@ export function feelsMood(sim: Sim, slot: number): boolean {
 /** Applies one mood event (06 section 4.1, `changeMood`): mood = clamp(mood + value + extra). */
 export function addMood(sim: Sim, slot: number, event: MoodEvent, extra = 0): void {
   if (!feelsMood(sim, slot)) return;
+  addMoodValue(sim, slot, MOOD_VALUE[event] + extra);
+}
+
+/** Adds a raw mood amount (a book's mood, 11 section 5), clamped like addMood. Only Beings that feel mood change. */
+export function addMoodValue(sim: Sim, slot: number, value: number): void {
+  if (!feelsMood(sim, slot)) return;
   const s = sim.beings.store;
-  const next = (s.mood[slot] ?? 0) + MOOD_VALUE[event] + extra;
+  const next = (s.mood[slot] ?? 0) + value;
   s.mood[slot] = Math.min(MOOD_MAX, Math.max(MOOD_MIN, next));
 }
 

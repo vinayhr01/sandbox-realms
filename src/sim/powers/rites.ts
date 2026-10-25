@@ -6,6 +6,7 @@
  */
 import type { Sim } from '../sim.ts';
 import { recordStat } from '../stats-hooks.ts';
+import { hasTrait, traitIndex } from '../beings/afflictions.ts';
 
 /** Codex set that holds discovered species, as `species:<id>` (14 section 5). */
 const DISCOVERIES = 'discoveries';
@@ -30,6 +31,28 @@ export function blessAt(sim: Sim, x: number, y: number, radius: number, status: 
   let n = 0;
   for (const slot of beingsWithin(sim, x, y, radius)) {
     if (sim.effects.add(slot, status, sim.tick)) n++;
+  }
+  return n;
+}
+
+/**
+ * Hex cast (08 section 9.2 `hex_cast`, beings close 5): the curse drop. Every living Being within `radius` (Chebyshev) of
+ * (x,y) loses `haloed` (08 9.2) and gains `hexed` (8 5.3, 6000 ticks). A Being that already has `hexed` is skipped. A
+ * `hexbreaker` Being is cured on touch and not hexed (traits.ts). A `stalwartheart` Being is immune to mind statuses,
+ * `hexed` included (traits.ts), and keeps its `haloed`. Returns how many Beings were hexed.
+ */
+export function hexAt(sim: Sim, x: number, y: number, radius: number): number {
+  let n = 0;
+  const s = sim.beings.store;
+  for (const slot of beingsWithin(sim, x, y, radius)) {
+    if (hasTrait(sim, slot, 'hexbreaker')) {
+      sim.effects.remove(slot, 'hexed');
+      continue;
+    }
+    if (sim.effects.has(slot, 'hexed') || hasTrait(sim, slot, 'stalwartheart')) continue;
+    const haloed = traitIndex('haloed');
+    if (haloed >= 0) s.setMark(slot, haloed, false);
+    if (sim.effects.add(slot, 'hexed', sim.tick)) n++;
   }
   return n;
 }

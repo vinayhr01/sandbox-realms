@@ -6,8 +6,8 @@
  * The study traits (xp, levels), the book traits and the fight conversion (convertOrElse, rooted) keep their state in
  * CultureState (culture.ts); their hooks are here too. The keepers guard is splitCustom in culture.ts, and the split
  * preconditions are splitAllowed (trait-rules.ts). Still data: towerPride (no tower building), childLabour (the child flag
- * `mayTakeJob` is here; jobs.ts does not call it yet), bookLovers and eagerReaders (no read decision calls readBook: a new
- * decision row changes the chronicle beings section), keepers (no divide, schism or divergence decision calls splitCustom).
+ * `mayTakeJob` is here; jobs.ts does not call it yet), bookLovers and eagerReaders (the `read` decision calls readBook,
+ * beings close 5), keepers (no divide, schism or divergence decision calls splitCustom).
  */
 import type { Sim } from '../sim.ts';
 import { PARCEL, YEAR_TICKS } from '../../shared/constants.ts';
@@ -69,7 +69,7 @@ export function grantXp(sim: Sim, slot: number, amount: number): void {
 
 /**
  * A reader takes a book (11 section 5): xp through readBookEffects (eagerReaders, then the reader's study traits). Returns
- * the mood the reading gives (bookLovers), for the caller to apply. No caller yet: the read decision is not built.
+ * the mood the reading gives (bookLovers), for the caller to apply. Called by the `read` decision (system.ts).
  */
 export function readBook(sim: Sim, reader: number, book: Book): number {
   return readBookEffects(sim.culture, keyOfSlot(sim, reader), traitsOfSlot(sim, reader), book);

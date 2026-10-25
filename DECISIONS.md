@@ -10,10 +10,10 @@ Two parts. **Current state** is the latest verified state and wins over anything
 | Realm sizes | Grid side is 64 x sizeStep. New Realm menu offers 3 to 5 (192, 256, 320). The 512 px realm is not offered. |
 | Sim | Pure `Sim` class in a worker, 20 ticks/s, MessageChannel pump, 8 ms budget (warning only; tests use a 50 ms gate). Heartbeat is never posted. |
 | Determinism | sfc32 seeded RNG, FNV-1a state hash. Golden replay `tests/unit/golden.test.ts`, `GOLDEN_HASH = 2562049680`. Lint `scripts/check-determinism.mjs` (its own CI job) bans `Math.random`, `Date.now`, `new Date(`, `performance.now` and `crypto.getRandomValues` in `src/sim`, `src/shared` and `src/content`; `src/sim/worker.ts` is the one allowlisted file. |
-| Save format | `SCHEMA_VERSION = 3` (`src/sim/chronicle.ts`). Schema 2 and older are rejected. Sections 12 to 17 are optional where noted in the log. |
+| Save format | `SCHEMA_VERSION = 7` (`src/sim/chronicle.ts`; bumped from 6 in Beings close 5 for the 11 new decision rows). Schema 6 and older are rejected. Sections 12 to 17 are optional where noted in the log. |
 | Saves in play | Wired. The sim worker runs `encodeChronicle` and `decodeChronicle` on capture and restore commands (`src/sim/worker.ts`; `liveRealm` in `src/app/main.ts`). `SaveController` runs save, load, delete, export, import, autosave (timer and on pause) and the restore prompt over `SaveService` (IndexedDB, memory fallback). Not run in a real browser: the IndexedDB backend (type-checked and model-tested only). Checksum quarantine not built. |
 | Beings | 90 SPECIES rows (84 beasts, 6 Folk). Folk never spawn in play (`spawnFolk` has no caller). Traits: 144 being, 154 strain. Ecosystem exit test not met (see below). |
-| Combat and statuses | 24 status definitions (spec roster 56); 15 applied in play, 9 cut (see "Combat build 3"). `meleeSwing` and the bites are called by `predate` (eat_hunt). 9 projectile kinds launched (3 with owners added in Combat build 3). Device bombs (4) in play. Not tested (development instruction). |
+| Combat and statuses | 26 status definitions after Beings close 5 (was 24; spec roster 56); the 15 of Combat build 3 plus the new ones in play (see "Beings close 5"), the rest cut (see "Combat build 3"). `meleeSwing` and the bites are called by `predate` (eat_hunt). 9 projectile kinds launched (3 with owners added in Combat build 3). Device bombs (4) in play. Not tested (development instruction). |
 | Settlements, dominions, culture | Hamlets run (6 buildings). Dominions and culture are inert in play: `addDominion`, `addCustom`, `startIntrigue`, `addFamily` have no caller outside tests. |
 | Powers | 159 entries (138 before Powers round 4, plus 21). Favour: 21 entries (Bless and 20 round-4 entries); Insight: 2 (Lore and Compare). Favour and Insight rows the sim cannot express are cut (see Powers round 4). Enablement is by `powerStatus` (`src/ui/powerSupport.ts`). |
 | Rules, ages, calamities | 49 rules (about 18 never read), 11 ages, 16 calamities rolled every 80 ticks. |
@@ -2074,3 +2074,45 @@ Child job: the spec gives children work only when the custom allows child labour
 - Titan cost tier and the New realm window: not in the touch set.
 
 **Not verified.** Nothing was run. `GOLDEN_HASH` is not edited and will drift: the pier, harbor and mine change the build order, the round-robin changes every worker count, the leader changes garrison timers, and tag 22 is now written for every realm that runs the spread. It needs a re-baseline by a run with test access (as in round 6). The save round-trip of a mid-queue flora job needs a test: save mid-queue, resume, compare the state hash.
+
+## Beings close 5
+
+Scope: the four items after Beings close 4. (1) The 07 decision rows the remaining tasks need, and the 11 section 5 book rows, with the schema bump 6 to 7. (2) The statuses those rows need (`gasping`, `outburst`). (3) The Architect abilities of 07 section 13 on the possession command. (4) The hex source (08 section 9.2). Touch set: `src/content/decisions.ts`, `src/sim/beings/` (`system.ts`, `abilities.ts` new, `tuning.ts`, `social.ts`, `afflictions.ts`), `src/sim/effects.ts`, `src/sim/sim.ts`, `src/sim/combat.ts` (one type), `src/sim/chronicle.ts`, `src/sim/culture/` (`culture.ts`, `effects.ts`), `src/sim/powers/` (`rites.ts`, `handlers.ts`), `src/content/powers.ts`, `src/ui/powerSupport.ts`, `src/shared/protocol.ts`. Development only: no tests, tsc, vitest, build or Playwright. `GOLDEN_HASH` is not edited and will drift (see item 7).
+
+**1. Schema 7.** The decision catalogue grows from 16 to 27 rows (rows 16 to 26, appended, so the earlier cooldown indices keep their place). Every schema 6 save has 16 cooldowns per Being, so it fails the decision-count check. `SCHEMA_VERSION` goes 6 to 7, and schema 6 saves are rejected. The count check (`chronicle.ts`) still reads `DECISION_ROWS.length`, so it follows the table without a literal change. The save format is unreleased, so there is no migration.
+
+**2. Decision rows (07 3.6, 11 section 5).**
+- `eat_hamlet_food` (tier 3, weight 2.6, onlyHungry): a Folk whose hamlet has food takes one unit, fuel goes to 100, mood `ate`, then a wait of 20 to 100 ticks.
+- `extinguish` (tier 3, weight 4): a Folk walks to a burning tile within 3 and stops the fire from a tile beside it (`stopFire`).
+- `reach_land` (tier 4, weight 4): a gasping Being swims to the nearest land tile within 12. Once on land it has no goal, so the task ends.
+- `outburst_action` (tier 4, weight 3): while `outburst` lasts, the Being walks to and strikes the nearest non-ignored Being within 3.
+- `reflect` (tier 2, weight 2.5, the spec's weight), `laugh`, `sing`, `grumble`, `weep` (tier 1, weight 0.3, cooldown 600, TUNE): the emote tasks hold the Being for 40 ticks. 07 gives no weight or cooldown for the four, so those are placeholders. The emote itself is not sim state; the render can read the task id. No walk to a laughing Being and no `laughed` or `sang` mood (those moods are not in the table).
+- `read` (tier 2, weight 1, cooldown 2400, onlyAdult; 11 section 5): needs a hamlet, wit above 5 (intelligence has no sim stat, so the wit attribute stands in), and a readable book. A book is readable if it was not read in the last 200 ticks. The task calls `readBook` (culture/effects.ts), which gives the xp of `eagerReaders` (x3) and the mood of `bookLovers` (a negative mood reads as positive). The mood is applied by `addMoodValue` (social.ts). `Book` gains an optional `readAt` tick. Not built from the read effects: the 50% mind trait, the reading-effect traits of the book's dialect, the conversion lottery, and the ruler's copy of custom, dialect or creed.
+- `write_book` (tier 2, weight 0.5, TUNE): 11 section 5 gives `writeBook` as a process of a building, with no decision weight. No hamlet building has a book slot, so the row is never eligible. Its task is empty.
+- The two book rows are dormant in play: only `writeBook` fills `sim.culture.books`, and it has no caller. The `read` row is in the table for when a writer exists.
+
+**3. Statuses (08 5.3, 5.4).**
+- `gasping`: 20 ticks (1 s; 08 5.3 gives durations in ticks), 1 point of Drowning every 10 ticks, tag `ignoreFights`, not saved. Source: a Being in liquid (water layer) with 0 endurance, checked each tick in `stepBeings`. Beings never walk on water and the roster has no swimmer flag, so every Being is a non-swimmer here. In play the source needs a push into water (item 4, kick) or a flood.
+- `outburst`: 2400 ticks (08 5.4), grants `outburst_action`. Its source is not built: the `start_outburst` task and the mood triggers of 06 section 4.5 (mood below -70, `fiery_temper`) are not in the sim. So `outburst_action` cannot be picked yet. Its expiry mood `outburst_done` is not built (the effect store has no expiry hook for it).
+- `StatusDef` gains `drown`, `flat`, `persist` and `ignoreFights`. `sim.ts` uses `flat` for gasping's one point and types the damage as Drowning. `DamageType` gains `'Drowning'`.
+- Fights: a Being with `ignoreFights` is not a fight target, does not start a fight, and is not counted as an engaged foe.
+- Persistence: a status with `persist: false` is written as empty in the effects section (`savedEffectCodes`). `tagalong` is now `persist: false` too, as 08 section 11 and 15 section 3 list it. This is a schema 7 change in what a save keeps.
+
+**4. Possession abilities (07 13).** `Cmd.Possess` gains six optional flags: `kick`, `jump`, `talk`, `dash`, `steal`, `swear` (`protocol.ts`). `sim.ts` runs `possessAbilities` (`beings/abilities.ts`) after an accepted `on` command. Each flag is one shot, on that tick:
+- `kick`: the nearest Being within 1 tile is `dazed` and pushed 1.5 to 3 tiles (the spec's range, rounded) along the line. The push stops at a wall and may end in water.
+- `jump` (TUNE): lands on the farthest free land tile up to 2 tiles along the order direction.
+- `dash` (TUNE): up to 3 walkable steps toward the order tile, at no movement cost.
+- `talk`: the nearest Being within 2 gains `tagalong` (4000 ticks). 30% of talks are surprised (mood `talked_badly`); the rest give `talked_well`. The custom, creed and dialect imposition is not built (the culture layer is inert in play).
+- `steal` (range 2, spec): takes one worn item from the nearest Being within 2 and wears it in the same equipment slot of the controlled Being, if that slot is empty. Accursed items are refused (08 6.3).
+- `swear` (TUNE; 07 names it only): Beings within 3 take the `talked_badly` mood.
+- Not built: the per-species `canControl` flags (the roster has none, so every Being stays controllable, as before), and Wyrm and craft control. No UI sends `Cmd.Possess` yet; the Possess row stays disabled in `powerSupport.ts`.
+
+**5. Hex source (08 9.2, 8 5.3).** New power `hex_cast` (`content/powers.ts`, click, havoc tab, radius 3), handler `hex_cast` in `powers/handlers.ts`, which calls `hexAt` (`powers/rites.ts`). Every living Being within 3 tiles (Chebyshev) loses `haloed`, which 08 9.2 names, and gains `hexed` (6000 ticks). Skipped: a Being already hexed, a `stalwartheart` Being (immune to mind statuses per `traits.ts`, `haloed` kept), and a `hexbreaker` Being, which is cured and not hexed (traits.ts). The spell's aether cost, chance, distance and cooldown are not modelled: the sim has no aether state, and this power is the Architect's cast. Favour `fav_hex` (12 8.7) is unchanged. The `hexed` to boneshambler conversion in `afflictions.ts` is now reachable.
+
+**6. Choices to check.** `reflect` at weight 2.5 now competes at tier 2 with the work rows, so Beings will pause more often. The emote weights (0.3) and the ability numbers marked TUNE are first choices, not tuned.
+
+**7. Not verified and not closed.**
+- Not run: no tests, tsc, vitest, build or Playwright (instruction). Types were checked by reading.
+- `GOLDEN_HASH` (2562049680) is not edited and will drift: new decision rows change picks, new statuses and the hex and emote tasks change the state hash, and the `persist` change affects saves. It needs a re-baseline by a run with test access.
+- Tests to update when tests run: counts of `POWERS` (`tests/unit/ui-powers.test.ts`), the content hash (`src/content/content-hash.ts` hashes `POWERS`), and any test that asserts 16 decision rows, schema 6, or the 24-status count.
+- Not built: the outburst source and its expiry mood; the book read's full effects and any writer; the emote state and bubbles; the abilities' `canControl` flags.

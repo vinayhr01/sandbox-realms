@@ -9,6 +9,7 @@ import { refreshStats } from './beings/system.ts';
 import { restoreItems, saveItems, type ItemSave } from './items/system.ts';
 import { SPECIES } from '../content/beasts.ts';
 import { DECISION_ROWS } from '../content/decisions.ts';
+import { STATUSES } from './effects.ts';
 import { STRAIN_TRAIT_BY_ID } from '../content/traits.ts';
 import { CASTES, MORPHS, PALETTES } from '../content/variants.ts';
 import { freshCounters, type Strain } from './beings/strains.ts';
@@ -73,7 +74,24 @@ export const FORMAT_VERSION = 1;
  * 06 section 6.1), strain id, stored aptitudes and marks; section 17 holds the strain registry. Schema 2
  * saves are rejected: they have no parent links or strains to restore.
  */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
+
+/**
+ * Schema 7 (beings close 5): the decision catalogue grows from 16 to 27 rows (content/decisions.ts, rows 16 to 26), so every
+ * Being's cooldown table is 11 entries longer. The decision count is written first and must match, as before. Effects
+ * whose status is `persist: false` (gasping, tagalong) are written as empty codes, so they are dropped on save (08 section
+ * 11). Books carry an optional `readAt` tick. Schema 6 saves are rejected: their decision count is 16.
+ */
+
+/** The effect codes to write: every status except those with `persist: false`, which are written as 0 (empty). */
+function savedEffectCodes(code: Uint8Array): Uint8Array {
+  const out = new Uint8Array(code);
+  for (let k = 0; k < out.length; k++) {
+    const id = STATUSES[(out[k] ?? 0) - 1];
+    if (id && !id.persist) out[k] = 0;
+  }
+  return out;
+}
 const HEADER_BYTES = 16;
 /** Realm size steps a save (and a NewRealm command) may name. */
 export const MIN_SIZE_STEP = 2;
@@ -373,7 +391,7 @@ export function encodeChronicle(sim: Sim): Uint8Array {
     w.bytes(view(sim.combat.attackTimer));
   });
   section(body, TAG.effects, (w) => {
-    w.bytes(view(sim.effects.code));
+    w.bytes(view(savedEffectCodes(sim.effects.code)));
     w.bytes(view(sim.effects.until));
   });
   section(body, TAG.weather, (w) => {

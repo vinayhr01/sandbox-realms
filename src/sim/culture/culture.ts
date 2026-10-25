@@ -16,12 +16,24 @@ export interface Study {
   level: number;
 }
 
-/** A book written by a group (11 section 5). Keeps only what a reader takes from it: mood and xp. */
+/**
+ * A book written by a group (11 section 5). Keeps only what a reader takes from it: mood and xp. `readAt` is the tick of
+ * the last reading (beings close 5); a book is readable again 200 ticks later, and a book never read has none.
+ */
 export interface Book {
   id: number;
   group: number;
   mood: number;
   xp: number;
+  readAt?: number;
+}
+
+/** Ticks after a reading before a book can be read again (11 section 5). */
+export const BOOK_REST_TICKS = 200;
+
+/** The first book (in write order) that can be read at `tick`, or undefined (11 section 5 `readable`). */
+export function readableBook(state: CultureState, tick: number): Book | undefined {
+  return (state.books ?? []).find((b) => b.readAt === undefined || tick - b.readAt >= BOOK_REST_TICKS);
 }
 
 export interface Custom {

@@ -3,9 +3,8 @@
  * already has: the blow of a combat hit (system.ts strike) and the statuses of effects.ts. The conversion table and gates
  * are data; the spawn of the converted Being is in system.ts (`convertOnDeath`), which owns the Being lifecycle.
  *
- * Tumor tile contact (creep cover) is built (`creepContact`, beings close 4). Not built: the `spore` affliction's cloud
- * drop, the plague, the hex spell (08 sections 5 and 8; no spell state exists) and the tumor tick. A hex source needs the
- * spell, and no combat hit or Favour drop applies the `hexed` status (DECISIONS.md "Beings close 4").
+ * Tumor tile contact (creep cover) is built (`creepContact`, beings close 4). The hex source is the `hex_cast` power
+ * (powers/rites.ts `hexAt`, beings close 5). Not built: the `spore` affliction's cloud drop, the plague, and the tumor tick.
  */
 import { ground } from '../../content/grounds.ts';
 import { BEING_TRAIT_INDEX } from '../../content/traits.ts';

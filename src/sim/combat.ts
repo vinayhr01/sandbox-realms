@@ -5,7 +5,7 @@ import { SPECIES } from '../content/beasts.ts';
 import { BEING_TRAIT_INDEX } from '../content/traits.ts';
 
 /** Damage types of 08 section 1 that this milestone uses. */
-export type DamageType = 'Weapon' | 'Other' | 'Explosion' | 'Fire' | 'Acid' | 'Poison' | 'Starvation' | 'Age' | 'Eaten' | 'Divine';
+export type DamageType = 'Weapon' | 'Other' | 'Explosion' | 'Fire' | 'Acid' | 'Poison' | 'Starvation' | 'Age' | 'Eaten' | 'Divine' | 'Drowning';
 
 /** Types that plating reduces (08 section 1: plating applies only to Weapon and Other). */
 const PLATED = new Set<DamageType>(['Weapon', 'Other']);

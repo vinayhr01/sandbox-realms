@@ -33,8 +33,16 @@ export interface StatusDef {
   endsOnHit: boolean;
   /** Periodic damage is Fire (scorched) rather than Poison. */
   fire: boolean;
+  /** Periodic damage is Drowning (gasping) rather than Poison. */
+  drown: boolean;
   /** Periodic damage cannot take the being below 1 vitality (venomed, 08 5.3). */
   cannotKill: boolean;
+  /** Periodic damage in flat points, used instead of `fraction` when above 0 (gasping: 1, 18c). */
+  flat: number;
+  /** False when the status is not written to a save (08 section 11: puppeted, tagalong, gasping, the recover markers). */
+  persist: boolean;
+  /** The being takes no part in a fight while this lasts (08 5.3 tag `ignoreFights`, gasping). */
+  ignoreFights: boolean;
 }
 
 const base: Omit<StatusDef, 'id' | 'name' | 'ticks'> = {
@@ -49,7 +57,11 @@ const base: Omit<StatusDef, 'id' | 'name' | 'ticks'> = {
   noBreed: false,
   endsOnHit: false,
   fire: false,
+  drown: false,
   cannotKill: false,
+  flat: 0,
+  persist: true,
+  ignoreFights: false,
 };
 
 const S = (id: string, name: string, seconds: number, extra: Partial<StatusDef> = {}): StatusDef => ({
@@ -89,12 +101,18 @@ export const STATUSES: readonly StatusDef[] = [
   // `smitten`: 3600 ticks, given to both lovers when the lover link forms (06 4.4). Its mood +40 is the `bonded` event.
   S('smitten', 'Smitten', 180, {}),
   // `tagalong`: 4000 ticks, given to a Being that the Architect talks to (07 section 13). Its follow is in system.ts.
-  S('tagalong', 'Tagalong', 200, {}),
+  S('tagalong', 'Tagalong', 200, { persist: false }),
   // Combat close 5 (18c section 5, 08 section 5.3). `unnerved`: 400 ticks (20 s). Its mood -8 is on apply (creep-effects.ts,
   // moods.ts) and its 100-tick flight roll is in beings/system.ts. `giggling`: 60 ticks (3 s), emote only, so it has no
   // hook here; its source is the gourdgrowth evaluation (creep-effects.ts).
   S('unnerved', 'Unnerved', 20, {}),
   S('giggling', 'Giggling', 3, {}),
+  // Beings close 5 (08 section 5.3, 5.4). Appended, so the codes above keep their numbers in saves.
+  // `gasping`: 20 ticks (1 s; 08 5.3 gives durations in ticks), 1 point of Drowning every 10 ticks. Added by system.ts
+  // `gaspCheck` when a Being stands in liquid with no endurance. Not saved (08 section 11).
+  S('gasping', 'Gasping', 1, { every: 10, flat: 1, drown: true, ignoreFights: true, persist: false }),
+  // `outburst`: 2400 ticks (08 5.4). Grants the `outburst_action` decision (system.ts). Its source is not built.
+  S('outburst', 'Outburst', 120, {}),
 ];
 
 /**
@@ -206,7 +224,7 @@ export class EffectStore {
     return m;
   }
 
-  flag(slot: number, field: 'immobile' | 'immune' | 'wander' | 'noBreed' | 'endsOnHit'): boolean {
+  flag(slot: number, field: 'immobile' | 'immune' | 'wander' | 'noBreed' | 'endsOnHit' | 'ignoreFights'): boolean {
     const base = slot * MAX_EFFECTS;
     for (let k = 0; k < MAX_EFFECTS; k++) {
       const c = this.code[base + k] ?? 0;

@@ -29,9 +29,9 @@ import { taxFlowOf, taxRatesOf, type TaxFlow } from './tax.ts';
 import { leadingHamlet, rulersStep, rulerLive, rulerStatsOf, RULER_WAIT_MIN, RULER_WAIT_SPAN, type RulerRef, type RulerStats } from './rulers.ts';
 import { rankDominions, RANK_PERIOD_TICKS } from './rank.ts';
 import { hamletLoyalty, isHappy, loyaltyDue, LOYALTY_TASK_TICKS, type HamletLoyaltyFacts, type LoyaltyCache } from './loyalty.ts';
-import { captureStep, CAPTURE_STEP_TICKS, HAMLET_CAPTURE, type Capture, type CaptureFall } from './capture.ts';
+import { captureStep, CAPTURE_STEP_TICKS, HAMLET_CAPTURE, RAZE_CHECK_TICKS, razeStep, type Capture, type CaptureFall } from './capture.ts';
 import { cultureYearly } from '../culture/adapter.ts';
-import { blockedWarMood, campaignMood, captureMood, convertLineageUnits, groupOfSlot, lineageHas, rulerInstalled, traitsOfGroup, warBlocked as warBlockedBy } from '../culture/effects.ts';
+import { blockedWarMood, campaignMood, captureMood, convertLineageUnits, groupOfSlot, lineageHas, razedMood, rulerInstalled, traitsOfGroup, warBlocked as warBlockedBy } from '../culture/effects.ts';
 import { addMood } from '../beings/social.ts';
 import { customOfGroup, foundCreed, foundDialect, harmonyBonus, sameMeta, splitCreed, splitCustom, splitDialect, type MetaBirth } from '../culture/culture.ts';
 import { successionRuleOf, type FoundFacts, type SplitFacts } from '../culture/trait-rules.ts';
@@ -97,6 +97,8 @@ export interface DominionState {
   conqueredAt: Map<number, number>;
   /** Hamlets this state has taken from another dominion by capture (10 section 2 counter hamletsConquered). Saved as `hamletsConquered`. */
   hamletsConquered: number;
+  /** Hamlets razed by the raze check (capture.ts razeStep). Saved as `hamletsRazed`. */
+  hamletsRazed: number;
 }
 
 const states = new WeakMap<Sim, DominionState>();
@@ -122,6 +124,7 @@ export function dominionState(sim: Sim): DominionState {
       hold: new Map(),
       conqueredAt: new Map(),
       hamletsConquered: 0,
+      hamletsRazed: 0,
     };
     states.set(sim, s);
   }
@@ -246,6 +249,8 @@ export interface DominionSnapshot {
   captures?: { anchor: number; ticks: number; defenderTicks: number }[];
   /** Hamlets taken by capture (DominionState.hamletsConquered). Optional: written only when above 0. */
   hamletsConquered?: number;
+  /** Hamlets razed (DominionState.hamletsRazed). Optional: written only when above 0. */
+  hamletsRazed?: number;
   /** Hamlet gold at the last yearly pass by the hamlet's lowest parcel (tax.ts loot). Optional: written only when present. */
   taxSeen?: [number, number][];
   /** Per-hamlet tax flows of the latest yearly pass (tax.ts TaxFlow). Optional: written only when the pass taxed a hamlet. */
@@ -315,6 +320,7 @@ export function snapshotDominions(sim: Sim): DominionSnapshot | null {
     ...(s.loyalty.size > 0 ? { hamletLoyalty: [...s.loyalty].map(([i, c]): [number, number, number] => [i, c.value, c.tick]) } : {}),
     ...(s.captures.size > 0 ? { captures: [...s.captures].map(([anchor, c]) => ({ anchor, ticks: c.ticks, defenderTicks: c.defenderTicks })) } : {}),
     ...(s.hamletsConquered > 0 ? { hamletsConquered: s.hamletsConquered } : {}),
+    ...(s.hamletsRazed > 0 ? { hamletsRazed: s.hamletsRazed } : {}),
     ...(s.taxSeen.size > 0 ? { taxSeen: [...s.taxSeen] } : {}),
     ...(s.taxFlows.length > 0 ? { taxFlows: s.taxFlows.map((f) => ({ ...f })) } : {}),
     relations,
@@ -490,7 +496,9 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
   }
   const hamletsConquered = snap.hamletsConquered ?? 0;
   if (!isNum(hamletsConquered) || !Number.isInteger(hamletsConquered) || hamletsConquered < 0) bad('hamlets conquered');
-  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen, taxFlows, loyalty, captures, hold, conqueredAt: new Map(), hamletsConquered });
+  const hamletsRazed = snap.hamletsRazed ?? 0;
+  if (!isNum(hamletsRazed) || !Number.isInteger(hamletsRazed) || hamletsRazed < 0) bad('hamlets razed');
+  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen, taxFlows, loyalty, captures, hold, conqueredAt: new Map(), hamletsConquered, hamletsRazed });
 }
 
 /** Majority owner of a hamlet's parcels (ties to the lower id), or UNOWNED. Draws no randomness. */
@@ -724,6 +732,61 @@ export function captureTick(sim: Sim): void {
     },
   });
   for (const f of falls) applyFall(sim, s, f, hamlets);
+  // Raze check (10 section 7; capture.ts razeStep): every RAZE_CHECK_TICKS for every hamlet, and after a capture for the hamlet
+  // that fell. Both read the settlements census (hamlet folk), so the census of the last second is what counts.
+  const indices =
+    sim.tick % RAZE_CHECK_TICKS === 0
+      ? hamlets.map((_, i) => i)
+      : falls.flatMap((f) => {
+          const i = hamlets.findIndex((h) => anchorOf(h.parcels) === f.anchor);
+          return i >= 0 ? [i] : [];
+        });
+  const razes = razeStep(
+    {
+      perAxis: parcelsPerAxis(sim),
+      hamlets,
+      owner: s.owner,
+      dominions: s.dominions,
+      ownerOf: (parcels) => ownerOfHamlet(parcels, s.owner),
+      beingsOn: (parcels) => beingsOnParcels(sim, parcels),
+      evict: (slots, anchor) => moveBeingsTo(sim, slots, anchor),
+      feelRazed: (slots, capital) => razedMood(sim, slots, capital, s.conqueredAt, sim.tick),
+      isCapital: (loser, anchor) => {
+        const lh = leadingHamlet(loser, hamlets, s.owner);
+        return lh !== undefined && anchorOf(lh.parcels) === anchor;
+      },
+    },
+    indices,
+  );
+  s.hamletsRazed += razes.length;
+}
+
+/**
+ * Living beings standing on the parcels, in slot order: the same beings the settlements census counts for a hamlet's folk.
+ * Draws no randomness.
+ */
+function beingsOnParcels(sim: Sim, parcels: ReadonlySet<number>): number[] {
+  const st = sim.beings.store;
+  const perAxis = parcelsPerAxis(sim);
+  const out: number[] = [];
+  for (let k = 0; k < st.size; k++) {
+    const slot = st.at(k);
+    const p = Math.floor((st.y[slot] ?? 0) / PARCEL) * perAxis + Math.floor((st.x[slot] ?? 0) / PARCEL);
+    if (parcels.has(p)) out.push(slot);
+  }
+  return out;
+}
+
+/** Moves beings to the centre of parcel `anchor`, as fleeRuler moves a ruler. Draws no randomness. */
+function moveBeingsTo(sim: Sim, slots: readonly number[], anchor: number): void {
+  const st = sim.beings.store;
+  const perAxis = parcelsPerAxis(sim);
+  const x = (anchor % perAxis) * PARCEL + PARCEL / 2;
+  const y = Math.floor(anchor / perAxis) * PARCEL + PARCEL / 2;
+  for (const slot of slots) {
+    st.x[slot] = x;
+    st.y[slot] = y;
+  }
 }
 
 /** Lowest parcel of a hamlet: its key in the capture progress, the hold records and the tax loot (tax.ts). */

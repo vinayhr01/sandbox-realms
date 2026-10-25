@@ -187,3 +187,99 @@ function finishCapture(ctx: CaptureContext, parcels: ReadonlySet<number>, loser:
   ctx.captures.delete(anchor);
   return { anchor, loser, winner, capital };
 }
+
+/** Ticks between raze checks (10 section 7 and 15: raze check every 40 ticks). Spec value. */
+export const RAZE_CHECK_TICKS = 40;
+
+/** A hamlet as the raze step sees it: its parcels and its citizens (the settlements census of the hamlet's folk, hamlet.ts). */
+export interface RazeHamlet {
+  parcels: ReadonlySet<number>;
+  folk: number;
+}
+
+/** What one raze check reads and writes. The owner bytes and the dominions' parcel sets change when a hamlet is razed. */
+export interface RazeContext {
+  perAxis: number;
+  hamlets: readonly RazeHamlet[];
+  owner: Uint8Array;
+  dominions: readonly Dominion[];
+  /** Majority owner of a hamlet's parcels (adapter.ts), or 0 when none is owned. */
+  ownerOf(parcels: ReadonlySet<number>): number;
+  /** Living beings standing on these parcels, in slot order. Draws no randomness. */
+  beingsOn(parcels: ReadonlySet<number>): number[];
+  /** Moves beings to the parcel `anchor` (the lowest parcel of the nearest hamlet). */
+  evict(slots: readonly number[], anchor: number): void;
+  /** Raze moods for the Folk among the evicted (effects.ts razedMood). Called before the owner bytes change. */
+  feelRazed(slots: readonly number[], capital: boolean): void;
+  /** True when the hamlet with this lowest parcel is the loser's capital (rulers.ts leadingHamlet). Read before the bytes change. */
+  isCapital(loser: number, anchor: number): boolean;
+}
+
+/** A hamlet razed in one check: its lowest parcel, the dominion that lost it, the beings evicted, and whether it was the capital. */
+export interface RazeFall {
+  anchor: number;
+  loser: number;
+  evicted: number;
+  capital: boolean;
+}
+
+/** Lowest parcel of a parcel set. */
+function lowestParcel(parcels: ReadonlySet<number>): number {
+  let anchor = Infinity;
+  for (const p of parcels) anchor = Math.min(anchor, p);
+  return anchor;
+}
+
+/**
+ * The parcel of `anchors` nearest to `from` by squared distance between parcel positions (the armies.ts nearestEnemyParcel rule),
+ * ties to the lower parcel. undefined when there are none. Draws no randomness.
+ */
+export function nearestAnchor(from: number, anchors: readonly number[], perAxis: number): number | undefined {
+  const fx = from % perAxis;
+  const fy = Math.floor(from / perAxis);
+  let best: number | undefined;
+  let bestD = Infinity;
+  for (const a of anchors) {
+    const d = (a % perAxis - fx) ** 2 + (Math.floor(a / perAxis) - fy) ** 2;
+    if (d < bestD || (d === bestD && best !== undefined && a < best)) {
+      best = a;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/**
+ * Raze check (10 section 7, every RAZE_CHECK_TICKS, and after a capture). Rule set by the owner (DECISIONS.md "Raze close 14"):
+ * a dominion's hamlet with no citizen left (its census folk is 0) is razed. The beings still standing on its parcels are
+ * evicted to the nearest hamlet of the same dominion, or the nearest hamlet overall when it has none. With beings to evict and
+ * no hamlet to take them, nothing is razed. The Folk among the evicted feel the raze moods (feelRazed), the hamlet's parcels
+ * leave the dominion (no owner), and the caller counts the razes. Only owned hamlets are checked, so a razed hamlet is not
+ * razed again. Checks `indices` in order. Draws no randomness.
+ */
+export function razeStep(ctx: RazeContext, indices: readonly number[]): RazeFall[] {
+  const falls: RazeFall[] = [];
+  for (const i of indices) {
+    const h = ctx.hamlets[i];
+    if (!h || h.parcels.size === 0 || h.folk > 0) continue;
+    const loser = ctx.ownerOf(h.parcels);
+    if (loser === 0) continue;
+    const anchor = lowestParcel(h.parcels);
+    const anchorsOf = (sameDominion: boolean): number[] =>
+      ctx.hamlets.flatMap((o) => (o === h || o.parcels.size === 0 || (sameDominion && ctx.ownerOf(o.parcels) !== loser) ? [] : [lowestParcel(o.parcels)]));
+    const beings = ctx.beingsOn(h.parcels);
+    const to = nearestAnchor(anchor, anchorsOf(true), ctx.perAxis) ?? nearestAnchor(anchor, anchorsOf(false), ctx.perAxis);
+    if (beings.length > 0 && to === undefined) continue;
+    const capital = ctx.isCapital(loser, anchor);
+    ctx.feelRazed(beings, capital);
+    if (to !== undefined && beings.length > 0) ctx.evict(beings, to);
+    const from = ctx.dominions.find((d) => d.id === loser);
+    for (const p of h.parcels) {
+      if (ctx.owner[p] !== loser) continue;
+      ctx.owner[p] = 0;
+      from?.parcels.delete(p);
+    }
+    falls.push({ anchor, loser, evicted: beings.length, capital });
+  }
+  return falls;
+}

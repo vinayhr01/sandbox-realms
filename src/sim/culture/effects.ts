@@ -370,6 +370,20 @@ export function captureMood(
 }
 
 /**
+ * Raze moods (10 section 7, the raze check): the Folk among the beings evicted from a razed hamlet feel `razed` (-20), or
+ * `razed_capital` (-35) when it was the loser's capital. A unit stamped within CONQUERED_WINDOW feels neither (as captureMood).
+ * Reads the stamps. Draws no rng.
+ */
+export function razedMood(sim: Sim, slots: readonly number[], capital: boolean, conqueredAt: Map<number, number>, tick: number): void {
+  for (const f of slots) {
+    if (!sim.beings.species(sim.beings.store.species[f] ?? 0).folk) continue;
+    const t = conqueredAt.get(keyOfSlot(sim, f));
+    if (t !== undefined && tick - t < CONQUERED_WINDOW) continue;
+    addMood(sim, f, capital ? 'razed_capital' : 'razed');
+  }
+}
+
+/**
  * convertOrElse (11 section 9.1): after a blow that did not kill (beings/system.ts strike), a civil attacker (a Folk whose
  * custom holds the trait) below 30% vitality converts a weak non-mind target (not Folk, below 30% vitality) with 30%: the
  * victim follows the attacker's dominion (culture allegiance). A target whose current custom holds `rooted` is never

@@ -2795,3 +2795,30 @@ Choice: J, K, L, U, T, Y and N are free in 13 section 10 and in the app (the app
 - Attack aim at the cursor (07 section 13): the sim strikes the nearest Being within 1 tile. The aim input is not wired.
 - Expiry display and the `iron_will` yell (07 section 13): not built (carried from possess wiring close 11).
 - Touch layout is not checked on a device. Keys and the pad were checked only by reading the code against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`.
+## Raze close 14
+
+Scope: the raze check (10 section 7, every 40 ticks; 10 section 15). Owner decision: the raze rule is "empty hamlet". A hamlet with no citizen left is razed; the beings still standing in it are evicted to the nearest hamlet. Spec: `game\Spec\systems\10-dominions-wars-pacts-armies.md` section 7 (read only, checked before editing). Files: `src/sim/dominions/capture.ts` (`RAZE_CHECK_TICKS`, `RazeContext`, `razeStep`, `nearestAnchor`), `src/sim/dominions/adapter.ts` (`captureTick` runs the check, `beingsOnParcels`, `moveBeingsTo`, the `hamletsRazed` counter and its snapshot and restore), `src/sim/culture/effects.ts` (`razedMood`), `src/content/moods.ts` (`razed`, `razed_capital`), `src/sim/chronicle.ts` (`checkDominions` shape check for `hamletsRazed`). Development only: no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` is not edited.
+
+**Built.**
+- Trigger: the census folk of a hamlet is 0 (hamlet.ts `folk`, refreshed each second from the beings standing on its parcels, settlements/adapter.ts census). Checked every 40 ticks for every hamlet (10 section 15), and after a capture for the hamlet that fell. Only hamlets owned by a dominion are checked.
+- Eviction: the living beings still standing on the hamlet's parcels move to the lowest parcel of the nearest hamlet of the same dominion (squared distance between parcel positions, the armies.ts rule, ties to the lower parcel). With none of the same dominion, the nearest hamlet overall. With beings to evict and no other hamlet, nothing is razed.
+- Moods (10 section 7): the Folk among the evicted feel `razed` (-20), or `razed_capital` (-35) when the hamlet was the loser's capital. A unit stamped within CONQUERED_WINDOW (8000 ticks) feels neither, as in captureMood.
+- Record: `hamletsRazed` on the dominion state, saved as an optional `hamletsRazed` (written only above 0). `restoreDominions` checks it is a non-negative whole number; `checkDominions` checks it is a number.
+
+**Substitutions.**
+- The spec's gate (the captor's ruler is `insular`, of another lineage) is replaced by the owner's empty-hamlet rule. The lineage and custom checks are not built.
+- "Citizens" is the census folk (hamlet.ts `folk`), which counts every being on the parcels. The eviction moves the beings found on the parcels at the check. The census is refreshed each second, so a being that walked in since the last census is evicted here.
+- "Leader removed": the hamlet leader is not stored (census `leader`, refreshed each second). With no citizens there is none to remove, so nothing is done.
+- The spec does not say what happens to the land. A razed hamlet's parcels leave the dominion (owner bytes set to unowned, removed from the dominion's parcel set). The hamlet record stays (hamlets are indexed and never removed). Nothing else is re-owned.
+- Mood values: 10 section 7 gives razed -20 and razed capital -35. 06 section 4.1 gives `hamlet_lost / razed` -15 / -35. The raze section is followed, so `razed` changes from -35 to -20 in `src/content/moods.ts`, and `razed_capital` is added at -35.
+- No TUNE value is added. `RAZE_CHECK_TICKS` 40 is a spec value.
+
+**Remains, and why.**
+- A razed hamlet that a dominion later re-claims with no citizens is razed again and counted again. Nothing marks it as razed.
+- No chronicle event is raised for a raze. The `hamletsRazed` counter is the only record.
+- The ruler is not moved or stripped of the crown by a raze. A ruler standing in a razed hamlet is evicted like any being, so no `crown_lost`.
+
+**Effects on other code (for the lead).**
+- A hamlet of a dominion that holds no beings at a check is razed, and its parcels are released. This can happen in any run where a hamlet empties. `GOLDEN_HASH` will drift. Not checked.
+
+**Not verified.** Nothing was run. Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Needed with test access: a hamlet with no folk is razed and its parcels leave the dominion; a being left on its parcels moves to the nearest same-dominion hamlet; the razed mood values with the capital and the 8000-tick window; `hamletsRazed` round-trips through save and load; an old save without `hamletsRazed` loads with 0.

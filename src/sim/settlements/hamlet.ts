@@ -1,7 +1,8 @@
 import { ground } from '../../content/grounds.ts';
 import { PARCEL } from '../../shared/constants.ts';
 import type { Rng } from '../../shared/rng.ts';
-import { BUILDINGS, BUILDING_BY_ID, type BuildingDef } from './catalogue.ts';
+import { BUILDING_BY_ID, type BuildingDef, type JobId } from './catalogue.ts';
+import { assignJobs, MINER_COIN_STEPS, JOBS, workMultiplier } from './jobs.ts';
 
 /** Parcels are 8x8 tiles (01 section 2). Defined once in shared constants; re-exported here for existing importers. */
 export { PARCEL };
@@ -24,7 +25,7 @@ export interface Hamlet {
   growTimer: number;
   /** Stone left in the outcrops quarries work (09 section 8; regrows slowly). */
   outcrops: number;
-  /** Growth steps taken, used for outcrop regrowth. */
+  /** Growth steps taken, used for outcrop regrowth and miner coins. */
   steps: number;
   /** Hamlet gold: the purse that building costs and gear coins are paid from (09 section 10.5). */
   gold: number;
@@ -32,7 +33,7 @@ export interface Hamlet {
 
 /** Coins a completing builder earns (09 section 8). The sim has no builder beings, so the coins go to the hamlet gold (TUNE). */
 export const BUILDER_COINS = 6;
-/** Garrison build gates (09 section 6 order: pop 50, bldg 16, parcels 20). The spec's hall tier 2 gate is cut: no hall exists (TUNE). */
+/** Garrison build gates (09 section 6 order: pop 50, bldg 16, parcels 20). */
 export const GARRISON_FOLK = 50;
 export const GARRISON_BUILDINGS = 16;
 export const GARRISON_PARCELS = 20;
@@ -87,6 +88,14 @@ export const OUTCROP_CAP = 60;
 /** Growth steps between one unit of outcrop regrowth (TUNE). */
 export const OUTCROP_REGROW_STEPS = 5;
 
+/** Housing slots that count as a house for the "houses under four" rule (the 09 house tiers). */
+const HOUSE_TIERS = ['dwelling_6', 'dwelling_5', 'dwelling_4', 'dwelling_3', 'dwelling_2', 'dwelling_1', 'lean_to'] as const;
+/** Mood: slots filled by folk score per unit of housing comfort, homeless folk score against it (TUNE). */
+const HOUSING_MOOD_PER_POINT = 3;
+const HOMELESS_MOOD = 30;
+/** Mood cap on the buildings' own bonuses (TUNE). */
+const MOOD_BUILDING_CAP = 30;
+
 export function createHamlet(parcelIndex: number, folk: number): Hamlet {
   // Gold starts at 0: the spec gives no starting gold for a hamlet (10.1 lists deposits, tax, trade and loot only).
   return { parcels: new Set([parcelIndex]), food: BASE_FOOD_STORE, wood: 60, stone: 30, folk, buildings: [], growTimer: 0, outcrops: OUTCROP_START, steps: 0, gold: 0 };
@@ -95,6 +104,11 @@ export function createHamlet(parcelIndex: number, folk: number): Hamlet {
 /** Food capacity of the store: the base store plus the capacity each granary adds. */
 export function foodCapacity(h: Hamlet): number {
   return BASE_FOOD_STORE + h.buildings.reduce((s, b) => s + (b.def.id === 'granary' ? b.def.foodCapacity : 0), 0);
+}
+
+/** Depth of a building in tiles (square when the def has no height). */
+function heightOf(def: BuildingDef): number {
+  return def.height ?? def.footprint;
 }
 
 /** True when a tile can carry a building: land (not water, molten, slime or blocked), no flora, free of other buildings. */
@@ -108,7 +122,7 @@ export function buildable(ctx: HamletContext, x: number, y: number, h: Hamlet): 
   const p = Math.floor(y / PARCEL) * (side / PARCEL) + Math.floor(x / PARCEL);
   if (!h.parcels.has(p)) return false;
   for (const b of h.buildings) {
-    if (x >= b.x && y >= b.y && x < b.x + b.def.footprint && y < b.y + b.def.footprint) return false;
+    if (x >= b.x && y >= b.y && x < b.x + b.def.footprint && y < b.y + heightOf(b.def)) return false;
     if (x === b.x && y === b.y) return false;
   }
   return true;
@@ -120,13 +134,14 @@ export function placeBuilding(ctx: HamletContext, h: Hamlet, def: BuildingDef): 
   const side = ctx.realm.side;
   const ordered = [...h.parcels].sort((a, b) => a - b);
   const perAxis = side / PARCEL;
+  const depth = heightOf(def);
   for (const p of ordered) {
     const px = (p % perAxis) * PARCEL;
     const py = Math.floor(p / perAxis) * PARCEL;
-    for (let y = py; y <= py + PARCEL - def.footprint; y++) {
+    for (let y = py; y <= py + PARCEL - depth; y++) {
       for (let x = px; x <= px + PARCEL - def.footprint; x++) {
         let ok = true;
-        for (let dy = 0; dy < def.footprint && ok; dy++) {
+        for (let dy = 0; dy < depth && ok; dy++) {
           for (let dx = 0; dx < def.footprint && ok; dx++) {
             ok = buildable(ctx, x + dx, y + dy, h);
           }
@@ -176,10 +191,127 @@ function expandTerritory(ctx: HamletContext, h: Hamlet): boolean {
   return false;
 }
 
+/** Folk housing slots the hamlet's buildings give. */
+export function housingSlots(h: Hamlet): number {
+  return h.buildings.reduce((s, b) => s + b.def.housing, 0);
+}
+
+function countOf(h: Hamlet, id: string): number {
+  return h.buildings.reduce((n, b) => n + (b.def.id === id ? 1 : 0), 0);
+}
+
+function hasAll(h: Hamlet, needs: readonly string[]): boolean {
+  return needs.every((id) => countOf(h, id) > 0);
+}
+
 /**
- * One hamlet tick (09 sections 4-5, reduced). Every 100 ticks: folk eat from the store, the
- * population grows when food covers it and housing has room, and the hamlet builds the cheapest
- * useful building it can afford (house first while folk outnumber housing, then granary, then well).
+ * Hamlet mood, -100..100 (09 section 9, hamlet level; TUNE). Housing: folk in slots score the average
+ * housing comfort of the slots, homeless folk score against it. Food: stock per folk. Buildings: their
+ * own mood bonuses, capped. Derived from state each call; nothing is stored.
+ */
+export function hamletMood(h: Hamlet): number {
+  let housing = 0;
+  let comfort = 0;
+  let bonus = 0;
+  for (const b of h.buildings) {
+    housing += b.def.housing;
+    comfort += b.def.housing * (b.def.housingMood ?? 0);
+    bonus += b.def.moodBonus ?? 0;
+  }
+  let mood = 0;
+  if (h.folk > 0) {
+    const housed = Math.min(h.folk, housing);
+    const homeless = h.folk - housed;
+    const avg = housing > 0 ? comfort / housing : 0;
+    mood += (housed * avg * HOUSING_MOOD_PER_POINT - homeless * HOMELESS_MOOD) / h.folk;
+    const ratio = h.food / h.folk;
+    mood += ratio >= 4 ? 20 : ratio >= 2 ? 10 : ratio >= 1 ? 0 : -20;
+  }
+  mood += Math.min(bonus, MOOD_BUILDING_CAP);
+  return Math.max(-100, Math.min(100, Math.round(mood)));
+}
+
+/** A building rule: its gates, on top of the limit of one per hamlet and the building's `needs` (09 section 6). */
+interface BuildRule {
+  id: string;
+  minFolk?: number;
+  minBuildings?: number;
+  minParcels?: number;
+  when?: (h: Hamlet) => boolean;
+}
+
+/**
+ * Build order, in priority (09 section 6 advanced list, reduced). Gates are the spec's where it gives them;
+ * waystop's are TUNE. Each id is built at most once per hamlet.
+ */
+const RULES: readonly BuildRule[] = [
+  { id: 'hearth_fire' },
+  { id: 'larder' },
+  { id: 'granary' },
+  { id: 'great_hall_1' },
+  { id: 'quarry', when: (h) => h.stone < 10 && h.buildings.filter((b) => b.def.housing > 0).length >= 2 },
+  { id: 'lumber_camp', when: (h) => h.wood < 30 && h.folk >= 4 },
+  { id: 'quarry_lodge', minFolk: 20, when: (h) => countOf(h, 'quarry') > 0 },
+  { id: 'waystop', minFolk: 25, minBuildings: 10 },
+  { id: 'great_hall_2', minFolk: 30, minBuildings: 8 },
+  { id: 'garrison', minFolk: GARRISON_FOLK, minBuildings: GARRISON_BUILDINGS, minParcels: GARRISON_PARCELS },
+  { id: 'monument', minFolk: 70, minBuildings: 15 },
+  { id: 'great_hall_3', minFolk: 100, minBuildings: 20 },
+];
+
+/**
+ * Buildings the hamlet may try this step, in order; the first that places is built. House tiers come
+ * first while folk outnumber housing or fewer than four houses stand, highest tier first. Only
+ * buildings whose `needs` are standing are listed.
+ */
+export function buildChoices(h: Hamlet): BuildingDef[] {
+  const houseCount = h.buildings.filter((b) => (HOUSE_TIERS as readonly string[]).includes(b.def.id)).length;
+  const housingNeeded = h.folk > housingSlots(h) || houseCount < 4;
+  const houses: BuildingDef[] = [];
+  for (const id of HOUSE_TIERS) {
+    const def = BUILDING_BY_ID.get(id);
+    if (def && hasAll(h, def.needs ?? [])) houses.push(def);
+  }
+  const specials: BuildingDef[] = [];
+  for (const rule of RULES) {
+    const def = BUILDING_BY_ID.get(rule.id);
+    if (!def || countOf(h, rule.id) > 0 || !hasAll(h, def.needs ?? [])) continue;
+    if (rule.minFolk !== undefined && h.folk < rule.minFolk) continue;
+    if (rule.minBuildings !== undefined && h.buildings.length < rule.minBuildings) continue;
+    if (rule.minParcels !== undefined && h.parcels.size < rule.minParcels) continue;
+    if (rule.when && !rule.when(h)) continue;
+    specials.push(def);
+  }
+  return housingNeeded ? [...houses, ...specials] : specials;
+}
+
+/**
+ * Pays out the workers' output into the hamlet store (09 section 8 yields), scaled by the mood
+ * multiplier. Food stops at the store cap. Miners take stone from the outcrops, plus any quarry lodge bonus.
+ */
+function runJobs(h: Hamlet, workers: ReadonlyMap<JobId, number>, mult: number, foodCap: number): void {
+  const bonus = h.buildings.reduce((s, b) => s + (b.def.outcropBonus ?? 0), 0);
+  for (const job of JOBS) {
+    const n = workers.get(job.id) ?? 0;
+    if (n === 0) continue;
+    const amount = Math.floor(n * job.perWorker * mult);
+    if (job.resource === 'food') {
+      if (h.food < foodCap) h.food = Math.min(h.food + amount, foodCap);
+    } else if (job.resource === 'wood') {
+      h.wood += amount;
+    } else {
+      const take = Math.min(h.outcrops, Math.floor(amount * (1 + bonus)));
+      h.outcrops -= take;
+      h.stone += take;
+    }
+    if (job.id === 'miner' && h.steps % MINER_COIN_STEPS === 0) h.gold += n;
+  }
+}
+
+/**
+ * One hamlet tick (09 sections 4-5, 6 and 8, reduced). Every 100 steps: folk eat from the store, the
+ * population grows when food covers it and housing has room, the hamlet builds the first choice that
+ * places, then its buildings and workers add to the store.
  */
 export function hamletStep(ctx: HamletContext, h: Hamlet): void {
   h.growTimer -= 1;
@@ -188,32 +320,21 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
   const eaten = Math.min(h.food, h.folk);
   h.food -= eaten;
   if (h.food < h.folk) h.folk = Math.max(1, h.folk - 1);
-  const housing = h.buildings.reduce((s, b) => s + b.def.housing, 0);
+  const housing = housingSlots(h);
   if (ctx.isOn('folk_births') && h.food > h.folk * 2 && h.folk < housing && h.folk < 100) h.folk += 1;
-  const granaries = h.buildings.filter((b) => b.def.id === 'granary').length;
-  const wells = h.buildings.filter((b) => b.def.id === 'well').length;
-  const houses = h.buildings.filter((b) => b.def.id === 'house').length;
-  const quarries = h.buildings.filter((b) => b.def.id === 'quarry').length;
-  const garrisons = h.buildings.filter((b) => b.def.id === 'garrison').length;
-  // The garrison comes once the hamlet is large and built up (09 build order gates, see GARRISON_*).
-  const garrisonDue = garrisons === 0 && h.folk >= GARRISON_FOLK && h.buildings.length >= GARRISON_BUILDINGS && h.parcels.size >= GARRISON_PARCELS;
-  // Stone runs out without a quarry: build one once the first basics stand and stone is low.
-  const wanted = h.folk > housing ? 'house' : granaries === 0 ? 'granary' : wells === 0 ? 'well' : quarries === 0 && h.stone < 10 && houses >= 2 ? 'quarry' : garrisonDue ? 'garrison' : houses < 4 ? 'house' : null;
-  const def = wanted ? BUILDING_BY_ID.get(wanted) : undefined;
-  // Territory grows only after an affordable building is actually placed; the builder's coins follow the placement.
-  if (def && h.wood >= def.wood && h.stone >= def.stone && placeBuilding(ctx, h, def)) {
-    h.gold += BUILDER_COINS;
-    expandTerritory(ctx, h);
+  // One building per step. Territory grows only after a building is actually placed; the builder's coins follow the placement.
+  for (const def of buildChoices(h)) {
+    if (placeBuilding(ctx, h, def)) {
+      h.gold += BUILDER_COINS;
+      expandTerritory(ctx, h);
+      break;
+    }
   }
   // Wells yield food per step; granaries only raise the store cap. Yield stops at the cap; stock above it is kept.
   const cap = foodCapacity(h);
   if (h.food < cap) h.food = Math.min(h.food + h.buildings.reduce((s, b) => s + b.def.foodYield, 0), cap);
   h.wood += h.buildings.reduce((s, b) => s + b.def.woodYield, 0);
-  // Quarries take stone from the outcrops; the outcrops regrow slowly, up to their cap.
-  const take = Math.min(h.outcrops, h.buildings.reduce((s, b) => s + (b.def.stoneYield ?? 0), 0));
-  h.outcrops -= take;
-  h.stone += take;
+  runJobs(h, assignJobs(h), workMultiplier(hamletMood(h)), cap);
   h.steps += 1;
   if (h.steps % OUTCROP_REGROW_STEPS === 0 && h.outcrops < OUTCROP_CAP) h.outcrops += 1;
 }
-

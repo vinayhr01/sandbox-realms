@@ -2,8 +2,12 @@ import type { Rng } from '../../shared/rng.ts';
 import { ssToTicks } from '../clock.ts';
 import type { Realm } from '../realm.ts';
 import type { BeingStore } from '../beings/store.ts';
+import type { Sim } from '../sim.ts';
+import { dominionState, UNOWNED } from '../dominions/adapter.ts';
+import { FOUND_FOLK } from '../dominions/founding.ts';
 import { buildable, createHamlet, goodFoundingParcel, hamletStep, PARCEL, type Hamlet, type HamletContext, type Placed } from './hamlet.ts';
 import { BUILDING_BY_ID } from './catalogue.ts';
+import { SUPPLY_PERIOD, tradeStep } from './trade.ts';
 
 /** Hamlets placed per realm at worldgen (TUNE). Kept: 09 does not place hamlets at worldgen, but the worldgen placement stays as it was. */
 export const HAMLETS_WANTED = 3;
@@ -204,4 +208,28 @@ export function settlementsStep(host: SettlementHost): void {
     const own: HamletContext = { ...ctx, claimed: (q) => state.hamlets.some((o) => o !== h && o.parcels.has(q)) };
     hamletStep(own, h);
   }
+  // Supply round (09 10.4). Dominion owner bytes are read only on a supply tick, and only once a hamlet
+  // can found a dominion: dominionState creates the dominion state on first use.
+  if (host.tick % SUPPLY_PERIOD === 0 && state.hamlets.some((h) => h.folk >= FOUND_FOLK)) {
+    const owner = dominionState(host as unknown as Sim).owner;
+    tradeStep(state.hamlets, (h) => majorityOwner(owner, h), host.tick);
+  }
+}
+
+/** The dominion holding most of a hamlet's parcels (ties to the lower id), or UNOWNED when none holds one. */
+function majorityOwner(owner: Uint8Array, h: Hamlet): number {
+  const counts = new Map<number, number>();
+  for (const p of h.parcels) {
+    const o = owner[p] ?? UNOWNED;
+    if (o !== UNOWNED) counts.set(o, (counts.get(o) ?? 0) + 1);
+  }
+  let best = UNOWNED;
+  let bestN = 0;
+  for (const [id, n] of counts) {
+    if (n > bestN || (n === bestN && id < best)) {
+      best = id;
+      bestN = n;
+    }
+  }
+  return best;
 }

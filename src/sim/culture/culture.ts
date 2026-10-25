@@ -285,7 +285,8 @@ export function bookCount(state: CultureState, group: number): number {
 /**
  * Divide or schism of a custom (11 sections 2 and 9.1): a new custom for `newGroup` with the parent's traits copied, no
  * random draw. Refused (null) when the parent has no custom, `newGroup` already has one, or the parent holds `keepers`.
- * Not built: the population and age preconditions, the name recipe clone and the sound shift.
+ * The population, age and actor preconditions are splitAllowed (trait-rules.ts), with no caller yet. Not built: the name
+ * recipe clone and the sound shift.
  */
 export function splitCustom(state: CultureState, parentGroup: number, newGroup: number): Custom | null {
   const parent = customOfGroup(state, parentGroup);

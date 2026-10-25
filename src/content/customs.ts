@@ -59,7 +59,7 @@ serenity|uncommon||blocks declareCampaign|live
 insular|uncommon|welcoming|-50 opinion to other strains; razes conquered towns of other lineages|live
 kinGuard|uncommon||-50 opinion to same-strain dominions of other customs|live
 welcoming|uncommon|insular|+20 opinion to same strain|live
-rooted|rare||cannot be replaced by conversion (fight)|live
+rooted|rare||cannot be replaced by conversion (fight, talk)|live
 keepers|rare||blocks divide, schism and divergence|data
 patriarchy|uncommon|matriarchy|male first in succession; opposite-sex ruler -50 loyalty|live
 matriarchy|uncommon|patriarchy|female first in succession; opposite-sex ruler -50 loyalty|live

@@ -116,6 +116,45 @@ export function blocksSplit(traits: readonly string[]): boolean {
   return traits.includes('keepers');
 }
 
+/** Split preconditions (11 section 2, TUNE: 200 members and 100 years in compact worlds). */
+export const SPLIT_PEOPLE = 1000;
+export const SPLIT_YEARS = 500;
+/** The actor must lead a hamlet at this level or above (11 section 2). */
+export const SPLIT_LEVEL = 5;
+
+/** Facts a divide, schism or divergence needs (11 section 2 preconditions); the caller reads them from the sim. */
+export interface SplitFacts {
+  traits: readonly string[];
+  /** Living members of the meta. */
+  members: number;
+  /** Age of the meta in years. */
+  ageYears: number;
+  /** Level of the actor, a hamlet leader. */
+  leaderLevel: number;
+  /** Hamlets of the actor's dominion (a multi-hamlet dominion is needed). */
+  dominionHamlets: number;
+  /** True when the meta is the dominion's own meta. */
+  sameMeta: boolean;
+  /** True when the meta's creator dominion or clan differs from the actor's. */
+  creatorDiffers: boolean;
+}
+
+/**
+ * Whether a meta may divide, schism or diverge (11 section 2): keepers blocks it, and so does any failed precondition.
+ * Pure: the intrigue that would call it is not built (DECISIONS.md, "Customs close 4"). Draws no rng.
+ */
+export function splitAllowed(f: SplitFacts): boolean {
+  if (blocksSplit(f.traits)) return false;
+  return (
+    f.members >= SPLIT_PEOPLE &&
+    f.ageYears >= SPLIT_YEARS &&
+    f.leaderLevel >= SPLIT_LEVEL &&
+    f.dominionHamlets > 1 &&
+    f.sameMeta &&
+    f.creatorDiffers
+  );
+}
+
 /** Whether a custom holds `rooted`: conversion cannot replace its members' custom (11 section 9.1). */
 export function blocksConversion(traits: readonly string[]): boolean {
   return traits.includes('rooted');

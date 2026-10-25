@@ -4,9 +4,10 @@
  * and war hooks (dominions/step.ts, dominions/founding.ts, dominions/adapter.ts) and the ruler step (dominions/rulers.ts).
  * Mood goes through addMood (beings/social.ts). Draws only from the `culture` stream. Pure rules are in trait-rules.ts.
  * The study traits (xp, levels), the book traits and the fight conversion (convertOrElse, rooted) keep their state in
- * CultureState (culture.ts); their hooks are here too. The keepers guard is splitCustom in culture.ts. Still data:
- * towerPride and childLabour (no building or job reads them yet), bookLovers and eagerReaders (no read decision calls readBook),
- * keepers (no divide, schism or divergence decision calls splitCustom).
+ * CultureState (culture.ts); their hooks are here too. The keepers guard is splitCustom in culture.ts, and the split
+ * preconditions are splitAllowed (trait-rules.ts). Still data: towerPride (no tower building), childLabour (the child flag
+ * `mayTakeJob` is here; jobs.ts does not call it yet), bookLovers and eagerReaders (no read decision calls readBook: a new
+ * decision row changes the chronicle beings section), keepers (no divide, schism or divergence decision calls splitCustom).
  */
 import type { Sim } from '../sim.ts';
 import { PARCEL, YEAR_TICKS } from '../../shared/constants.ts';
@@ -15,7 +16,7 @@ import { MAX_BEINGS } from '../beings/store.ts';
 import { vitalityRatio } from '../beings/trait-hooks.ts';
 import { dominionOwnerOf } from '../dominions/adapter.ts';
 import { addXp, customOfGroup, readBookEffects, type Book } from './culture.ts';
-import { blocksConversion, blocksWar, CONVERT_CHANCE, CONVERT_HP_RATIO, MENTOR_XP, successionRuleOf } from './trait-rules.ts';
+import { blocksConversion, blocksWar, childMayWork, CONVERT_CHANCE, CONVERT_HP_RATIO, MENTOR_XP, successionRuleOf } from './trait-rules.ts';
 
 const NONE: readonly string[] = [];
 
@@ -112,14 +113,57 @@ function gift(sim: Sim, giver: number, partner: number, traits: readonly string[
 }
 
 /**
+ * Meta spread by talk (11 section 4.4, custom side). Both speakers must be Folk (the memory the spec asks for), belong to
+ * different dominions, and each dominion must hold a custom. Six tickets: three for each speaker's meta. One draw
+ * decides the winner; the loser speaker's meta is replaced, which here means the loser's allegiance moves to the
+ * winner's dominion group (the same record convertByFight writes). A loser whose custom holds `rooted` keeps it.
+ * Substitutions: the +1 tickets of the hamlet and dominion matches (hamlet customs are not modelled, and the speaker's
+ * dominion is the meta here), and the dialect side (creed and dialect spread are not built). Draws from `culture` only
+ * when every condition holds.
+ */
+function talkSpread(sim: Sim, a: number, b: number): void {
+  if (!isFolkSlot(sim, a) || !isFolkSlot(sim, b)) return;
+  const ga = groupOfSlot(sim, a);
+  const gb = groupOfSlot(sim, b);
+  if (ga === 0 || gb === 0 || ga === gb) return;
+  if (!customOfGroup(sim.culture, ga) || !customOfGroup(sim.culture, gb)) return;
+  const aWins = sim.rng('culture').next() < 0.5;
+  const loser = aWins ? b : a;
+  const winner = aWins ? ga : gb;
+  if (blocksConversion(traitsOfSlot(sim, loser))) return;
+  const allegiance: Record<string, number> = sim.culture.allegiance ?? {};
+  allegiance[String(keyOfSlot(sim, loser))] = winner;
+  sim.culture.allegiance = allegiance;
+}
+
+/**
+ * Child flag (11 section 9.1 childLabour): a Being is a child while it is under its adult age. Read from the Being's age
+ * only. Draws no rng.
+ */
+export function isChild(sim: Sim, slot: number): boolean {
+  return !adult(sim, slot);
+}
+
+/**
+ * Whether a Being may take a job (childLabour, 11 section 9.1). Adults always may. A child may only when its dominion's
+ * custom holds `childLabour`. For the jobs step to call; jobs.ts does not call it yet. Draws no rng.
+ */
+export function mayTakeJob(sim: Sim, slot: number): boolean {
+  if (!isChild(sim, slot)) return true;
+  return childMayWork(traitsOfSlot(sim, slot));
+}
+
+/**
  * Effects of one chat outcome between two Folk or a Folk and a beast (beings/system.ts chat): gossipers (each talker
  * whose custom holds it gets `gossiped`), chatterCircle (50%: both `inspired` when either custom holds it), and the
  * childShelter and elderRespect gifts. Called after the chat's own mood. Draws only from the `culture` stream.
- * mentorTrade (11 section 4.4: +10 xp both): on a good talk (`good`, the 70% outcome; the spread of a meta is not built),
- * when either custom holds it, each talker gains MENTOR_XP through its own study traits.
+ * mentorTrade (11 section 4.4: +10 xp both): on a good talk (`good`, the 70% outcome), when either custom holds it, each
+ * talker gains MENTOR_XP through its own study traits. The meta spread (talkSpread) runs on every chat, good or bad, as
+ * 11 section 4.4 states it, and is where `rooted` blocks a conversion.
  */
 export function talkOutcome(sim: Sim, a: number, b: number, good: boolean): void {
   if (sim.culture.customs.length === 0) return;
+  talkSpread(sim, a, b);
   const ta = traitsOfSlot(sim, a);
   const tb = traitsOfSlot(sim, b);
   if (ta.length === 0 && tb.length === 0) return;

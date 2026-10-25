@@ -2,6 +2,7 @@ import '../ui/styles.css';
 import type { Ticker } from 'pixi.js';
 import { TerrainRenderer, type CursorState } from '../render/terrain.ts';
 import { MarkLayer } from '../render/marks.ts';
+import { InsightLayer } from '../render/insight-layers.ts';
 import { Camera } from '../render/camera.ts';
 import { MapInput } from '../ui/input.ts';
 import { edgePanVector } from '../ui/edgePan.ts';
@@ -13,7 +14,7 @@ import { setCalendar, setDebug, setStatus, toast } from '../ui/hud.ts';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
 import { currentStep, parseTutorial, skipTutorial, TUTORIAL_TEXT, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
-import { cooldownSecondsLeft, linePoints, nearestMapPoint, nextOptionValue, powerStatus, strokeOp } from '../ui/powerSupport.ts';
+import { cooldownSecondsLeft, hamletAtTile, linePoints, nearestMapPoint, nextOptionValue, powerStatus, strokeOp } from '../ui/powerSupport.ts';
 import { WindowHost } from '../ui/windowHost.ts';
 import { windowFor, type ChronicleActions, type ChronicleOutcome, type WindowDeps, type WindowParams } from '../ui/windowContent.ts';
 import { SimView } from '../ui/sim-view.ts';
@@ -308,6 +309,8 @@ async function boot(): Promise<void> {
   const renderer = await TerrainRenderer.create(host);
   // Map marks and beings: added after the terrain so they draw on top of it.
   const marks = new MarkLayer(renderer.app);
+  // Insight layers and overlays: added after the marks, so the tints and icons draw over them.
+  const insight = new InsightLayer(renderer.app);
   const client = new SimClient();
   const progressBar = worldgenBar();
   // Audio feed: the Age, biome shares and mood from each snapshot (16 B8). Read by the music state below.
@@ -394,6 +397,9 @@ async function boot(): Promise<void> {
   /** Insight Follow: armed (the next tap picks a being) and the being followed, by its snapshot id. */
   let followPending = false;
   let followId: number | null = null;
+  /** Insight Hamlet Select: armed (the next tap picks a tile) and the hamlet picked (hamletsOf index, or -1). */
+  let hamletPending = false;
+  let selectedHamlet = -1;
   let cursorScreen: { x: number; y: number } | null = null;
   const canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   let pressed = false;
@@ -540,6 +546,8 @@ async function boot(): Promise<void> {
     stepAnchor = null;
     followPending = false;
     followId = null;
+    hamletPending = false;
+    selectedHamlet = -1;
     $('realm-name').textContent = `Realm ${seed.toString(36).toUpperCase().slice(-6)}`;
   };
 
@@ -620,6 +628,30 @@ async function boot(): Promise<void> {
         followPending = true;
         setStatus('Tap a being to follow it. Esc releases.');
         return;
+      case 'select_hamlet':
+        // Hamlet Select waits for a tap on a tile (onTap), which picks the hamlet owning that tile.
+        setArmed(null);
+        hamletPending = true;
+        setStatus('Tap a tile to select the hamlet that owns it.');
+        return;
+      case 'layer_toggle': {
+        // One layer at a time. Tapping a layer that is off shows it as borders; tapping it again steps
+        // being, then parent, then off.
+        const layer = String(power.params['layer'] ?? 'off');
+        const current = stringOption(options, 'map.layer');
+        const mode = stringOption(options, 'map.layerMode');
+        let nextLayer = layer;
+        let nextMode = 'borders';
+        if (current === layer) {
+          if (mode === 'borders') nextMode = 'being';
+          else if (mode === 'being') nextMode = 'parent';
+          else nextLayer = 'off';
+        }
+        changeOption('map.layer', nextLayer);
+        changeOption('map.layerMode', nextMode);
+        setStatus(nextLayer === 'off' ? `${power.name}: off.` : `${power.name}: ${nextMode} view.`);
+        return;
+      }
       case 'toggle_option': {
         const option = String(power.params['option'] ?? '');
         const on = !boolOption(options, option);
@@ -650,7 +682,9 @@ async function boot(): Promise<void> {
           ? rules.isOn(String(power.params['rule']))
           : power.handler === 'toggle_option'
             ? boolOption(options, String(power.params['option']))
-            : state.armed?.id === power.id;
+            : power.handler === 'layer_toggle'
+              ? stringOption(options, 'map.layer') === String(power.params['layer'])
+              : state.armed?.id === power.id;
       btn.setAttribute('aria-pressed', String(pressed));
     }
   };
@@ -1004,6 +1038,16 @@ async function boot(): Promise<void> {
         usePowerAt(state.armed, t.x, t.y);
         return;
       }
+      if (hamletPending) {
+        hamletPending = false;
+        const idx = hamletAtTile(simView.current?.mapTiles, t.x, t.y);
+        selectedHamlet = idx;
+        const row = idx >= 0 ? simView.current?.hamlets[idx] : undefined;
+        if (idx < 0) setStatus('No hamlet owns that tile.');
+        else if (row) setStatus(`${row.name}: ${row.folk} folk, ${row.buildings} buildings, ${row.parcels} parcels.`);
+        else setStatus(`Hamlet ${idx + 1} is selected. Its row is not in the latest snapshot.`);
+        return;
+      }
       if (followPending) {
         const hit = pickBeing(sx, sy);
         if (hit) {
@@ -1208,6 +1252,7 @@ async function boot(): Promise<void> {
     } else if (e.code === 'Escape') {
       followPending = false;
       followId = null;
+      hamletPending = false;
       setArmed(null);
     }
   });
@@ -1304,6 +1349,18 @@ async function boot(): Promise<void> {
           nameScale: numberOption(options, 'ui.scaleNames'),
         },
         { offX: cam.offX, offY: cam.offY, zoom: cam.zoom, viewW: renderer.app.screen.width, viewH: renderer.app.screen.height },
+      );
+      insight.update(
+        simView.current,
+        {
+          layer: stringOption(options, 'map.layer'),
+          mode: stringOption(options, 'map.layerMode'),
+          happiness: boolOption(options, 'ui.happinessIcons'),
+          tasks: boolOption(options, 'ui.taskIcons'),
+          armyLines: boolOption(options, 'marks.armyLines'),
+          selectedHamlet,
+        },
+        { offX: cam.offX, offY: cam.offY, zoom: cam.zoom },
       );
       renderer.setView({ offX: cam.offX, offY: cam.offY, zoom: cam.zoom, dpr: renderer.app.renderer.resolution }, cursor);
     }

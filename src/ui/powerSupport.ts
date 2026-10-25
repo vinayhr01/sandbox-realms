@@ -4,7 +4,8 @@
  * itself. Every other power stays visible but disabled with a note. Pure data and functions.
  */
 import type { PowerDef } from '../content/powers.ts';
-import type { BrushOp } from '../shared/protocol.ts';
+import type { BrushOp, MapTiles } from '../shared/protocol.ts';
+import { decodeParcels } from '../shared/parcel-codec.ts';
 import { WINDOW_IDS } from './windowCatalog.ts';
 
 /** Handlers that src/sim/powers/handlers.ts executePower applies. tests/unit/ui-powers.test.ts checks this list against that file. */
@@ -58,6 +59,8 @@ export const UI_HANDLERS: readonly string[] = [
   'follow',
   'toggle_option',
   'cycle_option',
+  'select_hamlet',
+  'layer_toggle',
 ];
 
 /** Powers whose drag is a stroke that the sim's raise and lower brush applies. */
@@ -78,6 +81,10 @@ export function powerStatus(def: PowerDef): PowerStatus {
     // `window` is a full window id (win_* or list_*, 13 section 7.1), the same id the window host uses.
     const id = String(def.params['window'] ?? '');
     return WINDOW_IDS.has(id) ? ok() : off(def);
+  }
+  if (def.handler === 'possess') {
+    // Possession needs the beings command (not on main yet): the row stays visible and disabled until it lands.
+    return { enabled: false, note: `${def.name} waits on the beings possession command, which is not on main yet.` };
   }
   if (SIM_HANDLERS.includes(def.handler) || UI_HANDLERS.includes(def.handler)) return ok();
   return off(def);
@@ -149,6 +156,22 @@ export function nearestMapPoint<P extends { x: number; y: number }>(
     }
   }
   return best;
+}
+
+/** Index of the parcel holding tile (x, y), row-major as in MapTiles, or -1 off the realm. */
+export function parcelOfTile(tiles: Pick<MapTiles, 'size' | 'perAxis'>, x: number, y: number): number {
+  const col = Math.floor(x / tiles.size);
+  const row = Math.floor(y / tiles.size);
+  if (col < 0 || row < 0 || col >= tiles.perAxis || row >= tiles.perAxis) return -1;
+  return row * tiles.perAxis + col;
+}
+
+/** Index (hamletsOf order, as in the snapshot's hamlet list) of the hamlet owning tile (x, y), or -1 when none. */
+export function hamletAtTile(tiles: MapTiles | undefined, x: number, y: number): number {
+  if (!tiles) return -1;
+  const p = parcelOfTile(tiles, x, y);
+  if (p < 0) return -1;
+  return decodeParcels(tiles.hamlet)[p] ?? -1;
 }
 
 /** Remaining cooldown in whole seconds (rounded up); 0 when ready. */

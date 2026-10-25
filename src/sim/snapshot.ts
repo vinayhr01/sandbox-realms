@@ -28,9 +28,11 @@ import {
   type MapIntrigue,
   type MapKind,
   type MapKindGroup,
+  type MapGroup,
   type MapMarks,
   type MapPoint,
   type MapSizeClass,
+  type MapTiles,
   type NotableRows,
   type PactBlock,
   type PactRow,
@@ -41,6 +43,8 @@ import {
   type StructureRow,
 } from '../shared/protocol.ts';
 import { YEAR_TICKS } from '../shared/constants.ts';
+import { encodeParcels } from '../shared/parcel-codec.ts';
+import { DECISION_ROWS } from '../content/decisions.ts';
 import { SS_TICKS } from './clock.ts';
 import { MAX_BEINGS } from './beings/store.ts';
 import { dominionsOfSim, pactsOfSim, parcelsPerAxis, snapshotDominions } from './dominions/adapter.ts';
@@ -96,6 +100,7 @@ export function buildSnapshot(sim: Sim): Snapshot {
     mapBuildings: mapBuildingsOf(sim),
     mapIntrigues: mapIntriguesOf(sim),
     mapBoats: boatMarksOf(sim),
+    mapTiles: mapTilesOf(sim),
   };
   return fitSnapshot(snap);
 }
@@ -153,7 +158,49 @@ function mapMarksOf(sim: Sim): MapMarks {
     .slice(0, cap)
     .map((h) => ({ name: h.name, ...tileOf(h.parcel) }));
 
-  return { armies, campaigns, battles, pactLinks, hamlets };
+  // Army target lines (Insight O08): an army's tile to the centroid parcel of its campaign target.
+  const armyLines: NonNullable<MapMarks['armyLines']> = [];
+  for (const d of dom?.dominions ?? []) {
+    const p = armyAt.get(d.id);
+    const target = d.target >= 0 ? dom?.dominions.find((t) => t.id === d.target) : undefined;
+    if (p === undefined || target === undefined || target.parcels.length === 0 || armyLines.length >= cap) continue;
+    const a = tileOf(p);
+    const b = tileOf(centroidParcel(new Set(target.parcels), perAxis));
+    armyLines.push([a.x, a.y, b.x, b.y]);
+  }
+
+  return { armies, campaigns, battles, pactLinks, hamlets, armyLines };
+}
+
+/**
+ * Parcel owners and per-dominion attributes for the Insight layers (L01 to L10, O08). One code per parcel, row-major
+ * (src/shared/parcel-codec.ts). Reads only: the dominion, hamlet, pact and culture records are not written.
+ */
+function mapTilesOf(sim: Sim): MapTiles {
+  const perAxis = parcelsPerAxis(sim);
+  const count = perAxis * perAxis;
+  const dominion = new Array<number>(count).fill(-1);
+  const hamlet = new Array<number>(count).fill(-1);
+  const dom = snapshotDominions(sim);
+  const pactOf = new Map<number, number>();
+  for (const pact of pactsOfSim(sim)) for (const m of pact.memberIds) if (!pactOf.has(m)) pactOf.set(m, pact.id);
+  const armed = new Set<number>();
+  for (const a of dom?.armies ?? []) if (a.parcel !== undefined) armed.add(a.dominionId);
+  const groups: MapGroup[] = [];
+  for (const d of dom?.dominions ?? []) {
+    for (const p of d.parcels) if (p >= 0 && p < count) dominion[p] = d.id;
+    groups.push({
+      id: d.id,
+      custom: sim.culture.customs.findIndex((c) => c.group === d.id),
+      dialect: sim.culture.dialects.find((x) => x.group === d.id)?.word ?? '',
+      pact: pactOf.get(d.id) ?? -1,
+      army: armed.has(d.id),
+    });
+  }
+  hamletsOf(sim).forEach((h, index) => {
+    for (const p of h.parcels) if (p >= 0 && p < count) hamlet[p] = index;
+  });
+  return { size: PARCEL, perAxis, dominion: encodeParcels(dominion), hamlet: encodeParcels(hamlet), groups };
 }
 
 /**
@@ -198,12 +245,31 @@ function mapKindsOf(sim: Sim): MapKind[] {
   const alive: number[] = [];
   for (let k = 0; k < s.size; k++) alive.push(s.at(k));
   alive.sort((a, b) => (s.born[a] ?? 0) - (s.born[b] ?? 0) || a - b);
+  // Lookups for the Insight layers: creed, family and clan membership by Being key, and the clan by strain.
+  const creedOf = new Map<number, number>();
+  sim.culture.creeds.forEach((c, i) => {
+    for (const h of c.holders) if (!creedOf.has(h)) creedOf.set(h, i);
+  });
+  const familyOf = new Map<number, number>();
+  (sim.culture.familyRecords ?? []).forEach((f, i) => {
+    for (const m of f.members) if (!familyOf.has(m)) familyOf.set(m, i);
+  });
+  const clanOf = new Map<number, number>();
+  for (const c of sim.clans.list) if (c.extinctTick < 0 && !clanOf.has(c.strain)) clanOf.set(c.strain, c.id);
   return alive.slice(0, MAP_POINT_CAP).map((slot) => {
     const def = SPECIES[s.species[slot] ?? 0];
+    const id = (s.generation[slot] ?? 0) * MAX_BEINGS + slot;
+    const strain = s.strain[slot] ?? 0;
     return {
-      id: (s.generation[slot] ?? 0) * MAX_BEINGS + slot,
+      id,
       group: MAP_GROUP_OF_LETTER[def?.group ?? ''] ?? 'beast',
       size: (def?.size ?? 'S') as MapSizeClass,
+      mood: s.mood[slot] ?? 0,
+      task: DECISION_ROWS[sim.beings.task[slot] ?? -1]?.id ?? '',
+      strain,
+      creed: creedOf.get(id) ?? -1,
+      family: familyOf.get(id) ?? -1,
+      clan: clanOf.get(strain) ?? -1,
     };
   });
 }
@@ -291,7 +357,11 @@ function clansOf(sim: Sim): ClanBlock {
  */
 export function fitSnapshot(snap: Snapshot): Snapshot {
   let out = snap;
-  // Map feeds go first (boats, intrigues, then sprite feeds), then map marks and map points: the map simply draws without them.
+  // Map feeds go first (layer tiles, boats, intrigues, then sprite feeds), then map marks and map points: the map simply draws without them.
+  if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapTiles !== undefined) {
+    const { mapTiles: _tiles, ...rest } = out;
+    out = { ...rest, truncated: true };
+  }
   if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapBoats !== undefined) {
     const { mapBoats: _boats, ...rest } = out;
     out = { ...rest, truncated: true };

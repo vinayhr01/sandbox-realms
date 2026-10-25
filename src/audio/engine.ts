@@ -109,7 +109,8 @@ export interface ContextLike {
   createBiquadFilter?(): FilterLike;
 }
 
-export type ContextFactory = () => ContextLike;
+/** Returns null when the browser has no usable AudioContext; the engine then runs silent. */
+export type ContextFactory = () => ContextLike | null;
 
 /** Scheduler tick and look-ahead for music (16 B5: timer 100 ms, schedules up to 400 ms ahead). */
 const SCHEDULE_TICK_MS = 100;
@@ -144,9 +145,23 @@ interface Voice {
   soundId: string;
 }
 
-/** The default factory: one interactive AudioContext, created only from a user gesture (B6). */
-export function browserContextFactory(): ContextLike {
-  return new AudioContext({ latencyHint: 'interactive' }) as unknown as ContextLike;
+/**
+ * The default factory: one interactive AudioContext, created only from a user gesture (B6). Uses
+ * webkitAudioContext where AudioContext is missing (older Safari). Returns null when neither exists
+ * or the constructor throws, so the game runs without sound instead of erroring.
+ */
+export function browserContextFactory(): ContextLike | null {
+  const g = globalThis as unknown as {
+    AudioContext?: new (options: { latencyHint: string }) => unknown;
+    webkitAudioContext?: new (options: { latencyHint: string }) => unknown;
+  };
+  const Ctor = g.AudioContext ?? g.webkitAudioContext;
+  if (!Ctor) return null;
+  try {
+    return new Ctor({ latencyHint: 'interactive' }) as ContextLike;
+  } catch {
+    return null;
+  }
 }
 
 export class AudioEngine {
@@ -196,6 +211,7 @@ export class AudioEngine {
       return;
     }
     const ctx = this.makeContext();
+    if (!ctx) return; // No audio support: stay silent (play() returns false).
     this.ctx = ctx;
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = LIMIT_DB;

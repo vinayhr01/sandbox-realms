@@ -36,6 +36,9 @@ export const DECISION_ROWS: readonly DecisionRow[] = [
   // Round 8 (07 section 8 to 10): a fight with a hostile in sight or an aggro target (07 section 9.2 relations).
   // Appended, so the earlier rows keep their indices in the cooldown table.
   { id: 'fight', tier: 3, weight: 1.5, cooldown: 0, flags: [] },
+  // Folk brawl (08 section 2.5, 07 section 10.3): a Folk starts a fight with a Folk in sight when the fight row found no
+  // hostile. Appended as row 13. Runs the fight task, with the brawl stop rule on Folk-on-Folk blows.
+  { id: 'brawl', tier: 3, weight: 1, cooldown: 600, flags: [] },
 ];
 
 /** Decision index by id. */

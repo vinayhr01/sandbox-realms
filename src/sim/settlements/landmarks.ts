@@ -11,8 +11,7 @@ import type { Hamlet } from './hamlet.ts';
 /**
  * Landmark and beacon structures (18e section 2). A structure is one anchor tile; its footprint is recorded in
  * the content table but not checked. The list is saved in the settlements section (adapter.ts) so pulse timers
- * survive a save. Placement is a function only: the power panel does not reach it yet (the power dispatch lives
- * in src/sim/powers, which this round does not touch).
+ * survive a save. Placement is called from the power dispatch (src/sim/powers/handlers.ts, `place_structure`).
  */
 export interface Structure {
   id: string;

@@ -56,6 +56,16 @@ export function aggroFoes(sim: Sim, slot: number): number[] {
   return out;
 }
 
+/** Ends the grudge `slot` holds against `who`, if any (a brawl that stops, 08 section 2.5). The entry stays but is no longer live. */
+export function dropAggro(sim: Sim, slot: number, who: number): void {
+  const s = sim.beings.store;
+  const base = slot * AGGRO_SLOTS;
+  for (let k = 0; k < AGGRO_SLOTS; k++) {
+    const i = base + k;
+    if (s.aggroId[i] === who) s.aggroUntil[i] = 0;
+  }
+}
+
 /** Drops every entry of a Being (used when a Being is removed from the world). */
 export function clearAggro(sim: Sim, slot: number): void {
   const s = sim.beings.store;

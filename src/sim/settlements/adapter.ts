@@ -49,6 +49,11 @@ export function hamletsOf(host: SettlementHost): readonly Hamlet[] {
   return states.get(host)?.hamlets ?? [];
 }
 
+/** Live landmark and pillar list of a host (the array placeStructure writes to), or null before the first settlementsStep. */
+export function structuresOf(host: SettlementHost): Structure[] | null {
+  return states.get(host)?.structures ?? null;
+}
+
 /** Plain-data form of one hamlet, JSON-safe; buildings are kept by catalogue id (Chronicle section 16). */
 export interface HamletSnapshot {
   /** `gold` is absent in saves written before the hamlet purse; those load with 0 gold. */

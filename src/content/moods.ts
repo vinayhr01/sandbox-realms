@@ -55,7 +55,10 @@ export const MOOD_VALUE = {
   home_lost: -30,
   crown_lost: -60,
   hamlet_lost: -15,
-  razed: -35,
+  // Raze (10 section 7, the raze check): -20 for a razed hamlet, -35 for a razed capital. 06 section 4.1 lists -35 for `razed`;
+  // the raze section of 10 is followed here (DECISIONS.md "Raze close 14").
+  razed: -20,
+  razed_capital: -35,
   hamlet_conquered: 30,
   destroyed: 35,
   // Creep hub proximity (18e section 2): once per Month within 6 tiles of a hub (settlements/adapter.ts).

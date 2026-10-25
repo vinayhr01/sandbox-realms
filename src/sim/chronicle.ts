@@ -748,6 +748,10 @@ function checkDominions(raw: unknown): DominionSnapshot | null {
   if (raw.hamletsConquered !== undefined && !isFiniteNumber(raw.hamletsConquered)) {
     throw new Error('chronicle: dominion section hamlets conquered is not valid');
   }
+  // Optional count of razed hamlets (dominions/adapter.ts, capture.ts razeStep); restoreDominions checks the range.
+  if (raw.hamletsRazed !== undefined && !isFiniteNumber(raw.hamletsRazed)) {
+    throw new Error('chronicle: dominion section hamlets razed is not valid');
+  }
   return raw as unknown as DominionSnapshot;
 }
 

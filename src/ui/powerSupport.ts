@@ -61,6 +61,7 @@ export const UI_HANDLERS: readonly string[] = [
   'toggle_option',
   'cycle_option',
   'select_hamlet',
+  'select_dominion',
   'layer_toggle',
   'toggle_view',
 ];
@@ -212,6 +213,14 @@ export function hamletAtTile(tiles: MapTiles | undefined, x: number, y: number):
   const p = parcelOfTile(tiles, x, y);
   if (p < 0) return -1;
   return decodeParcels(tiles.hamlet)[p] ?? -1;
+}
+
+/** Id of the dominion owning tile (x, y) (the dominion id the snapshot's ties use), or -1 when none. */
+export function dominionAtTile(tiles: MapTiles | undefined, x: number, y: number): number {
+  if (!tiles) return -1;
+  const p = parcelOfTile(tiles, x, y);
+  if (p < 0) return -1;
+  return decodeParcels(tiles.dominion)[p] ?? -1;
 }
 
 /** Remaining cooldown in whole seconds (rounded up); 0 when ready. */

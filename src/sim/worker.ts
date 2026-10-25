@@ -7,7 +7,7 @@
 import { PROTOCOL_VERSION, Cmd, Ev, type Command, type Event, type FrameRows, type FrameStats, type Speed } from '../shared/protocol.ts';
 import type { Sim } from './sim.ts';
 import { startGenerateJob, type GenOutcome, type WorldgenJob } from './worldgen.ts';
-import { heartbeatDue, mainPingLost, planPump, pumpFaultAction } from './scheduler.ts';
+import { SYS_DISABLE_CYCLES, SYS_DISABLE_TICKS, SysIsolation, heartbeatDue, mainPingLost, planPump, pumpFaultAction } from './scheduler.ts';
 import { snapshotDue } from './snapshot.ts';
 import { decodeChronicle, encodeChronicle, MAX_SIZE_STEP, MIN_SIZE_STEP } from './chronicle.ts';
 import { contentHash } from '../content/content-hash.ts';
@@ -34,6 +34,8 @@ let pumpsSinceHeartbeat = 0;
 let lastPingAt: number | null = null;
 let pingHidden = false;
 let mainHangReported = false;
+/** System isolation (17 section 9): fault counts and switch-offs of the worker parts, for the current realm only. */
+let sysIso = new SysIsolation();
 const bufferPool: ArrayBuffer[] = [];
 
 /** Worldgen slice budget per pump, ms (03 section 10: slices of at most 12 ms). */
@@ -97,6 +99,7 @@ function finishJob(done: GenOutcome): void {
   lastSnapshotTick = -1;
   lastHeartbeatTick = -1;
   pumpsSinceHeartbeat = 0;
+  sysIso = new SysIsolation();
   lastHash = sim.stateHash();
   void writeCheckpoint(null);
   post({
@@ -328,6 +331,7 @@ function handle(cmd: Command): void {
         lastSnapshotTick = -1;
         lastHeartbeatTick = -1;
         pumpsSinceHeartbeat = 0;
+        sysIso = new SysIsolation();
         lastHash = sim.stateHash();
         post({
           kind: Ev.Ready,
@@ -356,7 +360,8 @@ function handle(cmd: Command): void {
     case Cmd.SetItemRain:
     case Cmd.ItemRain:
     case Cmd.SetItemFavourite:
-      sim?.enqueue(cmd);
+      // A switched-off command part takes no sim commands until its ticks run out (17 section 9).
+      if (sim && !sysIso.isOff('command', sim.tick)) sim.enqueue(cmd);
       return;
     case Cmd.Query: {
       const info = sim?.tileInfo(cmd.tileX, cmd.tileY) ?? null;
@@ -383,17 +388,36 @@ function handle(cmd: Command): void {
   }
 }
 
+/**
+ * A command threw (17 section 9). The error is posted as before, with `sysOff` when the part is now off. Three faults in
+ * 10 s switch the command part off for 600 ticks (a warn); the third switch-off stops the sim: a Fault error, and the sim
+ * is paused. The pump is not switched off: its ticks are the clock that ends a switch-off, and its fault rule is
+ * pumpFaultAction (three faults in a row stop the sim).
+ */
+function commandFault(detail: string): void {
+  const tick = sim?.tick ?? 0;
+  const { verdict } = sysIso.fault('command', performance.now(), tick);
+  post({ kind: Ev.Fault, severity: 'error', code: 'SIM_COMMAND', detail, sys: 'command', sysOff: sysIso.isOff('command', tick) });
+  if (verdict === 'disable') {
+    post({ kind: Ev.Fault, severity: 'warn', code: 'SYS_OFF', detail: `command part off for ${SYS_DISABLE_TICKS} ticks`, sys: 'command', sysOff: true });
+  } else if (verdict === 'stop') {
+    speed = 0;
+    post({
+      kind: Ev.Fault,
+      severity: 'error',
+      code: 'SYS_STOP',
+      detail: `command part switched off ${SYS_DISABLE_CYCLES} times; sim paused`,
+      sys: 'command',
+      sysOff: true,
+    });
+  }
+}
+
 self.onmessage = (event: MessageEvent<Command>) => {
   try {
     handle(event.data);
   } catch (err: unknown) {
-    post({
-      kind: Ev.Fault,
-      severity: 'error',
-      code: 'SIM_COMMAND',
-      detail: err instanceof Error ? err.message : String(err),
-      sys: 'command',
-    });
+    commandFault(err instanceof Error ? err.message : String(err));
   }
 };
 

@@ -10,8 +10,9 @@
  * The hamlet picked by Hamlet Select is outlined.
  * Cursor arrows (A01..A07): from the Being under the cursor to its links in `snap.mapLinks`, one colour per kind. Drawn
  * only when the Settings master `ui.cursorArrows` is on, and only for the kinds whose Insight flag is on (`arrows`).
- * Close 5: Money flow (O05, `ui.moneyFlow`) draws each taxed hamlet's ruler share from `snap.mapTaxFlows`; Ties and
- * Accord Finder (view flags `ties`, `accord`) draw opinion lines and pact candidates from `snap.mapTies`.
+ * Close 5: Money flow (O05, `ui.moneyFlow`) draws each taxed hamlet's ruler share from `snap.mapTaxFlows`; Accord Finder
+ * (view flag `accord`) draws pact candidates from `snap.mapTies`. Ties (close 6, the selected dominion) draws the opinion
+ * lines between that dominion and each bordering dominion, from the same feed.
  *
  * Reads the latest snapshot only (no sim memory). Redraws when the snapshot, the toggles or the camera change. It is
  * drawn over the beings at low alpha, so the tint shows on the terrain and the Beings alike.
@@ -92,8 +93,8 @@ export interface InsightToggles {
   hoverId: number;
   /** `ui.moneyFlow` (O05): tax flows of the latest yearly pass, from each hamlet to its dominion's ruler. */
   moneyFlow: boolean;
-  /** View flag `ties` (Insight Ties): opinion lines between bordering dominions. */
-  ties: boolean;
+  /** Dominion id picked by Ties (a select step), or -1. Its relations to bordering dominions are drawn. */
+  selectedDominion: number;
   /** View flag `accord` (Insight Accord Finder): pact candidates the sim's gates allow now. */
   accord: boolean;
 }
@@ -220,7 +221,7 @@ export class InsightLayer {
       t.hoverId,
       snap?.mapLinks?.length ?? 0,
       t.moneyFlow,
-      t.ties,
+      t.selectedDominion,
       t.accord,
       snap?.mapTies?.opinions.length ?? 0,
       snap?.mapTaxFlows?.length ?? 0,
@@ -235,7 +236,7 @@ export class InsightLayer {
     if (!snap) return;
     const layerOn = t.layer !== 'off';
     const arrowsOn = t.arrows.size > 0 && t.hoverId >= 0;
-    const dominionViews = t.ties || t.accord || t.moneyFlow;
+    const dominionViews = t.selectedDominion >= 0 || t.accord || t.moneyFlow;
     if (!layerOn && !t.happiness && !t.tasks && !t.armyLines && !t.talkBubbles && !arrowsOn && !dominionViews && t.selectedHamlet < 0) return;
 
     const d = snap.mapTiles ? this.decodedOf(snap, snap.mapTiles) : null;
@@ -275,7 +276,7 @@ export class InsightLayer {
     }
 
     if (arrowsOn) this.drawArrows(snap, t, view);
-    if (t.ties && snap.mapTies) this.drawTies(snap.mapTies, view);
+    if (t.selectedDominion >= 0 && snap.mapTies) this.drawTies(snap.mapTies, t.selectedDominion, view);
     if (t.accord && snap.mapTies) this.drawAccord(snap.mapTies, view);
     if (t.moneyFlow && snap.mapTaxFlows) this.drawMoneyFlow(snap.mapTaxFlows, view);
   }
@@ -286,14 +287,16 @@ export class InsightLayer {
   }
 
   /**
-   * Ties (Insight): each dominion's opinion of a bordering dominion, drawn as a half line from the holder's centre to the
-   * midpoint of the pair, so a pair shows both views. Green is good (>= 0), red is bad; a square at the midpoint marks a
-   * bad view, so the sign does not rest on colour alone. Line strength follows the size of the opinion.
+   * Ties (Insight, select step): the opinions between the selected dominion `only` and each bordering dominion, drawn as a
+   * half line from the holder's centre to the midpoint of the pair, so a pair shows both views. Green is good (>= 0), red
+   * is bad; a square at the midpoint marks a bad view, so the sign does not rest on colour alone. Line strength follows the
+   * size of the opinion.
    */
-  private drawTies(ties: MapTies, view: InsightView): void {
+  private drawTies(ties: MapTies, only: number, view: InsightView): void {
     const centre = new Map<number, { sx: number; sy: number }>();
     for (const [id, x, y] of ties.centres) centre.set(id, this.screenOf(x, y, view));
     for (const [a, b, value] of ties.opinions) {
+      if (a !== only && b !== only) continue;
       const from = centre.get(a);
       const to = centre.get(b);
       if (!from || !to) continue;

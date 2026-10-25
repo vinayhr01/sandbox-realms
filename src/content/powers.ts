@@ -399,9 +399,10 @@ export const POWERS: readonly PowerDef[] = [
   viewToggle('ins_tips_tiles', 'Tile tooltips', 'tip.tiles'),
   viewToggle('ins_tips_beings', 'Being tooltips', 'tip.beings'),
   // Close 5 (DECISIONS.md "Dominions exports close 5"): money flow (O05, the Settings option ui.moneyFlow), and the two
-  // dominion rows Ties and Accord Finder, drawn for every dominion pair at once (view flags, off by default).
+  // dominion rows Ties and Accord Finder. Accord is drawn for every pair at once (a view flag, off by default). Ties is a
+  // select step (12 section 8.8): one tap picks the dominion, and its relations are drawn (DECISIONS.md "Remaining close 6").
   optionToggle('ins_overlay_money', 'Money flow', 'ui.moneyFlow'),
-  viewToggle('ins_ties', 'Ties', 'ties'),
+  click('ins_ties', 'insight', 'Ties', 'select_dominion'),
   viewToggle('ins_accord', 'Accord Finder', 'accord'),
 ];
 

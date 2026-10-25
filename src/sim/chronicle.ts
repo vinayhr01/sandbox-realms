@@ -10,7 +10,9 @@ import { restoreItems, saveItems, type ItemSave } from './items/system.ts';
 import { SPECIES } from '../content/beasts.ts';
 import { DECISION_ROWS } from '../content/decisions.ts';
 import { STRAIN_TRAIT_BY_ID } from '../content/traits.ts';
-import type { Strain } from './beings/strains.ts';
+import { CASTES, MORPHS, PALETTES } from '../content/variants.ts';
+import { freshCounters, type Strain } from './beings/strains.ts';
+import { AGGRO_SLOTS } from './beings/store.ts';
 import {
   SEED_SALT_RANGE,
   SEGMENT_KINDS,
@@ -46,7 +48,11 @@ export { fnv1a };
 export const CHRONICLE_MAGIC = 'SRCH';
 export const FORMAT_VERSION = 1;
 /**
- * Beings round 7 (still schema 4; schema 4 is unreleased, so no bump): the beings section ends with one lineage
+ * Schema 5 (beings round 8): each Being in the beings section also carries its biome morph, caste, colour palette and
+ * shade, its rebirth flag, its next enemy search tick, and its aggro entries (AGGRO_SLOTS of attacker slot, generation
+ * and grudge end). The strain records (section 17) gain `phenotypes` and the `died` and `killed` counters; older strain
+ * records are filled with defaults on load. Schema 4 saves are rejected: their beings section has none of these fields.
+ * Beings round 7 (still schema 4 at the time): the beings section ends with one lineage
  * code per strain (05 section 5): strain id, seed salt, then each Strand's type and each slot's kind code and
  * special. Its strain count must equal the strain registry's. Corpses are not saved (none are built).
  * Schema 4 (beings round 6): each Being in the beings section also carries mood, endurance, sleep (end tick
@@ -57,7 +63,7 @@ export const FORMAT_VERSION = 1;
  * 06 section 6.1), strain id, stored aptitudes and marks; section 17 holds the strain registry. Schema 2
  * saves are rejected: they have no parent links or strains to restore.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 const HEADER_BYTES = 16;
 /** Realm size steps a save (and a NewRealm command) may name. */
 export const MIN_SIZE_STEP = 2;
@@ -301,6 +307,19 @@ export function encodeChronicle(sim: Sim): Uint8Array {
       w.u32(s.closeSince[slot] ?? 0);
       w.i16(sim.beings.task[slot] ?? -1);
       for (let k = 0; k < DECISION_ROWS.length; k++) w.u32(sim.beings.cooldown[slot * DECISION_ROWS.length + k] ?? 0);
+      // Round 8 (schema 5): variants, rebirth flag, search timer and the aggro entries (07 sections 8, 10.4).
+      w.u8(s.morph[slot] ?? 0);
+      w.u8(s.caste[slot] ?? 0);
+      w.u8(s.palette[slot] ?? 0);
+      w.u8(s.shade[slot] ?? 0);
+      w.u8(s.reborn[slot] ?? 0);
+      w.u32(s.searchAt[slot] ?? 0);
+      for (let k = 0; k < AGGRO_SLOTS; k++) {
+        const i = slot * AGGRO_SLOTS + k;
+        w.i32(s.aggroId[i] ?? -1);
+        w.u32(s.aggroGen[i] ?? 0);
+        w.u32(s.aggroUntil[i] ?? 0);
+      }
     }
     // Full generation table (dead slots keep their counters) and the exact list and free-stack order.
     for (let slot = 0; slot < s.capacity; slot++) w.u32(s.generation[slot] ?? 0);
@@ -643,10 +662,27 @@ function decodeBeings(sim: Sim, r: Reader): void {
         task: r.i16(),
     };
     for (let c = 0; c < DECISION_ROWS.length; c++) fields[`cool${c}`] = r.u32();
+    fields['morph'] = r.u8();
+    fields['caste'] = r.u8();
+    fields['palette'] = r.u8();
+    fields['shade'] = r.u8();
+    fields['reborn'] = r.u8();
+    fields['searchAt'] = r.u32();
+    for (let k = 0; k < AGGRO_SLOTS; k++) {
+      fields[`agId${k}`] = r.i32();
+      fields[`agGen${k}`] = r.u32();
+      fields[`agUntil${k}`] = r.u32();
+    }
     // Shape checks (schema 4): mood in range, endurance within the species maximum, bond links name a
     // being in this save (checked below once every slot is known).
     if ((fields['mood'] ?? 0) < -100 || (fields['mood'] ?? 0) > 100) throw new Error(`chronicle: being ${slot} has a mood out of range`);
     if ((fields['endurance'] ?? 0) > sim.beings.species(species).endurance) throw new Error(`chronicle: being ${slot} has endurance above its species`);
+    // Shape checks (schema 5): variant indices name catalogue entries, the shade is 0..3, the rebirth flag is 0 or 1.
+    if ((fields['morph'] ?? 0) > MORPHS.length) throw new Error(`chronicle: being ${slot} has an unknown morph`);
+    if ((fields['caste'] ?? 0) > CASTES.length) throw new Error(`chronicle: being ${slot} has an unknown caste`);
+    if ((fields['palette'] ?? 0) >= PALETTES.length) throw new Error(`chronicle: being ${slot} has an unknown palette`);
+    if ((fields['shade'] ?? 0) > 3) throw new Error(`chronicle: being ${slot} has a shade out of range`);
+    if ((fields['reborn'] ?? 0) > 1) throw new Error(`chronicle: being ${slot} has a bad rebirth flag`);
     raw.push({ slot, fields });
   }
   const generation: number[] = [];
@@ -674,6 +710,11 @@ function decodeBeings(sim: Sim, r: Reader): void {
   for (const rec of raw) {
     for (const link of [rec.fields['bondWith'] ?? -1, rec.fields['closeWith'] ?? -1]) {
       if (link !== -1 && !seen.has(link)) throw new Error(`chronicle: being ${rec.slot} names a missing bond partner`);
+    }
+    // Aggro entries name a Being in this save, or are empty (schema 5).
+    for (let k = 0; k < AGGRO_SLOTS; k++) {
+      const id = rec.fields[`agId${k}`] ?? -1;
+      if (id !== -1 && !seen.has(id)) throw new Error(`chronicle: being ${rec.slot} names a missing aggro attacker`);
     }
   }
 
@@ -717,6 +758,18 @@ function decodeBeings(sim: Sim, r: Reader): void {
     s.closeSince[slot] = f['closeSince'] ?? 0;
     sim.beings.task[slot] = f['task'] ?? -1;
     for (let c = 0; c < DECISION_ROWS.length; c++) sim.beings.cooldown[slot * DECISION_ROWS.length + c] = f[`cool${c}`] ?? 0;
+    s.morph[slot] = f['morph'] ?? 0;
+    s.caste[slot] = f['caste'] ?? 0;
+    s.palette[slot] = f['palette'] ?? 0;
+    s.shade[slot] = f['shade'] ?? 0;
+    s.reborn[slot] = f['reborn'] ?? 0;
+    s.searchAt[slot] = f['searchAt'] ?? 0;
+    for (let k = 0; k < AGGRO_SLOTS; k++) {
+      const i = slot * AGGRO_SLOTS + k;
+      s.aggroId[i] = f[`agId${k}`] ?? -1;
+      s.aggroGen[i] = f[`agGen${k}`] ?? 0;
+      s.aggroUntil[i] = f[`agUntil${k}`] ?? 0;
+    }
   }
   for (let slot = 0; slot < capacity; slot++) s.generation[slot] = generation[slot] ?? 0;
   s.restoreLayout(list, free);
@@ -774,6 +827,12 @@ function decodeStrains(sim: Sim, data: { next: number; list: Strain[] }): void {
     ids.add(st.id);
     if (!Number.isInteger(st.species) || st.species < 0 || st.species >= SPECIES.length) throw new Error(`chronicle: strain ${st.id} has an unknown species`);
     st.traits = st.traits.filter((t) => STRAIN_TRAIT_BY_ID.has(t));
+    // Round 8 (schema 5): counters are filled to the current set; the palette list must name palettes.
+    st.counters = { ...freshCounters(), ...st.counters };
+    if (!Array.isArray(st.phenotypes) || st.phenotypes.length === 0) st.phenotypes = [0];
+    if (st.phenotypes.some((p) => !Number.isInteger(p) || p < 0 || p >= PALETTES.length)) {
+      throw new Error(`chronicle: strain ${st.id} has a bad palette list`);
+    }
   }
   sim.beings.strains.restore(data);
 }

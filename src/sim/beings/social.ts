@@ -7,7 +7,8 @@ import { MOOD_VALUE, type MoodEvent } from '../../content/moods.ts';
 import { STRAIN_TRAIT_BY_ID } from '../../content/traits.ts';
 import type { Rng } from '../../shared/rng.ts';
 import type { Sim } from '../sim.ts';
-import { ROUND6 } from './tuning.ts';
+import { ROUND6, ROUND8 } from './tuning.ts';
+import { dreamsAlways, recoversFully, sleepScale, wakeEnduranceScale } from './trait-hooks.ts';
 
 /** Mood bounds (06 section 4.1). */
 const MOOD_MIN = -100;
@@ -49,10 +50,33 @@ function hasSleepCycle(traits: readonly string[]): boolean {
  * exists in the data.
  */
 export function sleepTicks(sim: Sim, slot: number, kind: SleepKind, rng: Rng): number {
-  if (kind === 'mono') return ROUND6.monoMin + rng.int(ROUND6.monoMax - ROUND6.monoMin + 1);
-  const strain = sim.beings.strains.get(sim.beings.store.strain[slot] ?? 0);
-  if (!strain || !hasSleepCycle(strain.traits)) return ROUND6.sleepPlain;
-  return ROUND6.sleepMin + rng.int(ROUND6.sleepMax - ROUND6.sleepMin + 1);
+  let ticks: number;
+  if (kind === 'mono') {
+    ticks = ROUND6.monoMin + rng.int(ROUND6.monoMax - ROUND6.monoMin + 1);
+  } else {
+    const strain = sim.beings.strains.get(sim.beings.store.strain[slot] ?? 0);
+    ticks =
+      !strain || !hasSleepCycle(strain.traits) ? ROUND6.sleepPlain : ROUND6.sleepMin + rng.int(ROUND6.sleepMax - ROUND6.sleepMin + 1);
+  }
+  // Round 8 trait hooks: `unquiet` sleeps less, `long_sleeper` sleeps longer (18b).
+  return Math.max(1, Math.round(ticks * sleepScale(sim, slot)));
+}
+
+/**
+ * The dream roll of a natural wake (06 section 5): a 23-entry pot with one good dream (+15), one bad dream (-15),
+ * one nightmare (-30) and twenty empty rolls. The 1800-tick dream effect is not built; the mood event is applied at
+ * the wake. `dream_gland` makes every sleeper dream: good or bad, one fair roll (18b COG, mood +/-15).
+ */
+function dream(sim: Sim, slot: number): void {
+  const rng = sim.rng('beings');
+  if (dreamsAlways(sim, slot)) {
+    addMood(sim, slot, rng.next() < 0.5 ? 'good_dream' : 'bad_dream');
+    return;
+  }
+  const roll = rng.int(ROUND8.dreamPot);
+  if (roll === 0) addMood(sim, slot, 'good_dream');
+  else if (roll === 1) addMood(sim, slot, 'bad_dream');
+  else if (roll === 2) addMood(sim, slot, 'nightmare');
 }
 
 /** Starts a sleep (06 section 5). The Being stops deciding and moving until it wakes. */
@@ -66,7 +90,7 @@ export function beginSleep(sim: Sim, slot: number, kind: SleepKind): void {
 /**
  * Sleep check, once per tick for a sleeping Being. Returns true while it still sleeps. Damage of any source
  * ends the sleep early with no mood and no endurance (06 section 5: early removal gives none of these).
- * A natural wake restores 20% of max endurance and gives the `slept` mood event (the dream roll is not built).
+ * A natural wake restores 20% of max endurance, gives the `slept` mood event, then rolls the dream pot (round 8).
  */
 export function sleepCheck(sim: Sim, slot: number): boolean {
   const s = sim.beings.store;
@@ -81,8 +105,14 @@ export function sleepCheck(sim: Sim, slot: number): boolean {
   if (sim.tick < (s.sleepUntil[slot] ?? 0)) return true;
   s.sleepUntil[slot] = 0;
   const max = sim.beings.species(s.species[slot] ?? 0).endurance;
-  s.endurance[slot] = Math.min(max, (s.endurance[slot] ?? 0) + Math.round(max * ROUND6.sleepEndurance));
+  if (recoversFully(sim, slot)) {
+    s.endurance[slot] = max;
+  } else {
+    const gain = Math.round(max * ROUND6.sleepEndurance * wakeEnduranceScale(sim, slot));
+    s.endurance[slot] = Math.min(max, (s.endurance[slot] ?? 0) + gain);
+  }
   addMood(sim, slot, 'slept');
+  dream(sim, slot);
   return false;
 }
 

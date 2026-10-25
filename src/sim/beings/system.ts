@@ -1,18 +1,48 @@
 import { SIZE_RANK, SPECIES, speciesIndex, type SpeciesDef } from '../../content/beasts.ts';
 import { ground } from '../../content/grounds.ts';
-import { BEING_TRAITS, BEING_TRAIT_INDEX, BIRTH_POT } from '../../content/traits.ts';
+import { BEING_TRAITS, BEING_TRAIT_INDEX, BIRTH_POT as BIRTH_POT_IDS } from '../../content/traits.ts';
 import { FLORA, FLORA_BY_ID, grazeFlora } from '../flora.ts';
 import type { Realm } from '../realm.ts';
 import type { Sim } from '../sim.ts';
 import { recordStat } from '../stats-hooks.ts';
 import { assemble, type Assembled } from './assembly.ts';
-import { DECISION_ROWS, EMPTY_PAUSE } from '../../content/decisions.ts';
+import { DECISION_INDEX, DECISION_ROWS, EMPTY_PAUSE } from '../../content/decisions.ts';
 import { BeingStore } from './store.ts';
 import { newGenome, SEED_SALT_RANGE, speciesBudget } from './genome.ts';
 import { addStrainTrait, mutateFrom, strainMutation, Strains } from './strains.ts';
 import { addMood, beginSleep, bondCheck, isAsleep, sleepCheck } from './social.ts';
-import { ROUND6, TUNING } from './tuning.ts';
+import { ROUND6, ROUND8, TUNING } from './tuning.ts';
 import { MONTH_TICKS, YEAR_TICKS } from '../../shared/constants.ts';
+import { chooseDecision, type CandidateContext } from './brain.ts';
+import { addAggro, aggroFoes } from './aggro.ts';
+import { factionOf, relation, type Faction, type Relation } from './hostility.ts';
+import { findEnemy, scheduleSearch, searchDue, tileGap } from './perception.ts';
+import {
+  beingHas,
+  breedMode,
+  breedsInSeason,
+  chimericBlood,
+  chimericTrait,
+  copiesMarks,
+  counterChance,
+  eatsFlesh,
+  eatsKin,
+  evergreen,
+  fightStartScale,
+  fleeAllowed,
+  foodRangeMult,
+  herds,
+  jittery,
+  mends,
+  pregnancyPausesWhenHungry,
+  popMultiplier,
+  reflectDamage,
+  roamsFar,
+  strainHas,
+  strikeScale,
+  type BreedMode,
+} from './trait-hooks.ts';
+import { assignPalette, palettesFor, rollVenerable, rollWildVariant, variantFxOf } from './variants.ts';
 
 export type { BeingStore };
 
@@ -31,6 +61,8 @@ const REGEN = 60;
 const LULL = 1800;
 /** Fuel at or below which a being is hungry (06 section 2.1). */
 const HUNGRY_AT = 50;
+/** Fuel spent by a birth on the bearer (06 section 2.1 and 6.4). */
+const BIRTH_FUEL = 50;
 /** Cap on live beings (06 section 8, TUNE; the quality tier caps the array). */
 const WORLD_CAP = 4096;
 /** Spatial bucket side in tiles. */
@@ -41,6 +73,8 @@ const BREEDING_CROWD = 6;
 const STRAIN_JOIN_RADIUS = 40;
 /** Ticks per simulated Year (02 section 1). */
 const YEAR = YEAR_TICKS;
+/** Strain trait ids of the rebirth group (18b REB; 06 section 7.4). */
+const REBIRTH_TRAITS: readonly string[] = ['grave_bloom', 'ember_return', 'soul_seed', 'split_self', 'spore_return'];
 
 const DIRS: readonly (readonly [number, number])[] = [
   [0, -1],
@@ -66,16 +100,38 @@ export interface BeingStats {
   sleeps: number;
   /** Bonds formed (round 6, bonds). */
   bonds: number;
+  /** Blows struck in fights (round 8, 07 section 10). */
+  blows: number;
+  /** Deaths turned into rebirths: revivals, clones and re-formed children (round 8, 06 section 7.4). */
+  rebirths: number;
 }
-
-/** A decision task (07 section 4): runs one step and returns true while it continues. */
-type TaskFn = (sim: Sim, slot: number) => boolean;
 
 /** Per-species derived values. */
 interface SpeciesRuntime {
   def: SpeciesDef;
   hunters: number[];
   prey: number[];
+  /** Faction (07 section 9.4), from the species' group and diet. */
+  faction: Faction;
+}
+
+/** A decision task (07 section 4): runs one step and returns true while it continues. */
+type TaskFn = (sim: Sim, slot: number) => boolean;
+
+/** A spawn copy's identity and state (06 section 7.4 common template, 06 section 6.3 split). */
+interface CopyOpts {
+  vit: number;
+  endurance: number;
+  mood: number;
+  fuel: number;
+  /** A newborn (age 0) rather than a copy of the same age. */
+  baby: boolean;
+  /** Links the copy to `from` as its parent (06 section 6.1 child count). */
+  link: boolean;
+  /** Counts as a birth (06 section 6.6 counters). */
+  birth: boolean;
+  /** The copy may not rebirth again (06 section 7.4 "once"). Otherwise it inherits the source's flag. */
+  reborn: boolean;
 }
 
 /**
@@ -85,12 +141,30 @@ interface SpeciesRuntime {
 export class Beings {
   readonly store = new BeingStore();
   readonly strains = new Strains();
-  readonly stats: BeingStats = { births: 0, newAdults: 0, deaths: 0, starved: 0, eaten: 0, aged: 0, sleeps: 0, bonds: 0 };
+  readonly stats: BeingStats = {
+    births: 0,
+    newAdults: 0,
+    deaths: 0,
+    starved: 0,
+    eaten: 0,
+    aged: 0,
+    sleeps: 0,
+    bonds: 0,
+    blows: 0,
+    rebirths: 0,
+  };
   readonly runtime: readonly SpeciesRuntime[];
   /** Decision cooldowns: the tick each decision is eligible again, by slot * DECISIONS + index (07 section 3.4). */
   readonly cooldown: Uint32Array;
-  /** Index of the running decision task (DECISION_ROWS), or -1. Not saved: a loaded Being picks again (07 section 14). */
+  /** Index of the running decision task (DECISION_ROWS), or -1. Saved (round 6): a loaded Being resumes its task. */
   readonly task: Int8Array;
+  /**
+   * The target a fight search found during the current decision, or -1 (round 8). Written by the `fight` eligibility
+   * check and read by the `fight` task in the same call; reset at the start of every decision. Not saved.
+   */
+  readonly scratch: Int32Array;
+  /** Living Beings per strain, kept in step with births and deaths and rebuilt each tick (06 section 8, pop_cap). */
+  private readonly strainCounts = new Map<number, number>();
   private readonly cellsPerRow: number;
   private readonly head: Int32Array;
   private readonly link: Int32Array;
@@ -101,10 +175,12 @@ export class Beings {
     this.link = new Int32Array(this.store.capacity).fill(-1);
     this.cooldown = new Uint32Array(this.store.capacity * DECISIONS);
     this.task = new Int8Array(this.store.capacity).fill(-1);
-    this.runtime = SPECIES.map((def) => ({
+    this.scratch = new Int32Array(this.store.capacity).fill(-1);
+    this.runtime = SPECIES.map((def, k) => ({
       def,
       hunters: def.hunters.map((h) => speciesIndex(h)),
       prey: def.prey.map((p) => speciesIndex(p)),
+      faction: factionOf(def, k),
     }));
   }
 
@@ -122,6 +198,23 @@ export class Beings {
       this.link[slot] = this.head[c] ?? -1;
       this.head[c] = slot;
     }
+  }
+
+  /** Recounts the living Beings of each strain (called once per tick, before the Beings step). */
+  countStrains(): void {
+    this.strainCounts.clear();
+    const s = this.store;
+    for (let k = 0; k < s.size; k++) this.bumpStrain(s.strain[s.at(k)] ?? 0, 1);
+  }
+
+  /** Adds `d` (1 or -1) to a strain's living count. */
+  bumpStrain(strain: number, d: number): void {
+    this.strainCounts.set(strain, (this.strainCounts.get(strain) ?? 0) + d);
+  }
+
+  /** Living Beings of a strain as of the last count (exact after countStrains and every spawn and death). */
+  strainCount(strain: number): number {
+    return this.strainCounts.get(strain) ?? 0;
   }
 
   /** Living beings other than `self` inside the 16x16 patch that contains (x,y). */
@@ -157,7 +250,8 @@ export class Beings {
     for (let cy = c0y; cy <= c1y; cy++) {
       for (let cx = c0x; cx <= c1x; cx++) {
         for (let o = this.head[cy * this.cellsPerRow + cx] ?? -1; o !== -1; o = this.link[o] ?? -1) {
-          if (o === self || !pred(o)) continue;
+          // A Being killed earlier this tick stays in the grid until the next rebuild, so the alive check comes first.
+          if (o === self || s.alive[o] !== 1 || !pred(o)) continue;
           const dx = (s.x[o] ?? 0) - x;
           const dy = (s.y[o] ?? 0) - y;
           if (Math.max(Math.abs(dx), Math.abs(dy)) > radius) continue;
@@ -170,6 +264,28 @@ export class Beings {
       }
     }
     return best;
+  }
+
+  /** Every living being within `radius` tiles (Chebyshev) of `self` that passes `pred`, excluding `self` (round 8). */
+  within(self: number, pred: (slot: number) => boolean, radius: number): number[] {
+    const s = this.store;
+    const x = s.x[self] ?? 0;
+    const y = s.y[self] ?? 0;
+    const c0x = Math.max(0, Math.floor((x - radius) / BUCKET));
+    const c1x = Math.min(this.cellsPerRow - 1, Math.floor((x + radius) / BUCKET));
+    const c0y = Math.max(0, Math.floor((y - radius) / BUCKET));
+    const c1y = Math.min(this.cellsPerRow - 1, Math.floor((y + radius) / BUCKET));
+    const out: number[] = [];
+    for (let cy = c0y; cy <= c1y; cy++) {
+      for (let cx = c0x; cx <= c1x; cx++) {
+        for (let o = this.head[cy * this.cellsPerRow + cx] ?? -1; o !== -1; o = this.link[o] ?? -1) {
+          if (o === self || s.alive[o] !== 1 || !pred(o)) continue;
+          if (Math.max(Math.abs((s.x[o] ?? 0) - x), Math.abs((s.y[o] ?? 0) - y)) > radius) continue;
+          out.push(o);
+        }
+      }
+    }
+    return out;
   }
 }
 
@@ -201,6 +317,7 @@ function markIds(s: BeingStore, slot: number): string[] {
 /**
  * Recomputes a being's assembled stats (05 section 3) and stores them. Called on spawn, on birth, on
  * growing up and after a load. A child is recomputed as a child until its age reaches its adult age.
+ * The morph and caste multipliers (18a section 3) apply here too.
  */
 export function refreshStats(sim: Sim, slot: number): void {
   const b = sim.beings;
@@ -220,6 +337,7 @@ export function refreshStats(sim: Sim, slot: number): void {
     },
     // Items hook (08 section 6.1): flat sums of the worn gear; empty when the Being wears nothing.
     equipment: sim.items.fxOf(slot),
+    variant: variantFxOf(s.morph[slot] ?? 0, s.caste[slot] ?? 0),
   };
   const age = (sim.tick - (s.born[slot] ?? 0)) / YEAR;
   let a: Assembled = assemble({ ...input, baby: false });
@@ -236,6 +354,7 @@ export function refreshStats(sim: Sim, slot: number): void {
   s.metabolismA[slot] = a.metabolism;
   s.adultA[slot] = a.adultYears;
   s.gestationA[slot] = a.gestationMonths;
+  s.platingA[slot] = a.plating;
 }
 
 /** Tile multiplier under a being (07 section 7.1): the ground's walk value, and x0.8 on a tree tile with `tangle_roots`. */
@@ -298,6 +417,21 @@ function stepToward(sim: Sim, slot: number, tx: number, ty: number): void {
   }
 }
 
+/** A walkable tile next to (x,y), chosen from a random start direction so the draw is seeded (07 section 2). */
+function freeNeighbour(sim: Sim, x: number, y: number): { x: number; y: number } | null {
+  const realm = sim.realm;
+  const start = sim.rng('beings').int(8);
+  for (let n = 0; n < 8; n++) {
+    const [ox, oy] = DIRS[(start + n) % 8] ?? [0, 0];
+    const nx = x + ox;
+    const ny = y + oy;
+    if (nx < 0 || ny < 0 || nx >= realm.side || ny >= realm.side) continue;
+    if (!walkable(realm, ny * realm.side + nx)) continue;
+    return { x: nx, y: ny };
+  }
+  return null;
+}
+
 /** Flora food value for a diet on tile i (06 section 2.2): grass eats any flora, nectar eats flowers. */
 function foodAt(sim: Sim, i: number, diet: SpeciesDef['diet']): number {
   const code = sim.realm.flora[i] ?? 0;
@@ -317,11 +451,84 @@ export function litterRoll(sim: Sim, brood: number): number {
   return babies;
 }
 
-/** Removes a being, counting the cause. */
-export function killBeing(sim: Sim, slot: number, cause: 'eaten' | 'starved' | 'age' | 'combat'): void {
+/** The rebirth of a Being that dies (06 section 7.4, 18b REB), or null when none applies. Returns true if it lives on. */
+function rebirth(sim: Sim, slot: number): boolean {
   const b = sim.beings;
   const s = b.store;
-  if (s.alive[slot] !== 1) return;
+  if ((s.reborn[slot] ?? 0) === 1) return false;
+  const strain = b.strains.get(s.strain[slot] ?? 0);
+  const traits = (strain?.traits ?? []).filter((id) => REBIRTH_TRAITS.includes(id));
+  if (traits.length === 0) return false;
+  // isPrettyOld (06 section 7.4): age over 1, at least the adult age, and past 70% of the span.
+  const span = s.spanA[slot] ?? 0;
+  const age = (sim.tick - (s.born[slot] ?? 0)) / YEAR;
+  if (span <= 0 || !(age > 1 && age >= (s.adultA[slot] ?? 1) && age / span > 0.7)) return false;
+  const rng = sim.rng('beings');
+  const x = s.x[slot] ?? 0;
+  const y = s.y[slot] ?? 0;
+  const maxV = s.maxVit[slot] ?? 1;
+  for (const id of traits) {
+    if (id === 'ember_return') {
+      // 20% returns once at 25% hp, burning (18b REB). A revival is the Being living on, so nothing else happens.
+      if (rng.next() < 0.2) {
+        s.reborn[slot] = 1;
+        s.vit[slot] = Math.max(1, Math.floor(maxV * 0.25));
+        sim.effects.add(slot, 'scorched', sim.tick);
+        b.stats.rebirths++;
+        return true;
+      }
+    } else if (id === 'split_self') {
+      for (let n = 0; n < 2; n++) {
+        const at = freeNeighbour(sim, x, y);
+        if (at)
+          spawnCopy(sim, slot, at.x, at.y, {
+            vit: Math.floor(maxV / 2),
+            endurance: s.endurance[slot] ?? 0,
+            mood: s.mood[slot] ?? 0,
+            fuel: s.fuel[slot] ?? 0,
+            baby: false,
+            link: false,
+            birth: false,
+            reborn: true,
+          });
+      }
+      b.stats.rebirths++;
+    } else if (id === 'soul_seed') {
+      const at = freeNeighbour(sim, x, y);
+      if (at)
+        spawnCopy(sim, slot, at.x, at.y, {
+          vit: maxV,
+          endurance: 0,
+          mood: 0,
+          fuel: 25,
+          baby: true,
+          link: false,
+          birth: false,
+          reborn: true,
+        });
+      b.stats.rebirths++;
+    } else if (id === 'spore_return') {
+      place(sim, speciesIndex('sporeant'), x, y, true, -1, null);
+      b.stats.rebirths++;
+    } else if (id === 'grave_bloom') {
+      const tree = FLORA.findIndex((f) => f.kind === 'tree');
+      const i = y * sim.realm.side + x;
+      if (tree >= 0 && (sim.realm.flora[i] ?? 0) === 0) sim.realm.setFlora(i, tree + 1, sim.tick);
+      b.stats.rebirths++;
+    }
+  }
+  return false;
+}
+
+/**
+ * Removes a being, counting the cause (06 section 7.2). A rebirth trait may keep it alive instead: then nothing is
+ * removed. `killer` is the slot credited with the kill (round 8; -1 for none). Returns true when the Being died.
+ */
+export function killBeing(sim: Sim, slot: number, cause: 'eaten' | 'starved' | 'age' | 'combat', killer = -1): boolean {
+  const b = sim.beings;
+  const s = b.store;
+  if (s.alive[slot] !== 1) return false;
+  if (rebirth(sim, slot)) return false;
   // Death mood (06 section 7.2 step 2): the living parent gets child_died, the children kin_died, and a bond
   // partner friend_died (the bond ends). Read before the slot is freed.
   const gen = s.generation[slot] ?? 0;
@@ -336,6 +543,15 @@ export function killBeing(sim: Sim, slot: number, cause: 'eaten' | 'starved' | '
       addMood(sim, o, 'friend_died');
     }
   }
+  // Per-strain counters (05 section 5 gap, round 8): the victim's strain counts the death, the killer's the kill.
+  const strainId = s.strain[slot] ?? 0;
+  const strain = b.strains.get(strainId);
+  if (strain) strain.counters.died++;
+  if (killer >= 0 && s.alive[killer] === 1) {
+    const ks = b.strains.get(s.strain[killer] ?? 0);
+    if (ks) ks.counters.killed++;
+  }
+  b.bumpStrain(strainId, -1);
   s.kill(slot);
   sim.effects.clear(slot);
   b.stats.deaths++;
@@ -343,9 +559,13 @@ export function killBeing(sim: Sim, slot: number, cause: 'eaten' | 'starved' | '
   if (cause === 'eaten') b.stats.eaten++;
   if (cause === 'starved') b.stats.starved++;
   if (cause === 'age') b.stats.aged++;
+  return true;
 }
 
-/** Child-to-parent trait inheritance (18b `inh` percentages) and the birth mutation draw (05 section 7.4). */
+/**
+ * Child-to-parent trait inheritance (18b `inh` percentages) and the birth mutation draw (05 section 7.4). A strain with
+ * `likeness` copies the bearer's marks exactly instead of the inheritance draw; `chimeric_blood` adds one random trait.
+ */
 function inheritMarks(sim: Sim, parent: number, child: number, strainId: number): void {
   const s = sim.beings.store;
   const rng = sim.rng('beings');
@@ -353,17 +573,26 @@ function inheritMarks(sim: Sim, parent: number, child: number, strainId: number)
     const xg = BEING_TRAITS[BEING_TRAIT_INDEX.get(id) ?? 0]?.xg ?? '';
     return xg !== '' && BEING_TRAITS.some((t) => t.xg === xg && s.hasMark(child, BEING_TRAIT_INDEX.get(t.id) ?? -1));
   };
-  for (const id of markIds(s, parent)) {
-    const k = BEING_TRAIT_INDEX.get(id) ?? -1;
-    const trait = BEING_TRAITS[k];
-    if (!trait || trait.inherit === null) continue;
-    if (rng.next() * 100 < trait.inherit && !xgTaken(id)) s.setMark(child, k, true);
+  if (copiesMarks(sim, parent)) {
+    for (let w = 0; w < 5; w++) s.marks[child * 5 + w] = s.marks[parent * 5 + w] ?? 0;
+  } else {
+    for (const id of markIds(s, parent)) {
+      const k = BEING_TRAIT_INDEX.get(id) ?? -1;
+      const trait = BEING_TRAITS[k];
+      if (!trait || trait.inherit === null) continue;
+      if (rng.next() * 100 < trait.inherit && !xgTaken(id)) s.setMark(child, k, true);
+    }
+  }
+  if (chimericBlood(sim, child)) {
+    const id = chimericTrait(rng);
+    const k = id === null ? undefined : BEING_TRAIT_INDEX.get(id);
+    if (id !== null && k !== undefined && !xgTaken(id)) s.setMark(child, k, true);
   }
   const mutation = strainMutation(sim.beings.strains.get(strainId)?.traits ?? []);
-  if (mutation > 0 && BIRTH_POT.length > 0) {
+  if (mutation > 0 && BIRTH_POT_IDS.length > 0) {
     const extra = rng.int(mutation + 1);
     for (let n = 0; n < extra; n++) {
-      const id = BIRTH_POT[rng.int(BIRTH_POT.length)] ?? '';
+      const id = BIRTH_POT_IDS[rng.int(BIRTH_POT_IDS.length)] ?? '';
       const k = BEING_TRAIT_INDEX.get(id);
       if (k !== undefined && !s.hasMark(child, k) && !xgTaken(id)) s.setMark(child, k, true);
     }
@@ -389,6 +618,52 @@ export function spawnFolk(sim: Sim, speciesIdx: number, x: number, y: number): n
   const def = sim.beings.species(speciesIdx);
   if (!def.folk || !def.startTraits) return -1;
   return place(sim, speciesIdx, x, y, true, -1, def.startTraits);
+}
+
+/**
+ * A copy of a being at (x,y) (round 8): the same species, strain, morph, palette and marks, with the given vitality,
+ * endurance, mood and fuel. Used by split births (06 section 6.3), split-self and soul-seed rebirths (06 section 7.4).
+ * Returns the slot or -1 (the store is full).
+ */
+function spawnCopy(sim: Sim, from: number, x: number, y: number, o: CopyOpts): number {
+  const b = sim.beings;
+  const s = b.store;
+  if (s.size >= WORLD_CAP) return -1;
+  const species = s.species[from] ?? 0;
+  const female = sim.rng('beings').next() < 0.5 ? 1 : 0;
+  const born = o.baby ? sim.tick : (s.born[from] ?? 0);
+  const slot = s.spawn(species, x, y, born, s.maxVit[from] ?? 1, o.fuel, female);
+  if (slot < 0) return -1;
+  b.task[slot] = -1;
+  b.cooldown.fill(0, slot * DECISIONS, slot * DECISIONS + DECISIONS);
+  const strainId = s.strain[from] ?? 0;
+  s.strain[slot] = strainId;
+  s.morph[slot] = s.morph[from] ?? 0;
+  s.caste[slot] = o.baby ? 0 : (s.caste[from] ?? 0);
+  s.palette[slot] = s.palette[from] ?? 0;
+  s.shade[slot] = s.shade[from] ?? 0;
+  for (let k = 0; k < 4; k++) s.attrs[slot * 4 + k] = s.attrs[from * 4 + k] ?? 0;
+  for (let k = 0; k < 5; k++) s.marks[slot * 5 + k] = s.marks[from * 5 + k] ?? 0;
+  if (o.link) s.setParent(slot, from);
+  b.bumpStrain(strainId, 1);
+  refreshStats(sim, slot);
+  s.vit[slot] = Math.min(o.vit, s.maxVit[slot] ?? 0);
+  s.endurance[slot] = Math.min(b.species(species).endurance, o.endurance);
+  s.mood[slot] = o.mood;
+  s.reborn[slot] = o.reborn ? 1 : (s.reborn[from] ?? 0);
+  s.nextDecision[slot] = 0;
+  if (o.birth) {
+    addMood(sim, slot, 'born');
+    const st = b.strains.get(strainId);
+    if (st) st.counters.born++;
+    b.stats.births++;
+    recordStat(sim, { kind: 'being.born', count: 1 });
+    if (o.link) {
+      const bs = b.strains.get(strainId);
+      if (bs) bs.counters.reproduced++;
+    }
+  }
+  return slot;
 }
 
 function place(
@@ -438,7 +713,7 @@ function place(
     for (const id of founder?.strain ?? []) addStrainTrait(traits, id);
     // A new strain gets a lineage code decomposed from the species budget (05 section 5.3).
     const code = newGenome(speciesBudget(def), sim.realm.seed, speciesIdx, sim.rng('lineage').int(SEED_SALT_RANGE));
-    strain = b.strains.create(speciesIdx, def.name, 0, 0, traits, code);
+    strain = b.strains.create(speciesIdx, def.name, 0, 0, traits, code, palettesFor(def));
   }
   // Birth mutation (05 section 6.3): a bearer whose strain can mutate may give the newborn a mutant strain.
   // An unchanged trait set keeps the newborn in the parent's strain (mutateFrom returns null).
@@ -447,6 +722,9 @@ function place(
     if (mutant) strain = mutant;
   }
   s.strain[slot] = strain.id;
+  // Variants (18a section 3): a wild adult rolls its morph, caste and rare colour; a birth inherits the bearer's morph.
+  if (bearer >= 0) s.morph[slot] = s.morph[bearer] ?? 0;
+  else if (!founder && adult) rollWildVariant(sim, slot, def);
   for (const id of founder?.being ?? []) {
     const k = BEING_TRAIT_INDEX.get(id);
     if (k !== undefined) s.setMark(slot, k, true);
@@ -470,7 +748,9 @@ function place(
   }
   s.vit[slot] = s.maxVit[slot] ?? 0;
   s.endurance[slot] = def.endurance;
+  assignPalette(sim, slot, bearer, strain.phenotypes);
   if (!adult) addMood(sim, slot, 'born');
+  b.bumpStrain(strain.id, 1);
 
   if (adult) {
     b.stats.newAdults++;
@@ -486,11 +766,6 @@ function place(
     if (bs) bs.counters.reproduced++;
   }
   return slot;
-}
-
-/** Whether a strain holds a trait by id (18b). */
-function hasStrainTrait(sim: Sim, slot: number, id: string): boolean {
-  return sim.beings.strains.get(sim.beings.store.strain[slot] ?? 0)?.traits.includes(id) ?? false;
 }
 
 function setNext(sim: Sim, slot: number, ticks: number): void {
@@ -521,7 +796,27 @@ function bearerRoom(sim: Sim, o: number): boolean {
   return s.female[o] === 0 || (s.childCount[o] ?? 0) < Math.ceil(s.litterA[o] ?? 0);
 }
 
-/** Mating gates for the deciding Being (06 section 6.1): adult, able, rule on, not sleeping, and crowd below the cap. */
+/**
+ * Whether the strain of `slot` has room under its population cap (06 section 8, 18b POP). A strain with no POP trait is
+ * uncapped. The rung is by size class (ROUND8.popRung), times the POP multiplier.
+ */
+function popRoom(sim: Sim, slot: number): boolean {
+  const b = sim.beings;
+  const strain = b.strains.get(b.store.strain[slot] ?? 0);
+  if (!strain) return true;
+  const mult = popMultiplier(strain.traits);
+  if (mult === null) return true;
+  const rung = ROUND8.popRung[b.species(b.store.species[slot] ?? 0).size] ?? 50;
+  return b.strainCount(strain.id) < Math.round(rung * mult);
+}
+
+/** The breeding mode of a Being's strain (18b RST and RMT; trait-hooks `breedMode`). */
+function modeOf(sim: Sim, slot: number): BreedMode {
+  const b = sim.beings;
+  return breedMode(b.strains.get(b.store.strain[slot] ?? 0)?.traits ?? []);
+}
+
+/** Mating gates for the deciding Being (06 section 6.1): adult, able, rule on, not sleeping, season, cap, and crowd below the cap. */
 function mayBreed(sim: Sim, slot: number): boolean {
   const b = sim.beings;
   return (
@@ -530,6 +825,8 @@ function mayBreed(sim: Sim, slot: number): boolean {
     bearerRoom(sim, slot) &&
     sim.rules.isOn('beast_births') &&
     !sim.effects.flag(slot, 'noBreed') &&
+    breedsInSeason(sim, slot, sim.tick) &&
+    popRoom(sim, slot) &&
     b.crowdInPatch(slot, b.store.x[slot] ?? 0, b.store.y[slot] ?? 0) < BREEDING_CROWD
   );
 }
@@ -564,29 +861,42 @@ function partnerFor(sim: Sim, slot: number): number {
 function herdTarget(sim: Sim, slot: number): number {
   const b = sim.beings;
   const s = b.store;
-  if (!b.species(s.species[slot] ?? 0).herding) return -1;
+  if (!herds(sim, slot, b.species(s.species[slot] ?? 0).herding)) return -1;
   const near = partnerFor(sim, slot);
   if (near < 0) return -1;
   const gap = Math.max(Math.abs((s.x[near] ?? 0) - (s.x[slot] ?? 0)), Math.abs((s.y[near] ?? 0) - (s.y[slot] ?? 0)));
   return gap > ROUND6.herdGap ? near : -1;
 }
 
-/** Prey within hunt range that the Being may take (flesh eaters; omni eaters only with no food underfoot). */
+/**
+ * Prey within hunt range that the Being may take. Flesh eaters (diet flesh, or the `flesh_gut` trait); omni eaters
+ * only with no food underfoot. A `kin_eater` may also take its own species (18b DIE). Range doubles with `keen_nose`.
+ */
 function huntTarget(sim: Sim, slot: number): number {
   const b = sim.beings;
   const s = b.store;
   const def = b.species(s.species[slot] ?? 0);
-  if (!(def.diet === 'flesh' || (def.diet === 'omni' && foodAt(sim, (s.y[slot] ?? 0) * sim.realm.side + (s.x[slot] ?? 0), def.diet) === 0))) return -1;
+  const flesh = def.diet === 'flesh' || eatsFlesh(sim, slot);
+  const omniHunt = def.diet === 'omni' && foodAt(sim, (s.y[slot] ?? 0) * sim.realm.side + (s.x[slot] ?? 0), def.diet) === 0;
+  if (!(flesh || omniHunt)) return -1;
   const rt = b.runtime[s.species[slot] ?? 0];
   if (!rt) return -1;
-  return b.nearest(slot, (o) => rt.prey.includes(s.species[o] ?? -1) && SIZE_RANK[SPECIES[s.species[o] ?? 0]?.size ?? 'T'] <= SIZE_RANK[def.size], TUNING.huntRadius);
+  const kin = eatsKin(sim, slot);
+  const range = TUNING.huntRadius * foodRangeMult(sim, slot);
+  return b.nearest(
+    slot,
+    (o) =>
+      (rt.prey.includes(s.species[o] ?? -1) || (kin && s.species[o] === s.species[slot])) &&
+      SIZE_RANK[SPECIES[s.species[o] ?? 0]?.size ?? 'T'] <= SIZE_RANK[def.size],
+    range,
+  );
 }
 
 /** The nearest flora tile of a diet within the forage radius (row-major order), or -1. */
 function findFood(sim: Sim, slot: number, diet: SpeciesDef['diet']): number {
   const s = sim.beings.store;
   const realm = sim.realm;
-  const r = TUNING.forageRadius;
+  const r = Math.round(TUNING.forageRadius * foodRangeMult(sim, slot));
   const x0 = s.x[slot] ?? 0;
   const y0 = s.y[slot] ?? 0;
   for (let dy = -r; dy <= r; dy++) {
@@ -626,11 +936,145 @@ function canForage(sim: Sim, slot: number, diet: SpeciesDef['diet']): boolean {
   return foodAt(sim, here, diet) > 0 || findFood(sim, slot, diet) >= 0;
 }
 
+/** Whether the Being is hungry (06 section 2.1): needs food and fuel at or below half. */
+function hungryOf(sim: Sim, slot: number): boolean {
+  const b = sim.beings;
+  const def = b.species(b.store.species[slot] ?? 0);
+  return needsFood(def) && (b.store.fuel[slot] ?? 0) <= HUNGRY_AT;
+}
+
+/** Relation of Being `a` towards Being `o` (07 section 9.4), with the hunger the caller decides. */
+function relationOf(sim: Sim, a: number, o: number, hungry: boolean): Relation {
+  const b = sim.beings;
+  const s = b.store;
+  const fa = b.runtime[s.species[a] ?? 0]?.faction;
+  const fo = b.runtime[s.species[o] ?? 0]?.faction;
+  if (!fa || !fo) return 'I';
+  return relation(fa, fo, hungry);
+}
+
+/**
+ * An aggro entry the Being can act on now (07 section 10.1): a living attacker in chase range, to which the Being's
+ * relation is hostile or neutral (a neutral Being fights back, 07 section 9.4 note 1). Hunger does not matter here:
+ * an attacker in the aggro set counts as hostile (07 section 9.4). Returns the slot or -1.
+ */
+function engagedTarget(sim: Sim, slot: number): number {
+  for (const o of aggroFoes(sim, slot)) {
+    if (tileGap(sim, slot, o) > ROUND8.chaseRange) continue;
+    const rel = relationOf(sim, slot, o, true);
+    if (rel === 'H' || rel === 'N') return o;
+  }
+  return -1;
+}
+
+/**
+ * A new fight target from a search (07 section 8): a hostile Being in sight, if the start roll passes (25% times the
+ * trait scale). Runs only when a search is due, and then schedules the next. Returns the slot or -1.
+ */
+function startTarget(sim: Sim, slot: number): number {
+  if (!searchDue(sim, slot)) return -1;
+  scheduleSearch(sim, slot);
+  const hungry = hungryOf(sim, slot);
+  const found = findEnemy(sim, slot, (o) => relationOf(sim, slot, o, hungry) === 'H');
+  if (found < 0) return -1;
+  const roll = sim.rng('beings').next();
+  return roll < ROUND8.fightStartChance * fightStartScale(sim, slot) ? found : -1;
+}
+
+/**
+ * One blow (07 section 10, 08 section 2.3). Damage is might times the strike scale, less the victim's plating, at least
+ * 1. The victim is hurt, angry at the attacker, and may reflect damage or counter-strike once. A kill credits the
+ * attacker and gives it `killed_foe`.
+ */
+function strike(sim: Sim, attacker: number, victim: number): void {
+  const b = sim.beings;
+  const s = b.store;
+  const hit = Math.max(1, Math.floor((s.mightA[attacker] ?? 1) * strikeScale(sim, attacker) * (1 - (s.platingA[victim] ?? 0) / 100)));
+  b.stats.blows++;
+  s.vit[victim] = (s.vit[victim] ?? 0) - hit;
+  if ((s.vit[victim] ?? 0) <= 0) {
+    killBeing(sim, victim, 'combat', attacker);
+    addMood(sim, attacker, 'killed_foe');
+    return;
+  }
+  addMood(sim, victim, 'injured');
+  if (beingHas(sim, attacker, 'venom_gland')) sim.effects.add(victim, 'venomed', sim.tick);
+  addAggro(sim, victim, attacker);
+  const back = reflectDamage(sim, victim);
+  if (back > 0) {
+    s.vit[attacker] = (s.vit[attacker] ?? 0) - back;
+    if ((s.vit[attacker] ?? 0) <= 0) {
+      killBeing(sim, attacker, 'combat', victim);
+      return;
+    }
+  }
+  const counter = counterChance(sim, victim);
+  if (counter > 0 && sim.rng('beings').next() < counter) {
+    const riposte = Math.max(1, Math.floor((s.mightA[victim] ?? 1) * (1 - (s.platingA[attacker] ?? 0) / 100)));
+    s.vit[attacker] = (s.vit[attacker] ?? 0) - riposte;
+    if ((s.vit[attacker] ?? 0) <= 0) killBeing(sim, attacker, 'combat', victim);
+  }
+}
+
+/** Mating (06 section 6.3): a pregnancy for the bearer, with its gestation, litter and fuel cost (06 section 6.4). */
+function beginPregnancy(sim: Sim, bearer: number, brood: number | null, anySex: boolean): void {
+  const s = sim.beings.store;
+  if (!anySex && !s.female[bearer]) return;
+  if (s.expecting[bearer]) return;
+  const def = sim.beings.species(s.species[bearer] ?? 0);
+  s.expecting[bearer] = 1;
+  s.expectUntil[bearer] = sim.tick + Math.round((s.gestationA[bearer] ?? def.gestationMonths) * MONTH_TICKS);
+  s.brood[bearer] = brood ?? litterRoll(sim, Math.round(s.broodA[bearer] ?? def.litter));
+  s.fuel[bearer] = Math.max(0, (s.fuel[bearer] ?? 0) - BIRTH_FUEL);
+}
+
+/**
+ * Split birth (06 section 6.3, `birth_clonal`): the parent and a clone each take half of its vitality, endurance, mood
+ * and fuel. The clone is a baby beside the parent, linked to it. Nothing happens without a free tile.
+ */
+function splitBirth(sim: Sim, slot: number): void {
+  const b = sim.beings;
+  const s = b.store;
+  const tile = freeNeighbour(sim, s.x[slot] ?? 0, s.y[slot] ?? 0);
+  if (!tile) return;
+  const vit = Math.floor((s.vit[slot] ?? 0) / 2);
+  const endurance = Math.floor((s.endurance[slot] ?? 0) / 2);
+  const mood = Math.trunc((s.mood[slot] ?? 0) / 2);
+  const fuel = Math.floor((s.fuel[slot] ?? 0) / 2);
+  s.vit[slot] = vit;
+  s.endurance[slot] = endurance;
+  s.mood[slot] = mood;
+  s.fuel[slot] = fuel;
+  s.lull[slot] = sim.tick + LULL;
+  spawnCopy(sim, slot, tile.x, tile.y, { vit, endurance, mood, fuel, baby: true, link: true, birth: true, reborn: false });
+}
+
+/**
+ * Spore birth (06 section 6.3, `birth_spore`): 3 to 9 babies at once, each landing within three tiles of the parent.
+ * The parent pays the birth fuel and takes a lull.
+ */
+function sporeBirth(sim: Sim, slot: number): void {
+  const b = sim.beings;
+  const s = b.store;
+  const rng = sim.rng('beings');
+  const n = ROUND8.sporeMin + rng.int(ROUND8.sporeMax - ROUND8.sporeMin + 1);
+  const r = ROUND8.sporeRadius;
+  const species = s.species[slot] ?? 0;
+  s.lull[slot] = sim.tick + LULL;
+  s.fuel[slot] = Math.max(0, (s.fuel[slot] ?? 0) - BIRTH_FUEL);
+  for (let k = 0; k < n && b.store.size < WORLD_CAP; k++) {
+    const x = (s.x[slot] ?? 0) + rng.int(2 * r + 1) - r;
+    const y = (s.y[slot] ?? 0) + rng.int(2 * r + 1) - r;
+    spawnBeing(sim, species, x, y, false, slot);
+  }
+}
+
 /** The decision tasks of the beast layer (07 section 5, beast subset). Each returns true while the task continues. */
 const TASKS: Record<string, TaskFn> = {
   wander: (sim, slot) => {
     const rng = sim.rng('beings');
     wander(sim, slot, rng.int(8));
+    if (roamsFar(sim, slot)) wander(sim, slot, rng.int(8));
     setNext(sim, slot, 4 + rng.int(6));
     return false;
   },
@@ -688,6 +1132,27 @@ const TASKS: Record<string, TaskFn> = {
     setNext(sim, slot, 2);
     return true;
   },
+  fight: (sim, slot) => {
+    const b = sim.beings;
+    const s = b.store;
+    let target = engagedTarget(sim, slot);
+    if (target < 0) {
+      // A fresh target from this decision's search (eligibility wrote it); it becomes a grudge for the chase.
+      target = b.scratch[slot] ?? -1;
+      b.scratch[slot] = -1;
+      if (target < 0) return false;
+      addAggro(sim, slot, target, ROUND8.grudgeTicks);
+    }
+    if (s.alive[target] !== 1) return false;
+    if (tileGap(sim, slot, target) > 1) {
+      stepToward(sim, slot, s.x[target] ?? 0, s.y[target] ?? 0);
+      setNext(sim, slot, 2);
+      return true;
+    }
+    strike(sim, slot, target);
+    setNext(sim, slot, ROUND8.fightBeat);
+    return s.alive[target] === 1 && s.alive[slot] === 1;
+  },
   eat_grass: (sim, slot) => forage(sim, slot, 'grass'),
   eat_nectar: (sim, slot) => forage(sim, slot, 'nectar'),
   eat_hunt: (sim, slot) => {
@@ -704,33 +1169,47 @@ const TASKS: Record<string, TaskFn> = {
     const bite = Math.floor(0.15 * (s.maxVit[prey] ?? 0)) + 1;
     s.vit[prey] = (s.vit[prey] ?? 0) - bite;
     if ((s.vit[prey] ?? 0) <= 0) {
-      killBeing(sim, prey, 'eaten');
-      s.fuel[slot] = 100;
+      if (killBeing(sim, prey, 'eaten', slot)) s.fuel[slot] = 100;
       return false;
     }
+    // A bitten Being that lives turns on its attacker (07 section 10.4); a neutral one then fights back.
+    // `venom_gland` (18b ELM): the bite applies `venomed` (08 section 2 status, periodic damage).
+    if (beingHas(sim, slot, 'venom_gland')) sim.effects.add(prey, 'venomed', sim.tick);
+    addAggro(sim, prey, slot);
     s.fuel[slot] = Math.min(100, (s.fuel[slot] ?? 0) + bite);
     return true;
   },
   mate: (sim, slot) => {
+    const b = sim.beings;
+    const s = b.store;
+    const tick = sim.tick;
+    const mode = modeOf(sim, slot);
+    setNext(sim, slot, 3);
+    // Asexual modes (06 section 6.3): no partner is needed.
+    if (mode === 'split') {
+      splitBirth(sim, slot);
+      return false;
+    }
+    if (mode === 'spore') {
+      sporeBirth(sim, slot);
+      s.lull[slot] = tick + LULL;
+      return false;
+    }
+    if (mode === 'bud' || mode === 'self') {
+      beginPregnancy(sim, slot, mode === 'bud' ? 1 : null, true);
+      s.lull[slot] = tick + LULL;
+      return false;
+    }
+    // Sexual pairing (06 section 6.1): the bearer is pregnant for its gestation and carries a litter (06 section 6.4).
     const partner = mateTarget(sim, slot);
     if (partner < 0) return false;
-    const s = sim.beings.store;
-    const tick = sim.tick;
-    setNext(sim, slot, 3);
     const adjacent = Math.abs((s.x[partner] ?? 0) - (s.x[slot] ?? 0)) <= 1 && Math.abs((s.y[partner] ?? 0) - (s.y[slot] ?? 0)) <= 1;
     if (!adjacent) {
       stepToward(sim, slot, s.x[partner] ?? 0, s.y[partner] ?? 0);
       return true;
     }
-    // Mating (06 section 6.1): the bearer is pregnant for its gestation and carries a litter (06 section 6.4).
-    const def = sim.beings.species(s.species[slot] ?? 0);
     const bearer = s.female[slot] ? slot : partner;
-    if (s.female[bearer] && !(s.expecting[bearer] ?? 0)) {
-      s.expecting[bearer] = 1;
-      s.expectUntil[bearer] = tick + Math.round((s.gestationA[bearer] ?? def.gestationMonths) * MONTH_TICKS);
-      s.brood[bearer] = litterRoll(sim, Math.round(s.broodA[bearer] ?? def.litter));
-      s.fuel[bearer] = Math.max(0, (s.fuel[bearer] ?? 0) - 50);
-    }
+    beginPregnancy(sim, bearer, null, false);
     s.lull[slot] = tick + LULL;
     s.lull[partner] = tick + LULL;
     return false;
@@ -744,7 +1223,10 @@ function runTask(sim: Sim, slot: number, k: number): boolean {
   return task ? task(sim, slot) : false;
 }
 
-/** Eligibility of a decision beyond its flags (07 section 3.3 preconditions). */
+/**
+ * Eligibility of a decision beyond its flags (07 section 3.3 preconditions). The `fight` check may run a search and
+ * leaves its target in `scratch` for the task.
+ */
 function eligible(sim: Sim, slot: number, id: string, fleeing: boolean): boolean {
   const b = sim.beings;
   const s = b.store;
@@ -752,6 +1234,13 @@ function eligible(sim: Sim, slot: number, id: string, fleeing: boolean): boolean
   switch (id) {
     case 'flee':
       return fleeing;
+    case 'fight': {
+      if (fleeing) return false;
+      if (engagedTarget(sim, slot) >= 0) return true;
+      const target = startTarget(sim, slot);
+      b.scratch[slot] = target;
+      return target >= 0;
+    }
     case 'herd_follow':
       return herdTarget(sim, slot) >= 0;
     case 'chat':
@@ -763,16 +1252,16 @@ function eligible(sim: Sim, slot: number, id: string, fleeing: boolean): boolean
     case 'eat_hunt':
       return huntTarget(sim, slot) >= 0;
     case 'mate':
-      return mayBreed(sim, slot) && mateTarget(sim, slot) >= 0;
+      return mayBreed(sim, slot) && (modeOf(sim, slot) !== 'live' || mateTarget(sim, slot) >= 0);
     default:
       return true;
   }
 }
 
 /**
- * One decision for a being (07 sections 3 and 4): the running task continues, or a new one is picked by
- * tier and softmax weight among the eligible decisions (cooldowns, flags and preconditions filter them).
- * A flight from a hunter interrupts any task but flee itself (07 section 4.2).
+ * One decision for a being (07 sections 3 and 4). Three layers run in order: the override (a flight from a hunter, or
+ * an engaged fight, takes over any running task except its own kind), the running task, and the decision layer
+ * (brain.ts) picking a new task by tier and softmax weight among the eligible decisions.
  */
 function decide(sim: Sim, slot: number): void {
   const b = sim.beings;
@@ -780,61 +1269,44 @@ function decide(sim: Sim, slot: number): void {
   const tick = sim.tick;
   const rt = b.runtime[s.species[slot] ?? 0];
   if (!rt) return;
-  const hungry = needsFood(rt.def) && (s.fuel[slot] ?? 0) <= TUNING.hungryAt;
-  const fleeing = fleeFrom(sim, slot) >= 0;
+  const hungry = hungryOf(sim, slot);
+  const fleeing = fleeFrom(sim, slot) >= 0 && fleeAllowed(sim, slot);
+  const fightIdx = DECISION_INDEX.get('fight') ?? -1;
+  b.scratch[slot] = -1;
 
-  const running = b.task[slot] ?? -1;
-  if (running >= 0) {
-    if (!(fleeing && DECISION_ROWS[running]?.id !== 'flee')) {
-      if (!runTask(sim, slot, running)) b.task[slot] = -1;
-      return;
-    }
-    b.task[slot] = -1;
+  // Override layer (07 sections 4.2 and 10.1): a flight ends any task but flee; an engaged fight takes over any task
+  // but fight and flee. A task that continues is then run as is.
+  let current = b.task[slot] ?? -1;
+  if (current >= 0) {
+    const id = DECISION_ROWS[current]?.id;
+    if (fleeing && id !== 'flee') current = -1;
+    else if (!fleeing && id !== 'flee' && id !== 'fight' && fightIdx >= 0 && engagedTarget(sim, slot) >= 0) current = fightIdx;
   }
+  if (current < 0 && !fleeing && fightIdx >= 0 && engagedTarget(sim, slot) >= 0) current = fightIdx;
+  if (current >= 0) {
+    b.task[slot] = current;
+    if (!runTask(sim, slot, current)) b.task[slot] = -1;
+    return;
+  }
+  b.task[slot] = -1;
 
-  // Candidates: cooldown, flags and preconditions (07 section 3.3).
-  const pool: { k: number; tier: number; w: number }[] = [];
-  for (let k = 0; k < DECISIONS; k++) {
-    const row = DECISION_ROWS[k];
-    if (!row) continue;
-    if ((b.cooldown[slot * DECISIONS + k] ?? 0) > tick) continue;
-    if (row.flags.includes('onlyHungry') && !hungry) continue;
-    if (row.flags.includes('onlySafe') && fleeing) continue;
-    if (row.flags.includes('onlyAdult') && !isAdult(sim, slot)) continue;
-    if (!eligible(sim, slot, row.id, fleeing)) continue;
+  // Decision layer (07 sections 3.3 to 3.5): candidates, tiers and the softmax pick.
+  const ctx: CandidateContext = {
+    tick,
+    cooldownOf: (k) => b.cooldown[slot * DECISIONS + k] ?? 0,
+    flagsOk: (row) =>
+      !(row.flags.includes('onlyHungry') && !hungry) &&
+      !(row.flags.includes('onlySafe') && fleeing) &&
+      !(row.flags.includes('onlyAdult') && !isAdult(sim, slot)),
+    eligible: (row) => eligible(sim, slot, row.id, fleeing),
     // Reproduction weight: 2 under the living-children cap, else 0.1 (07 section 3.4).
-    const capped = row.id === 'mate' && (s.childCount[slot] ?? 0) >= Math.ceil(s.litterA[slot] ?? 0);
-    pool.push({ k, tier: row.tier, w: capped ? 0.1 : row.weight });
-  }
-  if (pool.length === 0) {
+    weight: (row) => (row.id === 'mate' && (s.childCount[slot] ?? 0) >= Math.ceil(s.litterA[slot] ?? 0) ? 0.1 : row.weight),
+  };
+  const pick = chooseDecision(DECISION_ROWS, sim.rng('beings'), ctx);
+  if (!pick) {
     setNext(sim, slot, EMPTY_PAUSE);
     return;
   }
-
-  // Tiers (07 section 3.5): a critical candidate forces tiers; otherwise tiers apply 80% of the time.
-  const rng = sim.rng('beings');
-  const critical = pool.some((p) => DECISION_ROWS[p.k]?.tier === 4);
-  const useTiers = critical || rng.next() < 0.8;
-  let set = pool;
-  if (useTiers) {
-    const top = Math.max(...pool.map((p) => p.tier));
-    set = pool.filter((p) => p.tier === top);
-  }
-
-  // Softmax pick (07 section 3.4): P(i) = exp(w_i) / sum exp(w_j).
-  let sum = 0;
-  for (const p of set) sum += Math.exp(p.w);
-  let r = rng.next() * sum;
-  let pick = set[set.length - 1];
-  for (const p of set) {
-    r -= Math.exp(p.w);
-    if (r <= 0) {
-      pick = p;
-      break;
-    }
-  }
-  if (!pick) return;
-
   const row = DECISION_ROWS[pick.k];
   if (!row) return;
   b.cooldown[slot * DECISIONS + pick.k] = tick + row.cooldown;
@@ -842,9 +1314,16 @@ function decide(sim: Sim, slot: number): void {
   if (!runTask(sim, slot, pick.k)) b.task[slot] = -1;
 }
 
+/** Ticks that fall on the Being's own birthday (06 section 3.4): the yearly pass for the venerable caste. */
+function birthday(sim: Sim, slot: number): boolean {
+  const s = sim.beings.store;
+  return ((sim.tick - (s.born[slot] ?? 0)) % YEAR + YEAR) % YEAR === 0;
+}
+
 /**
- * Per-tick being update (02 section 4 step 6): fuel and starvation, regeneration, natural death,
- * births from pregnancies, movement budget, and decisions when due.
+ * Per-tick being update (02 section 4 step 6): fuel and starvation, regeneration, natural death, births from
+ * pregnancies, movement budget, and decisions when due. Round 8 adds the trait life hooks (mending, stumbling,
+ * pregnancy stasis, the venerable caste) before the death roll.
  */
 export function stepBeings(sim: Sim): void {
   const b = sim.beings;
@@ -857,6 +1336,7 @@ export function stepBeings(sim: Sim): void {
   const deathRoll = tick % DEATH_ROLL === 0;
   const rng = sim.rng('beings');
   b.rebuildBuckets();
+  b.countStrains();
 
   for (let k = s.size - 1; k >= 0; k--) {
     const slot = s.at(k);
@@ -873,9 +1353,26 @@ export function stepBeings(sim: Sim): void {
       addMood(sim, slot, 'grew_up');
     }
 
+    // Trait life hooks (18b). `mendflesh` heals a share every ten seconds, unless the Being is hungry.
+    if (tick % ROUND8.mendTicks === 0 && mends(sim, slot) && (!feeds || (s.fuel[slot] ?? 0) >= HUNGRY_AT) && rng.next() < ROUND8.mendChance) {
+      const heal = Math.max(1, Math.floor((s.maxVit[slot] ?? 0) * ROUND8.mendFraction));
+      s.vit[slot] = Math.min(s.maxVit[slot] ?? 0, (s.vit[slot] ?? 0) + heal);
+    }
+    // `jittery` stumbles once a Month with a small chance (18b FLW; the stun is the `dazed` status).
+    if (tick % MONTH_TICKS === 0 && jittery(sim, slot) && rng.next() < ROUND8.jitterChance) sim.effects.add(slot, 'dazed', tick);
+    // `gestation_stasis` holds a pregnancy still while the bearer is hungry (18b GST).
+    if (s.expecting[slot] && pregnancyPausesWhenHungry(sim, slot) && (s.fuel[slot] ?? 0) <= HUNGRY_AT) {
+      s.expectUntil[slot] = (s.expectUntil[slot] ?? 0) + 1;
+    }
+    // Venerable caste (18a 3.3): an aged adult may be venerable on a birthday, once.
+    if (s.baby[slot] !== 1 && (s.spanA[slot] ?? 0) > 0 && birthday(sim, slot)) {
+      const age = (tick - (s.born[slot] ?? 0)) / YEAR;
+      if (age > 0.7 * (s.spanA[slot] ?? 0) && rollVenerable(sim, slot)) refreshStats(sim, slot);
+    }
+
     // Fuel pass (06 section 2.1): metabolism is taken first; at 0 the hunger rule starves the Being by 5% of
     // max vitality, otherwise endurance regains 1. A sleeping `energy_saver` Being is skipped.
-    if (fuelPass && feeds && !(isAsleep(sim, slot) && hasStrainTrait(sim, slot, 'energy_saver'))) {
+    if (fuelPass && feeds && !(isAsleep(sim, slot) && strainHas(sim, slot, 'energy_saver'))) {
       s.fuel[slot] = Math.max(0, (s.fuel[slot] ?? 0) - (s.metabolismA[slot] ?? 1));
       if ((s.fuel[slot] ?? 0) === 0) {
         if (hungerRule) {
@@ -894,9 +1391,9 @@ export function stepBeings(sim: Sim): void {
       s.vit[slot] = (s.vit[slot] ?? 0) + 1;
     }
 
-    // Span 0 never dies of age (05 section 1, 06 section 3.5).
+    // Span 0 never dies of age (05 section 1, 06 section 3.5). `evergreen` is not rolled (18b VIT).
     const span = s.spanA[slot] ?? 0;
-    if (deathRoll && agingRule && span > 0) {
+    if (deathRoll && agingRule && span > 0 && !evergreen(sim, slot)) {
       const age = (tick - (s.born[slot] ?? 0)) / YEAR;
       if (age > span) {
         const x = (age - span) / span;

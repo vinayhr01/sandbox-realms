@@ -15,6 +15,10 @@ export interface StrainCounters {
   newAdults: number;
   /** Births where a member was the bearer (06 section 6.6 `strain.counters.reproduced`). */
   reproduced: number;
+  /** Members that died, any cause (round 8, 05 section 5 gap; 06 section 7.2). */
+  died: number;
+  /** Kills credited to members (eating and fights; round 8, 06 section 7.1 `attackedBy`). */
+  killed: number;
 }
 
 export interface Strain {
@@ -28,6 +32,13 @@ export interface Strain {
   /** Strain trait ids (18b section 2). */
   traits: string[];
   counters: StrainCounters;
+  /** Allowed palette indices (05 section 8): members take one of these, uniformly (round 8). */
+  phenotypes: number[];
+}
+
+/** Zeroed counters for a new strain. */
+export function freshCounters(): StrainCounters {
+  return { born: 0, newAdults: 0, reproduced: 0, died: 0, killed: 0 };
 }
 
 /** Strain trait ids that share an exclusion group with `id` (18b section 2, xg column). */
@@ -103,7 +114,7 @@ export function mutateFrom(strains: Strains, parent: Strain, speciesName: string
   // code (only possible outside the normal founding path) has none to mutate.
   const parentCode = strains.genomeOf(parent.id);
   const code = parentCode ? mutateGenome(parentCode, k, rng) : null;
-  return strains.create(parent.species, speciesName, parent.generation + 1, parent.id, traits, code);
+  return strains.create(parent.species, speciesName, parent.generation + 1, parent.id, traits, code, parent.phenotypes);
 }
 
 /** Strain registry for one Sim. Ids start at 1; 0 means no strain. */
@@ -136,8 +147,19 @@ export class Strains {
     return [...this.codes.entries()].sort((a, b) => a[0] - b[0]);
   }
 
-  /** Creates a strain; the name is the species name and the id (no lineage naming yet). */
-  create(species: number, speciesName: string, generation: number, parent: number, traits: readonly string[], genome: Genome | null = null): Strain {
+  /**
+   * Creates a strain; the name is the species name and the id (no lineage naming yet). `phenotypes` is the allowed
+   * palette list (05 section 8); it is copied and must not be empty.
+   */
+  create(
+    species: number,
+    speciesName: string,
+    generation: number,
+    parent: number,
+    traits: readonly string[],
+    genome: Genome | null = null,
+    phenotypes: readonly number[] = [0],
+  ): Strain {
     const id = this.nextId++;
     const strain: Strain = {
       id,
@@ -146,7 +168,8 @@ export class Strains {
       generation,
       parent,
       traits: [...traits],
-      counters: { born: 0, newAdults: 0, reproduced: 0 },
+      counters: freshCounters(),
+      phenotypes: phenotypes.length > 0 ? [...phenotypes] : [0],
     };
     this.byId.set(id, strain);
     if (genome) this.codes.set(id, genome);

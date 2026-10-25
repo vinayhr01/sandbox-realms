@@ -33,6 +33,9 @@ export const DECISION_ROWS: readonly DecisionRow[] = [
   { id: 'eat_nectar', tier: 3, weight: 1, cooldown: 200, flags: ['onlyHungry', 'onlySafe'] },
   { id: 'eat_hunt', tier: 3, weight: 0.96, cooldown: 1100, flags: ['onlyHungry', 'onlySafe'] },
   { id: 'mate', tier: 3, weight: 2, cooldown: 800, flags: ['onlyAdult'] },
+  // Round 8 (07 section 8 to 10): a fight with a hostile in sight or an aggro target (07 section 9.2 relations).
+  // Appended, so the earlier rows keep their indices in the cooldown table.
+  { id: 'fight', tier: 3, weight: 1.5, cooldown: 0, flags: [] },
 ];
 
 /** Decision index by id. */

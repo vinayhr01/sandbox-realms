@@ -2,9 +2,18 @@ import { YEAR_TICKS } from '../../shared/constants.ts';
 import { TRUCE_TICKS, type Truce } from './founding.ts';
 import type { Dominion, RelationMatrix } from './types.ts';
 import { pairKey } from './types.ts';
+import type { RulerStats } from './rulers.ts';
 
-/** Ruler diplomacy stand-in: dominions have no rulers, so every dominion gets this base (10 section 10, TUNE). */
+/**
+ * Ruler diplomacy stand-in, used for a dominion with no living ruler (10 section 10, TUNE). With a ruler, the term is the
+ * ruler's rapport times OPINION_PER_RAPPORT (rulers.ts), and the ruler's mood adds OPINION_MOOD_DIVISOR-th of itself to
+ * the opinion held by that dominion (the spec's "a's ruler opinion stat"; the sim keeps no separate opinion stat).
+ */
 export const OPINION_RULER_STAND_IN = 25;
+/** Opinion per point of a ruler's rapport (TUNE). Folk aptitudes run 1 to 7, so a typical ruler lands near the stand-in. */
+export const OPINION_PER_RAPPORT = 5;
+/** A ruler's mood is divided by this before it joins the opinion of its dominion (TUNE; mood is -100..100). */
+export const OPINION_MOOD_DIVISOR = 10;
 /** Opinion term when b is the supreme dominion and there are at least three dominions (10 section 10). */
 export const OPINION_SUPREME = -100;
 /** Opinion when the pair shares a border (close), and when it does not (far) (10 section 10, TUNE). */
@@ -30,6 +39,8 @@ export interface OpinionContext {
   /** Pact member lists (pacts.ts Pact.memberIds); only membership is read. */
   pacts: readonly { memberIds: readonly number[] }[];
   tick: number;
+  /** Ruler stats of a dominion, or undefined without a living ruler (rulers.ts). Optional: without it the stand-in holds. */
+  rulerOf?: (dominionId: number) => RulerStats | undefined;
 }
 
 /** The supreme dominion id (most strength, ties to the lower id), or -1. */
@@ -51,7 +62,11 @@ export function opinion(ctx: OpinionContext, a: number, b: number): number {
   const da = ctx.dominions.find((d) => d.id === a);
   const db = ctx.dominions.find((d) => d.id === b);
   if (!da || !db || a === b) return 0;
-  let sum = OPINION_RULER_STAND_IN;
+  // Ruler terms (rulers.ts): b's ruler's rapport replaces the stand-in, and a's ruler's mood adds to a's opinion.
+  const rulerB = ctx.rulerOf?.(b);
+  let sum = rulerB ? rulerB.diplomacy * OPINION_PER_RAPPORT : OPINION_RULER_STAND_IN;
+  const rulerA = ctx.rulerOf?.(a);
+  if (rulerA) sum += Math.trunc(rulerA.mood / OPINION_MOOD_DIVISOR);
   if (ctx.dominions.length >= 3 && supremeOf(ctx.dominions) === b) sum += OPINION_SUPREME;
   const bordering = ctx.borders.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
   sum += bordering ? OPINION_BORDER_CLOSE : OPINION_BORDER_FAR;

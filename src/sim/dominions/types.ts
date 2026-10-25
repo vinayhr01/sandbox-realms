@@ -18,6 +18,10 @@ export interface Dominion {
   traits?: string[];
   /** Tax receipts from the ruler's share (tax.ts), cumulative. Optional: 0 until a hamlet pays. */
   taxRaised?: number;
+  /** The ruler, a Being in the leading hamlet (rulers.ts). Optional: absent while the dominion has none. */
+  ruler?: { slot: number; gen: number };
+  /** Tick before which no successor is sought after a ruler's death (rulers.ts). Optional: absent when no wait runs. */
+  rulerWaitUntil?: number;
 }
 
 /** Structural context for dominionStep (no Sim import). */

@@ -104,7 +104,7 @@ test('powers: a sim power arms, a tap sends it to the sim, and an unbuilt power 
   const call = await openRealm(page);
   await page.getByRole('tab', { name: 'Powers', exact: true }).click();
   await page.getByRole('tab', { name: 'Powers: Havoc' }).click();
-  const bomb = page.getByRole('button', { name: 'Bomb', exact: true });
+  const bomb = page.getByRole('button', { name: 'Charge', exact: true });
   await expect(bomb).toBeVisible();
 
   await bomb.click();

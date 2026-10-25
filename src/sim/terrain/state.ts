@@ -2,9 +2,8 @@ import type { Sim } from '../sim.ts';
 
 /**
  * Per-sim state of the round-2 terrain systems (vents, quakes, creep hubs, flora spread jobs).
- * Kept outside Sim so sim.ts only needs hook lines. Saved: vents, the quake in progress and the shape
- * cycle (terrain section, terrain/save.ts); creep hubs and creep guards (hamlet section). Not saved yet:
- * flora spread jobs (see DECISIONS.md).
+ * Kept outside Sim so sim.ts only needs hook lines. Saved: vents, the quake in progress, the shape
+ * cycle and the flora spread jobs (terrain section, terrain/save.ts); creep hubs and creep guards (hamlet section).
  */
 export interface Vent {
   tile: number;
@@ -41,10 +40,13 @@ export interface CreepHub {
 export interface FloraJob {
   /** Tick of the next expiry. */
   next: number;
-  /** Tiles of the kind queued for spread, processed in chunks. */
+  /** Tiles of the kind queued for spread, processed in chunks. Emptied (with cursor 0) once every entry is done. */
   queue: number[];
   cursor: number;
 }
+
+/** Flora kinds that have a spread job (flora.ts SPREAD). The chronicle accepts only these job keys. */
+export const FLORA_SPREAD_KINDS: readonly string[] = ['tree', 'plant', 'fungus', 'bush'];
 
 export interface TerrainState {
   vents: Vent[];

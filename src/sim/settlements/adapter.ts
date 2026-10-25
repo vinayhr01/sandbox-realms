@@ -13,7 +13,6 @@ import { decayRoads, PATH_DECAY_RANDOM_SS, PATH_DECAY_SS, planRoads, recordRoadB
 import { addMood } from '../beings/social.ts';
 import { customHas, customOfGroup, type Custom } from '../culture/culture.ts';
 import { childMayWork } from '../culture/trait-rules.ts';
-import { rulerLive, type RulerRef } from '../dominions/rulers.ts';
 import type { Workforce } from './jobs.ts';
 import { CREEP_HUB_BY_ID, LANDMARK_BY_ID } from '../../content/creeps.ts';
 import type { MoodEvent } from '../../content/moods.ts';
@@ -275,25 +274,19 @@ function foundHamlets(host: SettlementHost, state: SettlementState): void {
   }
 }
 
-/** The living ruler of the dominion holding most of the hamlet's parcels, or undefined. Reads only. */
-function rulerOfHamlet(host: SettlementHost, h: Hamlet): RulerRef | undefined {
-  const ds = dominionState(host as unknown as Sim);
-  const dom = majorityOwner(ds.owner, h);
-  if (dom === UNOWNED) return undefined;
-  const d = ds.dominions.find((o) => o.id === dom);
-  return d ? rulerLive(host.beings.store, d) : undefined;
-}
-
 /**
  * Counts living beings standing in any parcel of the hamlet, split by the Being baby flag (09 section 8 canWork).
- * Species is not distinguished. The ruler counts as a leader only while it is an adult Folk standing in the hamlet.
+ * Species is not distinguished for the counts. The hamlet leader (09 section 8) is the oldest adult Folk standing in the
+ * hamlet: the earliest birth tick, then the lowest slot. Its slot is returned (-1 when no adult Folk is there); it is
+ * the leader for the job flags (workforce.leaders) and for leader warfare in the garrison pass.
  */
-function census(host: SettlementHost, h: Hamlet, ruler: RulerRef | undefined): { folk: number; work: Workforce } {
+function census(host: SettlementHost, h: Hamlet): { folk: number; work: Workforce; leader: number } {
   const s = host.beings.store;
   const perAxis = host.realm.side / PARCEL;
   let adults = 0;
   let children = 0;
-  let leaders = 0;
+  let leader = -1;
+  let leaderBorn = Number.POSITIVE_INFINITY;
   for (let k = 0; k < s.size; k++) {
     const slot = s.at(k);
     const x = s.x[slot] ?? 0;
@@ -304,9 +297,15 @@ function census(host: SettlementHost, h: Hamlet, ruler: RulerRef | undefined): {
       continue;
     }
     adults++;
-    if (ruler && ruler.slot === slot && host.beings.species(s.species[slot] ?? 0).folk) leaders = 1;
+    if (!host.beings.species(s.species[slot] ?? 0).folk) continue;
+    const born = s.born[slot] ?? 0;
+    if (leader < 0 || born < leaderBorn || (born === leaderBorn && slot < leader)) {
+      leader = slot;
+      leaderBorn = born;
+    }
   }
-  return { folk: adults + children, work: { adults, children, leaders, childLabour: false } };
+  const leaders = leader >= 0 ? 1 : 0;
+  return { folk: adults + children, work: { adults, children, leaders, childLabour: false }, leader };
 }
 
 /**
@@ -331,8 +330,9 @@ export function settlementsStep(host: SettlementHost): void {
   for (const h of state.hamlets) {
     // Another hamlet owning a parcel blocks this hamlet from expanding into it.
     const custom = customOf(host, h);
-    const counted = census(host, h, rulerOfHamlet(host, h));
+    const counted = census(host, h);
     h.folk = counted.folk;
+    h.leader = counted.leader;
     const own: HamletContext = {
       ...ctx,
       claimed: (q) => state.hamlets.some((o) => o !== h && o.parcels.has(q)),

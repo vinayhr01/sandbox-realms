@@ -20,6 +20,9 @@ const LAND_TRIES = 32;
 /** Places a volcano (`small` = 3x3 vent, else the 6x6 cone) at the centre (cx, cy). */
 export function startVolcano(sim: Sim, cx: number, cy: number, small: boolean): boolean {
   const realm = sim.realm;
+  // The centre is the vent tile, so it must lie in the realm. An off-map centre would write a vent that the chronicle
+  // check refuses (chronicle.ts checkTerrain), so nothing is placed.
+  if (!realm.inBounds(cx, cy)) return false;
   const spec = small ? SMALL : CONE;
   const from = -Math.floor(spec.side / 2);
   let placed = false;

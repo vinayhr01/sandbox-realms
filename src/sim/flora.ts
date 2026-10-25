@@ -286,6 +286,12 @@ export function floraSpreadStep(sim: Sim): void {
       const def = floraAt(code);
       if (def && def.kind === spec.kind) trySpread(sim, i, def);
     }
+    // A finished queue is dropped (cursor back to 0): nothing reads it until the next expiry rebuilds it, and a
+    // save then holds only the entries still to do. The chunk loop above does nothing on an empty queue.
+    if (job.cursor >= job.queue.length) {
+      job.queue = [];
+      job.cursor = 0;
+    }
   }
 }
 

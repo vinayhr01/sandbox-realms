@@ -74,7 +74,13 @@
               <option value="4" selected>Standard (256)</option>
               <option value="5">Large (320)</option>
               <option value="8">Colossal (512)</option>
+              <!-- Titan (01 section 1): behind the Advanced toggle and desktop only; main.ts enables it. -->
+              <option value="9" hidden disabled>Titan (576)</option>
             </select>
+          </label>
+          <label class="realm-advanced">
+            <input id="realm-advanced" type="checkbox" />
+            <span>Advanced (Titan, desktop only)</span>
           </label>
           <button id="new-realm" class="btn primary" type="button">New Realm</button>
         </section>

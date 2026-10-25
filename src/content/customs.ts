@@ -45,21 +45,21 @@ beastFriends|rare||Folk talk with animals|live
 maleLevy|uncommon||only men become soldiers|live
 femaleLevy|uncommon||only women become soldiers|live
 heritageLore|rare||newborn inherits the parent's best attribute x0.5 + 1|live
-swiftStudy|uncommon||xp x2|data
-mentorTrade|uncommon||+10 xp each on a successful chat spread|data
-deepTraining|rare||level-up grants an extra level|data
+swiftStudy|uncommon||xp x2|live
+mentorTrade|uncommon||+10 xp each on a good chat|live
+deepTraining|rare||level-up grants an extra level|live
 bookLovers|uncommon||negative-mood books read as positive|data
 eagerReaders|rare||book xp x3|data
 chatterCircle|common||50% both inspired after a chat|live
 gossipers|common||mood from chats|live
 warlikeJoy|rare||campaign start and end mood events|live
-convertOrElse|rare||civil attacker below 30% hp on a weak target: 30% defect|data
+convertOrElse|rare||civil attacker below 30% hp on a weak target: 30% defect|live
 peaceable|uncommon||blocks declareCampaign; love-of-peace tag|live
 serenity|uncommon||blocks declareCampaign|live
 insular|uncommon|welcoming|-50 opinion to other strains; razes conquered towns of other lineages|live
 kinGuard|uncommon||-50 opinion to same-strain dominions of other customs|live
 welcoming|uncommon|insular|+20 opinion to same strain|live
-rooted|rare||cannot be replaced by conversion|data
+rooted|rare||cannot be replaced by conversion (fight)|live
 keepers|rare||blocks divide, schism and divergence|data
 patriarchy|uncommon|matriarchy|male first in succession; opposite-sex ruler -50 loyalty|live
 matriarchy|uncommon|patriarchy|female first in succession; opposite-sex ruler -50 loyalty|live

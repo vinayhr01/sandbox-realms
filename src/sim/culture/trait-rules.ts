@@ -75,3 +75,58 @@ export const CRAFT_UNIQUE_IDS: ReadonlySet<string> = new Set([
 
 /** Extra crafting skill from `smithMastery` (11 section 9.1: +5), counted as extra mod rolls (craftSkill is the roll count). */
 export const SMITH_SKILL = 5;
+
+/** Xp multiplier of `swiftStudy` (11 section 9.1: xp x2). Applies to every xp gain of the holder's custom. */
+export const SWIFT_STUDY_MULT = 2;
+/** Xp each talker gets from a good chat when either custom holds `mentorTrade` (11 section 4.4: +10 xp both). */
+export const MENTOR_XP = 10;
+/** Xp per level (TUNE). Reaching level L + 1 costs XP_PER_LEVEL x (L + 1) xp. */
+export const XP_PER_LEVEL = 100;
+/** Book xp multiplier of `eagerReaders` (11 section 9.1: x(1 + value 2) = x3, fixed). */
+export const EAGER_READER_MULT = 3;
+/** Vitality ratio below which a civil attacker or a weak target counts for `convertOrElse` (11 section 9.1: 30%). */
+export const CONVERT_HP_RATIO = 0.3;
+/** Chance a defeated weak non-mind target defects under `convertOrElse` (11 section 9.1: 30%). */
+export const CONVERT_CHANCE = 0.3;
+/** Extra tower limit of `towerPride` (11 section 9.1: +4). The tower building is cut, so nothing reads it yet. */
+export const TOWER_PRIDE_BONUS = 4;
+
+/** Xp after the holder's study traits (swiftStudy doubles it). */
+export function xpGain(traits: readonly string[], amount: number): number {
+  return traits.includes('swiftStudy') ? amount * SWIFT_STUDY_MULT : amount;
+}
+
+/** Levels added by one level-up (deepTraining grants an extra level: 2 instead of 1). */
+export function levelsPerLevelUp(traits: readonly string[]): number {
+  return traits.includes('deepTraining') ? 2 : 1;
+}
+
+/** Mood of a book for a reader: under `bookLovers` a negative mood reads as positive (11 section 5). */
+export function readingMood(traits: readonly string[], mood: number): number {
+  return mood < 0 && traits.includes('bookLovers') ? -mood : mood;
+}
+
+/** Xp a reader gains from a book under `eagerReaders` (x3). */
+export function readingXp(traits: readonly string[], xp: number): number {
+  return traits.includes('eagerReaders') ? xp * EAGER_READER_MULT : xp;
+}
+
+/** Whether a custom holds `keepers`: it cannot divide, schism or diverge (11 section 9.1). */
+export function blocksSplit(traits: readonly string[]): boolean {
+  return traits.includes('keepers');
+}
+
+/** Whether a custom holds `rooted`: conversion cannot replace its members' custom (11 section 9.1). */
+export function blocksConversion(traits: readonly string[]): boolean {
+  return traits.includes('rooted');
+}
+
+/** Extra tower limit from `towerPride` (0 without it). */
+export function towerLimitBonus(traits: readonly string[]): number {
+  return traits.includes('towerPride') ? TOWER_PRIDE_BONUS : 0;
+}
+
+/** Whether a custom lets children work (`childLabour`, opposite of `childShelter`; 11 section 9.1). */
+export function childMayWork(traits: readonly string[]): boolean {
+  return traits.includes('childLabour');
+}

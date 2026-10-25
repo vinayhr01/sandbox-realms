@@ -13,7 +13,7 @@ import { BeingStore } from './store.ts';
 import { newGenome, SEED_SALT_RANGE, speciesBudget } from './genome.ts';
 import { addStrainTrait, mutateFrom, strainMutation, Strains } from './strains.ts';
 import { addMood, beginSleep, bondCheck, isAsleep, sleepCheck } from './social.ts';
-import { heritageAttr, talkOutcome, talksWithBeasts } from '../culture/effects.ts';
+import { convertByFight, heritageAttr, talkOutcome, talksWithBeasts } from '../culture/effects.ts';
 import { ROUND6, ROUND8, TUNING } from './tuning.ts';
 import { MONTH_TICKS, YEAR_TICKS } from '../../shared/constants.ts';
 import { predate } from '../combat.ts';
@@ -1036,6 +1036,7 @@ function strike(sim: Sim, attacker: number, victim: number, fixed = 0): void {
   addMood(sim, victim, 'injured');
   if (beingHas(sim, attacker, 'venom_gland')) sim.effects.add(victim, 'venomed', sim.tick);
   addAggro(sim, victim, attacker);
+  convertByFight(sim, attacker, victim);
   const back = reflectDamage(sim, victim);
   if (back > 0) {
     s.vit[attacker] = (s.vit[attacker] ?? 0) - back;
@@ -1215,7 +1216,7 @@ const TASKS: Record<string, TaskFn> = {
     const event = sim.rng('beings').next() < 0.7 ? 'talked_well' : 'talked_badly';
     addMood(sim, slot, event);
     addMood(sim, partner, event);
-    talkOutcome(sim, slot, partner);
+    talkOutcome(sim, slot, partner, event === 'talked_well');
     setNext(sim, slot, 20);
     return false;
   },

@@ -14,8 +14,10 @@ import {
   addCustom,
   catalogueTraits,
   cultureStep,
+  pruneBeingState,
   recordFamily,
   startIntrigue,
+  type Book,
   type Creed,
   createCultureState as newCulture,
   type CultureContext,
@@ -23,6 +25,7 @@ import {
   type Dialect,
   type FamilyRecord,
   type Intrigue,
+  type Study,
 } from './culture.ts';
 
 /** Chebyshev distance (tiles) within which two regions count as neighbours. */
@@ -148,6 +151,7 @@ export function cultureYearly(sim: Sim, dominionIds: readonly number[]): void {
  */
 export function cultureTick(sim: Sim): void {
   familiesScan(sim);
+  if (sim.due('beingState', ssToTicks(10))) pruneBeingState(cultureContext(sim), sim.culture);
   const c = sim.culture;
   if (c.creeds.length === 0 && c.dialects.length === 0 && c.intrigues.length === 0) return;
   if (!sim.due('culture', ssToTicks(1))) return;
@@ -167,6 +171,10 @@ export interface CulturePayload {
   families: CultureState['families'];
   /** Family records (11 section 7). Written only when present, so older saves and empty states keep their shape. */
   familyRecords?: FamilyRecord[];
+  /** Study, defection and book records (11 section 9.1 and 5). Each written only when present. */
+  studies?: Record<string, Study>;
+  allegiance?: Record<string, number>;
+  books?: Book[];
   nextId: number;
 }
 
@@ -178,6 +186,9 @@ export function culturePayload(state: CultureState): CulturePayload {
     intrigues: state.intrigues,
     families: state.families,
     ...(state.familyRecords !== undefined ? { familyRecords: state.familyRecords } : {}),
+    ...(state.studies !== undefined ? { studies: state.studies } : {}),
+    ...(state.allegiance !== undefined ? { allegiance: state.allegiance } : {}),
+    ...(state.books !== undefined ? { books: state.books } : {}),
     nextId: state.nextId,
   };
 }
@@ -194,6 +205,9 @@ export function cultureFromPayload(p: CulturePayload): CultureState {
     intrigues: p.intrigues,
     families: p.families,
     ...(p.familyRecords !== undefined ? { familyRecords: p.familyRecords } : {}),
+    ...(p.studies !== undefined ? { studies: p.studies } : {}),
+    ...(p.allegiance !== undefined ? { allegiance: p.allegiance } : {}),
+    ...(p.books !== undefined ? { books: p.books } : {}),
     nextId: p.nextId,
   };
 }

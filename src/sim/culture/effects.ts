@@ -3,14 +3,19 @@
  * the chat outcome and the chat partner (beings/system.ts), the child copy (beings/system.ts spawnCopy), the campaign
  * and war hooks (dominions/step.ts, dominions/founding.ts, dominions/adapter.ts) and the ruler step (dominions/rulers.ts).
  * Mood goes through addMood (beings/social.ts). Draws only from the `culture` stream. Pure rules are in trait-rules.ts.
- * Traits with no state behind them (xp, books, levels, conversion, divide, towers) are not here: they stay data.
+ * The study traits (xp, levels), the book traits and the fight conversion (convertOrElse, rooted) keep their state in
+ * CultureState (culture.ts); their hooks are here too. The keepers guard is splitCustom in culture.ts. Still data:
+ * towerPride and childLabour (no building or job reads them yet), bookLovers and eagerReaders (no read decision calls readBook),
+ * keepers (no divide, schism or divergence decision calls splitCustom).
  */
 import type { Sim } from '../sim.ts';
 import { PARCEL, YEAR_TICKS } from '../../shared/constants.ts';
 import { addMood } from '../beings/social.ts';
+import { MAX_BEINGS } from '../beings/store.ts';
+import { vitalityRatio } from '../beings/trait-hooks.ts';
 import { dominionOwnerOf } from '../dominions/adapter.ts';
-import { customOfGroup } from './culture.ts';
-import { blocksWar, successionRuleOf } from './trait-rules.ts';
+import { addXp, customOfGroup, readBookEffects, type Book } from './culture.ts';
+import { blocksConversion, blocksWar, CONVERT_CHANCE, CONVERT_HP_RATIO, MENTOR_XP, successionRuleOf } from './trait-rules.ts';
 
 const NONE: readonly string[] = [];
 
@@ -21,18 +26,52 @@ function parcelOfSlot(sim: Sim, slot: number): number {
   return Math.floor((s.y[slot] ?? 0) / PARCEL) * perAxis + Math.floor((s.x[slot] ?? 0) / PARCEL);
 }
 
+/** Culture key of a being (generation * MAX_BEINGS + slot, as adapter.ts writes it). */
+function keyOfSlot(sim: Sim, slot: number): number {
+  return (sim.beings.store.generation[slot] ?? 0) * MAX_BEINGS + slot;
+}
+
+/** Whether a slot is a living Folk (the civil side of convertOrElse). */
+function isFolkSlot(sim: Sim, slot: number): boolean {
+  const b = sim.beings;
+  return b.species(b.store.species[slot] ?? 0).folk;
+}
+
 /** Trait ids of the custom of a group (a dominion id), or none. */
 export function traitsOfGroup(sim: Sim, group: number): readonly string[] {
   return customOfGroup(sim.culture, group)?.traits ?? NONE;
 }
 
-/** Trait ids of the custom of the dominion holding the being's parcel, or none (no dominion, no custom). */
+/**
+ * Dominion group a being follows: its defection (convertOrElse) when it has one, else the dominion holding its parcel.
+ * 0 when neither. Draws no rng.
+ */
+export function groupOfSlot(sim: Sim, slot: number): number {
+  const defected = sim.culture.allegiance?.[String(keyOfSlot(sim, slot))];
+  if (defected !== undefined) return defected;
+  const owner = dominionOwnerOf(sim);
+  if (!owner) return 0;
+  return owner[parcelOfSlot(sim, slot)] ?? 0;
+}
+
+/** Trait ids of the custom of the dominion a being follows (groupOfSlot), or none (no dominion, no custom). */
 export function traitsOfSlot(sim: Sim, slot: number): readonly string[] {
   if (sim.culture.customs.length === 0) return NONE;
-  const owner = dominionOwnerOf(sim);
-  if (!owner) return NONE;
-  const dom = owner[parcelOfSlot(sim, slot)] ?? 0;
+  const dom = groupOfSlot(sim, slot);
   return dom === 0 ? NONE : traitsOfGroup(sim, dom);
+}
+
+/** Adds xp to a being from a source (a good chat, a book); its custom's study traits decide the gain (culture.ts addXp). */
+export function grantXp(sim: Sim, slot: number, amount: number): void {
+  addXp(sim.culture, keyOfSlot(sim, slot), traitsOfSlot(sim, slot), amount);
+}
+
+/**
+ * A reader takes a book (11 section 5): xp through readBookEffects (eagerReaders, then the reader's study traits). Returns
+ * the mood the reading gives (bookLovers), for the caller to apply. No caller yet: the read decision is not built.
+ */
+export function readBook(sim: Sim, reader: number, book: Book): number {
+  return readBookEffects(sim.culture, keyOfSlot(sim, reader), traitsOfSlot(sim, reader), book);
 }
 
 /** Living Folk whose parcel the owner function gives to a dominion. Draws no rng. */
@@ -76,12 +115,18 @@ function gift(sim: Sim, giver: number, partner: number, traits: readonly string[
  * Effects of one chat outcome between two Folk or a Folk and a beast (beings/system.ts chat): gossipers (each talker
  * whose custom holds it gets `gossiped`), chatterCircle (50%: both `inspired` when either custom holds it), and the
  * childShelter and elderRespect gifts. Called after the chat's own mood. Draws only from the `culture` stream.
+ * mentorTrade (11 section 4.4: +10 xp both): on a good talk (`good`, the 70% outcome; the spread of a meta is not built),
+ * when either custom holds it, each talker gains MENTOR_XP through its own study traits.
  */
-export function talkOutcome(sim: Sim, a: number, b: number): void {
+export function talkOutcome(sim: Sim, a: number, b: number, good: boolean): void {
   if (sim.culture.customs.length === 0) return;
   const ta = traitsOfSlot(sim, a);
   const tb = traitsOfSlot(sim, b);
   if (ta.length === 0 && tb.length === 0) return;
+  if (good && (ta.includes('mentorTrade') || tb.includes('mentorTrade'))) {
+    grantXp(sim, a, MENTOR_XP);
+    grantXp(sim, b, MENTOR_XP);
+  }
   if (ta.includes('gossipers')) addMood(sim, a, 'gossiped');
   if (tb.includes('gossipers')) addMood(sim, b, 'gossiped');
   if ((ta.includes('chatterCircle') || tb.includes('chatterCircle')) && sim.rng('culture').next() < 0.5) {
@@ -128,6 +173,26 @@ export function campaignMood(sim: Sim, kind: 'start' | 'end', winner: number, lo
   }
   if (warlike(winner)) for (const f of folkOf(sim, ownerAt, winner)) addMood(sim, f, 'campaign_won');
   if (warlike(loser)) for (const f of folkOf(sim, ownerAt, loser)) addMood(sim, f, 'campaign_lost');
+}
+
+/**
+ * convertOrElse (11 section 9.1): after a blow that did not kill (beings/system.ts strike), a civil attacker (a Folk whose
+ * custom holds the trait) below 30% vitality converts a weak non-mind target (not Folk, below 30% vitality) with 30%: the
+ * victim follows the attacker's dominion (culture allegiance). A target whose current custom holds `rooted` is never
+ * converted. Draws from the `culture` stream only when every condition holds.
+ */
+export function convertByFight(sim: Sim, attacker: number, victim: number): void {
+  if (sim.culture.customs.length === 0) return;
+  if (!traitsOfSlot(sim, attacker).includes('convertOrElse')) return;
+  if (!isFolkSlot(sim, attacker) || isFolkSlot(sim, victim)) return;
+  if (vitalityRatio(sim, attacker) >= CONVERT_HP_RATIO || vitalityRatio(sim, victim) >= CONVERT_HP_RATIO) return;
+  const to = groupOfSlot(sim, attacker);
+  if (to === 0 || groupOfSlot(sim, victim) === to) return;
+  if (blocksConversion(traitsOfSlot(sim, victim))) return;
+  if (sim.rng('culture').next() >= CONVERT_CHANCE) return;
+  const allegiance: Record<string, number> = sim.culture.allegiance ?? {};
+  allegiance[String(keyOfSlot(sim, victim))] = to;
+  sim.culture.allegiance = allegiance;
 }
 
 /** The war declaration is blocked for this dominion's custom (peaceable, serenity). Draws no rng. */

@@ -1815,3 +1815,24 @@ Files: `src/sim/combat.ts` (spore puff in `meleeSwing`), `src/content/powers.ts`
 **5. Bomb and owner cases in handlers.ts.** No change. The bomb case already routes device bombs (Combat build 3). No owner was built that needs a handler case.
 
 **Remaining, and why.** Owners of `blaze_sphere`, `siege_ball`, `acid_glob` (buildings and boats code, outside this change). Sources of `taking_root`, `lull`, `expecting`, `sheltered` (beings system). `ash_sickness` (no cloud drops), `hexed` (no spells). Golden: not re-baselined.
+
+## Settlements close 4
+
+Scope: the open 18e creep effects, the vent and quake save, and a check of Titan. Files: `src/sim/settlements/creep-effects.ts` (new, the creep effects), `src/sim/settlements/adapter.ts` (one call in the per-second settlements step), `src/content/creeps.ts` (immunity tags and the gloom fever chance), `src/sim/terrain/save.ts` (new, save hooks: snapshot, restore, has-state), `src/sim/terrain/state.ts` (comment only), `src/sim/chronicle.ts` (terrain section, tag 22, with `checkTerrain`), and this log. Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). `GOLDEN_HASH` is not edited. Types were checked by reading.
+
+**Creep effects (18e 1.4).** Once per sim-second (every 20 ticks), each Being standing on a creep tile takes that creep's effect. `gloomgrowth`: 5% per evaluation to gain `growth_fever` (the trait mark, so the existing `patchbeast` conversion on death applies). Skipped for the `immune` status flag, `warded_blood` and `gloom_immune` species. `bloatmoss`: `sluggish` is added every evaluation (refreshed, not stacked), skipped for `bloat_immune` species. `gourdgrowth`: no harm. The 'creepEffect' stream is drawn only for a Being on gloomgrowth that can still catch fever, so a realm with no creep draws nothing.
+
+**Immunity tags.** The roster rows (`species-roster.ts`, `beasts.ts`) have no tag column, so the tags live in `creeps.ts` as `CREEP_IMMUNITY`, keyed by roster id: `gloom_immune` = patchbeast, rotstride, gravecaller; `bloat_immune` = gooblet, capstroll, sporeant, mudsnuffler. All seven ids were checked against the roster and the hand rows. Gourd has no tag (18e 1.4).
+
+**Vents and quakes in the Chronicle.** A new optional section, tag 22, holds the vents, the quake in progress (origin, step list, position, mode) and the fissure shape cycle (order and cursor). It is written only when one of them holds state, so realms without vents or quakes save as before. No schema bump: the section is optional, and older builds ignore an unknown tag. `checkTerrain` checks the shapes before any state is applied: known vent kinds, tiles and radii in range, whole counts, origin inside the realm, an even list of whole step offsets within 60 tiles, a position inside the list, a known mode, shape indexes below the shape count, and a cursor no further than the cycle's end. Creep hubs and creep guards were already saved in the hamlet section, so they are not repeated here.
+
+**Titan (576).** The spec defines it: `01` section 1 gives `Titan 9:576`, default yes, desktop only behind an "advanced" toggle. The sim side already accepts it (`MAX_SIZE_STEP` is 9, `MAX_SIDE` in `render/terrain.ts` is 576). Not closed in this pass: the option is missing from the `#realm-size` select in `index.html`, and the advanced and desktop-only gate is not built. Both are outside this task's touch list. The earlier "Titan is OPEN" note (Settlements round 4 era) is superseded by the spec text.
+
+**Not closed, and why.**
+- `unnerved` (bloatmoss, 15%) and `giggling` (gourdgrowth, 3%): their status rows are not in `src/sim/effects.ts`, which is outside the touch list. The effects are not modelled.
+- Flyers and swimmers are not exempted: the roster has no flyer or swimmer flag.
+- Creatures spawned by calamities (`01` 1.9) carrying their hub's immunity tag: the calamity spawns are outside this task.
+- Flora spread jobs (`floraJobs` in terrain state) are not saved, so a save taken mid-queue resumes differently. This needs its own section.
+- Vents with a centre tile outside the realm: `startVolcano` places the magma but does not check the centre, so a bad call could write a vent the load check refuses. The callers pass in-bounds tiles, so this is not reachable from the current powers. Left as is, since `eruption.ts` is outside the touch list.
+
+Not verified: none of the above has been run. The golden replay should be unaffected (no creep hubs or vents in that script, and the new draws only happen with creep), but that is an argument, not a run. The save round-trip for tag 22 needs a test that saves a realm mid-quake and with a vent, then compares the resumed state hash.

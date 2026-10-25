@@ -25,6 +25,8 @@ import {
 import { restoreClans, type ClanState } from './clans/clans.ts';
 import { snapshotBoats, restoreBoats, type BoatSave } from './boats/boats.ts';
 import { fnv1a } from '../shared/rng.ts';
+import { QUAKE_SHAPE_COUNT } from './terrain/quake.ts';
+import { QUAKE_REACH, restoreTerrain, snapshotTerrain, terrainHasState, type TerrainSave } from './terrain/save.ts';
 
 /** FNV-1a over raw bytes (the same hash as Sim.stateHash); re-exported for the save tests and tools. */
 export { fnv1a };
@@ -47,7 +49,8 @@ export { fnv1a };
  * weather (clouds, blast guard, projectiles), and the lifetime stats with the unlocked achievements
  * (optional section: saves written before it existed still load, with empty stats), and the dominion
  * state (tag 15: dominions, relations, borders, owner bytes) and the hamlet state (tag 16), both optional
- * so older saves still load with no dominions or hamlets. A save
+ * so older saves still load with no dominions or hamlets, and the terrain state (tag 22: vents, the quake in
+ * progress, the fissure shape cycle), optional and written only when non-empty. A save
  * continued to any later tick matches an uninterrupted run (tests/unit/chronicle.test.ts). The pending command queue is empty between
  * ticks by construction, so it is not written.
  */
@@ -75,9 +78,12 @@ const HEADER_BYTES = 16;
 export const MIN_SIZE_STEP = 2;
 export const MAX_SIZE_STEP = 9;
 
-const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14, dominions: 15, hamlets: 16, strains: 17, clans: 18, items: 19, pacts: 20, boats: 21 } as const;
+const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14, dominions: 15, hamlets: 16, strains: 17, clans: 18, items: 19, pacts: 20, boats: 21, terrain: 22 } as const;
 /** Sections a save may lack (written by later builds); absent means the empty default. */
-const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity, TAG.lifetime, TAG.dominions, TAG.hamlets, TAG.clans, TAG.items, TAG.pacts, TAG.boats];
+const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity, TAG.lifetime, TAG.dominions, TAG.hamlets, TAG.clans, TAG.items, TAG.pacts, TAG.boats, TAG.terrain];
+/** Vent kinds (terrain/state.ts Vent) and quake modes (terrain/state.ts Quake) a terrain section may name. */
+const VENT_KINDS: readonly string[] = ['volcano', 'water', 'acid'];
+const QUAKE_MODES: readonly string[] = ['lower', 'raise', 'small'];
 const REALM_ARRAYS = [
   'elevation',
   'ground',
@@ -397,6 +403,9 @@ export function encodeChronicle(sim: Sim): Uint8Array {
   // without boats saves exactly as before.
   const boatSnap = snapshotBoats(sim);
   if (boatSnap) section(body, TAG.boats, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(boatSnap))));
+  // Optional terrain section (tag 22, 04 sections 7.2 and 9): vents, the quake in progress and the fissure shape cycle.
+  // Written only when one of them holds state, so a realm without vents or quakes saves exactly as before.
+  if (terrainHasState(sim)) section(body, TAG.terrain, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(snapshotTerrain(sim)))));
 
   const bodyBytes = body.finish();
   const header = new Writer();
@@ -534,6 +543,9 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
 
   const boatBytes = sections.get(TAG.boats);
   if (boatBytes) restoreBoats(sim, checkBoats(parseJson<unknown>(decoder, boatBytes, 'boats'), realm.side));
+
+  const terrainBytes = sections.get(TAG.terrain);
+  if (terrainBytes) restoreTerrain(sim, checkTerrain(parseJson<unknown>(decoder, terrainBytes, 'terrain'), realm.side));
 
   realm.rebuildSets();
   realm.markAllDirty();
@@ -757,6 +769,35 @@ function checkBoats(raw: unknown, side: number): BoatSave {
     if (!Array.isArray(pair) || pair.length !== 2 || !Number.isInteger(pair[0]) || !isFiniteNumber(pair[1])) throw fail;
   }
   return raw as unknown as BoatSave;
+}
+
+/**
+ * Checks the terrain section's shape before any of it is applied. Vents: a known kind, a tile in the realm, whole radii
+ * with rMin <= rMax, whole interval and burst counts and a whole next tick. Quake: null or an origin in the realm, an even
+ * list of whole step offsets within QUAKE_REACH, a position inside the list and a known mode. Shape cycle: known shape
+ * indexes and a cursor no further than the cycle's end.
+ */
+function checkTerrain(raw: unknown, side: number): TerrainSave {
+  const fail = new Error('chronicle: terrain section is not valid');
+  if (!isRecord(raw) || !Array.isArray(raw.vents) || !Array.isArray(raw.shapeOrder)) throw fail;
+  const whole = (v: unknown, lo: number, hi: number): boolean => Number.isInteger(v) && (v as number) >= lo && (v as number) <= hi;
+  const cells = side * side;
+  for (const v of raw.vents as unknown[]) {
+    if (!isRecord(v) || typeof v.kind !== 'string' || !VENT_KINDS.includes(v.kind)) throw fail;
+    if (!whole(v.tile, 0, cells - 1) || !whole(v.rMin, 0, side) || !whole(v.rMax, 0, side) || (v.rMin as number) > (v.rMax as number)) throw fail;
+    if (!whole(v.interval, 0, Number.MAX_SAFE_INTEGER) || !whole(v.intervalMax, 0, Number.MAX_SAFE_INTEGER) || !whole(v.burst, 0, Number.MAX_SAFE_INTEGER)) throw fail;
+    if (!whole(v.next, 0, Number.MAX_SAFE_INTEGER)) throw fail;
+  }
+  const shapeOrder = raw.shapeOrder as unknown[];
+  if (!shapeOrder.every((k) => whole(k, 0, QUAKE_SHAPE_COUNT - 1)) || !whole(raw.shapeCursor, 0, shapeOrder.length)) throw fail;
+  const q = raw.quake ?? null;
+  if (q !== null) {
+    if (!isRecord(q) || !whole(q.ox, 0, side - 1) || !whole(q.oy, 0, side - 1) || !Array.isArray(q.steps)) throw fail;
+    const steps = q.steps as unknown[];
+    if (steps.length % 2 !== 0 || !steps.every((v) => whole(v, -QUAKE_REACH, QUAKE_REACH))) throw fail;
+    if (!whole(q.pos, 0, steps.length / 2) || typeof q.mode !== 'string' || !QUAKE_MODES.includes(q.mode)) throw fail;
+  }
+  return { vents: raw.vents, quake: q, shapeOrder, shapeCursor: raw.shapeCursor } as unknown as TerrainSave;
 }
 
 /** Checks the pact section's shape; restorePacts checks the records. */

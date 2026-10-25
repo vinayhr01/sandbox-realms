@@ -2,8 +2,9 @@ import type { Sim } from '../sim.ts';
 
 /**
  * Per-sim state of the round-2 terrain systems (vents, quakes, creep hubs, flora spread jobs).
- * Kept outside Sim so sim.ts only needs hook lines. Not saved in the Chronicle yet: a reloaded
- * realm starts with no vents, no quake in progress, and no creep hubs (see DECISIONS.md).
+ * Kept outside Sim so sim.ts only needs hook lines. Saved: vents, the quake in progress and the shape
+ * cycle (terrain section, terrain/save.ts); creep hubs and creep guards (hamlet section). Not saved yet:
+ * flora spread jobs (see DECISIONS.md).
  */
 export interface Vent {
   tile: number;

@@ -38,6 +38,20 @@ export const CREEP_GUARD_TICKS = 400;
 /** Ticks a hub tile may burn before the hub dies (18e 1.5: 6 s). */
 export const CREEP_BURN_TICKS = 120;
 
+/**
+ * Immunity tags of the creep effects (18e 1.4). Values are roster ids (species-roster.ts rows and the hand-authored
+ * rows of beasts.ts). The roster rows have no tag column, so the tags are listed here.
+ */
+export type CreepImmunityTag = 'gloom_immune' | 'bloat_immune';
+
+export const CREEP_IMMUNITY: Readonly<Record<CreepImmunityTag, readonly string[]>> = {
+  gloom_immune: ['patchbeast', 'rotstride', 'gravecaller'],
+  bloat_immune: ['gooblet', 'capstroll', 'sporeant', 'mudsnuffler'],
+};
+
+/** Chance per evaluation that a Being on gloomgrowth gains growth fever (18e 1.4: 5%). */
+export const GLOOM_FEVER_CHANCE = 0.05;
+
 /** Effect a landmark or beacon runs on its pulse (18e 2.1). `none` is passive or dormant (no lore, night or fear system). */
 export type LandmarkEffect = 'freeze' | 'ignite' | 'acid' | 'none';
 

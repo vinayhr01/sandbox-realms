@@ -1,7 +1,8 @@
 /**
  * Hamlet buildings: the 18c section 4.1 civic buildings the sim can run, plus the legacy slice entries
- * (house, well, storehouse, workshop) that saves may still hold. Costs are in stockpile units; the
- * spec's iron cost is cut (the hamlet holds no iron, as garrison already did), its gold is kept.
+ * (house, well, storehouse, workshop) that saves may still hold. Costs are in stockpile units. Iron costs are paid
+ * from the hamlet iron store (`iron`, fed by iron deposits); only the slipway carries one (18e). The other 18c iron
+ * costs stay cut, as garrison and bazaar already were.
  * Footprints are in tiles: `footprint` is the width (x), `height` the depth (y), absent meaning square.
  * Numbers are TUNE. Construction takes a site and builder progress (hamlet.ts SITE_PROGRESS, one value for every def),
  * so the 18c progress times are not used.
@@ -33,6 +34,8 @@ export interface BuildingDef {
   stone: number;
   /** Gold cost paid from the hamlet purse (18c section 4.1); absent means 0. */
   gold?: number;
+  /** Iron cost paid from the hamlet iron store (18e slipway); absent means 0. */
+  iron?: number;
   /** Width in tiles. spec-model.ts (UI) prints this as a square footprint. */
   footprint: number;
   /** Depth in tiles; absent means square (equal to `footprint`). */
@@ -98,9 +101,14 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // 18e section 3.1 quarry_lodge: one extra digger and +25% outcrop yield, beside a quarry (the 6-tile range is not checked).
   { id: 'quarry_lodge', name: 'Quarry Lodge', role: 'work', wood: 6, stone: 6, gold: 10, footprint: 3, height: 2, hp: 300, ...NONE, outcropBonus: 0.25, jobs: [{ job: 'miner', slots: 1 }], needs: ['quarry'] },
   // Docks (18c 4.1 rows; 10 section 13). Ocean siting and the boat build are in src/sim/boats. Fisher's Pier is
-  // the base dock; the harbor is its upgrade. The transport boat is left out: it needs the slipway (18e, cut).
+  // the base dock; the harbor is its upgrade. The transport boat is not on these rows: a hamlet with a slipway lists
+  // it on its docks (boats.ts docksOf).
   { id: 'fishers_pier', name: "Fisher's Pier", role: 'food', wood: 9, stone: 0, footprint: 3, height: 2, hp: 200, ...NONE, boatTypes: ['fishing'] },
   { id: 'harbor', name: 'Harbor', role: 'trade', wood: 9, stone: 6, footprint: 3, height: 3, hp: 400, ...NONE, boatTypes: ['fishing', 'trading'], needs: ['fishers_pier'] },
+  // 18e section 3.1 slipway: cost 14/6/2/30, footprint 4x3, hp 500, needs a harbor in the Hamlet. It unlocks the transport
+  // boat on the Hamlet's docks and builds them every 150 ticks (boats.ts). Not modelled: its 300 progress (one
+  // SITE_PROGRESS for every def), its 2 shipwright jobs (no such job), and the boat hp +20% (no per-boat max hp).
+  { id: 'slipway', name: 'Slipway', role: 'trade', wood: 14, stone: 6, iron: 2, gold: 30, footprint: 4, height: 3, hp: 500, ...NONE, needs: ['harbor'] },
 ];
 
 export const BUILDING_BY_ID = new Map(BUILDINGS.map((b) => [b.id, b]));

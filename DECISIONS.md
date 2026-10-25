@@ -2714,3 +2714,11 @@ Scope: closes the slices that "Isolation granularity close 10" left as whole sys
 - Fatal invariant violations (17 section 9) are still not detected. Deviation 2 of "Pump isolation close 7" (the ping part) is unchanged.
 
 **Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`: `UnitGuard` now takes `number | string` (armies and rulers callers pass numbers, unchanged), and `borderUnit` and `CaptureContext.unit` are optional. Needed with test access: a unit test where one border pair throws and the other pairs still exchange, counted as `border:a-b`; a hamlet fault seen by two of the hamlet systems, counted together under `hamlet:<i>`; a check that three faults on one unit switch only that unit off for 600 ticks; and a no-fault hash check with and without a gate, which should match `GOLDEN_HASH` as before.
+
+## Redaction fix close 12
+
+**Cause.** `scrubText` in `src/app/crash-record.ts` matched e-mail addresses with `[\w.+-]+@[\w-]+(?:\.[\w-]+)+`, which takes one `@` and one domain. An input with a second `@` (for example `a@b.c@example.com`) matched only `a@b.c`, so `@example.com` survived. The fuzz test found it as a surviving `example.com`.
+
+**Fix.** The e-mail rule now consumes chained `@` segments: `[\w.+-]*@[\w.+-]*(?:@[\w.+-]*)*`. Side effect: any `@` with word characters around it is redacted, not only dotted addresses. Over-redaction is accepted for privacy. The Windows path rule now runs before the e-mail rule, because the wider e-mail rule would otherwise consume the drive letter in `@C:\...` and stop the path rule matching.
+
+**Tests.** `npx vitest run tests/unit/crash-redaction.test.ts tests/unit/crash*.test.ts`: 14 of 14 pass (only file matching the glob). Existing redaction rules unchanged in behaviour for the cases in that file. `GOLDEN_HASH` not edited.

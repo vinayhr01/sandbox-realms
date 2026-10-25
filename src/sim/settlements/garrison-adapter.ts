@@ -32,6 +32,14 @@ export function hamletHasGarrison(hamlet: Hamlet): boolean {
   return hamlet.buildings.some((b) => b.def.id === 'garrison');
 }
 
+/**
+ * Soldiers the garrison ledger holds for one hamlet (by hamlet index), read only; 0 when the hamlet has no record. The
+ * soldier job (jobs.ts) reads this count and draws nothing, so each soldier is counted once, in the dominion draw.
+ */
+export function garrisonSoldiersOf(host: object, hamlet: number): number {
+  return states.get(host)?.records.get(hamlet)?.soldiers ?? 0;
+}
+
 /** Soldiers a dominion has stationed in this host's garrisons (the records whose dominion is it). Read only; 0 before the first pass. */
 export function garrisonedSoldiers(host: object, dominionId: number): number {
   let n = 0;

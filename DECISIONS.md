@@ -1252,3 +1252,51 @@ Scope: the cut jobs of 09 section 8 that the earlier rounds left out, built wher
 **GOLDEN_HASH.** Not edited. The golden run moves: wild seeding now draws extra hive attempts, grazing may drop piles, tillers and honey gatherers take folk from the pool, and hunters kill. It must be re-baselined on a run, as a separate step, and that is not done here.
 
 **Open items.** Builder and roadwright need persisted queue state (see above). Soldier waits for the dominions round. Cleaner needs a ruin source in play (building damage or the calamity handler calling `destroyBuilding`). Manure needs a census hook in `adapter.ts` and a store if manure should be sold or kept. Spec job priorities (builder 9, no-food jobs 10), `okForRuler`/`okForLeader` and child labour are still not built. The new `Hamlet` target lists are rebuilt each growth step, so nothing above is saved.
+
+## Golden review
+
+Status: read-only review. The replay was not run, and `GOLDEN_HASH` is not edited.
+
+**Baseline.** The last golden re-baseline is commit `95dae61` ("Testing pass"): `GOLDEN_HASH` 2562049680 -> 1492628085 (see "Testing pass after round 6 merges"). `tests/unit/golden.test.ts` has not changed since, so the code value 1492628085 is the recorded baseline. The 2562049680 references that remain (the Determinism row in the table at the top, and the older round sections) are stale text. Fix them in the docs commit that goes with the re-baseline.
+
+**What the golden test runs** (`tests/unit/golden.test.ts`). `generateRealm` with seed 20240601, `sizeStep` 2, `continent`, default flora and beasts; then `seedStartingBeasts(sim, 40)`; then 1200 `sim.step()` calls with a brush stroke (`Cmd.Stroke`, lower or raise) queued every 30 ticks. Checkpoints are taken every 200 ticks, but the test asserts only the tick-1200 value. The script has no power, item, rule, gear or dominion commands.
+
+**What `stateHash` reads** (`src/sim/sim.ts`). Only: `tick`, `ages.elapsed`, `realm` elevation, ground, cover, flags, heat, scar, flora, `floraBlockedUntil`, and `beings.store` x, y, vit, alive. A change in any other state reaches the hash only through these fields, or by changing the order or number of draws from a named RNG stream that the golden path uses.
+
+**Golden-path facts (checked by reading).**
+- Calamities: the first `calamity` behaviour run is at about tick 1601 (80 s at 20 ticks per second), after the 1200-tick run. Calamity meteors and quakes do not run.
+- Folk: `spawnFolk` has no caller except the power handler, and no power is used. So there are no Folk, no hamlet founding (needs a Folk band), no dominion founding (needs a hamlet at `FOUND_FOLK`), and no culture creeds (`cultureTick` returns early).
+- `placeHamlets` runs on the first `settlementsStep` (tick 1), so hamlets exist with zero folk. Their buildings change hamlet state only, not hashed fields.
+- Creep hubs and landmarks are placed only by powers, so they are inert here.
+- Boats (`boatsStep`, every 20 ticks) need docks and write boat state and the `boats` stream only.
+
+**Commits since `95dae61` (25 non-merge commits).**
+
+Changes replayed state (expected to move the hash):
+- `175d211` Worldgen jobs, 18d flora subset. `wildSeeding` in `src/sim/flora.ts` now draws a category and takes its candidates from the 18d registry, so the worldgen planting (`Planting`, tick 0) and the `wild` stream differ. `realm.flora` is hashed. The flora pass, manure and crop lifecycle also write `flora` and `floraBlockedUntil`. Confidence high. The first difference is in flora at tick 0, so it is visible from the tick-200 checkpoint on.
+- `8b1445a` Beings release. The decision layer (`chooseDecision`, `beings` draws), fights and aggro, the `searchAt` and sleep and dream draws, and the new `variant` draws at spawn all change beings `x`, `y`, `vit` and `alive` on every tick. Confidence high.
+- `9099b8f` Combat release. Damage rolls on the `combat` stream, status ticks in `runCombatAndWeather`, the `projectiles` stream, and predation change beings `vit` and `alive` once an attack happens. Confidence medium-high: it needs an attack inside 1200 ticks, which `8b1445a` makes likely but which has not been seen.
+
+Possible, to confirm by checkpoint:
+- `fc31546` World and input release. `explode()` with a power lowers ground after the cover is stripped, but only for meteor and device blasts, which the golden run does not reach. `quake.ts` (14 lines) was not read in detail, and a quake that lowers ground would change `ground` on the golden path. Confidence low-medium.
+- `8760832` Landmark powers and Folk brawl. The brawl row is Folk-only and landmarks are power-placed, so both are inert here. `aggro.ts` and `tuning.ts` also changed, and were not read in detail. Confidence low.
+- `efd0a8d` Beings round 7. `fear_organ` is carried only by Folk species and awakened strains, so beasts are unaffected unless one gains the trait. The genome draws use the separate `lineage` stream. Confidence low.
+- `5fff62e` Jobs release 2. Herbalist and prospector change flora, but only with Folk workers. Confidence low.
+- `7ce61a8` Boats in the step. `boatsStep` runs every 20 ticks. It writes no hashed field, but it creates the `boats` stream and a boat state entry, so the saved stream keys change (not the hash). Confidence low.
+
+Inert on the golden path (no hashed writes, or gated off by the absence of Folk, dominions, hamlet docks, customs or powers):
+- UI, app, snapshot and test only: `17e3bd1`, `d99a861`, `28ccfd8`, `269653a`, `cca8da5`.
+- Powers: `55804e3` (favour and insight entries run only from power commands).
+- Settlements: `90cb6c2`, `993bd20` (creep and eruption change adds `fallAcid` only, and creeps need hubs), `7a71505` (customs and roads need culture customs or roadworks).
+- Dominions and culture: `0b08b1a`, `8c1f927`, `b6d773d`, `050b575`, `3ffaf98` (clans read beings and write only clan records), `5d0a3db` (garrison), `e2c65d6` (rulers, lazy `rulers` stream).
+- Boats: `9d9aea8` (dock-gated).
+
+Several of these inert claims rest on reading, and they are the first to check if a checkpoint diff points elsewhere.
+
+**Expected direction.** There is no direction in a hash; the test only detects a change. The expected change is: flora cells and `floraBlockedUntil` differ from tick 0 (worldgen planting, `175d211`), and beings `x`, `y`, `vit` and `alive` differ once beings act (`8b1445a`, `9099b8f`). So HEAD is expected to fail `golden.test.ts` with a value other than 1492628085. The mismatch is expected, not a regression to fix in the code.
+
+**Re-baseline plan (one plan, for the test round).**
+1. Confirm the baseline first. Run the golden test at `95dae61` in a clean worktree. It must give 1492628085. If it does not, stop: the value is not reproducible here, and do not re-baseline.
+2. Run it at HEAD `7ce61a8`. Log the value at each 200-tick checkpoint and per field (flora, ground, cover, beings x, y, vit, alive) with a temporary script that is not committed. This shows where the change starts and which fields it reaches.
+3. If HEAD differs, bisect the 25 non-merge commits using the final value (about five runs). Expect the first moving commit to be `175d211`. Check that `8b1445a` and `9099b8f` each move it. Then check the four "possible" commits only if the checkpoint diff points at them.
+4. Only when every difference is explained by the commits above, set `GOLDEN_HASH` to the new value once, in its own commit. The commit message gives the old and new values, and this section and the Determinism row are updated in the same docs commit. Then rerun the golden test and the determinism check. The "stable across runs" test must pass.

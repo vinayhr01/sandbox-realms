@@ -20,6 +20,7 @@ import { terrainState, type CreepHub } from '../terrain/state.ts';
 import { garrisonSoldiersOf, garrisonStep, garrisonsOf, restoreGarrisons } from './garrison-adapter.ts';
 import { rulesOf } from './custom-rules.ts';
 import type { GarrisonRecord, GarrisonSave } from './garrison.ts';
+import { creepEffectsStep } from './creep-effects.ts';
 
 /** Hamlets placed per realm at worldgen (TUNE). Kept: 09 does not place hamlets at worldgen, but the worldgen placement stays as it was. */
 export const HAMLETS_WANTED = 3;
@@ -299,6 +300,8 @@ export function settlementsStep(host: SettlementHost): void {
   if (host.tick % SECOND !== 0) return;
   foundHamlets(host, state);
   hubMood(host);
+  // Creep effects on Beings standing on creep (18e 1.4), once per sim-second (every 20 ticks).
+  creepEffectsStep(host as unknown as Sim);
   // Before the hamlet step lays queued roads, note each queued tile's base ground (roads.ts recordRoadBases).
   recordRoadBases(host.realm, state.hamlets.map((h) => h.road), state.roadBase);
   const ctx = contextOf(host);

@@ -712,6 +712,14 @@ function checkHamlets(raw: unknown): HamletSnapshot | null {
   for (const h of raw.hamlets) {
     if (isRecord(h) && h.iron !== undefined && !(isFiniteNumber(h.iron) && h.iron >= 0)) throw fail;
   }
+  // Road decay (roads.ts pathDecay): optional; a next-run tick and a list of [tile, base ground] pairs. Contents are checked in restoreHamlets.
+  if (raw.roadDecay !== undefined) {
+    const rd = raw.roadDecay;
+    if (!isRecord(rd) || !isFiniteNumber(rd.next) || !Array.isArray(rd.bases)) throw fail;
+    for (const pair of rd.bases) {
+      if (!Array.isArray(pair) || pair.length !== 2 || !isFiniteNumber(pair[0]) || !isFiniteNumber(pair[1])) throw fail;
+    }
+  }
   return raw as unknown as HamletSnapshot;
 }
 

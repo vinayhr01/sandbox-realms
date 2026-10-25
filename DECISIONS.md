@@ -1629,3 +1629,23 @@ No production rule was changed.
 **6. Golden hash.** Not edited, as instructed. It is handled separately.
 
 Not verified: none of the above has been run. The settlement test changes depend on growth-step timing read from `hamlet.ts` and `adapter.ts`, and the live count of 55 depends on a manual count of `options.ts` checked by grep. Both should be confirmed when tests are allowed.
+
+## Road decay
+
+Scope: 02 section 7 `pathDecay` (`wayworn` roads outside any Custom's hamlet territory decay 50%), run from the settlements step. Files: `src/sim/settlements/roads.ts` (rule and record functions), `src/sim/settlements/adapter.ts` (the per-second step, save and restore), `src/sim/chronicle.ts` (settlements section check), and this log. Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). `GOLDEN_HASH` is not edited. Types were checked by reading.
+
+**Rule.** The run interval is 1 + 0..1 sim-seconds (02 section 7), set by a timer in the adapter. Each run, every recorded road tile that is still `wayworn` and is not in a parcel of a hamlet that holds a Custom reverts to its base ground with chance `PATH_DECAY_CHANCE` 0.5 (the spec's "decay 50%"). Tiles are visited in index order, one rng draw each. A reverted tile loses its record.
+
+**Base ground.** Roads are laid by the roadwright (`hamlet.ts`), which is outside the touch set. So the adapter records the base in the settlements step, once per sim-second and before the hamlet step runs: `recordRoadBases` notes the ground of each queued road tile that is not road yet. Records of tiles that are neither road nor queued are dropped. The first record wins.
+
+**Timer and rng.** The timer exists only while a record exists. The first record sets the next run one sim-second ahead, and no draw happens before a run. Draws come from the new named stream `roadDecay`. A realm with no roads draws nothing, so its state and golden are unchanged by this rule.
+
+**Save.** An optional `roadDecay: { next, bases: [tile, ground][] }` in the hamlet section (tag 16 JSON). No schema bump: the field is optional and older saves load with no records. `checkHamlets` checks the shape; `restoreHamlets` checks tiles in range and ground ids in 0 to 255.
+
+**Differences from the brief and open items.**
+- Use and repair are not conditions. The brief says "unused or unrepaired". The spec's pathDecay row gives only the territory condition and the 50% chance, so the code does not check use or repair.
+- Time: the spec gives no per-tile delay. The run interval is the time. With a 50% chance per run, a road reverts after about two runs on average.
+- Territory: "any Custom's hamlet territory" is read as the parcels of hamlets for which `customOf` finds a Custom. The shield is checked on each run.
+- OPEN: a road tile with no record never decays. Such tiles come from a painted `wayworn` (power `shape_wayworn`), whose base is unknown. The spec does not say what base such a tile has.
+- OPEN: `heat` turning a road into `strand` drops the record on the next sim-second (the tile is no longer road). That is the existing ground rule, not a new one.
+- Not run: the golden hash is not re-baselined. It moves only in a golden run that lays a road and reaches a decay run.

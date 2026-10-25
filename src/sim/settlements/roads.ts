@@ -7,8 +7,15 @@
  * hamlet (hamlet.ts `road`), and a roadwright lays them one at a time (09 section 8, DECISIONS.md "Jobs build 3").
  */
 import { G, ground } from '../../content/grounds.ts';
+import type { Rng } from '../../shared/rng.ts';
 import type { Realm } from '../realm.ts';
 import type { Placed } from './hamlet.ts';
+
+/** pathDecay interval in sim-seconds: 1 + a random 0..1 (02 section 7). */
+export const PATH_DECAY_SS = 1;
+export const PATH_DECAY_RANDOM_SS = 1;
+/** Chance per run that a road tile outside a Custom's hamlet territory reverts (02 section 7, "decay 50%"). */
+export const PATH_DECAY_CHANCE = 0.5;
 
 /** Longest road in tiles (09 11.3). */
 export const ROAD_MAX_TILES = 20;
@@ -141,4 +148,36 @@ export function planRoads(realm: Realm, buildings: readonly Placed[], b: Placed,
     }
   }
   return planned;
+}
+
+/**
+ * Remembers the base ground of queued road tiles before a roadwright lays them, so a decaying road can revert to it. A
+ * tile is recorded only while it is not road yet; the first record wins. Records of tiles that are neither road nor queued
+ * are dropped. Draws no rng.
+ */
+export function recordRoadBases(realm: Realm, queues: readonly (readonly number[])[], bases: Map<number, number>): void {
+  const queued = new Set<number>();
+  for (const q of queues) for (const t of q) queued.add(t);
+  for (const t of queued) {
+    if (!bases.has(t) && !isRoad(realm, t)) bases.set(t, realm.ground[t] ?? 0);
+  }
+  for (const t of [...bases.keys()]) {
+    if (!isRoad(realm, t) && !queued.has(t)) bases.delete(t);
+  }
+}
+
+/**
+ * One pathDecay run (02 section 7): each recorded road tile that is still road and is not `shielded` reverts to its base
+ * ground with chance PATH_DECAY_CHANCE. Tiles are visited in index order and draw one rng value each, so the run is
+ * deterministic. A reverted tile's record is removed. Unused or unrepaired roads are not a spec condition and are not checked.
+ */
+export function decayRoads(realm: Realm, bases: Map<number, number>, shielded: (i: number) => boolean, rng: Rng): void {
+  for (const t of [...bases.keys()].sort((a, b) => a - b)) {
+    if (!isRoad(realm, t) || shielded(t)) continue;
+    if (rng.next() >= PATH_DECAY_CHANCE) continue;
+    const base = bases.get(t);
+    if (base === undefined) continue;
+    realm.setGround(t, base);
+    bases.delete(t);
+  }
 }

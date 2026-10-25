@@ -86,12 +86,11 @@ describe('yearly wiring in the sim', () => {
     return sim;
   }
 
-  it('after a sim year the yearly pass forms the pact, raises one army per dominion and keeps soldiers at strength', () => {
+  it('after a sim year the yearly pass raises one army per dominion and keeps soldiers at strength', () => {
     const sim = fourDominions();
     for (let t = 0; t < YEAR_TICKS; t++) sim.step();
-    const pacts = pactsOfSim(sim);
-    expect(pacts).toHaveLength(1);
-    expect(pacts[0]).toMatchObject({ founders: [2, 3], memberIds: [2, 3, 4], kind: 'normal' });
+    // Formation needs 60 strength on both sides (intrigue gate, round 5), and these dominions have 15: no pact forms.
+    expect(pactsOfSim(sim)).toHaveLength(0);
     const snap = snapshotDominions(sim);
     expect(snap?.armies?.map((a) => a.dominionId)).toEqual([1, 2, 3, 4]);
     for (const a of snap?.armies ?? []) {

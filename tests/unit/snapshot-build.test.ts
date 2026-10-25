@@ -115,7 +115,7 @@ describe('buildSnapshot', () => {
     expect(snap.hamletCount).toBe(hamlets.length);
     expect(snap.hamlets.length).toBe(hamlets.length);
     hamlets.forEach((h, i) => {
-      expect(snap.hamlets[i]).toEqual({ name: `Hamlet ${i + 1}`, folk: h.folk, buildings: h.buildings.length, parcels: h.parcels.size });
+      expect(snap.hamlets[i]).toMatchObject({ name: `Hamlet ${i + 1}`, folk: h.folk, buildings: h.buildings.length, parcels: h.parcels.size });
     });
   });
 

@@ -718,3 +718,10 @@ Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruc
 - `spec-model.ts` (UI, outside the touch set) prints `footprint` as a square. Rectangular buildings show the width twice. `systemWindows.ts` prints the registry length (now 23).
 - `docs/spec-coverage.md` (outside the touch set) still shows 7 of 60 buildings and no jobs, trade, mood or roads.
 - Tests that assume the old order or the old quarry stone (no workers needed) may need updates when testing resumes. Likely candidates: `tests/unit/settlements.test.ts` (build order), `tests/unit/items-gear.test.ts` (garrison gate and the catalogue helper), and the golden test.
+
+## Golden and test pass after the round 4 to 7 merges
+
+- **Golden hash confirmed.** `GOLDEN_HASH` stays 1492628085 (the value set in the testing pass). The golden replay is unchanged by the later rounds, and the determinism check passes.
+- **Attack orders and marches obey parley.** The yearly pass now skips attack orders and marches when the `parley` rule is off (10 section 3). This fixed the parley-off wiring test.
+- **Test expectations updated for the merged rules.** Pact formation is an intrigue, so pact tests call `formPact` and `joinPact` directly and the army test expects no pact at 15 strength. Snapshot hamlets carry `mood`, so the hamlet snapshot test matches a subset. Round 4 build rules and jobs changed the settlement tests (no-wood territory and the first building).
+- **Open:** `dominions-wiring` "a campaign moves parcels" expects dominion 1 to gain a parcel; it has 128 where 129 is expected. Not yet investigated.

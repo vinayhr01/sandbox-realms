@@ -57,7 +57,7 @@ describe('army march (10 section 8, position)', () => {
     const ds = [dom(1, 10, [0]), dom(2, 10, [9])];
     const rel = new RelationMatrix();
     rel.set(1, 2, 'war');
-    const armies: Army[] = [{ id: 1, name: 'a', dominionId: 1, soldiers: 10, renown: 0, captains: 1, parcel: 0 }];
+    const armies: Army[] = [{ id: 1, name: 'a', dominionId: 1, soldiers: 10, renown: 0, captains: 1, parcel: 0, slots: 0, order: -1 }];
     marchArmies(armies, ds, rel, perAxis);
     expect(armies[0]?.parcel).toBe(1);
     for (let i = 0; i < 20; i++) marchArmies(armies, ds, rel, perAxis);

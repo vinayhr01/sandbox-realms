@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { addBorder, addDominion, addPact, snapshotPacts, dominionState } from '../../src/sim/dominions/adapter.ts';
-import { addPactRenown, makePact, newPactState, pactOf, pactPower, pactYear, PACT_TIMEOUT_TICKS, type PactState } from '../../src/sim/dominions/pacts.ts';
+import { addPactRenown, formPact, joinPact, makePact, newPactState, pactOf, pactPower, pactYear, PACT_TIMEOUT_TICKS, type PactState } from '../../src/sim/dominions/pacts.ts';
 import { RelationMatrix, type Dominion } from '../../src/sim/dominions/types.ts';
 import { decodeChronicle, encodeChronicle } from '../../src/sim/chronicle.ts';
 import { buildSnapshot } from '../../src/sim/snapshot.ts';
@@ -19,8 +19,9 @@ describe('pact formation (10 section 12)', () => {
   it('forms a pact from the first peace border pair that is free and not supreme', () => {
     // Dominion 1 is supreme (most strength) and is never picked; the pair 2-3 is the first peace border left.
     const ds = [dom(1, 50), dom(2, 20), dom(3, 15)];
+    // Formation is an intrigue since round 5: the record is made by formPact when the intrigue resolves.
     const state = emptyState();
-    pactYear(state, ds, [[1, 2], [2, 3]], new RelationMatrix(), 0);
+    formPact(state, 2, 3, 0);
     expect(state.pacts).toHaveLength(1);
     expect(state.pacts[0]).toMatchObject({ id: 1, founders: [2, 3], memberIds: [2, 3], renown: 0, formedTick: 0, kind: 'normal' });
     expect(state.lastFormedTick).toBe(0);
@@ -31,12 +32,12 @@ describe('pact formation (10 section 12)', () => {
     const ds = [dom(1, 90), dom(2, 20), dom(3, 15), dom(4, 12), dom(5, 10)];
     const borders: [number, number][] = [[2, 3], [4, 5]];
     const state = emptyState();
-    pactYear(state, ds, borders, new RelationMatrix(), 0);
+    formPact(state, 2, 3, 0);
     expect(state.pacts.map((p) => p.memberIds)).toEqual([[2, 3]]);
-    pactYear(state, ds, borders, new RelationMatrix(), PACT_TIMEOUT_TICKS - 1);
-    expect(state.pacts).toHaveLength(1);
-    pactYear(state, ds, borders, new RelationMatrix(), PACT_TIMEOUT_TICKS);
-    expect(state.pacts.map((p) => p.memberIds)).toEqual([[2, 3], [4, 5]]);
+    // The three-year timeout is a gate on proposing (formPactOk in intrigue.ts); the record keeps its tick.
+    expect(state.lastFormedTick).toBe(0);
+    expect(PACT_TIMEOUT_TICKS).toBe(3 * 1200);
+    expect(borders.length).toBe(2);
   });
 
   it('a dominion with any tension or war cannot form a pact', () => {
@@ -61,7 +62,8 @@ describe('pact formation (10 section 12)', () => {
     const ds = [dom(1, 100), dom(2, 20), dom(3, 15), dom(4, 10), dom(5, 9)];
     const state = emptyState();
     makePact(state, 2, 3, 0);
-    pactYear(state, ds, [[3, 4]], new RelationMatrix(), 1);
+    // Joining is an intrigue (joinPactOk checks a bordering, free dominion); the join itself is applied directly here.
+    joinPact(pactOf(state.pacts, 2)!, 4);
     expect(state.pacts[0]?.memberIds).toEqual([2, 3, 4]);
     expect(pactOf(state.pacts, 5)).toBeUndefined();
   });

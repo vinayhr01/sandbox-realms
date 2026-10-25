@@ -9,8 +9,9 @@ import { BOAT_TYPE_BY_KIND, SPEED_PER_TILE, type BoatKind } from './types.ts';
 /**
  * Boat entities (10 section 13): docks come from hamlet buildings that carry `boatTypes`, boats are built at a
  * dock on a fixed period, sail on ocean tiles of their pool, trade with other docks, fish near home and unload
- * at home. Transport boats (passengers) are not built: they need iron and Being passengers, see DECISIONS.md
- * "Boats release". The sim runs `boatsStep` once per sim-second; nothing calls it yet (no hook in sim.ts).
+ * at home, and trading boats fire on enemy boats in reach. Transport boats (passengers) are still not built: no
+ * dock lists them yet, and their passengers are not modelled (DECISIONS.md "Boats build 3"). The sim runs
+ * `boatsStep` once per sim-second; nothing calls it yet (no hook in sim.ts).
  *
  * State lives beside the Sim (a WeakMap keyed by the host), like the settlements state, and is saved as
  * chronicle tag 21 only when a boat or a dock build timer exists.
@@ -34,6 +35,12 @@ export const FISH_RANGE = 8;
 export const ORPHAN_LIMIT = 200;
 /** Hull hp a boat repairs per pass at home (10 section 13: up to 100 per pass; TUNE, no cost). */
 export const REPAIR_PER_PASS = 100;
+/** A hit boat below this share of its max hp returns to its home dock (10 section 13 boatDanger: 25%). */
+export const DANGER_HP_FRACTION = 0.25;
+/** Chebyshev tiles a trading boat can fire across (TUNE; the spec gives no range). */
+export const ATTACK_RANGE = 8;
+/** Hull damage of one cannonball volley, one volley per sim-second (TUNE; the spec gives no damage). */
+export const CANNON_DAMAGE = 40;
 
 export type BoatTrip = 'idle' | 'trade' | 'fish' | 'home';
 
@@ -58,6 +65,10 @@ export interface Boat {
   cargoFood: number;
   /** Ticks spent without a home dock. */
   orphan: number;
+  /** Set when an enemy volley hit the boat; read by the danger decision on the next step. Absent when not hit. */
+  hit?: boolean;
+  /** Planned route to `target` (tile indices, last entry is the target), from the path search of a blocked boat. */
+  path?: number[];
 }
 
 /** Saved form of the boat state (chronicle tag 21). `builds` holds [dock tile, tick of the next build check]. */
@@ -107,6 +118,7 @@ interface StepCtx {
   docks: readonly Dock[];
   boats: readonly Boat[];
   mayTrade: (a: Hamlet, b: Hamlet) => boolean;
+  isEnemy: (a: Hamlet, b: Hamlet) => boolean;
 }
 
 function docksOf(realm: Realm, hamlets: readonly Hamlet[]): Dock[] {
@@ -130,22 +142,23 @@ function berthOf(realm: Realm, dock: Dock, pool: number): number {
 
 /**
  * Build check at one dock (10 section 13 produceBoat): a random type from the dock's list, skipped when the dock
- * already has a boat of that type, the hamlet cannot pay, or no berth is free of the dock's pool. The boat spawns
- * on a random berth. A transport boat needs iron, which the hamlet never holds, so it is never built here.
+ * already has a boat of that type, the hamlet cannot pay (wood, iron and gold), or no berth is free of the dock's
+ * pool. The boat spawns on a random berth and the hamlet pays all three costs.
  */
 function produce(host: BoatHost, st: BoatState, dock: Dock, rng: Rng): void {
   const kind = dock.kinds[rng.int(dock.kinds.length)];
   if (!kind) return;
   const def = BOAT_TYPE_BY_KIND.get(kind);
-  if (!def || def.iron > 0) return;
+  if (!def) return;
   if (st.boats.some((b) => b.home === dock.tile && b.kind === kind)) return;
   const h = dock.hamlet;
-  if (h.wood < def.wood || h.gold < def.gold) return;
+  if (h.wood < def.wood || h.gold < def.gold || h.iron < def.iron) return;
   const berths = accessTiles(host.realm, dock.x, dock.y).filter((t) => oceanPoolAt(host.realm, t % host.realm.side, Math.floor(t / host.realm.side)) === dock.pool);
   if (berths.length === 0) return;
   const berth = berths[rng.int(berths.length)] ?? berths[0] ?? -1;
   h.wood -= def.wood;
   h.gold -= def.gold;
+  h.iron -= def.iron;
   const side = host.realm.side;
   st.boats.push({
     id: st.nextId++,
@@ -165,7 +178,83 @@ function produce(host: BoatHost, st: BoatState, dock: Dock, rng: Rng): void {
   });
 }
 
-/** One move per whole tile banked from speed, greedy on Chebyshev distance over the boat's own pool. */
+/** True when tiles a and b are distinct and touch on the 8-way grid. */
+function touches(side: number, a: number, b: number): boolean {
+  return a !== b && Math.abs((a % side) - (b % side)) <= 1 && Math.abs(Math.floor(a / side) - Math.floor(b / side)) <= 1;
+}
+
+/**
+ * Path search for a blocked boat (10 section 13, DECISIONS "Boats build 3"): breadth first over sea tiles of one
+ * pool, 8-way, in N8X/N8Y order so the result is the same on every run. Returns the tiles after `from` up to and
+ * including `to`, or null when no sea route of that pool joins them. Reads only; draws no randomness.
+ */
+export function findSeaPath(realm: Realm, from: number, to: number, pool: number): number[] | null {
+  if (from === to) return [];
+  const side = realm.side;
+  const cells = side * side;
+  if (from < 0 || to < 0 || from >= cells || to >= cells) return null;
+  const prev = new Int32Array(cells).fill(-2);
+  const queue = new Int32Array(cells);
+  prev[from] = -1;
+  queue[0] = from;
+  let head = 0;
+  let tail = 1;
+  while (head < tail) {
+    const cur = queue[head++] ?? -1;
+    if (cur === to) break;
+    const cx = cur % side;
+    const cy = Math.floor(cur / side);
+    for (let k = 0; k < 8; k++) {
+      const nx = cx + (N8X[k] ?? 0);
+      const ny = cy + (N8Y[k] ?? 0);
+      if (nx < 0 || ny < 0 || nx >= side || ny >= side) continue;
+      const idx = ny * side + nx;
+      if (prev[idx] !== -2) continue;
+      if (oceanPoolAt(realm, nx, ny) !== pool) continue;
+      prev[idx] = cur;
+      queue[tail++] = idx;
+    }
+  }
+  if (prev[to] === -2) return null;
+  const path: number[] = [];
+  for (let c = to; c !== from; c = prev[c] ?? -1) path.push(c);
+  return path.reverse();
+}
+
+/** Next tile of the planned route when it is still valid: it ends at the target, touches the boat and is sea of the pool. */
+function routeStep(realm: Realm, b: Boat, pool: number): number {
+  const route = b.path;
+  if (!route || route.length === 0) return -1;
+  const side = realm.side;
+  const next = route[0] ?? -1;
+  if (route[route.length - 1] !== b.target || !touches(side, b.y * side + b.x, next)) return -1;
+  return oceanPoolAt(realm, next % side, Math.floor(next / side)) === pool ? next : -1;
+}
+
+/** Greedy step: the sea neighbour strictly closer (Chebyshev) to the target, or -1. */
+function greedyStep(realm: Realm, b: Boat, pool: number, tx: number, ty: number): number {
+  const side = realm.side;
+  const dist = (x: number, y: number): number => Math.max(Math.abs(x - tx), Math.abs(y - ty));
+  let best = -1;
+  let bestD = dist(b.x, b.y);
+  for (let k = 0; k < 8; k++) {
+    const nx = b.x + (N8X[k] ?? 0);
+    const ny = b.y + (N8Y[k] ?? 0);
+    if (oceanPoolAt(realm, nx, ny) !== pool) continue;
+    const d = dist(nx, ny);
+    if (d < bestD) {
+      bestD = d;
+      best = ny * side + nx;
+    }
+  }
+  return best;
+}
+
+/**
+ * Moves the boat toward its target, one tile per whole unit banked from speed. A valid planned route is followed
+ * first; otherwise the greedy step; when both are stuck the path search plans a route. Blocked only when no sea
+ * route of the pool reaches the target.
+ */
 function sail(ctx: StepCtx, b: Boat, pool: number, speed: number): 'arrived' | 'moving' | 'blocked' {
   const side = ctx.realm.side;
   const tx = b.target % side;
@@ -173,27 +262,26 @@ function sail(ctx: StepCtx, b: Boat, pool: number, speed: number): 'arrived' | '
   b.progress += speed / SPEED_PER_TILE;
   while (b.progress >= 1) {
     if (b.x === tx && b.y === ty) break;
-    const dist = (x: number, y: number): number => Math.max(Math.abs(x - tx), Math.abs(y - ty));
-    let bestX = -1;
-    let bestY = -1;
-    let bestD = dist(b.x, b.y);
-    for (let k = 0; k < 8; k++) {
-      const nx = b.x + (N8X[k] ?? 0);
-      const ny = b.y + (N8Y[k] ?? 0);
-      if (oceanPoolAt(ctx.realm, nx, ny) !== pool) continue;
-      const d = dist(nx, ny);
-      if (d < bestD) {
-        bestD = d;
-        bestX = nx;
-        bestY = ny;
+    let next = routeStep(ctx.realm, b, pool);
+    if (next >= 0) {
+      b.path = b.path?.slice(1);
+    } else {
+      next = greedyStep(ctx.realm, b, pool, tx, ty);
+      if (next >= 0) {
+        b.path = undefined;
+      } else {
+        const route = findSeaPath(ctx.realm, b.y * side + b.x, b.target, pool);
+        if (!route || route.length === 0) {
+          b.progress = 0;
+          b.path = undefined;
+          return 'blocked';
+        }
+        next = route[0] ?? -1;
+        b.path = route.slice(1);
       }
     }
-    if (bestX < 0) {
-      b.progress = 0;
-      return 'blocked';
-    }
-    b.x = bestX;
-    b.y = bestY;
+    b.x = next % side;
+    b.y = Math.floor(next / side);
     b.progress -= 1;
   }
   return b.x === tx && b.y === ty ? 'arrived' : 'moving';
@@ -266,6 +354,12 @@ function stepBoat(ctx: StepCtx, b: Boat): boolean {
     }
   }
 
+  // Danger (10 section 13 boatDanger): a boat hit by an enemy volley and below 25% hp goes back to its dock.
+  if (b.hit) {
+    b.hit = false;
+    if (home && b.trip !== 'home' && b.hp < def.hp * DANGER_HP_FRACTION) goHome(ctx, b, pool);
+  }
+
   if (b.trip === 'idle') {
     if (!home) return true;
     if (b.target < 0 && b.x === b.berth % ctx.realm.side && b.y === Math.floor(b.berth / ctx.realm.side)) {
@@ -320,12 +414,56 @@ function stepBoat(ctx: StepCtx, b: Boat): boolean {
   return true;
 }
 
+/** The hamlet a boat belongs to: its home dock's hamlet, or null when the boat has no home dock. */
+function homeHamletOf(ctx: StepCtx, b: Boat): Hamlet | null {
+  return ctx.docks.find((d) => d.tile === b.home)?.hamlet ?? null;
+}
+
+/**
+ * Cannon volleys (10 section 13: trading boats carry a cannonball attack). Each trading boat under way (not idle
+ * at a berth, not in a foreign port) fires once at the nearest enemy boat of its pool within ATTACK_RANGE. A hit
+ * sets the target's `hit` flag and costs CANNON_DAMAGE hp; the danger decision reads the flag on the next step.
+ * Boats are visited in id order and ties on distance go to the earlier id, so the result is deterministic.
+ */
+function attackPass(ctx: StepCtx, boats: readonly Boat[]): void {
+  for (const a of boats) {
+    const def = BOAT_TYPE_BY_KIND.get(a.kind);
+    if (!def?.attack || a.hp <= 0 || a.trip === 'idle' || a.wait >= 0) continue;
+    const mine = homeHamletOf(ctx, a);
+    const pool = oceanPoolAt(ctx.realm, a.x, a.y);
+    if (!mine || pool < 0) continue;
+    let best: Boat | null = null;
+    let bestD = Infinity;
+    for (const o of boats) {
+      if (o === a || o.hp <= 0) continue;
+      const d = Math.max(Math.abs(o.x - a.x), Math.abs(o.y - a.y));
+      if (d > ATTACK_RANGE || d >= bestD) continue;
+      if (oceanPoolAt(ctx.realm, o.x, o.y) !== pool) continue;
+      const theirs = homeHamletOf(ctx, o);
+      if (!theirs || !ctx.isEnemy(mine, theirs)) continue;
+      best = o;
+      bestD = d;
+    }
+    if (best) {
+      best.hp -= CANNON_DAMAGE;
+      best.hit = true;
+    }
+  }
+}
+
 /**
  * One boat step (once per sim-second). Each dock whose build check is due tries to produce a boat (dock order by
- * tile), then every boat moves in id order. `mayTrade` says whether two hamlets may trade (dominion rules, supplied
- * by the caller; relations never weight trade). Draws only from the 'boats' stream.
+ * tile), then every boat moves in id order, then trading boats fire and boats whose hp reached 0 are removed.
+ * `mayTrade` says whether two hamlets may trade (dominion rules, supplied by the caller; relations never weight
+ * trade). `isEnemy` says whether two hamlets are at war (caller's dominion rules); the default is no enemies, so
+ * no boat fires. Draws only from the 'boats' stream.
  */
-export function boatsStep(host: BoatHost, hamlets: readonly Hamlet[], mayTrade: (a: Hamlet, b: Hamlet) => boolean = () => true): void {
+export function boatsStep(
+  host: BoatHost,
+  hamlets: readonly Hamlet[],
+  mayTrade: (a: Hamlet, b: Hamlet) => boolean = () => true,
+  isEnemy: (a: Hamlet, b: Hamlet) => boolean = () => false,
+): void {
   const realm = host.realm;
   const docks = docksOf(realm, hamlets);
   const st = stateOf(host);
@@ -340,8 +478,10 @@ export function boatsStep(host: BoatHost, hamlets: readonly Hamlet[], mayTrade: 
       produce(host, st, d, rng);
     }
   }
-  const ctx: StepCtx = { realm, rng, docks, boats: st.boats, mayTrade };
+  const ctx: StepCtx = { realm, rng, docks, boats: st.boats, mayTrade, isEnemy };
   st.boats = st.boats.filter((b) => stepBoat(ctx, b));
+  attackPass(ctx, st.boats);
+  st.boats = st.boats.filter((b) => b.hp > 0);
 }
 
 /** Plain copy of the boat state, or null when there is nothing to save (no boats and no dock timers). */

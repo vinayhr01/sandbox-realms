@@ -71,8 +71,8 @@ export function structuresOf(host: SettlementHost): Structure[] | null {
 
 /** Plain-data form of one hamlet, JSON-safe; buildings are kept by catalogue id (Chronicle section 16). */
 export interface HamletSnapshot {
-  /** `gold` is absent in saves written before the hamlet purse; those load with 0 gold. */
-  hamlets: { parcels: number[]; food: number; wood: number; stone: number; folk: number; buildings: { id: string; x: number; y: number }[]; growTimer: number; outcrops: number; steps: number; gold?: number }[];
+  /** `gold` is absent in saves written before the hamlet purse, and `iron` before the iron store; those load with 0. */
+  hamlets: { parcels: number[]; food: number; wood: number; stone: number; folk: number; buildings: { id: string; x: number; y: number }[]; growTimer: number; outcrops: number; steps: number; gold?: number; iron?: number }[];
   /** Landmarks and beacon pillars (18e 2); absent in saves written before them. */
   structures?: { id: string; tile: number; next: number }[];
   /** Creep hubs (18e 1.1); a dead hub stores nextPulse 0. Absent in saves written before them. */
@@ -100,6 +100,7 @@ export function snapshotHamlets(host: SettlementHost): HamletSnapshot | null {
       outcrops: h.outcrops,
       steps: h.steps,
       gold: h.gold,
+      iron: h.iron,
     })),
     structures: state.structures.map((s) => ({ id: s.id, tile: s.tile, next: s.next })),
     // A dead hub's pulse is Infinity, which JSON cannot hold; it is stored as 0 and restored as Infinity.
@@ -123,7 +124,8 @@ export function restoreHamlets(host: SettlementHost, snap: HamletSnapshot): void
       taken.add(p);
     }
     const gold = h.gold ?? 0;
-    if (!isNum(h.food) || !isNum(h.wood) || !isNum(h.stone) || !isNum(h.folk) || !isNum(h.growTimer) || !isNum(h.outcrops) || !isNum(h.steps) || !isNum(gold) || gold < 0 || !Array.isArray(h.parcels) || !Array.isArray(h.buildings)) {
+    const iron = h.iron ?? 0;
+    if (!isNum(h.food) || !isNum(h.wood) || !isNum(h.stone) || !isNum(h.folk) || !isNum(h.growTimer) || !isNum(h.outcrops) || !isNum(h.steps) || !isNum(gold) || gold < 0 || !isNum(iron) || iron < 0 || !Array.isArray(h.parcels) || !Array.isArray(h.buildings)) {
       throw new Error('hamlet state: record is not valid');
     }
     const buildings: Placed[] = h.buildings.map((b) => {
@@ -131,7 +133,7 @@ export function restoreHamlets(host: SettlementHost, snap: HamletSnapshot): void
       if (!def || !isNum(b.x) || !isNum(b.y)) throw new Error(`hamlet state: building ${b.id} is not valid`);
       return { def, x: b.x, y: b.y };
     });
-    return { parcels: new Set(h.parcels), food: h.food, wood: h.wood, stone: h.stone, folk: h.folk, buildings, growTimer: h.growTimer, outcrops: h.outcrops, steps: h.steps, gold };
+    return { parcels: new Set(h.parcels), food: h.food, wood: h.wood, stone: h.stone, folk: h.folk, buildings, growTimer: h.growTimer, outcrops: h.outcrops, steps: h.steps, gold, iron };
   });
   const cells = host.realm.side * host.realm.side;
   const structures: Structure[] = (snap.structures ?? []).map((s) => {

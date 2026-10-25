@@ -1,8 +1,9 @@
 /**
- * Boat kinds and their numbers (10 section 13). Costs are wood, iron and gold. The hamlet holds no iron
- * (see catalogue.ts), so a transport boat (iron 2) cannot be paid for and is never built in this sim.
+ * Boat kinds and their numbers (10 section 13). Costs are wood, iron and gold. A hamlet has an iron store
+ * (`Hamlet.iron`, starts at 0, no income built), so a transport boat (iron 2) is paid for only once iron is
+ * held, and the transport row is also gated by the slipway (18e, cut), so it is not on any dock list yet.
  * `speed` is the spec number; movement is speed / SPEED_PER_TILE tiles per sim-second (TUNE: the spec
- * gives no unit). Boats have no combat in this sim, so `attack` records the spec flag only.
+ * gives no unit). `attack` is the spec's cannonball flag: only trading boats fire (see boats.ts attackPass).
  */
 export type BoatKind = 'trading' | 'transport' | 'fishing';
 

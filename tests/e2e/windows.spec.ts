@@ -107,7 +107,7 @@ test('All powers: the catalogue filters to available powers and a tap arms one',
   await dialog.getByRole('button', { name: 'Available', exact: true }).click();
   // The list is virtualised, so search for the row rather than rely on scroll position.
   await dialog.getByRole('searchbox', { name: 'Search Powers' }).fill('Charge');
-  await dialog.locator('.power-row').filter({ hasText: 'Charge' }).click();
+  await dialog.locator('.power-row').filter({ hasText: /^Charge/ }).click();
   await expect(dialog).toBeHidden();
 
   await page.getByRole('tab', { name: 'Powers: Havoc' }).click();

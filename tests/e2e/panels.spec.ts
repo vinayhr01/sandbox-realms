@@ -109,7 +109,7 @@ test('powers: a sim power arms, a tap sends it to the sim, and an unbuilt power 
 
   await bomb.click();
   await expect(bomb).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#status')).toContainText('Bomb is armed');
+  await expect(page.locator('#status')).toContainText('Charge is armed');
 
   // A tap on the map applies the armed power: the sim gets a Power command (kind 7).
   const target = await call<{ x: number; y: number }>('tileToScreen', 100, 100);

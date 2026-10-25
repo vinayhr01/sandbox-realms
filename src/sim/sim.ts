@@ -60,6 +60,17 @@ function streamSeed(seed: number, name: string): number {
 }
 
 /**
+ * Fault gate for the parts of a tick (17 section 9). The worker supplies one: a throw in a part is handed to `fault`
+ * (which counts it), and a part that `isOff` reports is skipped. A realm with no gate (tests, tools) lets a throw propagate.
+ */
+export interface PartGate {
+  /** True while `part` is switched off at sim tick `tick`. */
+  isOff(part: string, tick: number): boolean;
+  /** Notes a throw in `part` at sim tick `tick`. The tick goes on with the next part. */
+  fault(part: string, tick: number, err: unknown): void;
+}
+
+/**
  * Deterministic simulation core. Owns the Realm, the clock, the Ages and Realm Rules, the named
  * RNG streams and the periodic/behaviour schedule. No timers, no DOM: the worker drives `step()`.
  * Player commands are queued and applied at the start of the next tick (17 section 2.2), or
@@ -94,6 +105,8 @@ export class Sim {
   readonly calamityCooldowns = new Map<string, number>();
   /** Queued commands refused when applied (e.g. unknown rule ids); drained by takeRefusals(). */
   private refusals: string[] = [];
+  /** Fault gate of the parts (17 section 9). Null in tests and tools, where a throw propagates. Not saved. */
+  private gate: PartGate | null = null;
 
   constructor(seed: number, sizeStep: number) {
     this.realm = new Realm(seed, sizeStep);
@@ -183,33 +196,61 @@ export class Sim {
     }
   }
 
+  /** Installs the fault gate of this realm's parts (worker.ts). Set on every new Sim; a loaded realm gets its own. */
+  setPartGate(gate: PartGate | null): void {
+    this.gate = gate;
+  }
+
+  /**
+   * Runs one part of a tick under the fault gate (17 section 9). A switched-off part is skipped; a throw goes to the gate and
+   * the tick goes on. The tick counter is not a part, so it still advances while parts are off, and a switch-off can end.
+   * The order of the parts is the order of the calls, with or without a gate.
+   */
+  private part(name: string, run: () => void): void {
+    const gate = this.gate;
+    if (gate === null) {
+      run();
+      return;
+    }
+    if (gate.isOff(name, this.tick)) return;
+    try {
+      run();
+    } catch (err: unknown) {
+      gate.fault(name, this.tick, err);
+    }
+  }
+
   /** Applies queued commands without advancing the clock (paused edit mode, 17 section 3.1). */
   applyQueued(): void {
     if (this.queue.length === 0) return;
     const pending = this.queue;
     this.queue = [];
-    for (const cmd of pending) this.apply(cmd);
+    for (const cmd of pending) this.part('command', () => this.apply(cmd));
   }
 
   /** Advances one tick: queued player actions first, then world systems in fixed order (02 section 4). */
   step(): void {
     this.applyQueued();
     this.tick++;
-    this.advanceAge();
+    this.part('age', () => this.advanceAge());
     this.runTerrain();
     this.runBehaviours();
-    settlementsStep(this);
+    this.part('settlements', () => settlementsStep(this));
     // Boats run once per sim-second, after hamlets and their docks (boats.ts).
-    if (this.tick % 20 === 0) boatsStep(this, hamletsOf(this), undefined, hamletsAtWar(this));
-    cultureTick(this);
-    stepBeings(this);
-    clansStep(this);
-    itemsStep(this);
-    hamletGearStep(this);
-    this.runCombatAndWeather();
-    stepDominions(this);
-    dominionsYearly(this);
-    if (this.due('achievements', SS_TICKS)) unlockAchievements(this);
+    this.part('boats', () => {
+      if (this.tick % 20 === 0) boatsStep(this, hamletsOf(this), undefined, hamletsAtWar(this));
+    });
+    this.part('culture', () => cultureTick(this));
+    this.part('beings', () => stepBeings(this));
+    this.part('clans', () => clansStep(this));
+    this.part('items', () => itemsStep(this));
+    this.part('hamletGear', () => hamletGearStep(this));
+    this.part('combat', () => this.runCombatAndWeather());
+    this.part('dominions', () => stepDominions(this));
+    this.part('dominionsYearly', () => dominionsYearly(this));
+    this.part('achievements', () => {
+      if (this.due('achievements', SS_TICKS)) unlockAchievements(this);
+    });
   }
 
   /** Combat context for this sim (structural, see combat.ts). */
@@ -359,25 +400,28 @@ export class Sim {
   private runTerrain(): void {
     const r = this.realm;
     const side = r.side;
-    if (this.due('fireSweep', 20)) fireSweep(this);
-    if (this.due('heat', 20)) heatStep(this);
-    quakeStep(this);
-    if (this.due('seaRefill', 4)) seaRefill(this);
-    if (this.due('slime', 2)) slimeSweep(this);
-    if (this.due('magma', 2) && r.molten.size > 0) magmaSweep(this);
-    eruptionStep(this);
+    if (this.due('fireSweep', 20)) this.part('fireSweep', () => fireSweep(this));
+    if (this.due('heat', 20)) this.part('heat', () => heatStep(this));
+    this.part('quake', () => quakeStep(this));
+    if (this.due('seaRefill', 4)) this.part('seaRefill', () => seaRefill(this));
+    if (this.due('slime', 2)) this.part('slime', () => slimeSweep(this));
+    if (this.due('magma', 2) && r.molten.size > 0) this.part('magma', () => magmaSweep(this));
+    this.part('eruption', () => eruptionStep(this));
     const bonus = this.ageDef().biomeGrowthBonus;
-    if (this.due('biome', 2)) biomeSweep(this, Math.floor(side / 16) * (5 + bonus));
-    if (this.due('freeze', 2) && this.ageDef().freezeWorld) freezeSweep(this, Math.floor(side / 16) * 10);
+    if (this.due('biome', 2)) this.part('biome', () => biomeSweep(this, Math.floor(side / 16) * (5 + bonus)));
+    if (this.due('freeze', 2) && this.ageDef().freezeWorld) this.part('freeze', () => freezeSweep(this, Math.floor(side / 16) * 10));
     if (this.due('thaw', 2) && this.ageDef().thawWorld && !this.rules.isOn('eternal_cold')) {
-      thawSweep(this, Math.floor(side / 16) * 10);
+      this.part('thaw', () => thawSweep(this, Math.floor(side / 16) * 10));
     }
-    creepStep(this);
-    if (this.due('mineral', 40)) mineralSeeding(this, 3);
-    floraSpreadStep(this);
+    this.part('creep', () => creepStep(this));
+    if (this.due('mineral', 40)) this.part('mineral', () => mineralSeeding(this, 3));
+    this.part('floraSpread', () => floraSpreadStep(this));
   }
 
-  /** Behaviour runner: `timer -= 1; when <= 0 run; reset to interval + random` (02 section 7). */
+  /**
+   * Behaviour runner: `timer -= 1; when <= 0 run; reset to interval + random` (02 section 7). A throw in `run` is a fault of
+   * the behaviour's part; its timer is still reset, so a switched-off behaviour waits its interval after it is back on.
+   */
   private behaviour(name: string, intervalSs: number, randomSs: number, run: () => void): void {
     const next = this.timers.get(name);
     if (next === undefined) {
@@ -385,7 +429,7 @@ export class Sim {
       return;
     }
     if (this.tick < next) return;
-    run();
+    this.part(name, run);
     const jitter = randomSs > 0 ? this.rng(`beh:${name}`).int(ssToTicks(randomSs) + 1) : 0;
     this.timers.set(name, this.tick + ssToTicks(intervalSs) + jitter);
   }

@@ -2260,3 +2260,31 @@ Scope: 11 sections 2 and 3 (founding of creeds and dialects; schism and divergen
 - `GOLDEN_HASH` will not match: the new intrigue kinds, the founding picks, the dialect and creed spread, the contact change, the unit conversion and the loyalty fields all change the run. It needs a re-baseline when a golden run is allowed.
 
 **Not verified.** Nothing was run. Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. The founding, spread and loyalty paths need a seeded run, and the save round-trip of the new state needs a test.
+
+## Pump isolation close 7
+
+Scope: 17 section 9 (system isolation), closing deviation 1 (the pump is not isolated) and deviation 4 (the auto-pause is worker-side only) of "Remaining close 6". Spec: `Spec/systems/17-engine-runtime-performance.md`, section 9, "System isolation" (verified at `game/Spec`, which is `..\Spec` from the repo root). Files: `src/sim/sim.ts` (`PartGate`, `part()`, `setPartGate()`, the parts of `step`, `runTerrain`, `behaviour`, `applyQueued`), `src/sim/worker.ts` (`partGate`, `partFault`, `isAutoPaused`, the stop check in the pump loop), `src/app/main.ts` (`SYS_STOP` handling). Development only: no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` is not edited.
+
+**Closed.**
+- Per-part fault guard. Every part of a tick runs through `Sim.part(name, run)`: each slice of `step()` (age, settlements, boats, culture, beings, clans, items, hamletGear, combat, dominions, dominionsYearly, achievements), each system of `runTerrain` (fireSweep, heat, quake, seaRefill, slime, magma, eruption, biome, freeze, thaw, creep, mineral, floraSpread), each behaviour of `runBehaviours` (calamity, scarFade, summitFreeze, wildSeeding, floraPass, droughtPass, frostPass), and each queued command (part `command`). A throw goes to the worker's gate, which counts it in the same `SysIsolation` as the command part. Three faults in 10 s switch the part off for 600 sim ticks (a warn), and the third switch-off stops the sim (`SYS_STOP`).
+- The tick counter is not a part. `tick++` runs before any part, so ticks advance while parts are off and a switch-off can end. A switched-off part is skipped for that tick, and the rest of the tick runs (17 section 9: "skip the system for the remainder of the tick").
+- Deterministic order. With no throw, each `part()` call runs the same function in the same position. With no gate (tests, tools) `part()` calls `run()` directly, so errors propagate as before. A run with no throw does not change its hash through this edit.
+- One fault path. `partFault(part, code, detail, tick)` in worker.ts serves `command` (SIM_COMMAND, as before) and sim parts (SIM_SYSTEM). Events carry `sys` as the part name and `sysOff`. SYS_OFF and SYS_STOP keep their codes.
+- A stop inside a tick ends the pump's tick loop (`isAutoPaused()`), so no more ticks run in that pump after the third switch-off.
+- Auto-pause sync (deviation 4). On `SYS_STOP` the main thread sets `state.paused = true` and calls `applySpeed()`, which sends speed 0 and shows the pause button as paused. Before this, the worker was paused while the page still showed a running sim. Resume is the normal pause toggle.
+
+**Decisions.**
+- A part is a system call of `step`, not every function inside a module. A fault in one system of settlements or beings still takes that whole slice for the tick. Splitting further would need edits inside those modules, outside this brief.
+- The gate always catches when it is set. Spec 17 section 9 says dev builds rethrow. The command part already caught in every build, so the sim parts follow it. The dev rethrow is not built.
+- Part names are the call names (`fireSweep`, `heat`, ...), so the `sys` in a crash record names something a reader can find in the source. A behaviour's timer is still reset after a fault, so it waits its interval after switch-on.
+- The switch-off counts sim ticks. A paused sim runs no ticks, so a switched-off part stays off until the sim runs again (deviation 3, unchanged).
+- Race: a resume clicked after the worker's stop but before SYS_STOP reaches the page is paused again. On a fault, paused is the safer outcome.
+- `speed === 0` in the pump loop would be narrowed by the branch above it and fail `strict` type checks, so the check is `isAutoPaused()`.
+
+**Remaining.**
+- The dialog ("Reload last autosave", "Continue (feature disabled)", "Export diagnostics") is UI and not built. The stop does not autosave or offer a reload.
+- Fatal invariant violations (NaN positions, free-list corruption, id-table inconsistency; 17 section 9) are not detected. Out of scope here.
+- The main thread's own `errorCount` (crash-record.ts `noteSysFault`) is still separate from the worker's count, as before.
+- Deviation 2 (the ping part is not isolated) is unchanged; its check does not throw.
+
+**Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Needed with test access: a unit test that throws in one part (e.g. `fireSweep`) and checks that three faults switch it off for 600 ticks, that the other parts keep running, and that the tick counter reaches the end of the switch-off; a test that the no-gate path gives the same hash as before over N ticks; a test that SYS_STOP pauses the page.

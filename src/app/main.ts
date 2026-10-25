@@ -1248,6 +1248,12 @@ async function boot(): Promise<void> {
           showMainHang(PING_LOST_MS);
           return;
         }
+        // The worker paused the sim itself after a part's third switch-off (worker.ts partFault, 17 section 9). Show that
+        // pause, and send the speed the controls now mean (0), so the page and the worker agree again.
+        if (event.code === 'SYS_STOP') {
+          state.paused = true;
+          applySpeed();
+        }
         if (event.code === 'WORKER_RESPAWN') crumb('WORKER_RESTART', 'respawn');
         else journal(event.code, event.detail);
         if (event.severity === 'fatal') {

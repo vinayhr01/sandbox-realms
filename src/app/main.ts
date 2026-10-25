@@ -13,7 +13,7 @@ import { setCalendar, setDebug, setStatus, toast } from '../ui/hud.ts';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
 import { currentStep, parseTutorial, skipTutorial, TUTORIAL_TEXT, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
-import { cooldownSecondsLeft, linePoints, powerStatus, strokeOp } from '../ui/powerSupport.ts';
+import { cooldownSecondsLeft, linePoints, nearestMapPoint, nextOptionValue, powerStatus, strokeOp } from '../ui/powerSupport.ts';
 import { WindowHost } from '../ui/windowHost.ts';
 import { windowFor, type ChronicleActions, type ChronicleOutcome, type WindowDeps, type WindowParams } from '../ui/windowContent.ts';
 import { SimView } from '../ui/sim-view.ts';
@@ -354,6 +354,9 @@ async function boot(): Promise<void> {
   let stroke: Stroke | null = null;
   /** Step drag (Settings): the first tap of a two-tap stroke, or null. */
   let stepAnchor: Tile | null = null;
+  /** Insight Follow: armed (the next tap picks a being) and the being followed, by its snapshot id. */
+  let followPending = false;
+  let followId: number | null = null;
   let cursorScreen: { x: number; y: number } | null = null;
   const canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   let pressed = false;
@@ -498,6 +501,8 @@ async function boot(): Promise<void> {
     camera = new Camera(side, renderer.app.screen.width, renderer.app.screen.height);
     stroke = null;
     stepAnchor = null;
+    followPending = false;
+    followId = null;
     $('realm-name').textContent = `Realm ${seed.toString(36).toUpperCase().slice(-6)}`;
   };
 
@@ -561,7 +566,7 @@ async function boot(): Promise<void> {
         cycleSpeed();
         return;
       case 'open_window':
-        openWindow(`win_${String(power.params['window'] ?? '')}`);
+        openWindow(String(power.params['window'] ?? ''));
         return;
       case 'toggle_hud':
         document.documentElement.classList.toggle('hide-ui');
@@ -569,6 +574,30 @@ async function boot(): Promise<void> {
       case 'toggle_rule':
         setRule(String(power.params['rule'] ?? ''), !rules.isOn(String(power.params['rule'] ?? '')));
         return;
+      case 'arm_inspect':
+        setArmed(null);
+        return;
+      case 'follow':
+        // Follow waits for a tap on a being (onTap). Esc or a manual pan releases it.
+        setArmed(null);
+        followPending = true;
+        setStatus('Tap a being to follow it. Esc releases.');
+        return;
+      case 'toggle_option': {
+        const option = String(power.params['option'] ?? '');
+        const on = !boolOption(options, option);
+        changeOption(option, on);
+        setStatus(`${power.name}: ${on ? 'on' : 'off'}.`);
+        return;
+      }
+      case 'cycle_option': {
+        const option = String(power.params['option'] ?? '');
+        const values = String(power.params['values'] ?? '').split(',');
+        const next = nextOptionValue(stringOption(options, option), values);
+        changeOption(option, next);
+        setStatus(`${power.name}: ${next}.`);
+        return;
+      }
       default:
         setArmed(state.armed?.id === power.id ? null : power);
     }
@@ -579,7 +608,12 @@ async function boot(): Promise<void> {
     for (const btn of document.querySelectorAll<HTMLButtonElement>('.power')) {
       const power = POWER_BY_ID.get(btn.dataset['powerId'] ?? '');
       if (!power) continue;
-      const pressed = power.handler === 'toggle_rule' ? rules.isOn(String(power.params['rule'])) : state.armed?.id === power.id;
+      const pressed =
+        power.handler === 'toggle_rule'
+          ? rules.isOn(String(power.params['rule']))
+          : power.handler === 'toggle_option'
+            ? boolOption(options, String(power.params['option']))
+            : state.armed?.id === power.id;
       btn.setAttribute('aria-pressed', String(pressed));
     }
   };
@@ -832,6 +866,15 @@ async function boot(): Promise<void> {
   $('window-close').addEventListener('click', () => windowHost.close());
   simView.subscribe(() => windowHost.feed());
 
+  /** The being under a screen point in the latest snapshot: within 10 px, or 24 px on touch. Null when none. */
+  const pickBeing = (sx: number, sy: number): { id: number } | null => {
+    const cam = camera;
+    const points = simView.current?.mapPoints;
+    if (!cam || !points) return null;
+    const radius = window.matchMedia('(pointer: coarse)').matches ? 24 : 10;
+    return nearestMapPoint(points, cam, sx, sy, radius);
+  };
+
   /** Reads one tile from the sim and reports it in the status line. Held presses say so. */
   const inspectTile = (t: { x: number; y: number }, held: boolean): void => {
     void client.query(t.x, t.y).then((r) => {
@@ -851,6 +894,8 @@ async function boot(): Promise<void> {
     toolArmed: () => state.armed !== null,
     onPan: (dx, dy) => {
       const k = numberOption(options, 'input.panSpeed') / 100;
+      // A manual pan releases Follow (the camera would otherwise fight the drag).
+      followId = null;
       camera?.panBy(dx * k, dy * k);
     },
     onZoom: (factor, sx, sy) => {
@@ -920,6 +965,24 @@ async function boot(): Promise<void> {
       }
       if (state.armed) {
         usePowerAt(state.armed, t.x, t.y);
+        return;
+      }
+      if (followPending) {
+        const hit = pickBeing(sx, sy);
+        if (hit) {
+          followId = hit.id;
+          followPending = false;
+          setStatus('Following that being. Esc or a pan releases it.');
+        } else {
+          setStatus('No being there. Tap a being to follow it, or press Esc.');
+        }
+        return;
+      }
+      // Inspect (default tap with nothing armed): a being near the tap opens its window when the
+      // snapshot holds its row (the notable sample); otherwise the tile is read as before.
+      const hit = pickBeing(sx, sy);
+      if (hit && simView.current?.detail?.notable?.beings.some((b) => b.id === hit.id)) {
+        openWindow('win_being', { id: hit.id });
         return;
       }
       inspectTile(t, false);
@@ -1000,6 +1063,8 @@ async function boot(): Promise<void> {
     // Hide status bar on phones: full screen is requested when the row is turned on (13 section 15).
     if (id === 'ui.hideStatusBar' && value === true && window.matchMedia('(pointer: coarse)').matches) toggleFullscreen(true);
     applyOptions();
+    // Insight toggles and cycles show their state on the power buttons.
+    updatePowerButtons();
   };
   const toggleFullscreen = (on: boolean): void => {
     try {
@@ -1091,6 +1156,8 @@ async function boot(): Promise<void> {
       sizeInput.value = String(Math.max(0, Math.min(BRUSH_RADII.length - 1, state.sizeIndex + step)));
       updateSizeOutput();
     } else if (e.code === 'Escape') {
+      followPending = false;
+      followId = null;
       setArmed(null);
     }
   });
@@ -1126,7 +1193,24 @@ async function boot(): Promise<void> {
       const dt = ticker.deltaMS * KEY_PAN_PX_PER_MS * (numberOption(options, 'input.panSpeed') / 100);
       const dx = (keysDown.has('ArrowRight') || keysDown.has('KeyD') ? 1 : 0) - (keysDown.has('ArrowLeft') || keysDown.has('KeyA') ? 1 : 0);
       const dy = (keysDown.has('ArrowDown') || keysDown.has('KeyS') ? 1 : 0) - (keysDown.has('ArrowUp') || keysDown.has('KeyW') ? 1 : 0);
-      if (dx !== 0 || dy !== 0) cam.panBy(-dx * dt, -dy * dt);
+      if (dx !== 0 || dy !== 0) {
+        cam.panBy(-dx * dt, -dy * dt);
+        followId = null;
+      }
+    }
+    // Follow: centre the camera on the followed being's latest snapshot position. The sample holds the
+    // oldest 96 beings, so a being outside it is lost (the status says so). A snapshot without points keeps it.
+    if (cam && followId !== null) {
+      const points = simView.current?.mapPoints;
+      const p = points?.find((q) => q.id === followId);
+      if (p) {
+        cam.offX = renderer.app.screen.width / 2 - (p.x + 0.5) * cam.zoom;
+        cam.offY = renderer.app.screen.height / 2 - (p.y + 0.5) * cam.zoom;
+        cam.panBy(0, 0);
+      } else if (points) {
+        followId = null;
+        setStatus('Lost sight of the being you were following.');
+      }
     }
     saveController.frame(ticker.deltaMS, state.paused || document.hidden, autosaveState());
     degradeFrame(ticker.deltaMS);

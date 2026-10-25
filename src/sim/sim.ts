@@ -43,6 +43,7 @@ import { ItemStore } from './items/store.ts';
 import { itemRain, itemsStep, setGear, setItemFavourite, setItemRain } from './items/system.ts';
 import { hamletGearStep } from './items/hamlet-gear.ts';
 import { possessCommand } from './beings/possession.ts';
+import { possessAbilities } from './beings/abilities.ts';
 import { wearOnHit } from './items/wear.ts';
 import type { Snapshot } from '../shared/protocol.ts';
 import { clansStep, createClanState, type ClanState } from './clans/clans.ts';
@@ -265,9 +266,9 @@ export class Sim {
         if (!def || def.every <= 0 || this.tick % def.every !== 0) continue;
         // venomed cannot kill (08 5.3): its tick stops at 1 vitality.
         if (def.cannotKill && (s.vit[slot] ?? 0) <= 1) continue;
-        let amount = Math.max(1, Math.floor((s.maxVit[slot] ?? 0) * def.fraction));
+        let amount = def.flat > 0 ? def.flat : Math.max(1, Math.floor((s.maxVit[slot] ?? 0) * def.fraction));
         if (def.cannotKill) amount = Math.min(amount, (s.vit[slot] ?? 0) - 1);
-        applyDamage(this.combatContext(), slot, amount, def.fire ? 'Fire' : 'Poison', false);
+        applyDamage(this.combatContext(), slot, amount, def.fire ? 'Fire' : def.drown ? 'Drowning' : 'Poison', false);
         if (s.alive[slot] !== 1) break;
       }
     }
@@ -322,6 +323,7 @@ export class Sim {
       case Cmd.Possess:
         // Architect possession of one Being (07 section 13, beings build 3). A stale id or an off-map order is refused.
         if (!possessCommand(this, cmd.beingId, cmd.on, cmd.x, cmd.y, cmd.attack)) this.refusals.push('possess refused');
+        else if (cmd.on) possessAbilities(this, cmd.beingId, cmd);
         break;
       default:
         break;

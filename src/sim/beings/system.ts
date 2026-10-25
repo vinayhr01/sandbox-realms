@@ -2,6 +2,7 @@ import { SIZE_RANK, SPECIES, speciesIndex, type SpeciesDef } from '../../content
 import { ground } from '../../content/grounds.ts';
 import { BEING_TRAITS, BEING_TRAIT_INDEX, BIRTH_POT as BIRTH_POT_IDS } from '../../content/traits.ts';
 import { dropManure, FLORA, FLORA_BY_ID, grazeFlora } from '../flora.ts';
+import { stopFire } from '../terrain/fire.ts';
 import { hamletsOf } from '../settlements/adapter.ts';
 import { foodCapacity, PARCEL } from '../settlements/hamlet.ts';
 import type { Realm } from '../realm.ts';
@@ -12,8 +13,9 @@ import { DECISION_INDEX, DECISION_ROWS, EMPTY_PAUSE } from '../../content/decisi
 import { BeingStore } from './store.ts';
 import { newGenome, SEED_SALT_RANGE, speciesBudget } from './genome.ts';
 import { addStrainTrait, mutateFrom, strainMutation, Strains } from './strains.ts';
-import { addMood, beginSleep, bondCheck, bondPartners, isAsleep, loveCheck, sleepCheck, tryFriend } from './social.ts';
-import { convertByFight, heritageAttr, talkOutcome, talksWithBeasts } from '../culture/effects.ts';
+import { addMood, addMoodValue, beginSleep, bondCheck, bondPartners, isAsleep, loveCheck, sleepCheck, tryFriend } from './social.ts';
+import { convertByFight, heritageAttr, readBook, talkOutcome, talksWithBeasts } from '../culture/effects.ts';
+import { readableBook } from '../culture/culture.ts';
 import { ROUND6, ROUND8, ROUND9, TUNING } from './tuning.ts';
 import { blowAfflictions, conversionOf, creepContact, stripped } from './afflictions.ts';
 import { isPossessed } from './possession.ts';
@@ -325,9 +327,87 @@ export class Beings {
   }
 }
 
-function walkable(realm: Realm, i: number): boolean {
+/** Whether a tile is walkable land for a Being (no water, no molten or slime tiles). Exported for abilities.ts. */
+export function walkable(realm: Realm, i: number): boolean {
   const kind = ground(realm.ground[i] ?? 0);
   return kind.layer === 'land' && kind.damages === 0;
+}
+
+/** Whether a tile is liquid (water layer). Beings never walk on water; a Being there is in liquid (gasping, 08 5.3). */
+function inLiquid(sim: Sim, slot: number): boolean {
+  const s = sim.beings.store;
+  const i = (s.y[slot] ?? 0) * sim.realm.side + (s.x[slot] ?? 0);
+  return ground(sim.realm.ground[i] ?? 0).layer === 'water';
+}
+
+/** Whether a Being takes no part in fights (the `ignoreFights` status, 08 5.3). */
+function ignoresFights(sim: Sim, slot: number): boolean {
+  return sim.effects.flag(slot, 'ignoreFights');
+}
+
+/** The hamlet whose parcel holds the Being, or undefined. Same parcel rule as the hunter step. */
+function hamletOfSlot(sim: Sim, slot: number) {
+  const s = sim.beings.store;
+  const perAxis = sim.realm.side / PARCEL;
+  const parcel = Math.floor((s.y[slot] ?? 0) / PARCEL) * perAxis + Math.floor((s.x[slot] ?? 0) / PARCEL);
+  return hamletsOf(sim).find((h) => h.parcels.has(parcel));
+}
+
+/** Nearest burning tile (flat index) within `radius` of the Being, or -1 (the `extinguish` goal, 07 s5 H). */
+function burningNear(sim: Sim, slot: number, radius: number): number {
+  const s = sim.beings.store;
+  const side = sim.realm.side;
+  const x0 = s.x[slot] ?? 0;
+  const y0 = s.y[slot] ?? 0;
+  let best = -1;
+  let bestD = Number.POSITIVE_INFINITY;
+  for (let k = 0; k < sim.realm.burning.size; k++) {
+    const i = sim.realm.burning.at(k);
+    const dx = (i % side) - x0;
+    const dy = Math.floor(i / side) - y0;
+    const d = Math.max(Math.abs(dx), Math.abs(dy));
+    if (d <= radius && d < bestD) {
+      bestD = d;
+      best = i;
+    }
+  }
+  return best;
+}
+
+/**
+ * Nearest walkable land tile within ROUND9.landRadius (flat index), or -1 (the `reach_land` goal, 07 s5 B). A Being that
+ * already stands on land has no goal.
+ */
+function landNear(sim: Sim, slot: number): number {
+  const realm = sim.realm;
+  const side = realm.side;
+  const s = sim.beings.store;
+  const x0 = s.x[slot] ?? 0;
+  const y0 = s.y[slot] ?? 0;
+  if (walkable(realm, y0 * side + x0)) return -1;
+  const r = ROUND9.landRadius;
+  let best = -1;
+  let bestD = Number.POSITIVE_INFINITY;
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      const x = x0 + dx;
+      const y = y0 + dy;
+      if (x < 0 || y < 0 || x >= side || y >= side) continue;
+      const i = y * side + x;
+      const d = dx * dx + dy * dy;
+      if (walkable(realm, i) && d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+  }
+  return best;
+}
+
+/** The nearest Being within ROUND9.outburstSight that an outburst may strike (07 s10: a non-ignored Being), or -1. */
+function outburstTarget(sim: Sim, slot: number): number {
+  const s = sim.beings.store;
+  return sim.beings.nearest(slot, (o) => o !== slot && s.alive[o] === 1 && !ignoresFights(sim, o), ROUND9.outburstSight);
 }
 
 /** Whether a species eats at all (06 section 2.1: `none` never gets hungry). */
@@ -428,8 +508,40 @@ function wander(sim: Sim, slot: number, d: number): void {
   s.y[slot] = ny;
 }
 
+/**
+ * Swims one tile toward (tx,ty) (the `reach_land` step, 07 s5 B): like stepToward, but water is also a way through. Molten,
+ * slime and blocked tiles are not. Exported for abilities.ts (no caller there).
+ */
+function swimToward(sim: Sim, slot: number, tx: number, ty: number): void {
+  const s = sim.beings.store;
+  const side = sim.realm.side;
+  const x = s.x[slot] ?? 0;
+  const y = s.y[slot] ?? 0;
+  const dx = Math.sign(tx - x);
+  const dy = Math.sign(ty - y);
+  const candidates: (readonly [number, number])[] = [
+    [dx, dy],
+    [dx, 0],
+    [0, dy],
+    [dx, -dy],
+    [-dx, dy],
+  ];
+  for (const [ox, oy] of candidates) {
+    if (ox === 0 && oy === 0) continue;
+    const nx = x + ox;
+    const ny = y + oy;
+    if (nx < 0 || ny < 0 || nx >= side || ny >= side) continue;
+    const kind = ground(sim.realm.ground[ny * side + nx] ?? 0);
+    if (kind.damages !== 0 || (kind.layer !== 'land' && kind.layer !== 'water')) continue;
+    if (!takeStep(sim, slot)) return;
+    s.x[slot] = nx;
+    s.y[slot] = ny;
+    return;
+  }
+}
+
 /** Steps one tile toward (tx,ty) through the first walkable neighbour that gets closer. */
-function stepToward(sim: Sim, slot: number, tx: number, ty: number): void {
+export function stepToward(sim: Sim, slot: number, tx: number, ty: number): void {
   const s = sim.beings.store;
   const x = s.x[slot] ?? 0;
   const y = s.y[slot] ?? 0;
@@ -1096,8 +1208,9 @@ function relationOf(sim: Sim, a: number, o: number, hungry: boolean): Relation {
  * an attacker in the aggro set counts as hostile (07 section 9.4). Returns the slot or -1.
  */
 function engagedTarget(sim: Sim, slot: number): number {
+  if (ignoresFights(sim, slot)) return -1;
   for (const o of aggroFoes(sim, slot)) {
-    if (tileGap(sim, slot, o) > ROUND8.chaseRange) continue;
+    if (tileGap(sim, slot, o) > ROUND8.chaseRange || ignoresFights(sim, o)) continue;
     const rel = relationOf(sim, slot, o, true);
     if (rel === 'H' || rel === 'N') return o;
   }
@@ -1112,7 +1225,7 @@ function startTarget(sim: Sim, slot: number): number {
   if (!searchDue(sim, slot)) return -1;
   scheduleSearch(sim, slot);
   const hungry = hungryOf(sim, slot);
-  const found = findEnemy(sim, slot, (o) => relationOf(sim, slot, o, hungry) === 'H');
+  const found = findEnemy(sim, slot, (o) => relationOf(sim, slot, o, hungry) === 'H' && !ignoresFights(sim, o));
   if (found < 0) return -1;
   const roll = sim.rng('beings').next();
   return roll < ROUND8.fightStartChance * fightStartScale(sim, slot) ? found : -1;
@@ -1123,7 +1236,7 @@ function startTarget(sim: Sim, slot: number): number {
  * 1. The victim is hurt, angry at the attacker, and may reflect damage or counter-strike once. A kill credits the
  * attacker and gives it `killed_foe`.
  */
-function strike(sim: Sim, attacker: number, victim: number, fixed = 0): void {
+export function strike(sim: Sim, attacker: number, victim: number, fixed = 0): void {
   const b = sim.beings;
   const s = b.store;
   // `fixed` > 0 replaces the computed damage (the brawl stop blow does 1, 08 section 2.5).
@@ -1439,6 +1552,12 @@ function possessedStep(sim: Sim, slot: number): void {
   stepToward(sim, slot, ox, oy);
 }
 
+/** An emote task (07 section 5 E): the Being holds still for a short while, then decides again. */
+const emoteTask: TaskFn = (sim, slot) => {
+  setNext(sim, slot, ROUND9.emoteTicks);
+  return false;
+};
+
 /** The decision tasks of the beast layer (07 section 5, beast subset). Each returns true while the task continues. */
 const TASKS: Record<string, TaskFn> = {
   wander: (sim, slot) => {
@@ -1514,6 +1633,74 @@ const TASKS: Record<string, TaskFn> = {
   douse_self: (sim, slot) => runSteps(sim, slot, DOUSE_SELF),
   eat_grass: (sim, slot) => forage(sim, slot, 'grass'),
   eat_nectar: (sim, slot) => forage(sim, slot, 'nectar'),
+  // Beings close 5 (07 section 5). A hamlet meal: one unit of the hamlet's food, full fuel, the `ate` mood, then a wait.
+  eat_hamlet_food: (sim, slot) => {
+    const h = hamletOfSlot(sim, slot);
+    if (!h || h.food <= 0) return false;
+    h.food -= 1;
+    sim.beings.store.fuel[slot] = 100;
+    addMood(sim, slot, 'ate');
+    setNext(sim, slot, 20 + sim.rng('beings').int(81));
+    return false;
+  },
+  // Fireman (07 section 5 H): walk to the nearest fire within three tiles and put it out from a tile beside it.
+  extinguish: (sim, slot) => {
+    const fire = burningNear(sim, slot, ROUND9.extinguishRadius);
+    if (fire < 0) return false;
+    const side = sim.realm.side;
+    const fx = fire % side;
+    const fy = Math.floor(fire / side);
+    const s = sim.beings.store;
+    if (Math.max(Math.abs(fx - (s.x[slot] ?? 0)), Math.abs(fy - (s.y[slot] ?? 0))) > 1) {
+      stepToward(sim, slot, fx, fy);
+      setNext(sim, slot, 2);
+      return true;
+    }
+    stopFire(sim, fire);
+    setNext(sim, slot, 4);
+    return false;
+  },
+  // Gasping Beings swim to the nearest land tile (07 section 5 B). Once on land the goal is gone and the task ends.
+  reach_land: (sim, slot) => {
+    const goal = landNear(sim, slot);
+    if (goal < 0) return false;
+    swimToward(sim, slot, goal % sim.realm.side, Math.floor(goal / sim.realm.side));
+    setNext(sim, slot, 2);
+    return true;
+  },
+  // An outburst (07 section 10, 06 section 4.5): strike the nearest non-ignored Being in sight until the status ends.
+  outburst_action: (sim, slot) => {
+    if (!sim.effects.has(slot, 'outburst')) return false;
+    const foe = outburstTarget(sim, slot);
+    if (foe < 0) return false;
+    const s = sim.beings.store;
+    if (tileGap(sim, slot, foe) > 1) {
+      stepToward(sim, slot, s.x[foe] ?? 0, s.y[foe] ?? 0);
+      setNext(sim, slot, 2);
+      return true;
+    }
+    strike(sim, slot, foe);
+    setNext(sim, slot, ROUND8.fightBeat);
+    return true;
+  },
+  // Book reading (11 section 5): the first readable book gives its mood (bookLovers applied in readBook), its xp
+  // (eagerReaders applied in readBook), and a 200-tick rest before it can be read again.
+  read: (sim, slot) => {
+    const book = readableBook(sim.culture, sim.tick);
+    if (!book) return false;
+    addMoodValue(sim, slot, readBook(sim, slot, book));
+    book.readAt = sim.tick;
+    setNext(sim, slot, 20);
+    return false;
+  },
+  // The emotes (07 section 5 E): a short hold. The emote itself is shown from the task id (no emote state in the sim).
+  reflect: emoteTask,
+  laugh: emoteTask,
+  sing: emoteTask,
+  grumble: emoteTask,
+  weep: emoteTask,
+  // Writing a book (11 section 5): not eligible until a hamlet building has a book slot (see `eligible`).
+  write_book: () => false,
   eat_hunt: (sim, slot) => {
     const prey = huntTarget(sim, slot);
     if (prey < 0) return false;
@@ -1599,7 +1786,7 @@ function eligible(sim: Sim, slot: number, id: string, fleeing: boolean): boolean
     case 'flee':
       return fleeing;
     case 'fight': {
-      if (fleeing) return false;
+      if (fleeing || ignoresFights(sim, slot)) return false;
       if (engagedTarget(sim, slot) >= 0) return true;
       const target = startTarget(sim, slot);
       b.scratch[slot] = target;
@@ -1607,7 +1794,7 @@ function eligible(sim: Sim, slot: number, id: string, fleeing: boolean): boolean
     }
     case 'brawl': {
       // Folk only. It runs only when the fight row found no hostile (its scratch is empty), on a small roll per decision.
-      if (fleeing || !isFolk(sim, slot) || b.scratch[slot] !== -1) return false;
+      if (fleeing || ignoresFights(sim, slot) || !isFolk(sim, slot) || b.scratch[slot] !== -1) return false;
       if (sim.rng('beings').next() >= ROUND8.brawlStartChance * fightStartScale(sim, slot)) return false;
       const target = findEnemy(sim, slot, (o) => o !== slot && s.alive[o] === 1 && isFolk(sim, o));
       b.scratch[slot] = target;
@@ -1629,6 +1816,20 @@ function eligible(sim: Sim, slot: number, id: string, fleeing: boolean): boolean
       return followable(sim, slot);
     case 'douse_self':
       return sim.effects.has(slot, 'scorched') && shoreTile(sim, slot) >= 0;
+    case 'eat_hamlet_food':
+      return isFolk(sim, slot) && (hamletOfSlot(sim, slot)?.food ?? 0) > 0;
+    case 'extinguish':
+      return isFolk(sim, slot) && burningNear(sim, slot, ROUND9.extinguishRadius) >= 0;
+    case 'reach_land':
+      return sim.effects.has(slot, 'gasping') && landNear(sim, slot) >= 0;
+    case 'outburst_action':
+      return sim.effects.has(slot, 'outburst') && outburstTarget(sim, slot) >= 0;
+    case 'read':
+      // Intelligence (11 section 5) has no sim stat; the wit attribute stands in for it (DECISIONS.md "Beings close 5").
+      return isAdult(sim, slot) && hamletOfSlot(sim, slot) !== undefined && (s.attrs[slot * 4 + 3] ?? 0) > 5 && readableBook(sim.culture, sim.tick) !== undefined;
+    case 'write_book':
+      // No hamlet building has a book slot yet (11 section 5 `bookSlot`), so the writer never qualifies.
+      return false;
     default:
       return true;
   }
@@ -1839,6 +2040,9 @@ export function stepBeings(sim: Sim): void {
       s.vit[slot] = (s.vit[slot] ?? 0) + 1;
     }
 
+    // Gasping (08 5.3, beings close 5): a Being in liquid with no endurance starts to drown. The roster has no swimmer flag,
+    // so every Being is a non-swimmer here.
+    if ((s.endurance[slot] ?? 0) === 0 && inLiquid(sim, slot)) sim.effects.add(slot, 'gasping', tick);
     // Span 0 never dies of age (05 section 1, 06 section 3.5). `evergreen` is not rolled (18b VIT).
     const span = s.spanA[slot] ?? 0;
     if (deathRoll && agingRule && span > 0 && !evergreen(sim, slot)) {

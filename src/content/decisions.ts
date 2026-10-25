@@ -43,6 +43,23 @@ export const DECISION_ROWS: readonly DecisionRow[] = [
   // Being runs to the nearest shore to douse itself (`douse_self`, tier 4 weight 5). Appended as rows 14 and 15.
   { id: 'follow_parent', tier: 2, weight: 0.2, cooldown: 0, flags: [] },
   { id: 'douse_self', tier: 4, weight: 5, cooldown: 200, flags: [] },
+  // Beings close 5 (07 section 3.6). Appended as rows 16 to 26; the cooldown table is keyed by index, so the chronicle
+  // schema is 7 (chronicle.ts). Weights and cooldowns are the spec's where it gives them. `eat_hamlet_food` (tier 3, 2.6),
+  // `extinguish` (3, 4), `reach_land` (4, 4), `outburst_action` (4, 3), `reflect` (2, 2.5), `read` (2, 1, cd 2400, 11 s5).
+  { id: 'eat_hamlet_food', tier: 3, weight: 2.6, cooldown: 0, flags: ['onlyHungry'] },
+  { id: 'extinguish', tier: 3, weight: 4, cooldown: 0, flags: [] },
+  { id: 'reach_land', tier: 4, weight: 4, cooldown: 0, flags: [] },
+  { id: 'outburst_action', tier: 4, weight: 3, cooldown: 0, flags: [] },
+  { id: 'reflect', tier: 2, weight: 2.5, cooldown: 0, flags: [] },
+  // Emotes (07 section 5 E): the spec gives no weight or cooldown for laugh, sing, grumble and weep. TUNE placeholders.
+  { id: 'laugh', tier: 1, weight: 0.3, cooldown: 600, flags: [] },
+  { id: 'sing', tier: 1, weight: 0.3, cooldown: 600, flags: [] },
+  { id: 'grumble', tier: 1, weight: 0.3, cooldown: 600, flags: [] },
+  { id: 'weep', tier: 1, weight: 0.3, cooldown: 600, flags: [] },
+  { id: 'read', tier: 2, weight: 1, cooldown: 2400, flags: ['onlyAdult'] },
+  // Writing a book (11 section 5). The spec gives no weight or cooldown for the decision (`writeBook` is a process of a
+  // building). TUNE placeholders; no building has a book slot yet, so the row is never eligible.
+  { id: 'write_book', tier: 2, weight: 0.5, cooldown: 0, flags: [] },
 ];
 
 /** Decision index by id. */

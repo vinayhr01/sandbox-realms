@@ -80,7 +80,28 @@ export type Command =
   | { kind: Cmd.SetItemRain; seq: number; ids: string[] }
   | { kind: Cmd.ItemRain; seq: number; x: number; y: number; radius: number }
   | { kind: Cmd.SetItemFavourite; seq: number; itemId: number; on: boolean }
-  | { kind: Cmd.Possess; seq: number; beingId: number; on: boolean; x: number; y: number; attack: boolean };
+  /**
+   * Architect control of one Being (07 section 13). The six ability flags are one-shot actions run on the order's tick
+   * (src/sim/beings/abilities.ts): `kick` stuns and pushes the nearest Being beside the controlled one, `jump` hops two
+   * tiles toward the order tile, `talk` brings the nearest Being within two tiles under `tagalong`, `dash` runs three
+   * tiles toward the order tile, `steal` takes one worn item from a Being within two tiles, `swear` lowers the mood of
+   * Beings within three tiles. Absent flags are false.
+   */
+  | {
+      kind: Cmd.Possess;
+      seq: number;
+      beingId: number;
+      on: boolean;
+      x: number;
+      y: number;
+      attack: boolean;
+      kick?: boolean;
+      jump?: boolean;
+      talk?: boolean;
+      dash?: boolean;
+      steal?: boolean;
+      swear?: boolean;
+    };
 
 /** Rows of the index texture: RGBA8 per tile = [ground, cover, elevation, flags & 0xff]. */
 export interface FrameRows {

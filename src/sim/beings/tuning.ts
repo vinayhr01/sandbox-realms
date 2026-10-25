@@ -153,4 +153,24 @@ export const ROUND9 = {
   hatchStun: 100,
   /** Radius in tiles within which a `tagalong` Being follows the nearest possessed Being (TUNE; 07 s13 gives none). */
   tagalongRadius: 6,
+  /** Architect abilities (beings close 5, 07 section 13 names them but gives no numbers; all TUNE). */
+  kickPushMin: 1.5,
+  kickPushMax: 3,
+  kickRange: 1,
+  jumpTiles: 2,
+  dashTiles: 3,
+  talkRange: 2,
+  talkSurprise: 0.3,
+  stealRange: 2,
+  swearRange: 3,
+  /** Hex cast radius in tiles (08 section 9.2 `hex_cast`: Beings within 3 tiles, Patch ring). */
+  hexRadius: 3,
+  /** Reach-land search radius in tiles (07 section 5 B `reach_land`; TUNE). */
+  landRadius: 12,
+  /** Fire radius that an extinguisher works in (07 section 5 H `extinguish`: clear fire r3). */
+  extinguishRadius: 3,
+  /** Sight of an outburst: the nearest Being within this many tiles is struck (07 section 10; TUNE). */
+  outburstSight: 3,
+  /** Ticks an emote task holds the Being still (06 section 4.5: two to three seconds, 40 to 60 ticks). */
+  emoteTicks: 40,
 } as const;

@@ -337,6 +337,9 @@ export const POWERS: readonly PowerDef[] = [
     cooldownMs: 1500,
     requires: [],
   })),
+  // Spell `hex_cast` (08 section 9.2, beings close 5): the curse drop of the hex spell, one cast on a tile. Its aether cost,
+  // chance and cooldown are not modelled (no aether state); the cast is the Architect's, and it hexes Beings within 3 tiles.
+  click('hex_cast', 'havoc', 'Hex cast', 'hex_cast', { radius: 3 }),
   // Favour (12 section 8.7). Magic drops are brush-kind: each tapped tile is one drop roll (fall 0.3) and
   // the beings on that tile take the effect. Substitutions are listed in DECISIONS.md "Powers round 4".
   // Bless (not in spec; effect in DECISIONS.md "Powers round 3").

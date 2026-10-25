@@ -20,7 +20,7 @@ import { scarStage, startFire } from '../terrain/fire.ts';
 import { meteorImpact } from '../terrain/meteor.ts';
 import { startQuake } from '../terrain/quake.ts';
 import { creepHubAt, geyserAt, heatAt, igniteAt, plantFlora, quenchAt, rainOn, seedBiome, snowOn, volcanoAt } from './terrain-powers.ts';
-import { blessAt, loreAt } from './rites.ts';
+import { blessAt, hexAt, loreAt } from './rites.ts';
 import {
   cleanseDrop,
   foundlingAt,
@@ -281,6 +281,11 @@ export function executePower(sim: Sim, def: PowerDef, x: number, y: number): boo
       // Ran even when no being is in range, like a brush over empty ground (12 section 10).
       if (!inBounds) return false;
       blessAt(sim, x, y, Number(p.radius ?? 3), String(p.status ?? 'warded'));
+      return true;
+    case 'hex_cast':
+      // The curse drop of the hex spell (08 section 9.2): Beings within the radius are hexed. Runs over empty ground too.
+      if (!inBounds) return false;
+      hexAt(sim, x, y, Number(p.radius ?? 3));
       return true;
     case 'lore':
       if (!inBounds) return false;

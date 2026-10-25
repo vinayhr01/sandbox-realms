@@ -7,8 +7,9 @@ import { MOOD_VALUE, type MoodEvent } from '../../content/moods.ts';
 import { STRAIN_TRAIT_BY_ID } from '../../content/traits.ts';
 import type { Rng } from '../../shared/rng.ts';
 import type { Sim } from '../sim.ts';
-import { ROUND6, ROUND8 } from './tuning.ts';
-import { dreamsAlways, recoversFully, sleepScale, wakeEnduranceScale } from './trait-hooks.ts';
+import { YEAR_TICKS } from '../../shared/constants.ts';
+import { ROUND6, ROUND8, ROUND9 } from './tuning.ts';
+import { breedMode, dreamsAlways, needsPartner, recoversFully, sleepScale, wakeEnduranceScale } from './trait-hooks.ts';
 
 /** Mood bounds (06 section 4.1). */
 const MOOD_MIN = -100;
@@ -153,4 +154,126 @@ export function bondCheck(sim: Sim, slot: number): void {
   addMood(sim, slot, 'bonded');
   addMood(sim, cand, 'bonded');
   b.stats.bonds++;
+}
+
+/**
+ * The live partner a Being links to through `withArr` / `genArr` (lover or best friend), or -1. A link whose partner has
+ * died or been replaced (generation moved on) counts for nothing.
+ */
+function liveLink(sim: Sim, slot: number, withArr: Int32Array, genArr: Uint32Array): number {
+  const o = withArr[slot] ?? -1;
+  if (o < 0) return -1;
+  return sim.beings.store.isCurrent(o, genArr[slot] ?? 0) ? o : -1;
+}
+
+/** The live lover of a Being (06 section 4.4), or -1. */
+export function loverOf(sim: Sim, slot: number): number {
+  const s = sim.beings.store;
+  return liveLink(sim, slot, s.loverWith, s.loverGen);
+}
+
+/** The live best friend of a Being (06 section 4.4), or -1. */
+export function friendOf(sim: Sim, slot: number): number {
+  const s = sim.beings.store;
+  return liveLink(sim, slot, s.friendWith, s.friendGen);
+}
+
+/** Lover and best friend that are alive now (the partners who take up a Being's quarrel, 07 section 10.4). */
+export function bondPartners(sim: Sim, slot: number): number[] {
+  const out: number[] = [];
+  const lo = loverOf(sim, slot);
+  const fr = friendOf(sim, slot);
+  if (lo >= 0) out.push(lo);
+  if (fr >= 0 && fr !== lo) out.push(fr);
+  return out;
+}
+
+/** Adult by the current age against the adult age (06 section 3.2). */
+function adultNow(sim: Sim, slot: number): boolean {
+  const s = sim.beings.store;
+  return (sim.tick - (s.born[slot] ?? 0)) / YEAR_TICKS >= (s.adultA[slot] ?? 1);
+}
+
+/** The live parent of a Being, or -1. */
+function liveParent(sim: Sim, slot: number): number {
+  const s = sim.beings.store;
+  return s.hasLiveParent(slot) ? (s.parent[slot] ?? -1) : -1;
+}
+
+/** Parent, child or sibling (06 section 4.4 "not related"; a family is at least this close). */
+export function related(sim: Sim, a: number, o: number): boolean {
+  const pa = liveParent(sim, a);
+  const po = liveParent(sim, o);
+  if (pa === o || po === a) return true;
+  return pa >= 0 && pa === po;
+}
+
+/** Whether the Being's strain breeds in pairs (06 section 6.3: the partner modes need a needsMate strain, 06 section 4.4). */
+function pairedBreeder(sim: Sim, slot: number): boolean {
+  const strain = sim.beings.strains.get(sim.beings.store.strain[slot] ?? 0);
+  return needsPartner(breedMode(strain?.traits ?? []));
+}
+
+/**
+ * Lover check for one Being (06 section 4.4, beings build 3). Two adults of one species, opposite sexes, both paired
+ * breeders, neither with a lover, not related, within the partner radius, become lovers at ROUND9.loveChance. Lovers get
+ * the `bonded` mood event. The `smitten` effect of the spec is not built (effects.ts is outside this build), so a live
+ * lover link stands for it.
+ */
+export function loveCheck(sim: Sim, slot: number): void {
+  const b = sim.beings;
+  const s = b.store;
+  if (loverOf(sim, slot) >= 0) return;
+  if (!adultNow(sim, slot) || !pairedBreeder(sim, slot)) return;
+  const sp = s.species[slot] ?? 0;
+  const female = s.female[slot] ?? 0;
+  const cand = b.nearest(
+    slot,
+    (o) =>
+      s.species[o] === sp &&
+      (s.female[o] ?? 0) !== female &&
+      adultNow(sim, o) &&
+      pairedBreeder(sim, o) &&
+      loverOf(sim, o) < 0 &&
+      !related(sim, slot, o),
+    ROUND6.partnerRadius,
+  );
+  if (cand < 0) return;
+  if (sim.rng('beings').next() >= ROUND9.loveChance) return;
+  s.loverWith[slot] = cand;
+  s.loverGen[slot] = s.generation[cand] ?? 0;
+  s.loverWith[cand] = slot;
+  s.loverGen[cand] = s.generation[slot] ?? 0;
+  addMood(sim, slot, 'bonded');
+  addMood(sim, cand, 'bonded');
+  b.stats.lovers++;
+}
+
+/** Mood ratio of a Being in 0..1 for the friendship chance (06 section 4.4 `ratio`; TUNE: mood mapped from -100..100). */
+function moodRatio(sim: Sim, slot: number): number {
+  return ((sim.beings.store.mood[slot] ?? 0) + 100) / 200;
+}
+
+/**
+ * Best-friend roll after a good chat (06 section 4.4). Neither may have a best friend, and a child does not befriend an
+ * adult. Chance = 0.25 * (1 - |ratio difference|) when both feel mood, + 0.1 for family, - 0.5 when they are foes.
+ * The likeability term of the spec is not modelled (the marks carry no likeability data). Success gives both `made_friend`.
+ */
+export function tryFriend(sim: Sim, a: number, o: number, foes: boolean): void {
+  const s = sim.beings.store;
+  if (friendOf(sim, a) >= 0 || friendOf(sim, o) >= 0) return;
+  if ((s.baby[a] ?? 0) !== (s.baby[o] ?? 0)) return;
+  let chance = 0;
+  if (feelsMood(sim, a) && feelsMood(sim, o)) chance += ROUND9.friendBase * (1 - Math.abs(moodRatio(sim, a) - moodRatio(sim, o)));
+  if (related(sim, a, o)) chance += ROUND9.friendFamily;
+  if (foes) chance -= ROUND9.friendFoe;
+  if (chance <= 0) return;
+  if (sim.rng('beings').next() >= chance) return;
+  s.friendWith[a] = o;
+  s.friendGen[a] = s.generation[o] ?? 0;
+  s.friendWith[o] = a;
+  s.friendGen[o] = s.generation[a] ?? 0;
+  addMood(sim, a, 'made_friend');
+  addMood(sim, o, 'made_friend');
+  sim.beings.stats.friends++;
 }

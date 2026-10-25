@@ -37,6 +37,11 @@ export { fnv1a };
  * Layout: header (magic 'SRCH', u16 format, u16 schema, u32 content hash placeholder, u32 body
  * length), body (sections: u8 tag, u32 length, payload), trailer (u32 FNV-1a of the body).
  *
+ * Schema 6 (beings build 3): each Being in the beings section also carries its egg end tick (0 when not an egg), its rooting
+ * flag, and its lover and best friend links (partner slot and generation; -1 for none). Partner links must name a Being in
+ * the save. Possession (the Architect's orders) and the step index of a running task are not saved (07 section 14).
+ * Schema 5 saves are rejected: their beings section has none of these fields.
+ *
  * Covered: clock, realm arrays, ages, rules, stats, beings (with generations and exact list and
  * free-stack order), RNG streams, behaviour timers, tile runners, combat state, status effects and
  * weather (clouds, blast guard, projectiles), and the lifetime stats with the unlocked achievements
@@ -64,7 +69,7 @@ export const FORMAT_VERSION = 1;
  * 06 section 6.1), strain id, stored aptitudes and marks; section 17 holds the strain registry. Schema 2
  * saves are rejected: they have no parent links or strains to restore.
  */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 const HEADER_BYTES = 16;
 /** Realm size steps a save (and a NewRealm command) may name. */
 export const MIN_SIZE_STEP = 2;
@@ -321,6 +326,13 @@ export function encodeChronicle(sim: Sim): Uint8Array {
         w.u32(s.aggroGen[i] ?? 0);
         w.u32(s.aggroUntil[i] ?? 0);
       }
+      // Schema 6 (beings build 3): the egg stage, rooting, and the lover and best friend links (06 sections 3.2, 4.4, 6.3).
+      w.u32(s.shelledUntil[slot] ?? 0);
+      w.u8(s.rooted[slot] ?? 0);
+      w.i32(s.loverWith[slot] ?? -1);
+      w.u32(s.loverGen[slot] ?? 0);
+      w.i32(s.friendWith[slot] ?? -1);
+      w.u32(s.friendGen[slot] ?? 0);
     }
     // Full generation table (dead slots keep their counters) and the exact list and free-stack order.
     for (let slot = 0; slot < s.capacity; slot++) w.u32(s.generation[slot] ?? 0);
@@ -782,6 +794,12 @@ function decodeBeings(sim: Sim, r: Reader): void {
       fields[`agGen${k}`] = r.u32();
       fields[`agUntil${k}`] = r.u32();
     }
+    fields['shelledUntil'] = r.u32();
+    fields['rooted'] = r.u8();
+    fields['loverWith'] = r.i32();
+    fields['loverGen'] = r.u32();
+    fields['friendWith'] = r.i32();
+    fields['friendGen'] = r.u32();
     // Shape checks (schema 4): mood in range, endurance within the species maximum, bond links name a
     // being in this save (checked below once every slot is known).
     if ((fields['mood'] ?? 0) < -100 || (fields['mood'] ?? 0) > 100) throw new Error(`chronicle: being ${slot} has a mood out of range`);
@@ -792,6 +810,9 @@ function decodeBeings(sim: Sim, r: Reader): void {
     if ((fields['palette'] ?? 0) >= PALETTES.length) throw new Error(`chronicle: being ${slot} has an unknown palette`);
     if ((fields['shade'] ?? 0) > 3) throw new Error(`chronicle: being ${slot} has a shade out of range`);
     if ((fields['reborn'] ?? 0) > 1) throw new Error(`chronicle: being ${slot} has a bad rebirth flag`);
+    // Shape checks (schema 6): the rooted flag is 0 or 1; a shelled egg has an end tick (0 is no egg).
+    if ((fields['rooted'] ?? 0) > 1) throw new Error(`chronicle: being ${slot} has a bad rooting flag`);
+    if ((fields['shelledUntil'] ?? 0) < 0) throw new Error(`chronicle: being ${slot} has a bad egg end tick`);
     raw.push({ slot, fields });
   }
   const generation: number[] = [];
@@ -817,7 +838,7 @@ function decodeBeings(sim: Sim, r: Reader): void {
   if (codeIds.size !== codeCount || codeCount !== sim.beings.strains.size) throw new Error('chronicle: lineage codes do not match the strains');
   for (const [id] of codes) if (!sim.beings.strains.get(id)) throw new Error(`chronicle: lineage code names a missing strain ${id}`);
   for (const rec of raw) {
-    for (const link of [rec.fields['bondWith'] ?? -1, rec.fields['closeWith'] ?? -1]) {
+    for (const link of [rec.fields['bondWith'] ?? -1, rec.fields['closeWith'] ?? -1, rec.fields['loverWith'] ?? -1, rec.fields['friendWith'] ?? -1]) {
       if (link !== -1 && !seen.has(link)) throw new Error(`chronicle: being ${rec.slot} names a missing bond partner`);
     }
     // Aggro entries are empty (-1) or name an attacker slot. An entry whose attacker is no longer current (the slot
@@ -878,6 +899,12 @@ function decodeBeings(sim: Sim, r: Reader): void {
     s.shade[slot] = f['shade'] ?? 0;
     s.reborn[slot] = f['reborn'] ?? 0;
     s.searchAt[slot] = f['searchAt'] ?? 0;
+    s.shelledUntil[slot] = f['shelledUntil'] ?? 0;
+    s.rooted[slot] = f['rooted'] ?? 0;
+    s.loverWith[slot] = f['loverWith'] ?? -1;
+    s.loverGen[slot] = f['loverGen'] ?? 0;
+    s.friendWith[slot] = f['friendWith'] ?? -1;
+    s.friendGen[slot] = f['friendGen'] ?? 0;
     for (let k = 0; k < AGGRO_SLOTS; k++) {
       const i = slot * AGGRO_SLOTS + k;
       s.aggroId[i] = f[`agId${k}`] ?? -1;

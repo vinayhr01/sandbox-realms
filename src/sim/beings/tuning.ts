@@ -122,3 +122,28 @@ export const ROUND8 = {
   /** Months (of 12) in which season_breeding beings may breed: spring, months 2 to 4 (TUNE). */
   springMonths: [2, 3, 4] as readonly number[],
 } as const;
+
+/**
+ * Beings build 3 knobs (07 sections 4, 7, 13; 06 sections 4.4, 6.3, 7.4; 08 section 8). TUNE unless the comment says the
+ * spec states the value. Kept apart from ROUND8 for the same reason.
+ */
+export const ROUND9 = {
+  /** Ticks between lover checks for each Being (TUNE). */
+  loveCheck: 100,
+  /** Chance per check that two eligible Beings become lovers (TUNE; 06 4.4 gives no chance). */
+  loveChance: 0.3,
+  /** Best-friend chance: base term (06 4.4 states 0.25), family term (0.1) and foe penalty (-0.5). */
+  friendBase: 0.25,
+  friendFamily: 0.1,
+  friendFoe: 0.5,
+  /** Ticks an Architect order keeps a Being possessed, refreshed by each order (07 section 13 `puppeted`: 200). */
+  possessTicks: 200,
+  /** Tiles searched for the nearest shore when a Being douses itself (TUNE). */
+  shoreRadius: 8,
+  /** Chance a rotstride bite applies `rotting` to a Folk or Beast victim (18a: 50%). */
+  rotBite: 0.5,
+  /** Chance a spore-lodged attacker's blow leaves the victim spore-lodged (TUNE). */
+  sporeCatch: 0.15,
+  /** Chance a growth-fever attacker's blow leaves the victim with growth fever (TUNE). */
+  tumorCatch: 0.1,
+} as const;

@@ -196,17 +196,26 @@ export function popMultiplier(traits: readonly string[]): number | null {
 
 /**
  * How a strain reproduces (06 section 6.3, 18b RST and RMT). `live` is the sexual default (a pairing, then a live
- * birth; `birth_egg` and `birth_rooted` are not built and are live births here). `split` is `birth_clonal`: one
- * parent, a clone takes half of its vitality, endurance, mood and fuel. `bud` is `birth_budded`: one parent, one
- * child after the gestation. `spore` is `birth_spore`: 3 to 9 babies at once, around the parent. `self` is
- * `single_parent`: one parent carries a live birth. A clonal trait wins over the others (the strategy traits oppose).
+ * birth). `egg` is `birth_egg` (beings build 3): a pairing lays one egg Being on a neighbouring tile, shelled for the
+ * gestation. `rooted` is `birth_rooted`: a pairing roots the bearer for the gestation, then a sprout is born beside it.
+ * `split` is `birth_clonal`: one parent, a clone takes half of its vitality, endurance, mood and fuel. `bud` is
+ * `birth_budded`: one parent, one child after the gestation. `spore` is `birth_spore`: 3 to 9 babies at once, around the
+ * parent. `self` is `single_parent`: one parent carries a live birth. A clonal trait wins over the others (the strategy
+ * traits oppose).
  */
-export type BreedMode = 'live' | 'split' | 'bud' | 'spore' | 'self';
+export type BreedMode = 'live' | 'egg' | 'rooted' | 'split' | 'bud' | 'spore' | 'self';
+
+/** Breeding modes that need a partner (the pairing modes of 06 section 6.3). */
+export function needsPartner(mode: BreedMode): boolean {
+  return mode === 'live' || mode === 'egg' || mode === 'rooted';
+}
 
 export function breedMode(traits: readonly string[]): BreedMode {
   if (traits.includes('birth_clonal')) return 'split';
   if (traits.includes('birth_spore')) return 'spore';
   if (traits.includes('birth_budded')) return 'bud';
   if (traits.includes('single_parent')) return 'self';
+  if (traits.includes('birth_egg')) return 'egg';
+  if (traits.includes('birth_rooted')) return 'rooted';
   return 'live';
 }

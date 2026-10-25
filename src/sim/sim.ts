@@ -42,6 +42,7 @@ import { buildSnapshot } from './snapshot.ts';
 import { ItemStore } from './items/store.ts';
 import { itemRain, itemsStep, setGear, setItemFavourite, setItemRain } from './items/system.ts';
 import { hamletGearStep } from './items/hamlet-gear.ts';
+import { possessCommand } from './beings/possession.ts';
 import { wearOnHit } from './items/wear.ts';
 import type { Snapshot } from '../shared/protocol.ts';
 import { clansStep, createClanState, type ClanState } from './clans/clans.ts';
@@ -317,6 +318,10 @@ export class Sim {
         break;
       case Cmd.SetItemFavourite:
         setItemFavourite(this, cmd.itemId, cmd.on);
+        break;
+      case Cmd.Possess:
+        // Architect possession of one Being (07 section 13, beings build 3). A stale id or an off-map order is refused.
+        if (!possessCommand(this, cmd.beingId, cmd.on, cmd.x, cmd.y, cmd.attack)) this.refusals.push('possess refused');
         break;
       default:
         break;

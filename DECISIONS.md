@@ -1386,3 +1386,66 @@ Scope: three failing unit tests in the beings and chronicle area. Development on
 
 - Firefox projects are removed from `playwright.config.ts` and from the CI browser matrix. The Playwright Firefox build does not launch on the Windows development machine (side-by-side configuration error), so it could not be tested. The app is tested on Chromium (desktop, tablet, phone and 360x640 and 1920x1080 projects) and WebKit (360x640 and 1920x1080).
 - Firefox support is therefore not verified. Add it back when a machine can launch it.
+
+## Beings build 3
+
+Scope: the five items of the build brief (possession command, step-machine tasks, lovers and best friends, affliction
+conversions, egg and rooted births). Spec references are to 07 and 06 unless said otherwise. Development build: no test,
+tsc, vitest, build or Playwright run. GOLDEN_HASH is not edited and will drift (see item 7).
+
+**1. Possession as a command.** Protocol `Cmd.Possess` (16, additive; PROTOCOL_VERSION unchanged): `beingId`
+(generation * MAX_BEINGS + slot, as SetGear), `on`, the order tile `x`, `y`, and `attack`. `beings/possession.ts`
+`possessCommand` refuses stale ids and off-map tiles, sets the order, cancels sleep and the running task, and gives
+`ROUND9.possessTicks` (200, spec `puppeted`) of control; each order refreshes it, `on: false` releases. In `stepBeings` a
+possessed Being skips decisions and sleep and runs `possessedStep`: move toward the tile, and with `attack` strike the
+Being beside it on each fight beat (ROUND8.fightBeat). Not done: the `steered` faction (no faction hook for it yet), the
+canControl species flags (none in the roster data, so every Being is controllable), the tagalong effect, and the kick, jump,
+talk, dash and steal abilities of 07 section 13. Control is not saved (`possessUntil` is outside the chronicle).
+
+**2. Step-machine tasks.** `system.ts` `runSteps` runs a step list with StepResult continue, repeat, stop (continue runs the
+next step in the same call, depth 4). `stepAt` holds the step index, reset when a decision picks the task, not saved. Two
+machines: `follow_parent` (a child more than two tiles from its live parent; stops on arrival or no progress) and
+`douse_self` (scorched, shore within ROUND9.shoreRadius; walk, then remove scorched). Both are decision rows 14 and 15
+(`follow_parent` tier 2 weight 0.2; `douse_self` tier 4 weight 5, cooldown 200). Not built: the rest of the 07 catalogue
+(about 70 tasks). The state they need does not exist in the sim: aquatic beings and boats, hamlets and homes, dominions,
+intrigue, the wyrm, craft and hand, creeps, and the emote and sound state of the mood tasks.
+
+**3. Lovers and best friends (06 section 4.4).** `loveCheck` every ROUND9.loveCheck (100) ticks: two adults of one species,
+opposite sexes, both in a paired-breeding strain (live, egg or rooted; not split, spore, bud or self), neither with a live
+lover, not related (parent, child or sibling), within the partner radius, become lovers at ROUND9.loveChance (0.3, TUNE; the
+spec gives no chance). Lovers get `bonded`. The `smitten` effect is not built (effects.ts is outside this build), so a live
+lover link stands for it. Best friends: `tryFriend` after a `talked_well` chat. Neither may have a best friend, and a child
+does not befriend an adult. Chance = 0.25 * (1 - |mood ratio difference|) when both feel mood, + 0.1 when related, - 0.5
+when either sees the other as hostile (relation H). The mood ratio is (mood + 100) / 200 (TUNE). The likeability term is not
+modelled: the marks carry no likeability data. Death: a partner loses the link with `lover_died` or `friend_died`. An attack
+on one Being (`strike`) adds the attacker to its lover's and best friend's aggro (`bondPartners`). Links are per Being: lover
+(`loverWith`, `loverGen`) and best friend (`friendWith`, `friendGen`), separate from the round 6 bond (`bondWith`), which is
+unchanged.
+
+**4. Affliction sources and death conversions (08 section 8, 06 section 7.4).** `beings/afflictions.ts`. Sources, all from the
+combat hit in `strike` (`blowAfflictions`): a rotstride bite gives `rotting` (ROUND9.rotBite 0.5, 18a); a spore-lodged
+attacker leaves its victim spore-lodged (ROUND9.sporeCatch 0.15, TUNE); a growth-fever attacker leaves its victim with
+growth fever (ROUND9.tumorCatch 0.1, TUNE). `warded_blood` blocks them all. Conversions on death run first in `killBeing`
+(`convertOnDeath`): rot (`rotting` status or `rot_touched`) to rotstride, spore to capstroll, tumor to patchbeast, `hexed`
+to boneshambler. `haloed` blocks the rot, spore and tumor rules. The converted Being keeps strain, age, attributes, mood,
+endurance, parent, children, partners and bond, sheds the stripped afflictions (and swiftfoot, luminary, placid for rot), and
+the old Being leaves silently (no death counter, no kill credit). The conversion targets never convert again
+(`CONVERSION_TARGETS`). The "species canBecome*" flags are not in the roster data, so every non-target species converts (TUNE).
+Not built: the hex source (the hex spell is not built, and no combat hit applies `hexed`), the tumor tile-contact source (creep
+cover), and the spore cloud drop.
+
+**5. Egg and rooted births (06 sections 3.2 and 6.3).** `breedMode` returns `egg` (birth_egg) and `rooted` (birth_rooted)
+after the other modes; `needsPartner` says which modes pair. Egg: the pairing lays one egg Being on a neighbouring tile
+(`spawnBeing` with the bearer as parent), shelled for the bearer's gestation months x 100 (`shelledUntil`). It is immovable and
+frozen; at its end `hatch` gives the `dazed` status (80 ticks; the spec's 100 is not a status duration here) and the `hatched`
+mood, and counts a hatch. The bearer pays the birth fuel and takes a lull. Rooted: the pairing sets `rooted` on the bearer,
+which cannot move (`takeStep`) for the gestation; the sprout is then born with `sprouting` (2400 ticks, the spec's duration).
+Not done: the rooted parent's plating +10 and x0.7 stats, and the egg's Hatched spawn burst.
+
+**6. Chronicle.** `SCHEMA_VERSION` 5 -> 6. The beings section adds, per Being, `shelledUntil`, `rooted`, `loverWith`,
+`loverGen`, `friendWith`, `friendGen`. Shape checks: rooted 0 or 1, shelled end tick not negative, lover and friend links name
+a Being in the save. Schema 5 saves are rejected. Possession and `stepAt` are not saved.
+
+**7. Golden hash.** GOLDEN_HASH is unchanged and will not match. The new decision rows (14 and 15), the lover and friend
+checks, the affliction draws and the egg and rooting branches all change random draws or Being state. It needs a re-baseline
+by a run with test access, as in round 6. Not run here.

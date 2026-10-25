@@ -2288,3 +2288,42 @@ Scope: 17 section 9 (system isolation), closing deviation 1 (the pump is not iso
 - Deviation 2 (the ping part is not isolated) is unchanged; its check does not throw.
 
 **Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Needed with test access: a unit test that throws in one part (e.g. `fireSweep`) and checks that three faults switch it off for 600 ticks, that the other parts keep running, and that the tick counter reaches the end of the switch-off; a test that the no-gate path gives the same hash as before over N ticks; a test that SYS_STOP pauses the page.
+
+## Loyalty terms close 8
+
+Scope: 10 section 5 (hamlet loyalty), the terms the sim has state for. Spec read at `game\Spec` (10 sections 1 and 5; 09 section 1 Hamlet schema with `foundedTick`, `ageYears`, `dominionSinceTick`; 10 section 1 Dominion schema with `newConquestTick` and `rulerSinceTick`; 11 section 9.1 for the gender customs). Files: `src/sim/dominions/loyalty.ts` (`hamletLoyalty` facts and terms), `src/sim/dominions/adapter.ts` (`trackHolds`, `folkMajorities`, `wholeYears`, `loyaltyYearly`, the dominion snapshot and restore), `src/sim/dominions/types.ts` (`Dominion` optional ticks), `src/sim/dominions/founding.ts` (`foundedTick`), `src/sim/dominions/rulers.ts` (`rulerSinceTick`), `src/sim/settlements/hamlet.ts` (`Hamlet.foundedTick`), `src/sim/settlements/adapter.ts` (stamp at founding, snapshot, restore), `src/sim/chronicle.ts` (`checkDominions`, `checkHamlets`). Development only: no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` is not edited. No schema bump: every new field is optional.
+
+**Closed.**
+- Hamlet age (young hamlet, age <= 15: (15 - age) x 5). `Hamlet.foundedTick` is stamped where a hamlet is founded (`placeHamlets`, `foundHamlets`). Age is whole years (floor), as `ageYears` reads.
+- Dominion age (young dominion, age <= 5: (5 - age) x 5). `Dominion.foundedTick` is set in `foundingYear` and `addDominion`.
+- Ruler tenure. `Dominion.rulerSinceTick` is set when `rulersStep` installs a ruler. Term: 0 below 5 years, else the years, capped at 40.
+- New conquest (<= 10 years: (10 - y) x 30). `Dominion.newConquestTick` is stamped by `trackHolds` on the dominion that takes a hamlet from another.
+- Belonging (<= 10 years: (10 - y) x 10). `DominionState.hold` keeps, per hamlet, its dominion and the tick it was first seen with it.
+- Custom, dialect and creed. The hamlet's folk majority group (`groupOfSlot`) is compared with the dominion's group meta. Same meta (same record, or same creator and birth via `sameMeta`) gives +15. Different gives -25 custom, -20 dialect, -30 creed. No term when the dominion has none.
+- Lineage (species). The hamlet's folk majority species against the dominion's folk majority species. Different gives -25, -5 under `welcoming`, -50 under `insular`.
+- Strain. The hamlet's folk majority strain against the dominion's. Same +15, different -15. Strain 0 (none) gives no majority.
+- Clan (not in the brief, but the sim has the state). Leader and ruler share a non-zero strain: +30 when a live clan holds it, -20 when it does not. Skipped at the capital, with no leader or ruler, and when the strains differ.
+- Gender customs. The ruler's sex against the succession rule (patriarchy or matriarchy): -50.
+- Save. Optional fields: `foundedTick`, `rulerSinceTick` and `newConquestTick` on each dominion record; `hamletHolds` (triples of hamlet index, dominion id, tick) in the dominion section; `foundedTick` on each hamlet record. `checkDominions` and `checkHamlets` check them. `restoreDominions` and `restoreHamlets` range-check them. A save without them loads with no age, tenure or belonging term, and belonging restarts at the first yearly pass after load.
+- Fix found on the way. `restoreDominions` built the dominion state without `loyalty`, a required field of `DominionState`. It now sets an empty map.
+
+**Reading choices and substitutions.**
+- Matches compare the hamlet's folk with the dominion. 10 section 5 gives no reference side. A folk follows its dominion's group unless a conversion moved it (`convertByFight`, talk spread), so folk in their own dominion always match.
+- Hamlet identity for `hold` is the hamlet's index in `hamletsOf` order. The sim never removes a hamlet. The loyalty map is still keyed by the lowest parcel, as before.
+- Stamps happen at the yearly pass, so a capture or a ruler change is dated to the year it is seen (up to 1200 ticks late). Loyalty is already computed yearly, so this does not change the sum's cadence.
+- Every change of a hamlet's dominion is treated as a capture. The dominion pass has no rebellion or voluntary join that moves a hamlet. The culture `rebellion` intrigue record (culture.ts) is not read here.
+- 10 section 5 says "-5 for a welcoming leader". The sim has no leader trait for this. `welcoming` and `insular` are custom traits (content/customs.ts), so the term reads the dominion's custom.
+- The spec's ruler tenure row says "0 below 5, capped at 40". Read as: years below 5 give 0; from 5 the term is the years, capped at 40.
+- The gender term is now in the loyalty sum. `rulerInstalled` (culture/effects.ts) still takes the same -50 as a mood change, as a substitute for the missing loyalty sum. Once a loyalty reader exists, one of the two should go. Left as is.
+- Older comments that name these terms as not built ("Culture founding close 6", `rank.ts`, `culture/effects.ts`) are superseded by this section and were not edited.
+
+**Not built, and why.**
+- Loyalty stat cache (60 ticks) and `isHappy`. Nothing reads loyalty yet. The yearly map is the sum. A 60-tick cache with a reader is a new subsystem and is not built.
+- Rebellion reader (10 section 11). It needs the uprising intrigue and campaign, the hamlet leader's level and skills, soldier counts and an unhappy-hamlet count. intrigue.ts has no uprising kind. The spec defines the reader, but it needs new subsystems, so it is not built.
+- Sea link (10 section 5, "+20 / -35 if separated by sea or same-lineage only"). The +20 branch has no clear condition in the row. A guess would not be a spec term, so it is not built.
+- Hamlet cap (over `maxHamlets`: (max - count) x 25). The sim has no `baseHamlets`, no `hamletBonus` and no aggression dice.
+- Leader's `loyaltyMood` stat and trait mod. No spec table defines the stat's values (11 section 9.1 names only a +20 heraldCraft mod with no stat). The sim has no such stat.
+- Age mood (the Age's `loyaltyBonus`). The Age table in 02 section 5.3 has no loyalty column, and `AgeDef` has no such field.
+- Strain `bond` modifier (05 stat table: "loyalty modifier consumed by the dominion layer", default 0). It is not one of 10 section 5's terms, and the sim has no strain bond stat. With the default 0 the term is 0 everywhere.
+
+**Not verified.** Nothing was run. Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. The hold stamps, match terms and save round-trip need a seeded run and a test. `GOLDEN_HASH` may change: the new snapshot fields change saved bytes, and any hash over dominion or hamlet state will move. It needs a re-baseline when a golden run is allowed.

@@ -61,6 +61,8 @@ export interface Hamlet {
    * each sim-second from the census (adapter.ts), before the hamlet step and the garrison pass that read it. Derived, not saved.
    */
   leader?: number;
+  /** Tick the hamlet was founded (settlements/adapter.ts). Optional: absent in saves made before it was recorded (10 section 5 hamlet age). */
+  foundedTick?: number;
 }
 
 /** A building under construction: its def and origin, and the builder progress so far (09 section 6 progressNeeded). */

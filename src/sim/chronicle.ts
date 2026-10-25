@@ -707,8 +707,14 @@ function checkDominions(raw: unknown): DominionSnapshot | null {
   const rulerShape = (r: unknown): boolean => isRecord(r) && isFiniteNumber(r.slot) && isFiniteNumber(r.gen);
   // Optional rank (rank.ts): absent, or 'supreme' or 'second'.
   const rankOk = (r: unknown): boolean => r === undefined || r === 'supreme' || r === 'second';
-  if (!raw.dominions.every((d) => isRecord(d) && (d.traits === undefined || Array.isArray(d.traits)) && (d.taxRaised === undefined || isFiniteNumber(d.taxRaised)) && (d.ruler === undefined || rulerShape(d.ruler)) && (d.rulerWaitUntil === undefined || isFiniteNumber(d.rulerWaitUntil)) && rankOk(d.rank))) {
+  // Optional ages and tenure (10 section 5): founding, ruler installation and last capture ticks, each a number when present.
+  const optionalTick = (v: unknown): boolean => v === undefined || isFiniteNumber(v);
+  if (!raw.dominions.every((d) => isRecord(d) && (d.traits === undefined || Array.isArray(d.traits)) && (d.taxRaised === undefined || isFiniteNumber(d.taxRaised)) && (d.ruler === undefined || rulerShape(d.ruler)) && (d.rulerWaitUntil === undefined || isFiniteNumber(d.rulerWaitUntil)) && rankOk(d.rank) && optionalTick(d.foundedTick) && optionalTick(d.rulerSinceTick) && optionalTick(d.newConquestTick))) {
     throw new Error('chronicle: dominion section records are not valid');
+  }
+  // Optional hamlet holdings (dominions/adapter.ts): a list of [hamlet index, dominion id, tick] number triples.
+  if (raw.hamletHolds !== undefined && (!Array.isArray(raw.hamletHolds) || !raw.hamletHolds.every((t) => Array.isArray(t) && t.length === 3 && t.every(isFiniteNumber)))) {
+    throw new Error('chronicle: dominion section hamlet holdings are not valid');
   }
   return raw as unknown as DominionSnapshot;
 }
@@ -732,6 +738,8 @@ function checkHamlets(raw: unknown): HamletSnapshot | null {
     if (h.road !== undefined) {
       if (!Array.isArray(h.road) || !h.road.every(isFiniteNumber)) throw fail;
     }
+    // Optional founding tick (10 section 5 hamlet age); absent in older saves.
+    if (h.foundedTick !== undefined && !isFiniteNumber(h.foundedTick)) throw fail;
   }
   if (raw.structures !== undefined) {
     if (!Array.isArray(raw.structures)) throw fail;

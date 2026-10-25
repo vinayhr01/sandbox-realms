@@ -1,6 +1,6 @@
 import { expect, it, describe } from 'vitest';
 import { generateRealm } from '../../src/sim/worldgen.ts';
-import { ground } from '../../src/content/grounds.ts';
+import { G, ground } from '../../src/content/grounds.ts';
 import { createRng } from '../../src/shared/rng.ts';
 import { createHamlet, hamletStep, buildable, placeBuilding, foodCapacity, BASE_FOOD_STORE, PARCEL, type HamletContext } from '../../src/sim/settlements/hamlet.ts';
 import { BUILDING_BY_ID, type BuildingDef } from '../../src/sim/settlements/catalogue.ts';
@@ -15,7 +15,7 @@ function setup(seed: number) {
   const { sim } = generateRealm({ seed, sizeStep: 3, template: 'continent', startingBeasts: false });
   const realm = sim.realm;
   const side = realm.side;
-  // Find a land parcel with room (most tiles land).
+  // Find a land parcel with room: count only tiles a building can take (land, no flora, no road), as buildable() does.
   const perAxis = side / PARCEL;
   let best = 0;
   let bestLand = -1;
@@ -23,7 +23,7 @@ function setup(seed: number) {
     let land = 0;
     for (let y = 0; y < PARCEL; y++) for (let x = 0; x < PARCEL; x++) {
       const i = (Math.floor(p / perAxis) * PARCEL + y) * side + (p % perAxis) * PARCEL + x;
-      if (ground(realm.ground[i] ?? 0).layer === 'land') land++;
+      if (ground(realm.ground[i] ?? 0).layer === 'land' && (realm.flora[i] ?? 0) === 0 && realm.ground[i] !== G.wayworn) land++;
     }
     if (land > bestLand) { bestLand = land; best = p; }
   }

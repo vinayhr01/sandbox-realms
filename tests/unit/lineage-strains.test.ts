@@ -115,6 +115,8 @@ describe('strains and counters (05 section 2 and 6.1)', () => {
     const sim = field(7);
     const sp = speciesIndex('gloamfang');
     const mother = spawnBeing(sim, sp, 50, 50, true);
+    // Morph is rolled at spawn and inherited at birth (DECISIONS.md open default): use an unmorphed mother so the stat is the species base.
+    sim.beings.store.morph[mother] = 0;
     const child = spawnBeing(sim, sp, 51, 50, false, mother);
     const s = sim.beings.store;
     expect(s.baby[child]).toBe(1);

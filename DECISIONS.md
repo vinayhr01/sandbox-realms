@@ -2288,3 +2288,52 @@ Scope: 17 section 9 (system isolation), closing deviation 1 (the pump is not iso
 - Deviation 2 (the ping part is not isolated) is unchanged; its check does not throw.
 
 **Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Needed with test access: a unit test that throws in one part (e.g. `fireSweep`) and checks that three faults switch it off for 600 ticks, that the other parts keep running, and that the tick counter reaches the end of the switch-off; a test that the no-gate path gives the same hash as before over N ticks; a test that SYS_STOP pauses the page.
+
+## Capture close 8
+
+Scope: 10 section 7 (capture of hamlets: capture points, the base threshold of 100, DEF_PER_TOWER per watchspire, finishCapture), 18e section 3.1 (bastion threshold 130), 10 section 15 (capture update every 2 ticks). Spec: `game\Spec`, read only, checked. Files: `src/sim/dominions/capture.ts` (new: the constants, `HAMLET_CAPTURE`, `captureStep`, `finishCapture`), `src/sim/dominions/adapter.ts` (`captureTick`, `captures` on `DominionState`, the attack-order gate, the restore state literal), `src/sim/dominions/step.ts` (the parcel-take gate in `exchange`, comments), `src/sim/sim.ts` (one part, `capture`, after `dominions`), `src/sim/settlements/catalogue.ts` (comment). Branch: `worktree-agent-a04c0160246ce1d5f`. Development only: no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` is not edited.
+
+**Rule replaced (one switch).** `HAMLET_CAPTURE` in capture.ts, set to `true`. It controls two things:
+- Replaced: the parcel take on a strength-exchange defeat (step.ts `exchange`, `takeParcel`, under `border_creep`). Spec: 10 section 7 names capture as the only way territory changes hands besides rebellion and chaos, and 09 section 3 allows no automatic border creep.
+- Replaced: the parcel take of attack orders (armies.ts `attackOrders`, under `border_creep`). The orders are not run while the switch is on. Armies still march (armies.ts `marchArmies`) and still exchange strength on contact.
+- Kept: the strength exchange itself (casualties, renown, the army march). The spec gives no dominion-level casualty rule to replace it, so the casualties stay.
+- `HAMLET_CAPTURE = false` restores the parcel take and runs no capture.
+
+**Conflict recorded.** The existing parcel take moves one parcel on a defeat. The spec moves a whole hamlet by capture. The spec rule is built behind the switch. `border_creep` is on by default (rules.ts), so the default realm now takes no parcels by defeat or order; capture does it instead.
+
+**Spec conflict (not resolved here).** 10 section 16 acceptance test 5 says: attackers 5 inside, defenders 0, 1 tower, and the ticks rise 1 per step. The section 7 rules say otherwise at DEF_PER_TOWER 10 and 1 point per soldier: 1 tower gives 10 defence points, which beats 5 attack points, so the hamlet counts as defended and the ticks fall. The test holds only if the attackers count more than 10 points. The code follows the rules, not the test. The user should pick the values (DEF_PER_TOWER, SOLDIER_POINTS, or the test).
+
+**Built (10 section 7).**
+- `captureTick` (adapter.ts) runs every `CAPTURE_STEP_TICKS` (2) ticks with the `parley` rule on, after the dominion step.
+- Attack points: each dominion at war with the owner adds `SOLDIER_POINTS` per soldier of its army in reach. The most points is the capturer; ties go to the lower id.
+- Defence: `DEF_PER_TOWER` per watchspire built in the hamlet (catalogue id `watchspire`), plus `SOLDIER_POINTS` per soldier of the owner's army in reach.
+- `defended` (owner soldiers in reach, or defence above attack), `defenderTicks`, rise (enemy leads and no defender with `defenderTicks >= 5`), fall (1 when defended, 0.5 when nobody).
+- Threshold 100, or 130 with a bastion in the hamlet (18e).
+- `finishCapture`: the hamlet's parcels the loser held pass to the captor, in the owner bytes and the dominions' parcel sets. The capture record is dropped.
+
+**Substitutions and TUNE values.**
+- "In reach", not "standing in": `marchArmies` stops adjacent to its target, so an army at the border never stands in the hamlet. An army counts when it is within `CAPTURE_REACH` (1, TUNE) of a hamlet parcel.
+- An army's points are its dominion's whole soldier count. The sim keeps one army position per dominion (armies.ts), so the soldiers have no separate positions.
+- The spec's 0.5 for other units is not built. Folk beings carry no dominion in the sim (armies.ts `folkOn`), so they cannot be counted as attackers.
+- `elapsedFraction` is taken as 0 (the spec does not define it). The step runs on its exact cadence, so `CAPTURE_RISE` = 1 (TUNE).
+- The watchspires counted are the hamlet's own (the spec says "own"; 09 section 6 limits towers per hamlet).
+- The capture key is the hamlet's lowest parcel, as in tax.ts. A hamlet whose lowest parcel changes restarts its capture.
+- The captor takes the hamlet. The spec's ally hand-over (findDominionAfterCapture) is not built.
+- Soldiers: the garrison pass already returns a garrison's company to the old dominion on an owner change (garrison-adapter.ts). That is the spec's "soldiers cleared" here, not a new rule.
+- TUNE values: `CAPTURE_THRESHOLD` 100, `DEF_PER_TOWER` 10, `DEFENDER_TICKS` 5, `CAPTURE_RISE` 1, `CAPTURE_FALL_DEFENDED` 1, `CAPTURE_FALL_NOBODY` 0.5, `CAPTURE_REACH` 1. Spec values: `CAPTURE_STEP_TICKS` 2, `BASTION_THRESHOLD` 130, `SOLDIER_POINTS` 1.
+
+**Remains, and why.**
+- Mood events (conquered +30, lost -15, capital and razed variants): not applied. Culture's `campaignMood` fires on the exchange, not on a capture.
+- Ruler flees a captured hamlet: not done. `rulersStep` reads the leading hamlet each second; I did not verify that it replaces a ruler who has left.
+- `newConquestTick`, `dominionSinceTick`, the `capturedFrom` relation record and the joinAnother counters: the sim has no such fields.
+- Raze check (every 40 ticks): not built. The sim has no citizen eviction.
+- Soldier gate and build tick skipping a captured hamlet (09 sections 6 and 8): not wired.
+- Capture progress is not saved. `DominionState.captures` is not in the snapshot, so a load starts every capture at 0. A save-shape change would be needed.
+- Dominions that lose their last parcel stay in the list (existing behaviour).
+
+**Effects on other code (for the lead).**
+- `border_creep` is on by default. Any realm with a war and armies near a hamlet changes its run: no attack-order or defeat parcel take, and capture instead. `GOLDEN_HASH` will drift. Not checked.
+- Tests that expect a parcel take will fail: `tests/unit/dominions.test.ts` "with border_creep on, the victor takes a parcel", and the dominions-wiring test "a campaign moves parcels" (see "Dominion campaign fix"). Not run. Either set `HAMLET_CAPTURE` to false or update those tests when tests run.
+- Pre-existing gap fixed on the way: `restoreDominions` built a `DominionState` without `loyalty`, which the type requires. The literal now sets `loyalty` and `captures` to empty maps.
+
+**Not verified.** Nothing was run. Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Needed with test access: a seeded test of the rise, the defender stop (`defenderTicks >= 5`), the bastion threshold of 130, and `finishCapture` moving the owner bytes and the parcel sets. The test must avoid the spec test 5 conflict above.

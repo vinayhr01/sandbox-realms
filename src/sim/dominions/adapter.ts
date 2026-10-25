@@ -17,6 +17,8 @@ import {
   newIntrigueState,
   proposeIntrigues,
   resolveIntrigues,
+  type FoundHooks,
+  type FoundKind,
   type Intrigue,
   type IntrigueEnv,
   type IntrigueState,
@@ -24,14 +26,20 @@ import {
   type SplitKind,
 } from './intrigue.ts';
 import { taxFlowOf, taxRatesOf, type TaxFlow } from './tax.ts';
-import { rulersStep, rulerLive, rulerStatsOf, type RulerRef, type RulerStats } from './rulers.ts';
+import { leadingHamlet, rulersStep, rulerLive, rulerStatsOf, type RulerRef, type RulerStats } from './rulers.ts';
 import { rankDominions, RANK_PERIOD_TICKS } from './rank.ts';
+import { hamletLoyalty, type HamletLoyaltyFacts } from './loyalty.ts';
 import { cultureYearly } from '../culture/adapter.ts';
-import { blockedWarMood, campaignMood, rulerInstalled, traitsOfGroup, warBlocked as warBlockedBy } from '../culture/effects.ts';
-import { customOfGroup, splitCreed, splitCustom, splitDialect } from '../culture/culture.ts';
-import { successionRuleOf, type SplitFacts } from '../culture/trait-rules.ts';
+import { blockedWarMood, campaignMood, convertLineageUnits, lineageHas, rulerInstalled, traitsOfGroup, warBlocked as warBlockedBy } from '../culture/effects.ts';
+import { customOfGroup, foundCreed, foundDialect, splitCreed, splitCustom, splitDialect } from '../culture/culture.ts';
+import { successionRuleOf, type FoundFacts, type SplitFacts } from '../culture/trait-rules.ts';
 import { MAX_BEINGS } from '../beings/store.ts';
-import { opinion, type DominionLens, type OpinionContext } from './opinion.ts';
+import { opinion, powerOf, type DominionLens, type OpinionContext } from './opinion.ts';
+
+/** Aptitude indices of a Being in the store (05 section 2): rapport (diplomacy), husbandry (stewardship), wit (intelligence). */
+const APT_RAPPORT = 0;
+const APT_HUSBANDRY = 2;
+const APT_WIT = 3;
 
 /** Dominion traits a dominion may hold (tax.ts reads the four tax ones; `markFate` is a locked marker, 11 section 9.4). */
 const DOMINION_TRAITS = ['highLocal', 'lowLocal', 'highTribute', 'lowTribute', 'markFate'] as const;
@@ -68,6 +76,8 @@ export interface DominionState {
   taxSeen: Map<number, number>;
   /** Per-hamlet tax flows written by the latest yearly pass (tax.ts TaxFlow). Replaced each pass; empty before the first. */
   taxFlows: TaxFlow[];
+  /** Hamlet loyalty by the hamlet's lowest parcel, from the latest yearly pass (loyalty.ts). Derived, not saved. */
+  loyalty: Map<number, number>;
 }
 
 const states = new WeakMap<Sim, DominionState>();
@@ -88,10 +98,16 @@ export function dominionState(sim: Sim): DominionState {
       intrigues: newIntrigueState(),
       taxSeen: new Map(),
       taxFlows: [],
+      loyalty: new Map(),
     };
     states.set(sim, s);
   }
   return s;
+}
+
+/** Pairs of dominion ids that share a border, read only: empty when the dominion state was never created (culture contacts). */
+export function dominionBordersOf(sim: Sim): readonly (readonly [number, number])[] {
+  return states.get(sim)?.borders ?? [];
 }
 
 /** Owner byte per parcel of a sim, read only: undefined when the dominion state was never created. */
@@ -487,11 +503,14 @@ export function dominionsYearly(sim: Sim): void {
     lens,
     hamlets: hamletCount,
     split: splitHooksOf(sim, s, settlements, hamletCount),
+    found: foundHooksOf(sim, s, settlements),
   };
   resolveIntrigues(ienv, s.intrigues);
   proposeIntrigues(ienv, s.intrigues);
   // Culture (11 sections 2 and 3): each dominion gets a custom once, and a scheme while none runs (culture/adapter.ts).
   cultureYearly(sim, s.dominions.map((d) => d.id));
+  // Hamlet loyalty (10 section 5), after the year's rank (rank.ts).
+  loyaltyYearly(sim, s, settlements, hamletCount);
   // Standing armies off raises no armies (09 section 8); existing armies still sync below.
   if (sim.rules.isOn('standing_armies')) raiseArmies(s.armies, s.dominions, perAxis);
   // Captains and slots: one captain per hamlet, and the hamlet's folk, both counted by the hamlet's majority owner
@@ -804,20 +823,27 @@ function freeGroupId(sim: Sim, s: DominionState): number {
   return 0;
 }
 
-/**
- * Culture hooks of the split intrigues (11 section 2; intrigue.ts SplitHooks). A divide reads the custom the dominion holds,
- * a schism the creed it holds, and a divergence the dialect it holds, which also needs a creed (11 section 3). The actor is
- * the dominion's ruler: its study level stands in for the hamlet leader's level, since the sim has no hamlet leader.
- * Members are the folk of the dominion's hamlets. A meta with no recorded birth or creator is refused (no known age, no
- * known founder). `apply` writes the split-off meta under a free group id (freeGroupId). Draws no randomness.
- */
-function splitHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof hamletsOf>, hamletCount: ReadonlyMap<number, number>): SplitHooks {
-  const culture = sim.culture;
+/** Folk of each dominion: the Folk of the hamlets it holds by majority (the members of its custom, 11 section 3). */
+function folkByDominion(s: DominionState, settlements: ReturnType<typeof hamletsOf>): Map<number, number> {
   const folk = new Map<number, number>();
   for (const h of settlements) {
     const best = ownerOfHamlet(h.parcels, s.owner);
     if (best !== UNOWNED) folk.set(best, (folk.get(best) ?? 0) + h.folk);
   }
+  return folk;
+}
+
+/**
+ * Culture hooks of the split intrigues (11 section 2; intrigue.ts SplitHooks). A divide reads the custom the dominion holds,
+ * a schism the creed it holds, and a divergence the dialect it holds, which also needs a creed (11 section 3). The actor is
+ * the dominion's ruler: its study level stands in for the hamlet leader's level, since the sim has no hamlet leader.
+ * Members are the folk of the dominion's hamlets. A meta with no recorded birth or creator is refused (no known age, no
+ * known founder). `apply` writes the split-off meta under a free group id (freeGroupId), then converts the actor and the
+ * same-lineage units within patch radius 1 of it to that group (convertLineageUnits). Draws no randomness.
+ */
+function splitHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof hamletsOf>, hamletCount: ReadonlyMap<number, number>): SplitHooks {
+  const culture = sim.culture;
+  const folk = folkByDominion(s, settlements);
   const leaderLevel = (d: Dominion): number => {
     const r = rulerLive(sim.beings.store, d);
     return r ? (culture.studies?.[String(r.gen * MAX_BEINGS + r.slot)]?.level ?? 0) : 0;
@@ -845,12 +871,103 @@ function splitHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof
     apply: (kind: SplitKind, d: number): boolean => {
       const newGroup = freeGroupId(sim, s);
       if (newGroup === 0) return false;
-      if (kind === 'divideCustom') return splitCustom(culture, d, newGroup, sim.tick) !== null;
-      if (kind === 'schismCreed') {
+      let made = false;
+      if (kind === 'divideCustom') made = splitCustom(culture, d, newGroup, sim.tick, sim.realm.seed) !== null;
+      else if (kind === 'schismCreed') {
         const creed = culture.creeds.find((c) => c.holders.has(d));
-        return creed !== undefined && splitCreed(culture, creed.id, newGroup, d, sim.tick) !== null;
+        made = creed !== undefined && splitCreed(culture, creed.id, newGroup, d, sim.tick) !== null;
+      } else made = splitDialect(culture, d, newGroup, sim.tick) !== null;
+      if (made) {
+        const dom = s.dominions.find((x) => x.id === d);
+        const actor = dom ? rulerLive(sim.beings.store, dom) : undefined;
+        if (actor) convertLineageUnits(sim, actor.slot, newGroup);
       }
-      return splitDialect(culture, d, newGroup, sim.tick) !== null;
+      return made;
     },
   };
+}
+
+/**
+ * Culture hooks of the founding intrigues (11 section 3; intrigue.ts FoundHooks). The actor is the dominion's ruler, as in
+ * splitHooksOf: its study level is the level, its wit the intelligence, and its lineage the speech and memory flags. A
+ * founded dialect or creed is held by the dominion and its creator is the dominion. Draws only from the culture stream.
+ */
+function foundHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof hamletsOf>): FoundHooks {
+  const culture = sim.culture;
+  const folk = folkByDominion(s, settlements);
+  return {
+    facts: (d: number): FoundFacts | undefined => {
+      const dom = s.dominions.find((x) => x.id === d);
+      const r = dom ? rulerLive(sim.beings.store, dom) : undefined;
+      if (!r) return undefined;
+      return {
+        hasDialect: culture.dialects.some((x) => x.group === d),
+        hasCreed: culture.creeds.some((c) => c.holders.has(d)),
+        hasCustom: customOfGroup(culture, d) !== undefined,
+        speech: lineageHas(sim, r.slot, 'speech_organ'),
+        memory: lineageHas(sim, r.slot, 'memory_lobe'),
+        members: folk.get(d) ?? 0,
+        leaderLevel: culture.studies?.[String(r.gen * MAX_BEINGS + r.slot)]?.level ?? 0,
+        intelligence: sim.beings.store.attrs[r.slot * 4 + APT_WIT] ?? 0,
+      };
+    },
+    apply: (kind: FoundKind, d: number): boolean => {
+      if (kind === 'newDialect') return foundDialect(culture, d, sim.tick) !== null;
+      return foundCreed(culture, d, sim.tick, sim.rng('culture'), sim.rules.isOn('chaotic_minds')) !== null;
+    },
+  };
+}
+
+/**
+ * Hamlet loyalty (10 section 5), the yearly pass: the sum of the terms the sim has (loyalty.ts hamletLoyalty) for each
+ * hamlet held by a dominion, kept on the dominion state by the hamlet's lowest parcel. Runs after the year's rank (rank.ts,
+ * the rank term). Not saved: it is recomputed each year, and nothing reads it yet (no rebellion). Draws no randomness.
+ */
+function loyaltyYearly(sim: Sim, s: DominionState, settlements: ReturnType<typeof hamletsOf>, hamletCount: ReadonlyMap<number, number>): void {
+  const store = sim.beings.store;
+  const perAxis = parcelsPerAxis(sim);
+  const skill = (slot: number): number => (store.attrs[slot * 4 + APT_RAPPORT] ?? 0) + 2 * (store.attrs[slot * 4 + APT_HUSBANDRY] ?? 0);
+  const centre = (parcels: ReadonlySet<number>): [number, number] => {
+    let x = 0;
+    let y = 0;
+    for (const p of parcels) {
+      x += (p % perAxis) * PARCEL + PARCEL / 2;
+      y += Math.floor(p / perAxis) * PARCEL + PARCEL / 2;
+    }
+    const n = Math.max(1, parcels.size);
+    return [x / n, y / n];
+  };
+  s.loyalty = new Map();
+  for (const h of settlements) {
+    const owned = ownerOfHamlet(h.parcels, s.owner);
+    const dom = s.dominions.find((d) => d.id === owned);
+    const capital = dom ? leadingHamlet(owned, settlements, s.owner) : undefined;
+    if (!dom || !capital) continue;
+    const ruler = rulerLive(store, dom);
+    const leaderSlot = h.leader ?? -1;
+    const isCapital = capital === h;
+    const [hx, hy] = centre(h.parcels);
+    const [cx, cy] = centre(capital.parcels);
+    const adjacent = !isCapital && [...h.parcels].some((p) => [...capital.parcels].some((q) => Math.abs((p % perAxis) - (q % perAxis)) <= 1 && Math.abs(Math.floor(p / perAxis) - Math.floor(q / perAxis)) <= 1));
+    const enemyPower = s.dominions
+      .filter((d) => d.id !== owned && s.relations.get(owned, d.id) !== 'peace')
+      .reduce((sum, d) => sum + powerOf(d, hamletCount), 0);
+    const facts: HamletLoyaltyFacts = {
+      ruler: ruler ? skill(ruler.slot) : 0,
+      folk: h.folk,
+      parcels: h.parcels.size,
+      capitalFolk: capital.folk,
+      capitalParcels: capital.parcels.size,
+      isCapital,
+      adjacentToCapital: adjacent,
+      distance: isCapital ? 0 : Math.hypot(hx - cx, hy - cy),
+      enemyPower,
+      ownPower: powerOf(dom, hamletCount),
+      rank: dom.rank,
+      dominionCount: s.dominions.length,
+      ...(leaderSlot >= 0 ? { leader: skill(leaderSlot) } : {}),
+      ...(ruler ? { rulerAge: (sim.tick - (store.born[ruler.slot] ?? 0)) / YEAR_TICKS } : {}),
+    };
+    s.loyalty.set(Math.min(...h.parcels), hamletLoyalty(facts));
+  }
 }

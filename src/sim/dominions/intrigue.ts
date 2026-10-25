@@ -3,21 +3,34 @@ import type { Truce } from './founding.ts';
 import { goodOpinionOfAll, opinion, powerOf, supremeOf, type OpinionContext } from './opinion.ts';
 import { dissolvePact, formPact, hasEnemy, joinPact, pactOf, pactPower, PACT_TIMEOUT_TICKS, warPair, type Pact, type PactState } from './pacts.ts';
 import type { Dominion, RelationMatrix } from './types.ts';
-import { splitAllowed, type SplitFacts } from '../culture/trait-rules.ts';
+import { foundAllowed, splitAllowed, type FoundFacts, type SplitFacts } from '../culture/trait-rules.ts';
 
 /**
  * Intrigue records (10 sections 11-12, 11 section 3 catalogue). Rulers and the intrigue engine do not exist here, so an
  * intrigue is a record on the dominion: proposed in the yearly pass when the dominion's state meets the gates, and
  * resolved in the next yearly pass. The pact intrigues resolve through the pact functions in pacts.ts. The three split
- * intrigues (divideCustom, schismCreed, divergeDialect; 11 section 2) resolve through the culture hooks in `split`.
- * See DECISIONS.md "Pacts and armies round 5" and "Dominions close 5" for each substitution.
+ * intrigues (divideCustom, schismCreed, divergeDialect; 11 section 2) resolve through the culture hooks in `split`, and the
+ * two founding intrigues (newDialect, newCreed; 11 section 3) through the culture hooks in `found`.
+ * See DECISIONS.md "Pacts and armies round 5", "Dominions close 5" and "Culture founding close 6" for each substitution.
  */
 
-export type IntrigueKind = 'formPact' | 'joinPact' | 'dissolvePact' | 'divideCustom' | 'schismCreed' | 'divergeDialect';
+export type IntrigueKind = 'formPact' | 'joinPact' | 'dissolvePact' | 'divideCustom' | 'schismCreed' | 'divergeDialect' | 'newDialect' | 'newCreed';
 
 /** The split intrigues (11 section 2): a custom divides, a creed schisms, a dialect diverges. */
 export type SplitKind = 'divideCustom' | 'schismCreed' | 'divergeDialect';
 export const SPLIT_KINDS: readonly SplitKind[] = ['divideCustom', 'schismCreed', 'divergeDialect'];
+
+/** The founding intrigues (11 section 3): a dialect or a creed is founded by the dominion's ruler. */
+export type FoundKind = 'newDialect' | 'newCreed';
+export const FOUND_KINDS: readonly FoundKind[] = ['newDialect', 'newCreed'];
+
+export function isSplitKind(kind: IntrigueKind): kind is SplitKind {
+  return (SPLIT_KINDS as readonly string[]).includes(kind);
+}
+
+export function isFoundKind(kind: IntrigueKind): kind is FoundKind {
+  return (FOUND_KINDS as readonly string[]).includes(kind);
+}
 
 /** Strength a dominion needs to propose formPact, or to be the target of one (TUNE; stands in for renown 60). */
 export const FORM_PACT_STRENGTH = 60;
@@ -25,7 +38,7 @@ export const FORM_PACT_STRENGTH = 60;
 export const JOIN_PACT_STRENGTH = 50;
 /**
  * Strength paid when an intrigue is proposed (TUNE; the spec's money costs: formPact 20, joinPact 5, dissolvePact 15,
- * divideCustom 20, schismCreed 15, divergeDialect 15; strength is the only pool a dominion has).
+ * divideCustom 20, schismCreed 15, divergeDialect 15, newDialect 0, newCreed 25; strength is the only pool a dominion has).
  */
 export const INTRIGUE_COST: Readonly<Record<IntrigueKind, number>> = {
   formPact: 20,
@@ -34,6 +47,8 @@ export const INTRIGUE_COST: Readonly<Record<IntrigueKind, number>> = {
   divideCustom: 20,
   schismCreed: 15,
   divergeDialect: 15,
+  newDialect: 0,
+  newCreed: 25,
 };
 /** Every intrigue kind, for the save check (adapter.ts restoreDominions). */
 export const INTRIGUE_KINDS: readonly IntrigueKind[] = Object.keys(INTRIGUE_COST) as IntrigueKind[];
@@ -74,6 +89,16 @@ export interface SplitHooks {
   apply(kind: SplitKind, dominionId: number): boolean;
 }
 
+/**
+ * Culture hooks of the founding intrigues (adapter.ts builds them). `facts` gives the facts of the gate for the dominion's
+ * ruler, or undefined when the dominion has no living ruler. `apply` founds the dialect or creed and returns false when it
+ * is refused.
+ */
+export interface FoundHooks {
+  facts(dominionId: number): FoundFacts | undefined;
+  apply(kind: FoundKind, dominionId: number): boolean;
+}
+
 /** What the gates read: the dominions, borders, relations, truces and pacts, and the tick. */
 export interface IntrigueEnv {
   dominions: readonly Dominion[];
@@ -90,6 +115,8 @@ export interface IntrigueEnv {
   hamlets?: OpinionContext['hamlets'];
   /** Culture hooks for the split intrigues (11 section 2). Optional: without them no split is proposed. */
   split?: SplitHooks;
+  /** Culture hooks for the founding intrigues (11 section 3). Optional: without them no founding is proposed. */
+  found?: FoundHooks;
 }
 
 function opinionOf(env: IntrigueEnv): OpinionContext {
@@ -180,6 +207,16 @@ export function splitOk(env: IntrigueEnv, kind: SplitKind, d: number): boolean {
   return facts !== undefined && splitAllowed(facts);
 }
 
+/**
+ * Gate for a founding intrigue by dominion `d` (11 section 3): the culture hooks give the ruler's facts, and foundAllowed
+ * (trait-rules.ts) tests the spec's terms. Used when proposing and again when resolving. Draws no randomness.
+ */
+export function foundOk(env: IntrigueEnv, kind: FoundKind, d: number): boolean {
+  if (!dom(env, d) || !env.found) return false;
+  const facts = env.found.facts(d);
+  return facts !== undefined && foundAllowed(kind, facts);
+}
+
 /** The dominion a formPact by `a` would ask (the lowest-id free neighbour with no intrigue running), or -1. */
 function formPactTarget(env: IntrigueEnv, state: IntrigueState, a: number): number {
   if (active(state, a) || cooling(state, a, env.tick)) return -1;
@@ -232,6 +269,15 @@ export function proposeIntrigues(env: IntrigueEnv, state: IntrigueState): void {
         }
       }
     }
+    // A founding (11 section 3) is tried when no pact or split was picked. It founds on the dominion itself.
+    if (!pick) {
+      for (const kind of FOUND_KINDS) {
+        if (foundOk(env, kind, d.id)) {
+          pick = { kind, targetId: d.id };
+          break;
+        }
+      }
+    }
     if (!pick) continue;
     const cost = INTRIGUE_COST[pick.kind];
     if (d.strength < cost) continue;
@@ -263,8 +309,10 @@ export function resolveIntrigues(env: IntrigueEnv, state: IntrigueState): void {
       if (p && joinPactOk(env, i.dominionId, p.id)) joinPact(p, i.dominionId);
     } else if (i.kind === 'dissolvePact') {
       if (dissolvePactOk(env, i.dominionId, i.targetId)) dissolvePact(env.pacts, i.targetId);
-    } else if (splitOk(env, i.kind, i.dominionId)) {
-      env.split?.apply(i.kind, i.dominionId);
+    } else if (isSplitKind(i.kind)) {
+      if (splitOk(env, i.kind, i.dominionId)) env.split?.apply(i.kind, i.dominionId);
+    } else if (isFoundKind(i.kind) && foundOk(env, i.kind, i.dominionId)) {
+      env.found?.apply(i.kind, i.dominionId);
     }
   }
 }

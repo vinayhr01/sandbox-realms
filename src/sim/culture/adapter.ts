@@ -1,14 +1,15 @@
 /**
- * Maps the running Sim onto the culture slice's structural context. Groups are land regions
- * (`realm.region`, connected land components). Two regions are contacts when a tile of one lies
- * within `CONTACT_RADIUS` tiles of a tile of the other (across water, for example). Regions never
- * change after worldgen, so the contact list is derived once per sim and cached.
+ * Maps the running Sim onto the culture slice's structural context. Groups are dominion ids (the holders of customs,
+ * creeds and dialects), and contacts are the dominions that share a border (dominions/adapter.ts dominionBordersOf).
+ * `regionContacts` (land regions within CONTACT_RADIUS tiles) is kept for the worldgen-side tests; the culture step no
+ * longer reads it, because region ids are not dominion ids (DECISIONS.md, "Culture founding close 6").
  */
 import type { Sim } from '../sim.ts';
 import type { Realm } from '../realm.ts';
 import { ssToTicks } from '../clock.ts';
 import { MAX_BEINGS } from '../beings/store.ts';
 import { hamletsOf } from '../settlements/adapter.ts';
+import { dominionBordersOf } from '../dominions/adapter.ts';
 import { PARCEL } from '../settlements/hamlet.ts';
 import {
   addCustom,
@@ -30,8 +31,6 @@ import {
 
 /** Chebyshev distance (tiles) within which two regions count as neighbours. */
 export const CONTACT_RADIUS = 3;
-
-const contactCache = new WeakMap<Sim, readonly (readonly [number, number])[]>();
 
 /** Region pairs (lower id first) with tiles within CONTACT_RADIUS of each other, in scan order. */
 export function regionContacts(realm: Realm): (readonly [number, number])[] {
@@ -64,22 +63,13 @@ export function regionContacts(realm: Realm): (readonly [number, number])[] {
   return out;
 }
 
-function contactsOf(sim: Sim): readonly (readonly [number, number])[] {
-  let c = contactCache.get(sim);
-  if (!c) {
-    c = regionContacts(sim.realm);
-    contactCache.set(sim, c);
-  }
-  return c;
-}
-
 /** Culture context for one step; RNG is the sim's named `culture` stream. */
 export function cultureContext(sim: Sim): CultureContext {
   return {
     rng: sim.rng('culture'),
     tick: sim.tick,
     isOn: (id) => sim.rules.isOn(id),
-    contacts: contactsOf(sim),
+    contacts: dominionBordersOf(sim),
     worldSeed: sim.realm.seed,
     alive: (key) => beingAlive(sim, key),
   };

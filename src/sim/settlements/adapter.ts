@@ -11,6 +11,8 @@ import { bazaarStep, SUPPLY_PERIOD, tradeStep } from './trade.ts';
 import { desiresOf, structureStep, type Structure } from './landmarks.ts';
 import { CREEP_HUB_BY_ID, LANDMARK_BY_ID } from '../../content/creeps.ts';
 import { terrainState, type CreepHub } from '../terrain/state.ts';
+import { garrisonStep, garrisonsOf, restoreGarrisons } from './garrison-adapter.ts';
+import type { GarrisonRecord } from './garrison.ts';
 
 /** Hamlets placed per realm at worldgen (TUNE). Kept: 09 does not place hamlets at worldgen, but the worldgen placement stays as it was. */
 export const HAMLETS_WANTED = 3;
@@ -59,6 +61,8 @@ export interface HamletSnapshot {
   hubs?: { tile: number; def: string; tiles: number[]; nextPulse: number; alive: boolean }[];
   /** Tile and the tick until which it may not re-spread creep (18e 1.5 acid guard); absent in older saves. */
   creepGuard?: [number, number][];
+  /** Garrison records (garrison.ts): one per hamlet with a garrison, once one has been seen. Absent when none exists. */
+  garrisons?: GarrisonRecord[];
 }
 
 /** Plain copy of a host's hamlet state, or null when the state was never created (no settlementsStep yet). */
@@ -83,6 +87,7 @@ export function snapshotHamlets(host: SettlementHost): HamletSnapshot | null {
     // A dead hub's pulse is Infinity, which JSON cannot hold; it is stored as 0 and restored as Infinity.
     hubs: terrain.hubs.map((h) => ({ tile: h.tile, def: h.def, tiles: [...h.tiles], nextPulse: h.alive ? h.nextPulse : 0, alive: h.alive })),
     creepGuard: [...terrain.creepGuard.entries()],
+    ...(garrisonsOf(host).length > 0 ? { garrisons: garrisonsOf(host).map((r) => ({ ...r })) } : {}),
   };
 }
 
@@ -132,6 +137,7 @@ export function restoreHamlets(host: SettlementHost, snap: HamletSnapshot): void
   const terrain = terrainState(host as unknown as Sim);
   terrain.hubs = hubs;
   terrain.creepGuard = guard;
+  restoreGarrisons(host, snap.garrisons ?? [], hamlets.length);
   states.set(host, { hamlets, structures });
 }
 
@@ -251,6 +257,9 @@ export function settlementsStep(host: SettlementHost): void {
     hamletStep(own, h);
     bazaarStep(h, host.tick);
   }
+  // Garrisons (09 section 8, 10 section 8): soldiers are drawn from the owner's dominion strength. The owner is read only
+  // once a dominion exists (dominionState creates the state on first use).
+  garrisonStep(host as unknown as Sim, state.hamlets, (h) => majorityOwner(dominionState(host as unknown as Sim).owner, h));
   // Landmarks and beacon pillars (18e 2) pulse on their own timers. The effects act on the realm through the
   // terrain modules, which take the Sim; the host is the Sim at runtime (sim.ts passes itself).
   structureStep(host as unknown as Sim, state.structures);

@@ -633,6 +633,13 @@ function checkHamlets(raw: unknown): HamletSnapshot | null {
       if (!Array.isArray(h.tiles) || !h.tiles.every(isFiniteNumber)) throw fail;
     }
   }
+  // garrisons (garrison.ts): optional records of a hamlet index, a dominion id, a soldier count and a timer.
+  if (raw.garrisons !== undefined) {
+    if (!Array.isArray(raw.garrisons)) throw fail;
+    for (const g of raw.garrisons) {
+      if (!isRecord(g) || !isFiniteNumber(g.hamlet) || !isFiniteNumber(g.dominion) || !isFiniteNumber(g.soldiers) || !isFiniteNumber(g.timer)) throw fail;
+    }
+  }
   if (raw.creepGuard !== undefined) {
     if (!Array.isArray(raw.creepGuard)) throw fail;
     for (const pair of raw.creepGuard) {

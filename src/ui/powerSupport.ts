@@ -43,8 +43,21 @@ export const SIM_HANDLERS: readonly string[] = [
   'favour_loot',
 ];
 
-/** Handlers the UI carries out itself: pause, speed, windows, hiding the interface, and Realm Rules. */
-export const UI_HANDLERS: readonly string[] = ['set_pause', 'cycle_speed', 'open_window', 'toggle_hud', 'toggle_rule'];
+/**
+ * Handlers the UI carries out itself: pause, speed, windows, hiding the interface, Realm Rules, the
+ * Insight view controls (arm inspect, follow a being, flip or cycle a display option).
+ */
+export const UI_HANDLERS: readonly string[] = [
+  'set_pause',
+  'cycle_speed',
+  'open_window',
+  'toggle_hud',
+  'toggle_rule',
+  'arm_inspect',
+  'follow',
+  'toggle_option',
+  'cycle_option',
+];
 
 /** Powers whose drag is a stroke that the sim's raise and lower brush applies. */
 const STROKE_OPS: Readonly<Record<string, BrushOp>> = { terraform_raise: 'raise', terraform_lower: 'lower' };
@@ -61,7 +74,8 @@ export interface PowerStatus {
 
 export function powerStatus(def: PowerDef): PowerStatus {
   if (def.handler === 'open_window') {
-    const id = `win_${String(def.params['window'] ?? '')}`;
+    // `window` is a full window id (win_* or list_*, 13 section 7.1), the same id the window host uses.
+    const id = String(def.params['window'] ?? '');
     return WINDOW_IDS.has(id) ? ok() : off(def);
   }
   if (SIM_HANDLERS.includes(def.handler) || UI_HANDLERS.includes(def.handler)) return ok();
@@ -102,6 +116,38 @@ export function linePoints(x0: number, y0: number, x1: number, y1: number): Arra
     }
   }
   return points;
+}
+
+/** Next value of a cycled option: the entry after `current` in `values` (wraps); the first value when `current` is not listed. */
+export function nextOptionValue(current: string, values: readonly string[]): string {
+  if (values.length === 0) return current;
+  const at = values.indexOf(current);
+  return values[(at + 1) % values.length] ?? values[0] ?? current;
+}
+
+/**
+ * The map point nearest to a screen point, within `radiusPx`, or null. Uses the same tile-to-screen
+ * mapping as the mark layer (src/render/marks.ts): the point sits at the centre of its tile.
+ */
+export function nearestMapPoint<P extends { x: number; y: number }>(
+  points: readonly P[],
+  view: { offX: number; offY: number; zoom: number },
+  sx: number,
+  sy: number,
+  radiusPx: number,
+): P | null {
+  let best: P | null = null;
+  let bestD2 = radiusPx * radiusPx;
+  for (const p of points) {
+    const dx = view.offX + (p.x + 0.5) * view.zoom - sx;
+    const dy = view.offY + (p.y + 0.5) * view.zoom - sy;
+    const d2 = dx * dx + dy * dy;
+    if (d2 <= bestD2) {
+      best = p;
+      bestD2 = d2;
+    }
+  }
+  return best;
 }
 
 /** Remaining cooldown in whole seconds (rounded up); 0 when ready. */

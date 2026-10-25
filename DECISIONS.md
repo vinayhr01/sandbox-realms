@@ -1069,3 +1069,33 @@ Deviations: the default stop chance applies to every Folk pair, since Beings car
 **Save and golden.** The decision table is now 14 rows, so each Being's cooldown table is one entry longer. The save check compares that count with the content table, so saves written before this change are probably rejected. No schema number bump was made here. `GOLDEN_HASH` is not edited and will not match, because brawl draws from the `beings` stream on every Folk decision.
 
 **Not verified.** Nothing above has run: no tests, tsc, vitest, build or Playwright (instruction).
+
+## Window list and insight release
+
+Scope: the window id fix that "Powers round 4" left as a follow-up, and the Insight rows (12 section 8.8) that need only UI state, an option the renderer reads, or a snapshot row the UI already has. Code: `src/app/main.ts` (dispatch, Follow, Inspect pick), `src/ui/powerSupport.ts` (`UI_HANDLERS`, `powerStatus`, `nextOptionValue`, `nearestMapPoint`), `src/content/powers.ts` (Insight rows and the `optionToggle` and `LIST_WINDOWS` helpers). No sim file changed: no `src/sim` edit, no command, no save field.
+
+**Window ids.** `open_window` takes a full window id (`win_*` or `list_*`) in `params.window`. Both `activatePower` and `powerStatus` use it as is; the old `win_` prefix is gone. Existing rows moved to full ids: `realm_rules`, `realm_ages`, `realm_chronicle`, `fav_rain_items_edit`, `ins_compare`. The 15 window rows (14 lists and the Codex) are now reachable.
+
+**Count.** The spec's 8.8 table has 57 rows. Built here: 25 rows as 24 entries (`ins_inspect`, `ins_follow`, six `ins_mark_*`, `ins_overlay_names` covering O01 and O02, 14 `ins_list_*`, `ins_knowledge`). `ins_compare` was built earlier, so 26 rows are done. Cut: 31 rows, listed below. POWERS goes from 159 to 183 entries.
+
+**Built, with the limits.**
+- `ins_inspect` (arm inspect): clears the armed power, so taps read tiles again. With nothing armed, a tap within 10 px (24 px on touch) of a being opens `win_being` when that being is in the snapshot's notable sample (the oldest 96 beings have rows). Otherwise the tap reads the tile as before. Not built: the context tab, and the nearest structure or hamlet marker.
+- `ins_follow` (follow): the next tap on a being starts Follow. The camera centres on that being's position in each snapshot. Esc or a manual pan or arrow key releases it. A being that drops out of the 96-point sample releases Follow with a status line. The camera moves at the snapshot cadence, not every frame.
+- `ins_mark_*` (M01..M06): flip `marks.favourites`, `marks.items`, `marks.intrigues`, `marks.armies`, `marks.battles`, `marks.campaigns`. These are the options `src/render/marks.ts` reads. The power button shows the option's state. Handler `toggle_option` (`params.option`).
+- `ins_overlay_names` (O01): cycles `map.names` through full, banner, off. Handler `cycle_option` (`params.option`, `params.values`). This also covers O02 (nameplate style).
+- `ins_list_*` (X01..X14) and `ins_knowledge`: `open_window` to `list_dominions`, `list_hamlets`, `list_pacts`, `list_hosts` (armies), `list_creeds`, `list_customs`, `list_dialects`, `list_kinbands` (clans), `list_households` (families), `list_strains`, `list_campaigns`, `list_intrigues`, `list_fav_beings`, `list_fav_items`, and `list_codex` (Codex).
+
+**Cut (Insight, 31 rows).**
+- `ins_possess`: no sim command path controls a being (Beings release, possession cut).
+- `ins_select_hamlet`: the snapshot has no tile-to-hamlet lookup for the UI, and the Parcel query is not exposed.
+- `ins_layers` L01 to L10 (10): the renderer draws no per-dominion, hamlet, creed, custom, dialect, family, clan, strain, pact or army layer, and no layer state exists.
+- `ins_marks` M07, boats (1): `marks.boats` exists but is not live (no boat entity; `src/render/marks.ts` header).
+- `ins_overlays` O03 to O08 (6): happiness icons, task icons, money flow, talk bubbles, history ticker and army target lines. The options `ui.happinessIcons`, `ui.taskIcons`, `ui.moneyFlow` and `ui.talkBubbles` exist, but nothing reads them, so a switch would do nothing. The ticker and army target lines have no option.
+- `ins_arrows` A01 to A07 (7): `ui.cursorArrows` exists but nothing reads it, and no per-kind state exists.
+- `ins_tips_tiles`, `ins_tips_beings` (2): `ui.worldTooltips` and `ui.tips` exist but nothing reads them.
+- `ins_ties`, `ins_forecast`, `ins_accord` (3): they need dominion relation lines, a campaign forecast and pact candidates. None of these logic paths is built.
+- Sum: possess and select_hamlet (2), layers (10), boats (1), overlays O03 to O08 (6), arrows (7), tips (2), ties, forecast and accord (3) = 31. The earlier round cut 56 Insight rows; this round builds 25 of them and the rest stay cut.
+
+**Tests to update (not run, not edited).** `tests/unit/ui-windows.test.ts` lines 42 to 44 build `win_${window}` for `realm_rules` and `realm_ages`; with full ids that check must use `WINDOW_IDS.has(String(def?.params['window']))`. `tests/unit/ui-powers.test.ts` covers the handler lists and needs the four new UI handlers to be enabled, which the current loop already expects.
+
+**Other effects.** `POWERS` is hashed in `src/content/content-hash.ts`, so the content hash changes with this round. `GOLDEN_HASH` is not edited and the golden replay uses no powers. Nothing was run: this round was checked by reading only (no tests, tsc, build, vitest or Playwright).

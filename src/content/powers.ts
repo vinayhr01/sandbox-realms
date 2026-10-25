@@ -78,6 +78,37 @@ const toggle = (id: string, name: string, rule: string): PowerDef => ({
   requires: [],
 });
 
+/** A Settings boolean as a power: flips the option (ui and marks rows the renderer reads). */
+const optionToggle = (id: string, name: string, option: string): PowerDef => ({
+  id,
+  tab: 'insight',
+  kind: 'toggle',
+  name,
+  repeatMs: 0,
+  handler: 'toggle_option',
+  params: { option },
+  cooldownMs: 0,
+  requires: [],
+});
+
+/** The fourteen list windows of Insight X01..X14, as [id suffix, label, full window id]. */
+const LIST_WINDOWS: ReadonlyArray<readonly [string, string, string]> = [
+  ['dominions', 'Dominions', 'list_dominions'],
+  ['hamlets', 'Hamlets', 'list_hamlets'],
+  ['pacts', 'Pacts', 'list_pacts'],
+  ['armies', 'Armies', 'list_hosts'],
+  ['creeds', 'Creeds', 'list_creeds'],
+  ['customs', 'Customs', 'list_customs'],
+  ['dialects', 'Dialects', 'list_dialects'],
+  ['clans', 'Clans', 'list_kinbands'],
+  ['families', 'Families', 'list_households'],
+  ['strains', 'Strains', 'list_strains'],
+  ['campaigns', 'Campaigns', 'list_campaigns'],
+  ['intrigues', 'Intrigues', 'list_intrigues'],
+  ['fav_beings', 'Favourite beings', 'list_fav_beings'],
+  ['fav_items', 'Favourite items', 'list_fav_items'],
+];
+
 const CALAMITY_OMENS = [
   'whirlwind',
   'heat_spell',
@@ -152,9 +183,9 @@ export const POWERS: readonly PowerDef[] = [
   // Realm tab: windows and toggles from section 8.1.
   click('realm_pause', 'realm', 'Pause', 'set_pause', {}, 0),
   click('realm_speed', 'realm', 'Speed', 'cycle_speed', { speeds: '0.5,1,2,5,10' }),
-  click('realm_rules', 'realm', 'Realm Rules', 'open_window', { window: 'rules' }),
-  click('realm_ages', 'realm', 'Ages', 'open_window', { window: 'ages' }),
-  click('realm_chronicle', 'realm', 'Chronicle', 'open_window', { window: 'chronicle' }),
+  click('realm_rules', 'realm', 'Realm Rules', 'open_window', { window: 'win_rules' }),
+  click('realm_ages', 'realm', 'Ages', 'open_window', { window: 'win_ages' }),
+  click('realm_chronicle', 'realm', 'Chronicle', 'open_window', { window: 'win_chronicle' }),
   click('realm_hide_ui', 'realm', 'Hide Interface', 'toggle_hud', {}),
   toggle('rule_sky_clouds', 'Sky clouds', 'sky_clouds'),
   toggle('rule_natural_calamities', 'Natural calamities', 'natural_calamities'),
@@ -267,11 +298,25 @@ export const POWERS: readonly PowerDef[] = [
   click('fav_foundling', 'favour', 'Foundling', 'favour_foundling'),
   click('fav_wake', 'favour', 'Waking Flora', 'favour_wake'),
   drop('fav_rain_items', 'Item Rain', 'favour_items', { fall: 0.3 }),
-  click('fav_rain_items_edit', 'favour', 'Edit Item Rain', 'open_window', { window: 'item_rain_edit' }),
+  click('fav_rain_items_edit', 'favour', 'Edit Item Rain', 'open_window', { window: 'win_item_rain_edit' }),
   drop('fav_loot', 'Loot Rain', 'favour_loot', { fall: 0.3 }),
   // Insight (12 section 8.8). Lore (not in spec; effect in DECISIONS.md "Powers round 3").
   click('insight_lore', 'insight', 'Lore', 'lore', { radius: 4 }),
-  click('ins_compare', 'insight', 'Compare Chart', 'open_window', { window: 'compare' }),
+  // Insight rows built in "Window list and insight release" (DECISIONS.md). Each one needs only UI state or
+  // an option the renderer reads, or a snapshot row the UI already has. The cut rows are listed there too.
+  click('ins_inspect', 'insight', 'Inspect', 'arm_inspect'),
+  click('ins_follow', 'insight', 'Follow', 'follow'),
+  optionToggle('ins_mark_favourites', 'Favourites', 'marks.favourites'),
+  optionToggle('ins_mark_items', 'Items', 'marks.items'),
+  optionToggle('ins_mark_intrigues', 'Intrigues', 'marks.intrigues'),
+  optionToggle('ins_mark_armies', 'Armies', 'marks.armies'),
+  optionToggle('ins_mark_battles', 'Battles', 'marks.battles'),
+  optionToggle('ins_mark_campaigns', 'Campaigns', 'marks.campaigns'),
+  click('ins_overlay_names', 'insight', 'Nameplates', 'cycle_option', { option: 'map.names', values: 'full,banner,off' }),
+  // Lists X01..X14 (13 section 8). Each opens its list window by full id.
+  ...LIST_WINDOWS.map(([id, name, window]): PowerDef => click(`ins_list_${id}`, 'insight', name, 'open_window', { window })),
+  click('ins_knowledge', 'insight', 'Codex', 'open_window', { window: 'list_codex' }),
+  click('ins_compare', 'insight', 'Compare Chart', 'open_window', { window: 'win_compare' }),
 ];
 
 export const POWER_BY_ID = new Map(POWERS.map((p) => [p.id, p]));

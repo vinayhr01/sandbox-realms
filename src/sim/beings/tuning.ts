@@ -146,4 +146,11 @@ export const ROUND9 = {
   sporeCatch: 0.15,
   /** Chance a growth-fever attacker's blow leaves the victim with growth fever (TUNE). */
   tumorCatch: 0.1,
+  /** Ticks between creep contact checks, and the chance a creep-covered Being catches growth fever (TUNE; 08 s8 gives none). */
+  tumorTicks: 20,
+  tumorContact: 0.1,
+  /** Stun of a hatchling, in ticks (06 life events, `Hatched`: stun 100 ticks). */
+  hatchStun: 100,
+  /** Radius in tiles within which a `tagalong` Being follows the nearest possessed Being (TUNE; 07 s13 gives none). */
+  tagalongRadius: 6,
 } as const;

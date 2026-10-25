@@ -15,13 +15,13 @@ import { addStrainTrait, mutateFrom, strainMutation, Strains } from './strains.t
 import { addMood, beginSleep, bondCheck, bondPartners, isAsleep, loveCheck, sleepCheck, tryFriend } from './social.ts';
 import { convertByFight, heritageAttr, talkOutcome, talksWithBeasts } from '../culture/effects.ts';
 import { ROUND6, ROUND8, ROUND9, TUNING } from './tuning.ts';
-import { blowAfflictions, conversionOf, stripped } from './afflictions.ts';
+import { blowAfflictions, conversionOf, creepContact, stripped } from './afflictions.ts';
 import { isPossessed } from './possession.ts';
 import { MONTH_TICKS, YEAR_TICKS } from '../../shared/constants.ts';
 import { predate } from '../combat.ts';
 import { chooseDecision, type CandidateContext } from './brain.ts';
 import { addAggro, aggroFoes, dropAggro } from './aggro.ts';
-import { factionOf, relation, type Faction, type Relation } from './hostility.ts';
+import { factionOf, relation, STEERED_FACTION, type Faction, type Relation } from './hostility.ts';
 import { findEnemy, scheduleSearch, searchDue, tileGap } from './perception.ts';
 import {
   beingHas,
@@ -651,6 +651,7 @@ export function killBeing(sim: Sim, slot: number, cause: 'eaten' | 'starved' | '
     // Lover and best friend (06 section 4.4): the survivor loses the link and takes the grief.
     if (s.loverWith[o] === slot && s.loverGen[o] === gen) {
       s.loverWith[o] = -1;
+      sim.effects.remove(o, 'smitten');
       addMood(sim, o, 'lover_died');
     }
     if (s.friendWith[o] === slot && s.friendGen[o] === gen) {
@@ -1082,8 +1083,9 @@ function hungryOf(sim: Sim, slot: number): boolean {
 function relationOf(sim: Sim, a: number, o: number, hungry: boolean): Relation {
   const b = sim.beings;
   const s = b.store;
-  const fa = b.runtime[s.species[a] ?? 0]?.faction;
-  const fo = b.runtime[s.species[o] ?? 0]?.faction;
+  // A possessed Being is `steered` for the relation (07 section 13); its species faction is kept otherwise.
+  const fa = isPossessed(sim, a) ? STEERED_FACTION : b.runtime[s.species[a] ?? 0]?.faction;
+  const fo = isPossessed(sim, o) ? STEERED_FACTION : b.runtime[s.species[o] ?? 0]?.faction;
   if (!fa || !fo) return 'I';
   return relation(fa, fo, hungry);
 }
@@ -1410,7 +1412,7 @@ function layEgg(sim: Sim, bearer: number): void {
 function hatch(sim: Sim, slot: number): void {
   const s = sim.beings.store;
   s.shelledUntil[slot] = 0;
-  sim.effects.add(slot, 'dazed', sim.tick);
+  sim.effects.add(slot, 'dazed', sim.tick, ROUND9.hatchStun);
   addMood(sim, slot, 'hatched');
   sim.beings.stats.hatches++;
 }
@@ -1633,6 +1635,16 @@ function eligible(sim: Sim, slot: number, id: string, fleeing: boolean): boolean
 }
 
 /**
+ * The possessed Being a `tagalong` Being follows (07 section 13: nearby Beings follow the steered unit). Returns the
+ * nearest possessed Being within ROUND9.tagalongRadius, or -1. A Being without the effect never follows.
+ */
+function steeredLeader(sim: Sim, slot: number): number {
+  if (!sim.effects.has(slot, 'tagalong')) return -1;
+  const s = sim.beings.store;
+  return sim.beings.nearest(slot, (o) => o !== slot && s.alive[o] === 1 && isPossessed(sim, o), ROUND9.tagalongRadius);
+}
+
+/**
  * One decision for a being (07 sections 3 and 4). Three layers run in order: the override (a flight from a hunter, or
  * an engaged fight, takes over any running task except its own kind), the running task, and the decision layer
  * (brain.ts) picking a new task by tier and softmax weight among the eligible decisions.
@@ -1647,6 +1659,25 @@ function decide(sim: Sim, slot: number): void {
   const fleeing = fleeFrom(sim, slot) >= 0 && fleeAllowed(sim, slot);
   const fightIdx = DECISION_INDEX.get('fight') ?? -1;
   b.scratch[slot] = -1;
+
+  // Tier 4 layer (07 sections 3.5 and 3.6): a critical candidate preempts every other tier. `steered_follow` (weight 3)
+  // and `muddled` (weight 3.5) are the two that the sim state supports. They run as overrides, not rows: a new row would
+  // change the decision count that the chronicle checks (chronicle.ts, outside this build). Only one tier 4 candidate
+  // can be eligible at a time here, so the softmax weight does not change the pick.
+  const leader = steeredLeader(sim, slot);
+  if (leader >= 0) {
+    stepToward(sim, slot, s.x[leader] ?? 0, s.y[leader] ?? 0);
+    setNext(sim, slot, 2);
+    b.task[slot] = -1;
+    return;
+  }
+  if (sim.effects.flag(slot, 'wander')) {
+    // `muddled` (07 section 3.6): a bewildered Being wanders at random while the status lasts.
+    wander(sim, slot, sim.rng('beings').int(8));
+    setNext(sim, slot, 2);
+    b.task[slot] = -1;
+    return;
+  }
 
   // Override layer (07 sections 4.2 and 10.1): a flight ends any task but flee; an engaged fight takes over any task
   // but fight and flee. A task that continues is then run as is.
@@ -1844,6 +1875,7 @@ export function stepBeings(sim: Sim): void {
       possessedStep(sim, slot);
       continue;
     }
+    if (tick % ROUND9.tumorTicks === 0) creepContact(sim, slot, rng);
     if (tick % LOVE_CHECK === 0) loveCheck(sim, slot);
     if (tick % BOND_CHECK === 0) bondCheck(sim, slot);
     if (sleepCheck(sim, slot)) continue;

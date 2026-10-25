@@ -80,7 +80,8 @@ export function structuresOf(host: SettlementHost): Structure[] | null {
 export interface HamletSnapshot {
   /** `gold` is absent in saves written before the hamlet purse; those load with 0 gold. */
   /** `site` (the building under construction, with its builder progress) and `road` (the queued road tiles) are absent when empty or in older saves. */
-  hamlets: { parcels: number[]; food: number; wood: number; stone: number; folk: number; buildings: { id: string; x: number; y: number }[]; growTimer: number; outcrops: number; steps: number; gold?: number; iron?: number; site?: { id: string; x: number; y: number; progress: number }; road?: number[] }[];
+  /** `foundedTick` is absent in saves written before hamlet ages were recorded; those hamlets have no age (loyalty.ts). */
+  hamlets: { parcels: number[]; food: number; wood: number; stone: number; folk: number; buildings: { id: string; x: number; y: number }[]; growTimer: number; outcrops: number; steps: number; gold?: number; iron?: number; site?: { id: string; x: number; y: number; progress: number }; road?: number[]; foundedTick?: number }[];
   /** Landmarks and beacon pillars (18e 2); absent in saves written before them. */
   structures?: { id: string; tile: number; next: number }[];
   /** Creep hubs (18e 1.1); a dead hub stores nextPulse 0. Absent in saves written before them. */
@@ -113,6 +114,7 @@ export function snapshotHamlets(host: SettlementHost): HamletSnapshot | null {
       iron: h.iron,
       ...(h.site ? { site: { id: h.site.def.id, x: h.site.x, y: h.site.y, progress: h.site.progress } } : {}),
       ...(h.road.length > 0 ? { road: [...h.road] } : {}),
+      ...(h.foundedTick !== undefined ? { foundedTick: h.foundedTick } : {}),
     })),
     structures: state.structures.map((s) => ({ id: s.id, tile: s.tile, next: s.next })),
     // A dead hub's pulse is Infinity, which JSON cannot hold; it is stored as 0 and restored as Infinity.
@@ -157,7 +159,8 @@ export function restoreHamlets(host: SettlementHost, snap: HamletSnapshot): void
     }
     const road = h.road ?? [];
     if (!Array.isArray(road) || !road.every((t) => Number.isInteger(t) && t >= 0 && t < cells)) throw new Error('hamlet state: road queue is not valid');
-    return { parcels: new Set(h.parcels), food: h.food, wood: h.wood, stone: h.stone, folk: h.folk, buildings, growTimer: h.growTimer, outcrops: h.outcrops, steps: h.steps, gold, iron, road, ...(site ? { site } : {}) };
+    if (h.foundedTick !== undefined && (!isNum(h.foundedTick) || h.foundedTick < 0)) throw new Error('hamlet state: founding tick is not valid');
+    return { parcels: new Set(h.parcels), food: h.food, wood: h.wood, stone: h.stone, folk: h.folk, buildings, growTimer: h.growTimer, outcrops: h.outcrops, steps: h.steps, gold, iron, road, ...(site ? { site } : {}), ...(h.foundedTick !== undefined ? { foundedTick: h.foundedTick } : {}) };
   });
   const structures: Structure[] = (snap.structures ?? []).map((s) => {
     if (typeof s.id !== 'string' || !LANDMARK_BY_ID.has(s.id) || !isNum(s.tile) || !isNum(s.next) || s.tile < 0 || s.tile >= cells) {
@@ -219,6 +222,7 @@ function placeHamlets(host: SettlementHost, state: SettlementState): void {
     if (state.hamlets.some((h) => h.parcels.has(parcel))) continue;
     const candidate = createHamlet(parcel, 0);
     if (!buildable(ctx, x, y, candidate)) continue;
+    candidate.foundedTick = host.tick;
     state.hamlets.push(candidate);
   }
 }
@@ -258,6 +262,7 @@ function foundHamlets(host: SettlementHost, state: SettlementState): void {
     const p = Math.floor(fy / PARCEL) * perAxis + Math.floor(fx / PARCEL);
     if (owned.has(p) || !goodFoundingParcel(host.realm, p, owned)) continue;
     const h = createHamlet(p, band);
+    h.foundedTick = host.tick;
     const px = p % perAxis;
     const py = Math.floor(p / perAxis);
     for (let dy = -1; dy <= 1; dy++) {

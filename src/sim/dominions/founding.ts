@@ -166,7 +166,7 @@ export function foundingYear(state: FoundingState, settlements: readonly Settlem
       if (s.folk < FOUND_FOLK || !isOn('realm_expansion')) continue;
       const id = nextId(dominions);
       if (id === 0) continue;
-      const d: Dominion = { id, parcels: new Set(), strength: Math.floor(s.folk / ARMY_DIVISOR), target: -1, campaignSince: -1 };
+      const d: Dominion = { id, parcels: new Set(), strength: Math.floor(s.folk / ARMY_DIVISOR), target: -1, campaignSince: -1, foundedTick: tick };
       dominions.push(d);
       byId.set(id, d);
       domId = id;

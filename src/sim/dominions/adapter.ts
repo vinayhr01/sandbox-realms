@@ -31,8 +31,8 @@ import { rankDominions, RANK_PERIOD_TICKS } from './rank.ts';
 import { hamletLoyalty, type HamletLoyaltyFacts } from './loyalty.ts';
 import { captureStep, CAPTURE_STEP_TICKS, HAMLET_CAPTURE, type Capture } from './capture.ts';
 import { cultureYearly } from '../culture/adapter.ts';
-import { blockedWarMood, campaignMood, convertLineageUnits, lineageHas, rulerInstalled, traitsOfGroup, warBlocked as warBlockedBy } from '../culture/effects.ts';
-import { customOfGroup, foundCreed, foundDialect, harmonyBonus, splitCreed, splitCustom, splitDialect } from '../culture/culture.ts';
+import { blockedWarMood, campaignMood, convertLineageUnits, groupOfSlot, lineageHas, rulerInstalled, traitsOfGroup, warBlocked as warBlockedBy } from '../culture/effects.ts';
+import { customOfGroup, foundCreed, foundDialect, harmonyBonus, sameMeta, splitCreed, splitCustom, splitDialect, type MetaBirth } from '../culture/culture.ts';
 import { successionRuleOf, type FoundFacts, type SplitFacts } from '../culture/trait-rules.ts';
 import { MAX_BEINGS } from '../beings/store.ts';
 import { opinion, powerOf, type DominionLens, type OpinionContext } from './opinion.ts';
@@ -81,6 +81,11 @@ export interface DominionState {
   loyalty: Map<number, number>;
   /** Hamlet capture progress by the hamlet's lowest parcel (capture.ts). Not saved: a load starts every capture at 0. */
   captures: Map<number, Capture>;
+  /**
+   * Dominion each hamlet was last seen with, and the tick it was first seen with it, keyed by the hamlet's index in
+   * hamletsOf order (the sim never removes a hamlet). Saved as `hamletHolds`; read by the belonging term (10 section 5).
+   */
+  hold: Map<number, { dominion: number; since: number }>;
 }
 
 const states = new WeakMap<Sim, DominionState>();
@@ -103,6 +108,7 @@ export function dominionState(sim: Sim): DominionState {
       taxFlows: [],
       loyalty: new Map(),
       captures: new Map(),
+      hold: new Map(),
     };
     states.set(sim, s);
   }
@@ -188,7 +194,7 @@ export function addDominion(sim: Sim, id: number, strength: number, parcels: rea
   const s = dominionState(sim);
   if (!Number.isInteger(id) || id < 1 || id > 255) throw new RangeError(`dominion id out of range: ${id}`);
   if (s.dominions.some((d) => d.id === id)) throw new Error(`dominion ${id} already exists`);
-  const d: Dominion = { id, parcels: new Set(), strength, target: -1, campaignSince: -1 };
+  const d: Dominion = { id, parcels: new Set(), strength, target: -1, campaignSince: -1, foundedTick: sim.tick };
   s.dominions.push(d);
   for (const p of parcels) claimParcel(sim, p, id);
   return d;
@@ -217,7 +223,10 @@ export function addBorder(sim: Sim, a: number, b: number, relation: Relation = '
 export interface DominionSnapshot {
   /** `traits` and `taxRaised` are optional: written only when set, so older saves and untaxed dominions keep their shape. */
   /** `ruler` and `rulerWaitUntil` are optional too: written only while a ruler is held or a succession wait runs (rulers.ts). `rank` is written only when set (rank.ts). */
-  dominions: { id: number; parcels: number[]; strength: number; target: number; campaignSince: number; traits?: string[]; taxRaised?: number; ruler?: RulerRef; rulerWaitUntil?: number; rank?: Rank }[];
+  /** `foundedTick`, `rulerSinceTick` and `newConquestTick` are written only when set (older saves have none, so no age or tenure term). */
+  dominions: { id: number; parcels: number[]; strength: number; target: number; campaignSince: number; traits?: string[]; taxRaised?: number; ruler?: RulerRef; rulerWaitUntil?: number; rank?: Rank; foundedTick?: number; rulerSinceTick?: number; newConquestTick?: number }[];
+  /** Hamlet holdings (`DominionState.hold`): [hamlet index, dominion id, tick first seen]. Optional: written only while one exists. */
+  hamletHolds?: [number, number, number][];
   /** Hamlet gold at the last yearly pass by the hamlet's lowest parcel (tax.ts loot). Optional: written only when present. */
   taxSeen?: [number, number][];
   /** Per-hamlet tax flows of the latest yearly pass (tax.ts TaxFlow). Optional: written only when the pass taxed a hamlet. */
@@ -279,7 +288,11 @@ export function snapshotDominions(sim: Sim): DominionSnapshot | null {
       ...(d.ruler !== undefined ? { ruler: { slot: d.ruler.slot, gen: d.ruler.gen } } : {}),
       ...(d.rulerWaitUntil !== undefined ? { rulerWaitUntil: d.rulerWaitUntil } : {}),
       ...(d.rank !== undefined ? { rank: d.rank } : {}),
+      ...(d.foundedTick !== undefined ? { foundedTick: d.foundedTick } : {}),
+      ...(d.rulerSinceTick !== undefined ? { rulerSinceTick: d.rulerSinceTick } : {}),
+      ...(d.newConquestTick !== undefined ? { newConquestTick: d.newConquestTick } : {}),
     })),
+    ...(s.hold.size > 0 ? { hamletHolds: [...s.hold].map(([i, h]): [number, number, number] => [i, h.dominion, h.since]) } : {}),
     ...(s.taxSeen.size > 0 ? { taxSeen: [...s.taxSeen] } : {}),
     ...(s.taxFlows.length > 0 ? { taxFlows: s.taxFlows.map((f) => ({ ...f })) } : {}),
     relations,
@@ -358,6 +371,9 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
     if (d.ruler !== undefined && (typeof d.ruler !== 'object' || d.ruler === null || !rulerOk(d.ruler))) bad(`dominion ${d.id} ruler`);
     if (d.rulerWaitUntil !== undefined && (!isNum(d.rulerWaitUntil) || d.rulerWaitUntil < 0)) bad(`dominion ${d.id} ruler wait`);
     if (d.rank !== undefined && d.rank !== 'supreme' && d.rank !== 'second') bad(`dominion ${d.id} rank`);
+    for (const t of [d.foundedTick, d.rulerSinceTick, d.newConquestTick]) {
+      if (t !== undefined && (!isNum(t) || !Number.isInteger(t) || t < 0)) bad(`dominion ${d.id} tick`);
+    }
     dominions.push({
       id: d.id,
       parcels: new Set(d.parcels),
@@ -369,6 +385,9 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
       ...(d.ruler !== undefined ? { ruler: { slot: d.ruler.slot, gen: d.ruler.gen } } : {}),
       ...(d.rulerWaitUntil !== undefined ? { rulerWaitUntil: d.rulerWaitUntil } : {}),
       ...(d.rank !== undefined ? { rank: d.rank } : {}),
+      ...(d.foundedTick !== undefined ? { foundedTick: d.foundedTick } : {}),
+      ...(d.rulerSinceTick !== undefined ? { rulerSinceTick: d.rulerSinceTick } : {}),
+      ...(d.newConquestTick !== undefined ? { newConquestTick: d.newConquestTick } : {}),
     });
   }
   snap.owner.forEach((id, p) => {
@@ -427,7 +446,13 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
     if (f.toRuler + f.hamletShare + f.leaderShare !== f.toLeader || f.toLeader > f.loot) bad(`tax flow of hamlet ${f.anchor} shares`);
     taxFlows.push({ ...f });
   }
-  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen, taxFlows, loyalty: new Map(), captures: new Map() });
+  // Hamlet holdings (belonging and conquest, 10 section 5): [hamlet index, dominion id, tick]. The dominion must exist.
+  const hold = new Map<number, { dominion: number; since: number }>();
+  for (const [i, dom, since] of snap.hamletHolds ?? []) {
+    if (!isNum(i) || !Number.isInteger(i) || i < 0 || !isNum(dom) || !dominions.some((d) => d.id === dom) || !isNum(since) || !Number.isInteger(since) || since < 0) bad('hamlet hold');
+    hold.set(i, { dominion: dom, since });
+  }
+  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen, taxFlows, loyalty: new Map(), captures: new Map(), hold });
 }
 
 /** Majority owner of a hamlet's parcels (ties to the lower id), or UNOWNED. Draws no randomness. */
@@ -951,10 +976,109 @@ function foundHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof
   };
 }
 
+/** Whole years from `since` to `tick` (ageYears and the loyalty terms read whole years, 09 section 1). Zero before `since`. */
+function wholeYears(tick: number, since: number): number {
+  return Math.max(0, Math.floor((tick - since) / YEAR_TICKS));
+}
+
+/**
+ * Hamlet holdings (10 section 5, belonging and conquest), read at the yearly pass before the loyalty terms. A hamlet first
+ * seen with a dominion starts its belonging tick here. A change of dominion is a capture: the sim has no rebellion and no
+ * voluntary join, so the dominion that takes the hamlet gets newConquestTick. A hamlet with no dominion drops its record.
+ * Stamps are at the yearly pass that sees the change, not the tick it happened. Draws no randomness.
+ */
+function trackHolds(s: DominionState, settlements: ReturnType<typeof hamletsOf>, tick: number): void {
+  settlements.forEach((h, i) => {
+    const owned = ownerOfHamlet(h.parcels, s.owner);
+    if (owned === UNOWNED) {
+      s.hold.delete(i);
+      return;
+    }
+    const prev = s.hold.get(i);
+    if (prev?.dominion === owned) return;
+    if (prev !== undefined) {
+      const taker = s.dominions.find((d) => d.id === owned);
+      if (taker) taker.newConquestTick = tick;
+    }
+    s.hold.set(i, { dominion: owned, since: tick });
+  });
+}
+
+/** Majority values of the Folk on one scope (a hamlet or a dominion): the group they follow, their species and their strain. */
+interface FolkMajority {
+  group?: number | undefined;
+  species?: number | undefined;
+  strain?: number | undefined;
+}
+
+type FolkKey = 'group' | 'species' | 'strain';
+const FOLK_KEYS: readonly FolkKey[] = ['group', 'species', 'strain'];
+type FolkTally = Record<FolkKey, Map<number, number>>;
+
+function addFolkTally(m: Map<number, FolkTally>, key: number, values: Record<FolkKey, number>): void {
+  let t = m.get(key);
+  if (!t) {
+    t = { group: new Map(), species: new Map(), strain: new Map() };
+    m.set(key, t);
+  }
+  for (const k of FOLK_KEYS) t[k].set(values[k], (t[k].get(values[k]) ?? 0) + 1);
+}
+
+/** The value with the most counts (ties to the lower value). undefined when there are none. */
+function majorityOf(counts: Map<number, number>): number | undefined {
+  let best: number | undefined;
+  let bestN = 0;
+  for (const [v, n] of counts) {
+    if (best === undefined || n > bestN || (n === bestN && v < best)) {
+      best = v;
+      bestN = n;
+    }
+  }
+  return best;
+}
+
+/**
+ * Majority group, species and strain of the Folk standing on each hamlet's parcels (by hamlet index) and on each
+ * dominion's parcels. The group is the one a Being follows (culture/effects.ts groupOfSlot). Strain 0 (none) gives no
+ * majority. Draws no randomness.
+ */
+function folkMajorities(sim: Sim, s: DominionState, settlements: ReturnType<typeof hamletsOf>): { hamlets: FolkMajority[]; dominions: Map<number, FolkMajority> } {
+  const st = sim.beings.store;
+  const perAxis = parcelsPerAxis(sim);
+  const hamletOf = new Map<number, number>();
+  settlements.forEach((h, i) => {
+    for (const p of h.parcels) hamletOf.set(p, i);
+  });
+  const byHamlet = new Map<number, FolkTally>();
+  const byDominion = new Map<number, FolkTally>();
+  for (let k = 0; k < st.size; k++) {
+    const slot = st.at(k);
+    if (!sim.beings.species(st.species[slot] ?? 0).folk) continue;
+    const p = Math.floor((st.y[slot] ?? 0) / PARCEL) * perAxis + Math.floor((st.x[slot] ?? 0) / PARCEL);
+    const values = { group: groupOfSlot(sim, slot), species: st.species[slot] ?? 0, strain: st.strain[slot] ?? 0 };
+    const hi = hamletOf.get(p);
+    if (hi !== undefined) addFolkTally(byHamlet, hi, values);
+    const dom = s.owner[p] ?? UNOWNED;
+    if (dom !== UNOWNED) addFolkTally(byDominion, dom, values);
+  }
+  const majority = (t: FolkTally): FolkMajority => {
+    const strain = majorityOf(t.strain);
+    return { group: majorityOf(t.group), species: majorityOf(t.species), strain: strain === 0 ? undefined : strain };
+  };
+  return {
+    hamlets: settlements.map((_h, i): FolkMajority => {
+      const t = byHamlet.get(i);
+      return t ? majority(t) : {};
+    }),
+    dominions: new Map([...byDominion].map(([id, t]): [number, FolkMajority] => [id, majority(t)])),
+  };
+}
+
 /**
  * Hamlet loyalty (10 section 5), the yearly pass: the sum of the terms the sim has (loyalty.ts hamletLoyalty) for each
  * hamlet held by a dominion, kept on the dominion state by the hamlet's lowest parcel. Runs after the year's rank (rank.ts,
- * the rank term). Not saved: it is recomputed each year, and nothing reads it yet (no rebellion). Draws no randomness.
+ * the rank term). The map is not saved: it is recomputed each year, and nothing reads it yet (no rebellion). The holdings
+ * it reads are saved (`hamletHolds`). Draws no randomness.
  */
 function loyaltyYearly(sim: Sim, s: DominionState, settlements: ReturnType<typeof hamletsOf>, hamletCount: ReadonlyMap<number, number>): void {
   const store = sim.beings.store;
@@ -974,8 +1098,23 @@ function loyaltyYearly(sim: Sim, s: DominionState, settlements: ReturnType<typeo
     const n = Math.max(1, parcels.size);
     return [x / n, y / n];
   };
+  trackHolds(s, settlements, sim.tick);
+  const folk = folkMajorities(sim, s, settlements);
+  // Culture metas are kept per group (a dominion id): a folk's meta is the one of the group it follows.
+  const customOf = (g: number): MetaBirth | undefined => customOfGroup(sim.culture, g);
+  const dialectOf = (g: number): MetaBirth | undefined => sim.culture.dialects.find((d) => d.group === g);
+  const creedOf = (g: number): MetaBirth | undefined => sim.culture.creeds.find((c) => c.holders.has(g));
+  /** Whether the folk's meta of a group is the dominion's (same record, or the same creator and birth). undefined: the dominion has none. */
+  const matchOf = (meta: (g: number) => MetaBirth | undefined, folkGroup: number | undefined, dominion: number): boolean | undefined => {
+    const own = meta(dominion);
+    if (folkGroup === undefined || own === undefined) return undefined;
+    const theirs = meta(folkGroup);
+    return theirs !== undefined && (theirs === own || sameMeta(theirs, own));
+  };
+  /** A live clan of a strain: one whose strain, or a strain it absorbed, is this one (clans.ts). */
+  const clanOf = (strain: number): boolean => sim.clans.list.some((c) => c.mergedInto < 0 && c.extinctTick < 0 && (c.strain === strain || c.absorbed.includes(strain)));
   s.loyalty = new Map();
-  for (const h of settlements) {
+  for (const [i, h] of settlements.entries()) {
     const owned = ownerOfHamlet(h.parcels, s.owner);
     const dom = s.dominions.find((d) => d.id === owned);
     const capital = dom ? leadingHamlet(owned, settlements, s.owner) : undefined;
@@ -989,8 +1128,29 @@ function loyaltyYearly(sim: Sim, s: DominionState, settlements: ReturnType<typeo
     const enemyPower = s.dominions
       .filter((d) => d.id !== owned && s.relations.get(owned, d.id) !== 'peace')
       .reduce((sum, d) => sum + powerOf(d, hamletCount), 0);
+    const hamletFolk: FolkMajority = folk.hamlets[i] ?? {};
+    const domainFolk: FolkMajority = folk.dominions.get(owned) ?? {};
+    const rule = successionRuleOf(traitsOfGroup(sim, owned));
+    const hold = s.hold.get(i);
+    // Clan (10 section 5): the leader and the ruler share a strain, and a live clan holds that strain. Skipped at the capital.
+    const leaderStrain = leaderSlot >= 0 ? (store.strain[leaderSlot] ?? 0) : 0;
+    const rulerStrain = ruler ? (store.strain[ruler.slot] ?? 0) : 0;
+    const sameStrain = !isCapital && ruler !== undefined && leaderStrain !== 0 && leaderStrain === rulerStrain;
     const facts: HamletLoyaltyFacts = {
       ruler: ruler ? skill(ruler.slot, owned) : 0,
+      hamletAge: h.foundedTick !== undefined ? wholeYears(sim.tick, h.foundedTick) : undefined,
+      dominionAge: dom.foundedTick !== undefined ? wholeYears(sim.tick, dom.foundedTick) : undefined,
+      tenureYears: ruler && dom.rulerSinceTick !== undefined ? wholeYears(sim.tick, dom.rulerSinceTick) : undefined,
+      conquestYears: dom.newConquestTick !== undefined ? wholeYears(sim.tick, dom.newConquestTick) : undefined,
+      belongYears: hold !== undefined && hold.dominion === owned ? wholeYears(sim.tick, hold.since) : undefined,
+      custom: matchOf(customOf, hamletFolk.group, owned),
+      dialect: matchOf(dialectOf, hamletFolk.group, owned),
+      creed: matchOf(creedOf, hamletFolk.group, owned),
+      customTraits: traitsOfGroup(sim, owned),
+      lineage: domainFolk.species !== undefined && hamletFolk.species !== undefined ? hamletFolk.species === domainFolk.species : undefined,
+      strain: domainFolk.strain !== undefined && hamletFolk.strain !== undefined ? hamletFolk.strain === domainFolk.strain : undefined,
+      clan: sameStrain ? clanOf(leaderStrain) : undefined,
+      rulerSexMismatch: ruler && rule.sex !== undefined ? (store.female[ruler.slot] ?? 0) !== rule.sex : undefined,
       folk: h.folk,
       parcels: h.parcels.size,
       capitalFolk: capital.folk,

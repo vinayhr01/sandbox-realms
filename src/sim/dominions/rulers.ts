@@ -187,6 +187,7 @@ export function rulersStep(env: RulerEnv, dominions: readonly Dominion[]): void 
     }
     if (!next) continue;
     d.ruler = next;
+    d.rulerSinceTick = env.tick;
     taken.add(next.slot);
     delete d.rulerWaitUntil;
     env.onInstall?.(d.id, next.slot, hamlet);

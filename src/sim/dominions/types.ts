@@ -27,6 +27,12 @@ export interface Dominion {
   rulerWaitUntil?: number;
   /** Rank by power, set every RANK_PERIOD_TICKS (rank.ts). Optional: absent for a dominion that is neither supreme nor second. */
   rank?: Rank;
+  /** Tick the dominion was founded (founding.ts, adapter.ts addDominion). Optional: absent in saves made before it was recorded (10 section 5 dominion age). */
+  foundedTick?: number;
+  /** Tick the current ruler was installed (rulers.ts). Optional: absent until a ruler is installed after it was recorded (10 section 5 ruler tenure). */
+  rulerSinceTick?: number;
+  /** Tick a hamlet of this dominion was last taken from another dominion (10 section 1 newConquestTick; adapter.ts trackHolds). Optional: absent until a capture. */
+  newConquestTick?: number;
 }
 
 /** Structural context for dominionStep (no Sim import). */

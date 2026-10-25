@@ -178,8 +178,8 @@ export function crashMode(): ConsentMode {
 export function scrubText(input: string, max = MSG_MAX): string {
   return input
     .replace(/https?:\/\/\S+/gi, '<url>')
-    .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '<email>')
     .replace(/[A-Za-z]:\\[^"'\r\n]*/g, '<path>')
+    .replace(/[\w.+-]*@[\w.+-]*(?:@[\w.+-]*)*/g, '<email>')
     .replace(/(^|[\s(])\/[^\s"')]+\/[^\s"')]*/g, '$1<path>')
     .replace(/\b(?:localhost|(?:\d{1,3}\.){3}\d{1,3})(?::\d+)?\b/gi, '<host>')
     .replace(/[A-Za-z0-9_-]{32,}/g, '<token>')

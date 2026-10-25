@@ -1859,3 +1859,36 @@ Scope: 10 section 13 (slipway transport, idle decision, boat firing), 18e slipwa
 - The iron yield (2), the slipway's 150-tick interval and minPop 40 are TUNE or spec readings, not checked in a run.
 - The "Boats build 3" gap on connectivity settling after a load is untouched.
 - Golden: prospectors now take iron nodes, and slipway hamlets build transport boats and faster docks. Both change state on a golden run that reaches them. `GOLDEN_HASH` is not re-baselined and was not edited, so it will move on such a run.
+
+## Crash record close 4
+
+Scope: spec 19 sections 2, 8 and 9 (export, consent modes, DNT and GPC, rate limits and the unsent queue, the first-fatal note), section 2 not-responding timing, section 3 breadcrumb ring, section 6 redaction test (T-19-6). Files: `src/app/crash-record.ts`, `src/app/recovery.ts`, `src/ui/windowContent.ts` (Help button, one dependency, one help line), `src/app/main.ts`, `tests/unit/crash-redaction.test.ts` (new, redaction and frame redaction only), and this log.
+
+Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). The redaction test has not been run. Types were checked by reading. `GOLDEN_HASH` is not edited.
+
+**Export is not gated by consent (19 section 8). Decision recorded.** Section 8 lists Export with no consent condition, and section 9 gates only Send (hidden under `never`). `exportCrashRecord` no longer checks consent. The file is downloaded only on the player's action and nothing is uploaded. Each export file carries `consentMode`. This reverses the round 7 decision, which gated export on `privacy.errorReports`.
+
+**Consent modes (19 section 9).** `ask`, `always`, `never` (`ConsentMode`, `resolveConsentMode`, `crashMode`). The `privacy.errorReports` option maps off to `ask` and on to `always`. DNT (`navigator.doNotTrack` or `window.doNotTrack` is `1` or `yes`) or GPC (`navigator.globalPrivacyControl` is true) forces `never`. Under `never` nothing is queued. Export still works.
+- Deviation: the Settings control is still a boolean in `src/ui/panels/options.ts`, which is outside the touch set. So `never` comes only from DNT or GPC. A three-way control needs that file.
+
+**Unsent queue and rate limits (19 section 9).** `enqueueUnsent` keeps ids, fingerprints and times only, under `sr-crash-unsent`, max 20 (oldest dropped). `sendAllowed` enforces 3 sends per session and 1 per fingerprint per 24 h. `flushUnsent(transport)` sends only when a transport is passed. This build passes none, so the queue fills and nothing is sent.
+- Not built: the 30 s single retry, the preview, and any Send button. All depend on an endpoint (OPEN-19-1 is unset).
+
+**First-fatal note.** `firstFatalNote()` returns a one-time sentence for the consent mode, shown in the first fatal dialog. The `sr-crash-explained` flag is kept in localStorage, with a per-page fallback when storage throws.
+
+**Not-responding timing (19 section 2).**
+- `worker_dead` stays at 6 s without a heartbeat ("Simulation not responding", Reload or Wait). This matches the table and 17 section 10.
+- `main_hang` is now handled: a frame gap over `MAIN_HANG_MS` (5 s) is read as a freeze. The "Not responding" overlay is shown on wake, because a frozen thread cannot draw it. The fault is journaled and recorded as `main_hang`. The worker check is skipped on that frame, since queued heartbeats would read as a stall. A gap with the page hidden is not counted (`visibilitychange` flag).
+- Not built: the 8 s pong. That needs a main-to-worker ping in `src/shared/protocol.ts`, which is outside the touch set. The 5 s gap is used in its place.
+- This supersedes the open item in the round 7 log about the overlay timing.
+
+**Non-fatal worker faults get a crash record.** A worker `Fault` with severity `error` (`SIM_COMMAND`, `SIM_PUMP`, `BAD_SIZE`) is recorded as `js_worker`. `warn` (for example `COMMAND_REFUSED`) is not recorded: it is a refused player command, not a crash.
+
+**Breadcrumb ring of 50.** `JOURNAL_MAX` (recovery.ts) and `CRUMBS_MAX` (crash-record.ts) are both 50. The crumb types listed in 19 section 3 (window opened, power applied and so on) are not yet emitted. The ring holds the journal codes only.
+
+**Help export button.** A button in Help (`buildHelp`) calls `deps.exportCrash`, which `main.ts` wires to `exportCrashToFile`. It shows the outcome line. The change is four lines plus one dependency, not the one line asked for, because the button needs a dependency and a status line.
+
+**Redaction (19 section 6, T-19-6).** `scrubText` now removes `localhost` and IPv4 hosts (with ports). It removes Windows paths to the end of the line, so folder names with spaces do not leak. Existing rules are unchanged: URLs (with query and hash), e-mail addresses, long tokens, quoted text, POSIX home paths, and digit runs over four. `tests/unit/crash-redaction.test.ts` covers those rules, frame redaction (chunk name only, `<ext>` for other origins, no query), and a deterministic 5,000-string fuzz. The fuzz checks length and the absence of the seeded secrets.
+- Not built: logs (`logs`), perf block, `sys` block, emergency save, and the fuzz over the logger path. The test is over the pure scrub and frame functions only.
+
+**Remaining, in order of value.** (1) Three-way consent control in `options.ts`. (2) Main-to-worker pong for the 8 s rule (`protocol.ts`). (3) Endpoint and transport, then Send, preview and retry (OPEN-19-1). (4) Crumb types from 19 section 3. (5) Logs, perf and `sys` in the record. (6) Emergency save on fatal paths (19 principle 1).

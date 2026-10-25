@@ -66,6 +66,8 @@ export interface WindowDeps {
   saves(): Promise<SaveSlotView[]>;
   /** Save actions for the Chronicle window. Absent in tests: the window then only lists saves. */
   chronicle?: ChronicleActions;
+  /** Downloads the newest crash record (Help). Not gated by consent and nothing is sent (19 section 8). Absent in tests. */
+  exportCrash?: () => Promise<ChronicleOutcome>;
   /** Latest sim snapshot, or null before the first one. Optional: windows that need it show "Reading the realm". */
   snapshot?: () => Snapshot | null;
   close(): void;
@@ -518,15 +520,30 @@ const HELP_TOPICS: ReadonlyArray<[string, string]> = [
   ['New realm', 'Creates a world from a seed and a size. This ends the current realm.'],
   ['Chronicle', 'Saves, loads, exports and imports realms kept on this device.'],
   ['Privacy', 'This build sends no data. The privacy switches only record your choice.'],
+  ['Crash log', 'Crash records stay on this device. Export the newest one to a file and share it yourself; nothing is sent.'],
 ];
 
-function buildHelp(): WindowBuild {
+function buildHelp(deps: WindowDeps): WindowBuild {
   return {
     title: windowTitle('win_help'),
     build: (body) => {
       const list = el('dl', 'facts');
       for (const [k, v] of HELP_TOPICS) list.append(el('dt', undefined, k), el('dd', undefined, v));
       body.append(list);
+      const exportCrash = deps.exportCrash;
+      if (exportCrash) {
+        const status = el('p', 'option-note');
+        status.setAttribute('role', 'status');
+        body.append(
+          buttonEl('Export crash record', () => {
+            status.textContent = 'Working...';
+            void exportCrash().then((out) => {
+              if (status.isConnected) status.textContent = out.message;
+            });
+          }),
+          status,
+        );
+      }
     },
   };
 }
@@ -671,7 +688,7 @@ export function windowFor(id: string, deps: WindowDeps, params: WindowParams = {
     case 'win_power_catalogue':
       return buildPowerCatalogue(deps);
     case 'win_help':
-      return buildHelp();
+      return buildHelp(deps);
     case 'win_chronicle':
       return buildChronicle(deps, params);
     default:

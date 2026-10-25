@@ -5,7 +5,8 @@
  */
 const SENTINEL_KEY = 'sr.session';
 const JOURNAL_KEY = 'sr.journal';
-const JOURNAL_MAX = 20;
+/** Breadcrumb ring: the last 50 entries (19 section 3). */
+const JOURNAL_MAX = 50;
 
 export interface JournalEntry {
   at: string;
@@ -128,6 +129,17 @@ export const HEARTBEAT_STALL_MS = 6_000;
 /** True when the last heartbeat is older than the stall threshold. Null means no heartbeat has been seen yet. */
 export function workerStalled(lastSeenMs: number | null, nowMs: number, stallMs: number = HEARTBEAT_STALL_MS): boolean {
   return lastSeenMs !== null && nowMs - lastSeenMs > stallMs;
+}
+
+/** A main-thread frame gap this long is a freeze (19 section 2, main_hang: long task over 5 s). */
+export const MAIN_HANG_MS = 5_000;
+
+/**
+ * True when a frame gap means the main thread was frozen. The overlay is shown when the thread wakes,
+ * because a frozen thread cannot draw it (19 section 2). A gap with the page hidden is a tab switch.
+ */
+export function mainHangGap(deltaMs: number, hiddenDuringGap: boolean): boolean {
+  return !hiddenDuringGap && deltaMs > MAIN_HANG_MS;
 }
 
 /** Mean frame time over this many times the frame budget counts as over budget. TUNE. */

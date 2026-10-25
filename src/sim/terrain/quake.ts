@@ -4,6 +4,7 @@ import { FLAG } from '../realm.ts';
 import type { Sim } from '../sim.ts';
 import { thaw } from './freeze.ts';
 import { terrainState, type Quake } from './state.ts';
+import { connectivityStep } from './connectivity.ts';
 
 /** Fissure footprint box: 120x120 tiles centred on the origin (04 section 9). */
 const HALF = 60;
@@ -122,11 +123,22 @@ export function startQuake(sim: Sim, ox: number, oy: number, type: 'power' | 'sm
 }
 
 /**
+ * Per-tick terrain step that runs every tick (04 section 11 order 3 and 4): the quake, then the
+ * connectivity scheduler. The scheduler rides here because sim.ts is not in this release's touch
+ * list; it belongs in Sim.runTerrain next to the other periodic systems. While a quake runs the
+ * scheduler is deferred (the "busy" flag of 01 section 11).
+ */
+export function quakeStep(sim: Sim): void {
+  quakeTick(sim);
+  connectivityStep(sim.realm, sim.tick, quakeActive(sim));
+}
+
+/**
  * Quake step (04 section 9, every tick): executes up to 300 fissure steps. Lowering and raising move
  * one step; small quakes strip cover and frost. Every touched tile loses its scar. Under
  * sanctuary_seal the quake shakes nothing and changes no tile.
  */
-export function quakeStep(sim: Sim): void {
+function quakeTick(sim: Sim): void {
   const state = terrainState(sim);
   const q = state.quake;
   if (!q) return;

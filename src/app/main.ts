@@ -832,9 +832,23 @@ async function boot(): Promise<void> {
   $('window-close').addEventListener('click', () => windowHost.close());
   simView.subscribe(() => windowHost.feed());
 
+  /** Reads one tile from the sim and reports it in the status line. Held presses say so. */
+  const inspectTile = (t: { x: number; y: number }, held: boolean): void => {
+    void client.query(t.x, t.y).then((r) => {
+      if (!r.inBounds) {
+        setStatus('Off the map.');
+        return;
+      }
+      const prefix = held ? 'Held: ' : '';
+      setStatus(`${prefix}Tile ${r.tileX}, ${r.tileY} · elevation ${r.elevation} · ${r.ground}`);
+      feedTutorial('tile-inspected');
+    });
+  };
+
   // Map input. A brush power (raise, lower, ground paint) drags; everything else pans.
   new MapInput(renderer.app.canvas, {
     brushArmed: () => state.armed?.kind === 'brush' && camera !== null,
+    toolArmed: () => state.armed !== null,
     onPan: (dx, dy) => {
       const k = numberOption(options, 'input.panSpeed') / 100;
       camera?.panBy(dx * k, dy * k);
@@ -864,6 +878,29 @@ async function boot(): Promise<void> {
       if (stroke) feedTutorial('stroke-finished');
       stroke = null;
     },
+    onHold: (sx, sy) => {
+      // Hold-to-raise: a still press under an armed brush repeats its application (13 section 9).
+      const power = state.armed;
+      if (!power) return;
+      const t = tileAt(sx, sy);
+      cursorScreen = { x: sx, y: sy };
+      usePowerAt(power, t.x, t.y);
+    },
+    onLongPress: (sx, sy) => {
+      cursorScreen = { x: sx, y: sy };
+      inspectTile(tileAt(sx, sy), true);
+    },
+    onDoubleTap: (sx, sy) => {
+      // Double-tap zooms in one step on the tap point (the browser's own double-tap zoom stays off).
+      camera?.zoomAt(2, sx, sy);
+    },
+    onStrokeUndo: () => {
+      // The sim keeps no per-stroke journal, so a second finger ends the stroke and keeps what it painted.
+      flushStroke();
+      if (stroke) feedTutorial('stroke-finished');
+      stroke = null;
+      setStatus('Undo is not available yet: the stroke stays as painted.');
+    },
     onTap: (sx, sy) => {
       const t = tileAt(sx, sy);
       cursorScreen = { x: sx, y: sy };
@@ -885,14 +922,7 @@ async function boot(): Promise<void> {
         usePowerAt(state.armed, t.x, t.y);
         return;
       }
-      void client.query(t.x, t.y).then((r) => {
-        if (!r.inBounds) {
-          setStatus('Off the map.');
-          return;
-        }
-        setStatus(`Tile ${r.tileX}, ${r.tileY} · elevation ${r.elevation} · ${r.ground}`);
-        feedTutorial('tile-inspected');
-      });
+      inspectTile(t, false);
     },
   });
 

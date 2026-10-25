@@ -1,12 +1,19 @@
 /**
  * One pointer path for mouse, touch and pen (13 section 9, PLATFORM-REQUIREMENTS section 2).
- * Arbitrates each gesture into one of: stroke (brush drag), pan, pinch/zoom, tap, or hover.
- * Emits intents only; it never touches the sim or the camera directly.
+ * Arbitrates each gesture into one of: stroke (brush drag), pan, pinch/zoom, tap, double-tap,
+ * long-press, hold-to-raise, or hover. Emits intents only; it never touches the sim or the camera
+ * directly.
  */
 
 export interface MapInputHandlers {
   /** A brush is armed, so a drag paints rather than pans. */
   brushArmed(): boolean;
+  /**
+   * Any power or tool is armed (brush or not). Optional: when absent, only brushArmed() counts.
+   * With a tool armed, a press that stays still is a plain tap (13 section 4), so no hold or
+   * long-press starts.
+   */
+  toolArmed?(): boolean;
   onPan(dx: number, dy: number): void;
   onZoom(factor: number, sx: number, sy: number): void;
   onHover(sx: number, sy: number): void;
@@ -14,6 +21,25 @@ export interface MapInputHandlers {
   onStrokeMove(sx: number, sy: number): void;
   onStrokeEnd(): void;
   onTap(sx: number, sy: number): void;
+  /**
+   * Hold-to-raise (04 section 1.1, 13 section 9): with a brush armed, a press that stays still
+   * repeats this every HOLD_INTERVAL_MS after HOLD_DELAY_MS. The first call replaces the tap, so
+   * the release of a held press does not tap again.
+   */
+  onHold?(sx: number, sy: number): void;
+  /** Long-press (500 ms, under 10 px travel) with no tool armed: inspect detail (13 section 9). */
+  onLongPress?(sx: number, sy: number): void;
+  /**
+   * Double-tap with no tool armed (13 section 9; browser double-tap zoom stays off). When this is
+   * absent, taps stay immediate. With it, a single inspect tap waits DOUBLE_TAP_MS to see whether a
+   * second tap follows.
+   */
+  onDoubleTap?(sx: number, sy: number): void;
+  /**
+   * A second finger lands on a stroke (13 section 9): the stroke ends and is undone. Optional: when
+   * absent the stroke ends as before, without undo.
+   */
+  onStrokeUndo?(): void;
   /**
    * Settings: sticky hold (13 section 15). When on, releasing a stroke keeps it running; the pointer
    * then paints by hovering, and the next press ends it. Optional, so off when not given.
@@ -32,6 +58,8 @@ interface Pointer {
   x: number;
   y: number;
   moved: boolean;
+  /** Armed state at press time, so a later change of tool does not change how this press reads. */
+  armedAtDown: boolean;
 }
 
 /** Pixels of travel before a press becomes a drag (13 section 9: 10 px touch, 4 px mouse). */
@@ -39,6 +67,20 @@ const TOUCH_SLOP = 10;
 const MOUSE_SLOP = 4;
 /** Wheel zoom per notch (13 section 9: 20% per notch). */
 const WHEEL_ZOOM_PER_PX = 0.0015;
+/** Hold-to-raise: first repeat after this long still, then every two ticks (04 section 1.1). */
+export const HOLD_DELAY_MS = 150;
+export const HOLD_INTERVAL_MS = 100;
+/** Long-press time (13 section 9). */
+export const LONG_PRESS_MS = 500;
+/** Double-tap window and the largest distance between the two taps (13 section 9, TUNE). */
+export const DOUBLE_TAP_MS = 300;
+export const DOUBLE_TAP_SLOP = 24;
+
+interface LastTap {
+  t: number;
+  x: number;
+  y: number;
+}
 
 export class MapInput {
   private readonly pointers = new Map<number, Pointer>();
@@ -49,6 +91,13 @@ export class MapInput {
   private pinchMidY = 0;
   /** A stroke kept running after release (sticky hold). */
   private latched = false;
+  /** Timer for hold-to-raise or long-press on the first pointer; null when none runs. */
+  private holdDelay: number | null = null;
+  private holdRepeat: number | null = null;
+  /** The hold or long-press already fired for this press, so its release is not a tap. */
+  private holdFired = false;
+  private lastTap: LastTap | null = null;
+  private tapTimer: number | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -76,11 +125,51 @@ export class MapInput {
     this.canvas.removeEventListener('pointercancel', this.onCancel);
     window.removeEventListener('keydown', this.onKey);
     window.removeEventListener('keyup', this.onKey);
+    this.holdStop();
+    this.clearTapTimer();
   }
 
   private local(e: PointerEvent | WheelEvent): { x: number; y: number } {
     const rect = this.canvas.getBoundingClientRect();
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  private toolArmed(): boolean {
+    return this.handlers.toolArmed ? this.handlers.toolArmed() : this.handlers.brushArmed();
+  }
+
+  /** Starts the hold timer for a still press: hold-to-raise with a brush, long-press with no tool. */
+  private holdStart(p: Pointer): void {
+    this.holdStop();
+    this.holdFired = false;
+    if (this.handlers.brushArmed()) {
+      this.holdDelay = window.setTimeout(() => {
+        this.holdDelay = null;
+        this.holdFired = true;
+        this.handlers.onHold?.(p.startX, p.startY);
+        this.holdRepeat = window.setInterval(() => this.handlers.onHold?.(p.startX, p.startY), HOLD_INTERVAL_MS);
+      }, HOLD_DELAY_MS);
+      return;
+    }
+    if (!this.toolArmed() && this.handlers.onLongPress) {
+      this.holdDelay = window.setTimeout(() => {
+        this.holdDelay = null;
+        this.holdFired = true;
+        this.handlers.onLongPress?.(p.startX, p.startY);
+      }, LONG_PRESS_MS);
+    }
+  }
+
+  private holdStop(): void {
+    if (this.holdDelay !== null) window.clearTimeout(this.holdDelay);
+    if (this.holdRepeat !== null) window.clearInterval(this.holdRepeat);
+    this.holdDelay = null;
+    this.holdRepeat = null;
+  }
+
+  private clearTapTimer(): void {
+    if (this.tapTimer !== null) window.clearTimeout(this.tapTimer);
+    this.tapTimer = null;
   }
 
   private readonly onDown = (e: PointerEvent): void => {
@@ -103,13 +192,21 @@ export class MapInput {
       x,
       y,
       moved: false,
+      armedAtDown: this.toolArmed(),
     });
 
     if (this.pointers.size === 1) {
       this.mode = 'pending';
+      const first = this.pointers.get(e.pointerId);
+      // Hold and long-press are for the primary button, touch and pen only.
+      if (first && (first.type !== 'mouse' || first.button === 0)) this.holdStart(first);
     } else if (this.pointers.size === 2) {
-      // A second finger ends any stroke without undo (13 section 9); the sim keeps what was painted.
-      if (this.mode === 'stroke') this.handlers.onStrokeEnd();
+      // A second finger ends the press's hold, and ends any stroke with an undo (13 section 9).
+      this.holdStop();
+      if (this.mode === 'stroke') {
+        if (this.handlers.onStrokeUndo) this.handlers.onStrokeUndo();
+        else this.handlers.onStrokeEnd();
+      }
       this.mode = 'pinch';
       this.startPinch();
     }
@@ -136,7 +233,11 @@ export class MapInput {
     }
 
     const slop = p.type === 'mouse' ? MOUSE_SLOP : TOUCH_SLOP;
-    if (!p.moved && Math.hypot(x - p.startX, y - p.startY) > slop) p.moved = true;
+    if (!p.moved && Math.hypot(x - p.startX, y - p.startY) > slop) {
+      p.moved = true;
+      // Travel past the slop cancels a hold or long-press (13 section 9: under 10 px to count).
+      this.holdStop();
+    }
 
     if (this.mode === 'pending' && p.moved) {
       const paints = this.handlers.brushArmed() && (p.type !== 'mouse' || (p.button === 0 && !this.spaceDown));
@@ -173,9 +274,11 @@ export class MapInput {
     const { x, y } = this.local(e);
     this.pointers.delete(id);
     if (this.canvas.hasPointerCapture(id)) this.canvas.releasePointerCapture(id);
+    this.holdStop();
 
-    if (this.mode === 'pending' && !p.moved && !cancelled) {
-      this.handlers.onTap(x, y);
+    if (this.mode === 'pending' && !p.moved && !cancelled && !this.holdFired) {
+      if (p.armedAtDown || !this.handlers.onDoubleTap) this.handlers.onTap(x, y);
+      else this.inspectTap(x, y);
     }
     if (this.mode === 'stroke' && (this.pointers.size === 0 || cancelled)) {
       if (!cancelled && this.pointers.size === 0 && this.handlers.stickyHold?.()) this.latched = true;
@@ -183,6 +286,7 @@ export class MapInput {
     }
     if (this.pointers.size === 0) {
       this.mode = 'idle';
+      this.holdFired = false;
       return;
     }
     if (this.mode === 'pinch' && this.pointers.size === 1) {
@@ -193,6 +297,30 @@ export class MapInput {
       rest.moved = true;
       this.mode = 'pan';
     }
+  }
+
+  /**
+   * An inspect tap (no tool armed) when double-tap is wired. A second tap within DOUBLE_TAP_MS and
+   * DOUBLE_TAP_SLOP is a double-tap and the first tap is dropped. Otherwise the earlier tap fires now
+   * and this one waits, so a single tap still inspects after the window.
+   */
+  private inspectTap(x: number, y: number): void {
+    const now = performance.now();
+    const last = this.lastTap;
+    this.clearTapTimer();
+    if (last && now - last.t <= DOUBLE_TAP_MS && Math.hypot(x - last.x, y - last.y) <= DOUBLE_TAP_SLOP) {
+      this.lastTap = null;
+      this.handlers.onDoubleTap?.(last.x, last.y);
+      return;
+    }
+    if (last) this.handlers.onTap(last.x, last.y);
+    this.lastTap = { t: now, x, y };
+    this.tapTimer = window.setTimeout(() => {
+      const pending = this.lastTap;
+      this.lastTap = null;
+      this.tapTimer = null;
+      if (pending) this.handlers.onTap(pending.x, pending.y);
+    }, DOUBLE_TAP_MS);
   }
 
   private startPinch(): void {

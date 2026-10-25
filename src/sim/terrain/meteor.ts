@@ -5,8 +5,8 @@ import { PARCEL } from '../../shared/constants.ts';
 
 /** Meteor blast profiles (04 section 8.1). Both use radius 20 and power 1. */
 export const METEOR_PROFILES = {
-  skyrock: { radius: 20, damage: 1000 },
-  skyrock_small: { radius: 20, damage: 500 },
+  skyrock: { radius: 20, damage: 1000, power: 1 },
+  skyrock_small: { radius: 20, damage: 500, power: 1 },
 } as const;
 
 export type MeteorProfile = keyof typeof METEOR_PROFILES;
@@ -21,7 +21,7 @@ const NODES_PER_IMPACT = 5;
  */
 export function meteorImpact(sim: Sim, x: number, y: number, profile: MeteorProfile): number {
   const p = METEOR_PROFILES[profile];
-  const hit = explode(sim.explosionContext(), x, y, p.radius, p.damage, 'Explosion', -1);
+  const hit = explode(sim.explosionContext(), x, y, p.radius, p.damage, 'Explosion', -1, p.power);
   const rng = sim.rng('meteor');
   const realm = sim.realm;
   const px = Math.floor(x / PARCEL) * PARCEL;

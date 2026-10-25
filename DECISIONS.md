@@ -926,3 +926,52 @@ Registry rule kept: the new entries are appended after the existing 15 entries, 
 - `src/sim/terrain/fire.ts` should place the `burnResult` remains (18d 2).
 
 **Unverified (not run):** that every bush home biome resolves in `BIOMES` (checked by grep, all ten present); that the content module import order has no runtime cycle (`content/flora-18d.ts` imports only a type from `sim/flora.ts`); the IndexedDB resume on a real reload; the crop and manure timing against the 18d 7.2 timer wheel (the sim uses a sweep, not the wheel).
+
+## World and input release
+
+Scope: 01 (grid, partitions, counters, connectivity), 04 (blast hardness, charge chains, acceptance checks 6 and 7), 13 (hold, undo, long-press, double-tap). Nothing was run: tests, tsc, vitest, build and Playwright were out of scope for this pass, so every change below is unverified until a test pass.
+
+**Realm size and worldgen.**
+- The Realm size list had 192, 256 and 320 only. No 512 option existed. Added `Colossal (512)` as `value="8"`. `MAX_SIZE_STEP` was already 9, so the worker and the Chronicle accept it. The spec's device-class warning for 512 (High devices) is not implemented.
+- Worldgen output does not change. Patch stays 16 and Parcel stays 8, the sizes the spec already fixes. `worldgen.ts` is untouched. Existing seeds and sizes produce the same worlds.
+- Titan (576) is not added. It is OPEN in 01 section 1.
+- Name clash kept as found: `realm.region` is the worldgen and culture land-component id. The connectivity layer (01 section 11) uses a new array, `realm.connRegion`, so the two do not mix.
+
+**Partitions and counters (`src/sim/realm.ts`).**
+- `patchAt`, `parcelAt`, `patchOf`, `parcelOf` and the per-axis counts follow 01 section 2.
+- Per-Parcel counters kept by the mutators: `liquidTiles` (Water layer), `groundTiles` (Land layer), `lavaCount` (Molten), `fireCount` (burning bit) and `floraCount` (any flora). `recountParcels` runs at construction and in `rebuildSets`, which covers worldgen and load bulk writes. `parcelCountersAgree` is the check for 01 section 14 test 4.
+- Cut: the tree, plant, fungus, mineral and structure counters. Those kinds come from `sim/flora.ts` and the settlements spec, outside the touch set.
+- `patchDirty` bits: render, connectivity, minimap. Layer changes in `setGround` mark the Patch and its eight neighbours connectivity-dirty.
+
+**Connectivity (`src/sim/terrain/connectivity.ts`, new).**
+- Regions are BFS over n8 steps with equal layer, inside one Patch, with the corner rule (a diagonal is blocked by a `blocked` corner or an off-grid corner). Region id is `(patch << 8) | local`.
+- Links come from each dirty Patch's tiles to their n8 neighbours in other Patches, both ways. Landmasses are relabelled only where touched: members of touched landmasses are re-seeded, and any landmass a BFS reaches is dissolved. Nothing does a full scan, except a first settle after construction.
+- Scheduler: every 8 ticks, skipped while a quake runs (the 01 section 11 busy flag). It is called from `quakeStep` in `terrain/quake.ts`. The proper home is `Sim.runTerrain` in `sim.ts`, which is outside the touch set. Move it there when that file opens.
+- Connectivity is derived data. It is not saved or hashed and it draws no randomness, so it cannot change the sim state.
+- Cut: the `island.formed` bus event, which needs sim event wiring. `isRealLand` (regions of 4 or more) is provided but no spawner uses it yet.
+
+**Blast hardness (`src/sim/explosions.ts`).**
+- `groundHardness`: sea, molten, slime and devices 0; pits 2; everything else 3.
+- `explode` takes an optional last argument, `power`. With `power` set, a tile whose hardness is at most the power lowers one step along `down`. Cover is stripped first, and a covered tile keeps its ground that blast. Edge-of-realm tiles never lower. Sea tiles lower into pits, which the old code skipped.
+- Without `power`, `explode` changes no ground, as before. The callers in `powers/handlers.ts` and `weather.ts` are unchanged and keep the old behaviour until `powers/` opens. They should pass a power then.
+- Meteors pass power 1 (`meteor.ts`). Device detonations pass power 3.
+- Risk: meteor and device blasts now change ground. If the golden replay includes either, `GOLDEN_HASH` may stop matching. It was not edited and was not checked.
+
+**Charge chains.**
+- `detonateChain` (`explosions.ts`): n4 breadth-first over devices, starting wave equal to the origin device's blast radius and dropping one per hop. Each device detonates with its own radius at power 3, after it is turned into cinderscar, so no tile detonates twice. `CHAIN_LIMIT` is 400 devices per call. The carry-over is not modelled.
+- A refused blast (guard) still consumes the device. Noted, not changed.
+- `heat.ts` uses the chain at heat 24. `water.ts` detonates a `charge_water` tile when rain lands on it (04 section 2).
+
+**04 acceptance tests 6 and 7 (code checks, not run).** Both are in `tests/unit/world-release-checks.test.ts`.
+- Test 6 (refill): the code already matches. Eligible hollows fill with probability 0.7 per run, an inland hollow never fills, and a rain drop fills at once. Only the check was added.
+- Test 7 (fire pacing): the code already matches. No spread before age 40, extinguish chance `0.12 + 0.3 * age / 500` after age 100, and everything out by 500. Only the check was added.
+- The same file also holds 01 section 14 tests 1, 4, 6 and 7, plus 04 tests 2 and 5, as code checks.
+
+**Input (`src/ui/input.ts`, `src/app/main.ts`).**
+- Hold-to-raise: with a brush armed, a primary-button or touch press that stays still repeats `onHold` after 150 ms and then every 100 ms (2 ticks). A held press does not also tap on release. Spec 04 section 1.1 says burst brushes repeat every 10 ticks. This pass repeats every 2 ticks for all brushes.
+- Long-press: 500 ms still with no tool armed calls `onLongPress`, which reads the tile into the status line marked "Held:". The query carries only elevation and ground, so the detail is no richer than a tap. Richer detail needs a protocol change.
+- Double-tap: with no tool armed, a single tap waits 300 ms for a second tap within 24 px. A double-tap zooms the camera in 2x on that point. Browser double-tap zoom stays off through the existing `touch-action`.
+- Second finger on a stroke: the stroke ends and `onStrokeUndo` fires. Undo itself is cut. It needs a per-stroke journal in the sim, and `sim.ts`, `worker.ts` and `protocol.ts` are outside the touch set. The stroke stays painted, and the status line says undo is not available yet.
+- Tap timing and slop are unchanged. A press with a tool armed still taps immediately.
+
+**Not done.** Undo (see above). Tree, plant, fungus, mineral and structure counters. `island.formed`. The 512 device warning. Titan. Passing `power` from `powers/` and `weather.ts`. Calling the connectivity scheduler from `Sim.runTerrain`.

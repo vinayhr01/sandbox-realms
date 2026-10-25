@@ -1,5 +1,5 @@
-import { GROUND_BY_ELEVATION, G, ground } from '../content/grounds.ts';
-import { DEFAULT_SIZE_STEP, SIZE_UNIT } from '../shared/constants.ts';
+import { GROUND_BY_ELEVATION, G, ground, type GroundLayer } from '../content/grounds.ts';
+import { DEFAULT_SIZE_STEP, PARCEL_SHIFT, PATCH_SHIFT, SIZE_UNIT } from '../shared/constants.ts';
 import { hash3 } from '../shared/rng.ts';
 import { SparseSet } from './sparse-set.ts';
 
@@ -10,6 +10,41 @@ export const FLAG = {
   edgeOfRealm: 1 << 2,
   hasFlora: 1 << 4,
 } as const;
+
+/** Bits of `patchDirty` (01 section 12.1). */
+export const PATCH_DIRTY = {
+  render: 1 << 0,
+  connectivity: 1 << 1,
+  minimap: 1 << 2,
+} as const;
+
+/**
+ * Per-Parcel counters (01 section 2), kept by the mutators. Tree, plant, fungus, mineral and
+ * structure counts are not kept here yet: flora kinds are looked up in sim/flora.ts, which this
+ * release does not change, so only the total flora count is maintained.
+ */
+export interface ParcelCounters {
+  /** Tiles on a Water-layer ground (sea and hollows-with-sea are counted by layer, hollows are Land). */
+  liquidTiles: Uint16Array;
+  /** Tiles on a Land-layer ground. */
+  groundTiles: Uint16Array;
+  /** Tiles on a Molten-layer ground. */
+  lavaCount: Uint16Array;
+  /** Burning tiles (flags bit burning). */
+  fireCount: Uint16Array;
+  /** Tiles carrying any flora. */
+  floraCount: Uint16Array;
+}
+
+function newCounters(n: number): ParcelCounters {
+  return {
+    liquidTiles: new Uint16Array(n),
+    groundTiles: new Uint16Array(n),
+    lavaCount: new Uint16Array(n),
+    fireCount: new Uint16Array(n),
+    floraCount: new Uint16Array(n),
+  };
+}
 
 /** Hollow ground (pits) and the sea band each one refills to. */
 const HOLLOW_FOR_SEA: Readonly<Record<number, number>> = { [G.deepmere]: G.dug_deepmere, [G.midmere]: G.dug_midmere, [G.shoal]: G.dug_shoal };
@@ -38,7 +73,17 @@ export class Realm {
   readonly floraSince: Uint32Array;
   /** Tick before which the tile may not re-seed flora after a grazer cleared it (TUNE regrowDelay). */
   readonly floraBlockedUntil: Uint32Array;
+  /** Land-component ids used by worldgen and culture (realm.region, not the connectivity layer). */
   readonly region: Uint32Array;
+  /** Connectivity region id per tile (01 section 11): (patchId << 8) | local index; see connectivity.ts. */
+  readonly connRegion: Uint32Array;
+  /** Per-Patch dirty bits (PATCH_DIRTY). */
+  readonly patchDirty: Uint8Array;
+  /** Patches whose connectivity the scheduler must rebuild (01 section 10). */
+  readonly connDirty: Set<number> = new Set<number>();
+  readonly patchesPerAxis: number;
+  readonly parcelsPerAxis: number;
+  readonly parcel: ParcelCounters;
 
   readonly burning: SparseSet;
   readonly molten: SparseSet;
@@ -71,6 +116,11 @@ export class Realm {
     this.floraSince = new Uint32Array(n);
     this.floraBlockedUntil = new Uint32Array(n);
     this.region = new Uint32Array(n);
+    this.connRegion = new Uint32Array(n);
+    this.patchesPerAxis = this.side >> PATCH_SHIFT;
+    this.parcelsPerAxis = this.side >> PARCEL_SHIFT;
+    this.patchDirty = new Uint8Array(this.patchesPerAxis * this.patchesPerAxis);
+    this.parcel = newCounters(this.parcelsPerAxis * this.parcelsPerAxis);
     this.burning = new SparseSet(n);
     this.molten = new SparseSet(n);
     this.heated = new SparseSet(n);
@@ -93,6 +143,8 @@ export class Realm {
       this.flags[y * this.side] = (this.flags[y * this.side] ?? 0) | FLAG.edgeOfRealm;
       this.flags[y * this.side + this.side - 1] = (this.flags[y * this.side + this.side - 1] ?? 0) | FLAG.edgeOfRealm;
     }
+    this.recountParcels();
+    this.markAllConnectivity();
   }
 
   get tileCount(): number {
@@ -101,6 +153,104 @@ export class Realm {
 
   inBounds(x: number, y: number): boolean {
     return x >= 0 && y >= 0 && x < this.side && y < this.side;
+  }
+
+  /** Patch id of tile (x, y): `pi = py * (side/16) + px` (01 section 2). */
+  patchAt(x: number, y: number): number {
+    return (y >> PATCH_SHIFT) * this.patchesPerAxis + (x >> PATCH_SHIFT);
+  }
+
+  /** Parcel id of tile (x, y): `ci = cy * (side/8) + cx` (01 section 2). */
+  parcelAt(x: number, y: number): number {
+    return (y >> PARCEL_SHIFT) * this.parcelsPerAxis + (x >> PARCEL_SHIFT);
+  }
+
+  /** Patch id of tile index i. */
+  patchOf(i: number): number {
+    const x = i % this.side;
+    return this.patchAt(x, (i - x) / this.side);
+  }
+
+  /** Parcel id of tile index i. */
+  parcelOf(i: number): number {
+    const x = i % this.side;
+    return this.parcelAt(x, (i - x) / this.side);
+  }
+
+  /** Counters recomputed from the arrays (01 section 14 test 4 compares against the incremental ones). */
+  computeParcelCounters(): ParcelCounters {
+    const c = newCounters(this.parcelsPerAxis * this.parcelsPerAxis);
+    for (let i = 0; i < this.tileCount; i++) {
+      const p = this.parcelOf(i);
+      const layer = ground(this.ground[i] ?? 0).layer;
+      if (layer === 'water') c.liquidTiles[p] = (c.liquidTiles[p] ?? 0) + 1;
+      else if (layer === 'land') c.groundTiles[p] = (c.groundTiles[p] ?? 0) + 1;
+      else if (layer === 'molten') c.lavaCount[p] = (c.lavaCount[p] ?? 0) + 1;
+      if (this.hasFlag(i, FLAG.burning)) c.fireCount[p] = (c.fireCount[p] ?? 0) + 1;
+      if ((this.flora[i] ?? 0) !== 0) c.floraCount[p] = (c.floraCount[p] ?? 0) + 1;
+    }
+    return c;
+  }
+
+  /** Replaces the incremental counters with a full recount (after bulk writes, and at construction). */
+  recountParcels(): void {
+    const c = this.computeParcelCounters();
+    this.parcel.liquidTiles.set(c.liquidTiles);
+    this.parcel.groundTiles.set(c.groundTiles);
+    this.parcel.lavaCount.set(c.lavaCount);
+    this.parcel.fireCount.set(c.fireCount);
+    this.parcel.floraCount.set(c.floraCount);
+  }
+
+  /** True when the incremental counters equal a fresh recount (01 section 14 test 4). */
+  parcelCountersAgree(): boolean {
+    const c = this.computeParcelCounters();
+    const pairs: [Uint16Array, Uint16Array][] = [
+      [c.liquidTiles, this.parcel.liquidTiles],
+      [c.groundTiles, this.parcel.groundTiles],
+      [c.lavaCount, this.parcel.lavaCount],
+      [c.fireCount, this.parcel.fireCount],
+      [c.floraCount, this.parcel.floraCount],
+    ];
+    return pairs.every(([a, b]) => a.length === b.length && a.every((v, k) => v === b[k]));
+  }
+
+  /** Adds `delta` to the counter of a Ground layer in one Parcel. */
+  private bumpLayer(p: number, layer: GroundLayer, delta: number): void {
+    if (layer === 'water') this.parcel.liquidTiles[p] = (this.parcel.liquidTiles[p] ?? 0) + delta;
+    else if (layer === 'land') this.parcel.groundTiles[p] = (this.parcel.groundTiles[p] ?? 0) + delta;
+    else if (layer === 'molten') this.parcel.lavaCount[p] = (this.parcel.lavaCount[p] ?? 0) + delta;
+  }
+
+  /**
+   * Marks the Patch of tile i and its eight neighbour Patches connectivity-dirty (01 section 10).
+   * The neighbours are needed because a corner tile can change a diagonal link in a Patch next door.
+   */
+  markConnectivity(i: number): void {
+    const x = i % this.side;
+    const y = (i - x) / this.side;
+    const px = x >> PATCH_SHIFT;
+    const py = y >> PATCH_SHIFT;
+    const ppa = this.patchesPerAxis;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        const qx = px + dx;
+        const qy = py + dy;
+        if (qx < 0 || qy < 0 || qx >= ppa || qy >= ppa) continue;
+        const q = qy * ppa + qx;
+        this.connDirty.add(q);
+        this.patchDirty[q] = (this.patchDirty[q] ?? 0) | PATCH_DIRTY.connectivity;
+      }
+    }
+  }
+
+  /** Marks every Patch connectivity-dirty (generation, load, bulk writes). */
+  markAllConnectivity(): void {
+    const count = this.patchesPerAxis * this.patchesPerAxis;
+    for (let p = 0; p < count; p++) {
+      this.connDirty.add(p);
+      this.patchDirty[p] = (this.patchDirty[p] ?? 0) | PATCH_DIRTY.connectivity;
+    }
   }
 
   /**
@@ -131,9 +281,17 @@ export class Realm {
 
   /** Sets the ground id and keeps the sparse sets in step (molten, slime, hollow, heated). */
   setGround(i: number, id: number): void {
-    if (this.ground[i] === id) return;
+    const prev = this.ground[i] ?? 0;
+    if (prev === id) return;
     this.ground[i] = id;
     const layer = ground(id).layer;
+    const prevLayer = ground(prev).layer;
+    if (prevLayer !== layer) {
+      const p = this.parcelOf(i);
+      this.bumpLayer(p, prevLayer, -1);
+      this.bumpLayer(p, layer, 1);
+      this.markConnectivity(i);
+    }
     if (layer === 'molten') this.molten.add(i);
     else this.molten.remove(i);
     if (layer === 'slime') this.slime.add(i);
@@ -157,6 +315,8 @@ export class Realm {
     if (bit === FLAG.burning) {
       if (on) this.burning.add(i);
       else this.burning.remove(i);
+      const p = this.parcelOf(i);
+      this.parcel.fireCount[p] = (this.parcel.fireCount[p] ?? 0) + (on ? 1 : -1);
     }
     if (bit === FLAG.frozen) {
       if (on) this.frozen.add(i);
@@ -184,8 +344,13 @@ export class Realm {
   }
 
   setFlora(i: number, kind: number, since: number): void {
+    const before = this.flora[i] ?? 0;
     this.flora[i] = kind;
     this.floraSince[i] = since;
+    if ((before !== 0) !== (kind !== 0)) {
+      const p = this.parcelOf(i);
+      this.parcel.floraCount[p] = (this.parcel.floraCount[p] ?? 0) + (kind !== 0 ? 1 : -1);
+    }
     this.setFlag(i, FLAG.hasFlora, kind !== 0);
   }
 
@@ -193,11 +358,14 @@ export class Realm {
     const row = Math.floor(i / this.side);
     if (row < this.minRow) this.minRow = row;
     if (row > this.maxRow) this.maxRow = row;
+    const p = this.patchOf(i);
+    this.patchDirty[p] = (this.patchDirty[p] ?? 0) | PATCH_DIRTY.render | PATCH_DIRTY.minimap;
   }
 
   markAllDirty(): void {
     this.minRow = 0;
     this.maxRow = this.side - 1;
+    this.patchDirty.fill(PATCH_DIRTY.render | PATCH_DIRTY.minimap);
   }
 
   /** Returns the dirty row range and clears it, or null when nothing changed. */
@@ -223,6 +391,9 @@ export class Realm {
       const g = this.ground[i] ?? 0;
       if (g === G.dug_deepmere || g === G.dug_midmere || g === G.dug_shoal) this.hollow.add(i);
     }
+    // Bulk writes bypass the mutators, so the counters and connectivity are rebuilt from scratch.
+    this.recountParcels();
+    this.markAllConnectivity();
   }
 }
 

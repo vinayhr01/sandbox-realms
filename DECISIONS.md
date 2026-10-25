@@ -1342,3 +1342,18 @@ Scope: the 51 custom traits that the Customs and roads release left as data (11 
 **Persisted changes.** None. No new saved field: mood, buildings, rulers and garrison records keep their existing shapes. So no chronicle check was added; the culture and dominion checks already cover the shapes these hooks read.
 
 **Not verified.** Everything above. Expect the golden hash and the culture and settlement unit tests to fail: the house limit, centre-first placement, custom draws and talk outcomes all change state. A run should show a density hamlet stopping houses at its limit, and a `ringPlan` hamlet with 20 parcels placing on ring parcels or falling back.
+
+## Batch fix round 5
+
+Scope: failing test `tests/unit/settlements.test.ts` "a well-supplied hamlet grows and builds over three sim years". Fixed by code reading only; no tests were run and GOLDEN_HASH is untouched.
+
+**Trace.** The test uses `createHamlet(parcel, 6)` with food 5000, wood 500, stone 300, gold 0, no custom (base rules), over 108 growth steps.
+- First step: no house stands, so `buildChoices` puts `hearth_fire` first among the specials (no needs, no gates, zero cost). `placeBuilding` takes a buildable 2x2 anchor in the home parcel, nearest the centre.
+- Checked gates: wood, stone and gold (cost 0 for hearth); house limit (`housesMax` is 1 plus 3 once hearth stands, not reached); lot and zone (base rules have neither); road check (`wayworn` tiles come only from `roads.ts`, which runs only for `roadworks` hamlets). None of them blocks the first build.
+- So no build happens only when the home parcel has no 2x2 block of land with no flora and no road tile. Reading cannot settle that for seed 31. Folk growth (line 51) needs housing from the first builds, so it fails the same way.
+
+**Verdict.** No code defect found: the round 4 rules do not stop a valid build on the base-rule path. The test is not shown to be stale: its assertions (folk grows, buildings > 0) match the current code. The reported "got false" on a builds check matches no boolean assertion in the file; the closest is `expect(h.buildings.length).toBeGreaterThan(0)` (line 52).
+
+**Changes.** None to `src/sim/settlements/` or to the test. This entry only.
+
+**Open.** One run of the test is needed to see which assertion fails and the flora and land count of the chosen parcel for seed 31. If the parcel has no free 2x2 land, the cause is parcel choice in the test setup (or worldgen flora), not `hamlet.ts`; the fix then belongs in the setup, which should pick a parcel with room.

@@ -5,7 +5,19 @@ import { SS_TICKS } from '../clock.ts';
 import { PARCEL } from '../../shared/constants.ts';
 import type { Hamlet } from './hamlet.ts';
 import type { LevySex } from './custom-rules.ts';
-import { GARRISON_COMPANY, LEADER_WARFARE, RECRUIT_COST_GOLD, SOLDIER_GOLD_GATE, SOLDIER_WAGE_GOLD, WAGE_PERIOD, soldierTimer, type GarrisonRecord, type GarrisonSave } from './garrison.ts';
+import {
+  LEADER_ARMY_BONUS,
+  LEADER_WARFARE,
+  RECRUIT_COST_GOLD,
+  SOLDIER_GOLD_GATE,
+  SOLDIER_OVER_LIMIT_TIMER,
+  SOLDIER_WAGE_GOLD,
+  WAGE_PERIOD,
+  soldierSlots,
+  soldierTimer,
+  type GarrisonRecord,
+  type GarrisonSave,
+} from './garrison.ts';
 
 /**
  * Garrison pass (09 section 8, 10 section 8): each hamlet with a built garrison recruits soldiers from its owner's dominion
@@ -59,20 +71,31 @@ function drawOne(sim: Sim, dominionId: number): number {
   return drawToGarrison(d, army, 1);
 }
 
-/** Living adult Folk of the levied sex standing in the hamlet's parcels. Draws no rng. */
-function levyRoom(sim: Sim, hamlet: Hamlet, levy: LevySex): number {
+/** Living Folk standing in the hamlet's parcels that pass `want` (a slot test). Draws no rng. */
+function folkIn(sim: Sim, hamlet: Hamlet, want: (slot: number) => boolean): number {
   const s = sim.beings.store;
   const perAxis = sim.realm.side / PARCEL;
-  const female = levy === 'female' ? 1 : 0;
   let n = 0;
   for (let k = 0; k < s.size; k++) {
     const slot = s.at(k);
-    if (!sim.beings.species(s.species[slot] ?? 0).folk || (s.baby[slot] ?? 0) !== 0) continue;
-    if ((s.female[slot] ?? 0) !== female) continue;
+    if (s.alive[slot] !== 1 || !sim.beings.species(s.species[slot] ?? 0).folk || !want(slot)) continue;
     const p = Math.floor((s.y[slot] ?? 0) / PARCEL) * perAxis + Math.floor((s.x[slot] ?? 0) / PARCEL);
     if (hamlet.parcels.has(p)) n++;
   }
   return n;
+}
+
+/** Living adult Folk of the levied sex standing in the hamlet's parcels. Draws no rng. */
+function levyRoom(sim: Sim, hamlet: Hamlet, levy: LevySex): number {
+  const s = sim.beings.store;
+  const female = levy === 'female' ? 1 : 0;
+  return folkIn(sim, hamlet, (slot) => (s.baby[slot] ?? 0) === 0 && (s.female[slot] ?? 0) === female);
+}
+
+/** Living adult Folk (not children) standing in the hamlet's parcels: the `adults` of 09 section 8. Draws no rng. */
+function adultsIn(sim: Sim, hamlet: Hamlet): number {
+  const s = sim.beings.store;
+  return folkIn(sim, hamlet, (slot) => (s.baby[slot] ?? 0) === 0);
 }
 
 /**
@@ -87,16 +110,18 @@ function payWages(hamlet: Hamlet, rec: GarrisonRecord): void {
   rec.soldiers = payable;
 }
 
-/** Returns a garrison's soldiers to the dominion they came from, when that dominion still exists. */
-function release(sim: Sim, rec: GarrisonRecord): void {
-  if (rec.soldiers <= 0 || dominionsOfSim(sim).length === 0) {
-    rec.soldiers = 0;
-    return;
+/**
+ * Returns `n` of a garrison's soldiers (all by default) to the dominion they came from, when that dominion still exists.
+ * Soldiers of a dominion that is gone leave the game.
+ */
+function release(sim: Sim, rec: GarrisonRecord, n: number = rec.soldiers): void {
+  const k = Math.max(0, Math.min(n, rec.soldiers));
+  if (k > 0 && dominionsOfSim(sim).length > 0) {
+    const s = dominionState(sim);
+    const d = s.dominions.find((x) => x.id === rec.dominion);
+    if (d) returnFromGarrison(d, s.armies.find((a) => a.dominionId === rec.dominion), k);
   }
-  const s = dominionState(sim);
-  const d = s.dominions.find((x) => x.id === rec.dominion);
-  if (d) returnFromGarrison(d, s.armies.find((a) => a.dominionId === rec.dominion), rec.soldiers);
-  rec.soldiers = 0;
+  rec.soldiers -= k;
 }
 
 /**
@@ -104,8 +129,11 @@ function release(sim: Sim, rec: GarrisonRecord): void {
  * - a record is made on first sight, with the halved soldier timer;
  * - a garrison that lost its building (or a hamlet that lost its garrison) returns its soldiers and drops the record;
  * - a change of owner returns the company to the old dominion; recruits then come from the new owner;
- * - the timer counts down; at or below 0, with gold above the gate and room in the company, one soldier is drawn from the
- *   owner's strength and the timer resets. A refused draw leaves the timer at or below 0 so the next pass tries again.
+ * - the wage day pays or deserts (payWages);
+ * - the timer counts down; at or below 0, a company over the hamlet's soldier slots (soldierSlots, adults x 0.35) releases
+ *   the surplus and the timer is set to 600; otherwise, with gold above the gate and room under the slots, one soldier is
+ *   drawn from the owner's strength and the timer resets. A refused draw leaves the timer at or below 0 so the next pass
+ *   tries again.
  */
 export function garrisonStep(
   sim: Sim,
@@ -147,7 +175,16 @@ export function garrisonStep(
     }
     // Clamped at 0: a full company or a refused draw holds the timer there, so it never falls without bound.
     rec.timer = Math.max(0, rec.timer - PASS_TICKS);
-    if (rec.timer > 0 || rec.soldiers >= GARRISON_COMPANY || rec.dominion === UNOWNED) return;
+    if (rec.timer > 0) return;
+    // Soldier limit (09 section 8 gate): `soldiersNow > soldierSlots` releases the surplus to the dominion, then the timer
+    // is set to 600 (not halved). Slots are 0 without the `standing_armies` rule (10 section 8).
+    const slots = sim.rules.isOn('standing_armies') ? soldierSlots(adultsIn(sim, hamlet), LEADER_WARFARE, LEADER_ARMY_BONUS) : 0;
+    if (rec.soldiers > slots) {
+      release(sim, rec, rec.soldiers - slots);
+      rec.timer = SOLDIER_OVER_LIMIT_TIMER;
+      return;
+    }
+    if (rec.soldiers >= slots || rec.dominion === UNOWNED) return;
     if (hamlet.gold <= SOLDIER_GOLD_GATE) return;
     // Levy (11 section 9.1, 09 section 8 soldier gate): only folk of the levied sex may serve, so a recruit needs one more
     // such adult in the hamlet than the company holds.
@@ -163,7 +200,7 @@ export function garrisonStep(
 
 /**
  * Replaces the garrison records with a snapshot (Chronicle load). Checks the hamlet index against the hamlet count and
- * the soldier count against the company size first.
+ * the soldier count to a whole number first. A count over the hamlet's soldier slots loads as is; the next pass releases it.
  */
 export function restoreGarrisons(host: object, list: readonly GarrisonSave[], hamletCount: number): void {
   const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
@@ -171,7 +208,7 @@ export function restoreGarrisons(host: object, list: readonly GarrisonSave[], ha
   for (const r of list) {
     if (!isInt(r.hamlet) || r.hamlet < 0 || r.hamlet >= hamletCount || records.has(r.hamlet)) throw new Error('hamlet state: garrison hamlet is not valid');
     if (!isInt(r.dominion) || r.dominion < 0 || r.dominion > 255) throw new Error('hamlet state: garrison dominion is not valid');
-    if (!isInt(r.soldiers) || r.soldiers < 0 || r.soldiers > GARRISON_COMPANY) throw new Error('hamlet state: garrison soldiers are not valid');
+    if (!isInt(r.soldiers) || r.soldiers < 0) throw new Error('hamlet state: garrison soldiers are not valid');
     if (typeof r.timer !== 'number' || !Number.isFinite(r.timer)) throw new Error('hamlet state: garrison timer is not valid');
     const wage = r.wage ?? WAGE_PERIOD;
     if (typeof wage !== 'number' || !Number.isFinite(wage)) throw new Error('hamlet state: garrison wage is not valid');

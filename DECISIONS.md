@@ -1711,3 +1711,29 @@ Scope: documentation and metadata to close the release set for version 0.1.0. De
 **5. docs/QA-LOG.md.** New entry "Release close 4" with every test type marked not run. The earlier "Not yet run" entry is kept.
 
 **6. Open after this close.** Golden hash re-baseline (since Beings build 3 and later sections). All test types. Legal review (owner). Trademark, name audit, look-and-feel review, store and age-rating review. Project licence choice. Firefox and device checks.
+
+## Garrison close 4
+
+Scope: the last open items of the garrison work: the 600-tick reset and release over the soldier limit, soldiers per folk slot, leader warfare, and the Barracks question. Files: `src/sim/settlements/garrison.ts` (constants, `soldierSlots`), `src/sim/settlements/garrison-adapter.ts` (adult count, slot limit, release over limit, restore check), `src/sim/chronicle.ts` (garrisons section checks), and this log. `src/sim/dominions/armies.ts` is unchanged (its `drawToGarrison` and `returnFromGarrison` seam already does what the release needs). `src/sim/settlements/catalogue.ts` is unchanged (no Barracks row). `GOLDEN_HASH`, `SCHEMA_VERSION` and `FORMAT_VERSION` are not edited. Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). Types were checked by reading.
+
+**Spec reference.** The spec does not name a `checkArmy` function. The soldier quota is 09 section 8 (item 7 and acceptance test 6), and the soldier limit check is 10 section 8 `checkSoldierLimit`. The rules below follow those two sections.
+
+**Soldiers per folk slot (built).** `soldierSlots(adults, warfare, armyBonus)` = `floor(adults x armyFactor)` with `armyFactor = 0.35 + armyBonus + warfare x 0.02`, and 0 while adults <= 15 (09 section 8 acceptance 6). The rule `standing_armies` off gives 0 slots. `adults` is the living Folk with no baby flag in the hamlet's parcels (`adultsIn`). A garrison draws only while its company is under the slots. This replaces the fixed company of 5 (`GARRISON_COMPANY`, TUNE), which is removed. The spec's per-folk slot count is a quota of the hamlet, and the garrison is the hamlet's only soldier source in the sim, so the quota is applied to the company.
+
+**600-tick reset and release over the limit (built).** In a garrison pass, when the timer is at or below 0 and the company is over the slots, the surplus returns to the dominion (`release` with a count, which uses `returnFromGarrison`) and the timer is set to `SOLDIER_OVER_LIMIT_TIMER` = 600. The 600 is not halved, as the spec writes `timers.soldier = 600`. The reading that the release belongs in the gate pass (at timer zero, before the gold gate) is an interpretation of the order in 09 section 8.
+
+**Leader warfare (not closed).** The spec's `leader.warfare` and `leader.armyBonus` have no default value in 09 or 10, and the sim has no hamlet leader Being (`tax.ts`: "There are no rulers or hamlet leaders as entities"). So the term stays 0 as `LEADER_WARFARE` and `LEADER_ARMY_BONUS`, and the formula takes both as arguments. Wiring it needs a leader entity with a warfare stat; that is outside this touch set. Until then the soldier timer is `300 - 0`, halved to 150, and the slot factor is 0.35.
+
+**Barracks (decided: not a separate building; no catalogue row).** 09 section 7 lists `Barracks` and `Armory` only as draft names that the `garrison` row replaces ("Barracks, Armory" in the table). `Barracks` is not in the 18c roster (60 buildings) and the spec gives it no cost or footprint, so there is nothing to build. The `garrison` row (6 stone, 14 gold, 3x3) is the Barracks. `Armory` is 18e `arsenal`, which is cut in the catalogue.
+
+**Chronicle.** The garrisons section now checks `hamlet`, `dominion` and `soldiers` as whole numbers (indexes and count at or above 0), and `timer` and `wage` as finite. The soldier count may be above the slots at load: the next pass releases the surplus. `restoreGarrisons` drops the upper bound of 5 for the same reason. No new saved field, so no schema or format bump.
+
+**Behaviour changes (for review).**
+- Garrisons now hold up to the slot count, not 5. A hamlet with 16 adults gets 5 slots, with 40 adults 14. A hamlet with 15 or fewer adults, or with `standing_armies` off, gets no soldiers from its garrison.
+- `levyRoom` now skips dead Beings (`alive !== 1`), as the shared `folkIn` helper does. This only matters if the store keeps dead slots, which was not checked.
+- The shared `folkIn` helper replaces the loop in `levyRoom`; the levy test is unchanged.
+
+**Open items.**
+- 18c gives the garrison the note "Raises army slots", and 18e gives the bastion "+10 army slots". 09 section 8 has no building term in the slot quota, so these are not built. Revisit with the slot rule of 18c.
+- Leader warfare and armyBonus: see above.
+- The golden run is not re-baselined. A garrison that is built in a golden run now draws soldiers only above 15 adults, which the golden path does not reach (no Folk), so the golden hash should not move from this change alone. Not verified.

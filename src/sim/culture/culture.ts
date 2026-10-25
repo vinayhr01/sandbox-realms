@@ -379,6 +379,19 @@ export function harmonyBonus(state: CultureState, group: number, stat: HarmonySt
 }
 
 /**
+ * The tenet ids of every creed a group holds, each once (11 section 4.2: the spell and rite tenets, and bloodSecrecy, are
+ * read from here). Reads only; draws no rng.
+ */
+export function tenetsOfGroup(state: CultureState, group: number): string[] {
+  const out: string[] = [];
+  for (const c of state.creeds) {
+    if (!c.holders.has(group)) continue;
+    for (const t of c.tenets ?? []) if (!out.includes(t)) out.push(t);
+  }
+  return out;
+}
+
+/**
  * Founds a dialect for `group` (11 sections 2 and 3, newDialect). The lexicon starts empty and the birth traits are not
  * built (the dialect trait lists). The phonology is drawn when `worldSeed` is given (11 section 6.5, phonology.ts), and is
  * left unset while the inventories are not authored. The creator is the group and the birth is `tick`. Refused (null) when

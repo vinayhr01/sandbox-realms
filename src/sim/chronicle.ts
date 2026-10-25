@@ -30,6 +30,7 @@ import { fnv1a } from '../shared/rng.ts';
 import { QUAKE_SHAPE_COUNT } from './terrain/quake.ts';
 import { QUAKE_REACH, restoreTerrain, snapshotTerrain, terrainHasState, type FloraJobSave, type TerrainSave } from './terrain/save.ts';
 import { FLORA_SPREAD_KINDS } from './terrain/state.ts';
+import { snapshotSpells, restoreSpells, type SpellSave } from './spells.ts';
 
 /** FNV-1a over raw bytes (the same hash as Sim.stateHash); re-exported for the save tests and tools. */
 export { fnv1a };
@@ -98,9 +99,9 @@ const HEADER_BYTES = 16;
 export const MIN_SIZE_STEP = 2;
 export const MAX_SIZE_STEP = 9;
 
-const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14, dominions: 15, hamlets: 16, strains: 17, clans: 18, items: 19, pacts: 20, boats: 21, terrain: 22 } as const;
+const TAG = { clock: 1, realm: 2, ages: 3, rules: 4, stats: 5, beings: 6, streams: 7, runners: 8, combat: 9, effects: 10, weather: 11, culture: 12, calamity: 13, lifetime: 14, dominions: 15, hamlets: 16, strains: 17, clans: 18, items: 19, pacts: 20, boats: 21, terrain: 22, spells: 23 } as const;
 /** Sections a save may lack (written by later builds); absent means the empty default. */
-const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity, TAG.lifetime, TAG.dominions, TAG.hamlets, TAG.clans, TAG.items, TAG.pacts, TAG.boats, TAG.terrain];
+const OPTIONAL_TAGS: readonly number[] = [TAG.culture, TAG.calamity, TAG.lifetime, TAG.dominions, TAG.hamlets, TAG.clans, TAG.items, TAG.pacts, TAG.boats, TAG.terrain, TAG.spells];
 /** Vent kinds (terrain/state.ts Vent) and quake modes (terrain/state.ts Quake) a terrain section may name. */
 const VENT_KINDS: readonly string[] = ['volcano', 'water', 'acid'];
 const QUAKE_MODES: readonly string[] = ['lower', 'raise', 'small'];
@@ -426,6 +427,10 @@ export function encodeChronicle(sim: Sim): Uint8Array {
   // Optional terrain section (tag 22, 04 sections 7.2, 9 and 10): vents, the quake in progress, the fissure shape cycle and
   // the flora spread jobs (expiry tick, queue, cursor). Written only when one of them holds state.
   if (terrainHasState(sim)) section(body, TAG.terrain, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(snapshotTerrain(sim)))));
+  // Optional spell section (tag 23, 08 section 9.1): the aether of living casters. Written only once a caster has an entry,
+  // so a realm without casting saves exactly as before.
+  const spellSnap = snapshotSpells(sim);
+  if (spellSnap) section(body, TAG.spells, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(spellSnap))));
 
   const bodyBytes = body.finish();
   const header = new Writer();
@@ -567,6 +572,9 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
   const terrainBytes = sections.get(TAG.terrain);
   if (terrainBytes) restoreTerrain(sim, checkTerrain(parseJson<unknown>(decoder, terrainBytes, 'terrain'), realm.side));
 
+  const spellBytes = sections.get(TAG.spells);
+  if (spellBytes) restoreSpells(sim, checkSpells(parseJson<unknown>(decoder, spellBytes, 'spells')));
+
   realm.rebuildSets();
   realm.markAllDirty();
   sim.beings.rebuildBuckets();
@@ -583,6 +591,14 @@ function parseJson<T>(decoder: TextDecoder, payload: Uint8Array | undefined, nam
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isFiniteNumber = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+/** Checks the spell section (tag 23): each row is a being key, an aether value and the tick it was set, all whole and non-negative. */
+function checkSpells(raw: unknown): SpellSave {
+  const ok = (row: unknown): row is [number, number, number] =>
+    Array.isArray(row) && row.length === 3 && row.every((v) => isFiniteNumber(v) && v >= 0 && Number.isInteger(v));
+  if (!isRecord(raw) || !Array.isArray(raw.aether) || !raw.aether.every(ok)) throw new Error('chronicle: spell records are not valid');
+  return { aether: raw.aether.map((row: [number, number, number]): [number, number, number] => [row[0], row[1], row[2]]) };
+}
 
 /** Checks the ages section: eight known slot ids, a slot index in range, finite timing fields. */
 function checkAges(raw: unknown): AgeState {

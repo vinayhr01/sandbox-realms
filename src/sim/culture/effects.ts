@@ -9,6 +9,10 @@
  * splitHooksOf). bookLovers and eagerReaders are applied in readBook (the `read` decision, beings close 5). The child
  * flag reaches jobs through the settlements workforce (childMayWork). towerPride is read by the watchspire limit
  * (settlements/custom-rules.ts).
+ *
+ * Creed tenet readers (11 section 4.2, spells and rites close 14): creedTenetsOfSlot and creedSpellsOfSlot read the creed of
+ * the group a Being follows, and bloodSecrecy is read here (clan membership of the caster). The spell casting path is
+ * sim/spells.ts; the rite intrigues read tenetsOfGroup (culture.ts) from dominions/adapter.ts.
  */
 import type { Sim } from '../sim.ts';
 import { PARCEL, PATCH, YEAR_TICKS } from '../../shared/constants.ts';
@@ -16,9 +20,10 @@ import { addMood } from '../beings/social.ts';
 import { MAX_BEINGS } from '../beings/store.ts';
 import { vitalityRatio } from '../beings/trait-hooks.ts';
 import { CUSTOM_TRAIT_BY_ID } from '../../content/customs.ts';
+import { SPELL_BY_ID } from '../../content/spells.ts';
 import { dominionOwnerOf, dominionsOfSim } from '../dominions/adapter.ts';
 import { hamletsOf } from '../settlements/adapter.ts';
-import { addCustomTrait, addXp, customOfGroup, readBookEffects, type Book } from './culture.ts';
+import { addCustomTrait, addXp, customOfGroup, readBookEffects, tenetsOfGroup, type Book } from './culture.ts';
 import { blocksConversion, blocksWar, childMayWork, CONVERT_CHANCE, CONVERT_HP_RATIO, MENTOR_XP, successionRuleOf } from './trait-rules.ts';
 
 const NONE: readonly string[] = [];
@@ -281,6 +286,32 @@ export function talkOutcome(sim: Sim, a: number, b: number, good: boolean): void
   gift(sim, b, a, tb, 'childShelter', true);
   gift(sim, a, b, ta, 'elderRespect', false);
   gift(sim, b, a, tb, 'elderRespect', false);
+}
+
+/** Tenet ids of the creeds the group a Being follows holds (groupOfSlot), or none. Draws no rng. */
+export function creedTenetsOfSlot(sim: Sim, slot: number): readonly string[] {
+  if (sim.culture.creeds.length === 0) return NONE;
+  const group = groupOfSlot(sim, slot);
+  return group === 0 ? NONE : tenetsOfGroup(sim.culture, group);
+}
+
+/** Whether a Being is a member of a clan: its strain is the clan's strain or was merged into it, and the clan is live. Draws no rng. */
+export function clanMemberOf(sim: Sim, slot: number): boolean {
+  const strain = sim.beings.store.strain[slot] ?? 0;
+  if (strain === 0) return false;
+  return sim.clans.list.some((c) => c.extinctTick < 0 && c.mergedInto < 0 && (c.strain === strain || c.absorbed.includes(strain)));
+}
+
+/**
+ * Spell ids a Being's creed grants (11 section 4.2: each `spell_<id>` tenet of its group's creeds, 08 section 9.2). Under
+ * bloodSecrecy only a clan member casts creed magic (11 section 4.2). A tenet naming no spell row is dropped. Draws no rng.
+ */
+export function creedSpellsOfSlot(sim: Sim, slot: number): string[] {
+  const tenets = creedTenetsOfSlot(sim, slot);
+  const spells = tenets.flatMap((t) => (t.startsWith('spell_') && SPELL_BY_ID.has(t.slice(6)) ? [t.slice(6)] : []));
+  if (spells.length === 0) return [];
+  if (tenets.includes('bloodSecrecy') && !clanMemberOf(sim, slot)) return [];
+  return spells;
 }
 
 /** Whether a being's custom lets it talk with animals (beastFriends, 11 section 9.1). */

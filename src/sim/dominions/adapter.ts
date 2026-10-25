@@ -22,6 +22,7 @@ import {
   type Intrigue,
   type IntrigueEnv,
   type IntrigueState,
+  type RiteHooks,
   type SplitHooks,
   type SplitKind,
 } from './intrigue.ts';
@@ -31,6 +32,7 @@ import { rankDominions, RANK_PERIOD_TICKS } from './rank.ts';
 import { hamletLoyalty, isHappy, loyaltyDue, LOYALTY_TASK_TICKS, type HamletLoyaltyFacts, type LoyaltyCache } from './loyalty.ts';
 import { captureStep, CAPTURE_STEP_TICKS, HAMLET_CAPTURE, type Capture, type CaptureFall } from './capture.ts';
 import { cultureYearly } from '../culture/adapter.ts';
+import { applyRite, riteAllowed } from '../culture/rites.ts';
 import { blockedWarMood, campaignMood, captureMood, convertLineageUnits, groupOfSlot, lineageHas, rulerInstalled, traitsOfGroup, warBlocked as warBlockedBy } from '../culture/effects.ts';
 import { addMood } from '../beings/social.ts';
 import { customOfGroup, foundCreed, foundDialect, harmonyBonus, sameMeta, splitCreed, splitCustom, splitDialect, type MetaBirth } from '../culture/culture.ts';
@@ -571,6 +573,7 @@ export function dominionsYearly(sim: Sim): void {
     hamlets: hamletCount,
     split: splitHooksOf(sim, s, settlements, hamletCount),
     found: foundHooksOf(sim, s, settlements),
+    rite: riteHooksOf(sim, s),
   };
   resolveIntrigues(ienv, s.intrigues);
   proposeIntrigues(ienv, s.intrigues);
@@ -1105,6 +1108,18 @@ function splitHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof
       }
       return made;
     },
+  };
+}
+
+/**
+ * Rite hooks of the creed rites (11 section 3; intrigue.ts RiteHooks). The gate and the world effect are in culture/rites.ts,
+ * which reads the dominion relations of this state. Draws only from the rites stream, when a rite runs.
+ */
+function riteHooksOf(sim: Sim, s: DominionState): RiteHooks {
+  const env = { relationOf: (a: number, b: number): 'peace' | 'tension' | 'war' => s.relations.get(a, b) };
+  return {
+    allowed: (kind, d) => riteAllowed(sim, env, kind, d),
+    apply: (kind, d) => applyRite(sim, env, kind, d),
   };
 }
 

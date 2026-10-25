@@ -114,6 +114,12 @@ export const STATUSES: readonly StatusDef[] = [
   // `outburst`: 2400 ticks (08 5.4). Grants the `outburst_action` decision (system.ts). Its source is `reflect` at mood below -70
   // (system.ts `start_outburst`, which applies it for 1200 ticks, 06 4.2). Its expiry mood `outburst_done` is run by sim.ts.
   S('outburst', 'Outburst', 120, {}),
+  // Spells and rites close 14 (18c section 5, 08 section 9.2, 11 section 3). Appended, so the codes above keep their numbers.
+  // `hushed`: 60 s (18c). Given by the hush_cast spell; a hushed Being casts nothing (spells.ts). No stat change.
+  S('hushed', 'Hushed', 60, {}),
+  // `spirited`: 120 s (18c). Given by the vigorFeast rite. 18c gives speed +10 and attack speed +2; the sim's pace is a
+  // multiplier, so speed x1.1 (TUNE) and the attack rate is not modelled.
+  S('spirited', 'Spirited', 120, { speed: 1.1 }),
 ];
 
 /**

@@ -53,6 +53,7 @@ import {
   type BreedMode,
 } from './trait-hooks.ts';
 import { assignPalette, palettesFor, rollVenerable, rollWildVariant, variantFxOf } from './variants.ts';
+import { slayerCredit, tryCast } from '../spells.ts';
 
 export type { BeingStore };
 
@@ -786,6 +787,8 @@ export function killBeing(sim: Sim, slot: number, cause: 'eaten' | 'starved' | '
     const ks = b.strains.get(s.strain[killer] ?? 0);
     if (ks) ks.counters.killed++;
   }
+  // Caster-slayer credit (06 section 7.5, 18b U-7): read while the victim's marks and creed still stand.
+  if (killer >= 0) slayerCredit(sim, killer, slot);
   b.bumpStrain(strainId, -1);
   s.kill(slot);
   sim.effects.clear(slot);
@@ -1261,6 +1264,8 @@ function startTarget(sim: Sim, slot: number): number {
 export function strike(sim: Sim, attacker: number, victim: number, fixed = 0): void {
   const b = sim.beings;
   const s = b.store;
+  // The blow pool of 08 section 2.1: a spell may replace the basic blow (spells.ts). A brawl stop blow (fixed) is never a spell.
+  if (fixed === 0 && tryCast(sim, attacker, victim)) return;
   // `fixed` > 0 replaces the computed damage (the brawl stop blow does 1, 08 section 2.5).
   const hit = fixed > 0 ? fixed : Math.max(1, Math.floor((s.mightA[attacker] ?? 1) * strikeScale(sim, attacker) * (1 - (s.platingA[victim] ?? 0) / 100)));
   b.stats.blows++;

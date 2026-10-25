@@ -1342,3 +1342,14 @@ Scope: the 51 custom traits that the Customs and roads release left as data (11 
 **Persisted changes.** None. No new saved field: mood, buildings, rulers and garrison records keep their existing shapes. So no chronicle check was added; the culture and dominion checks already cover the shapes these hooks read.
 
 **Not verified.** Everything above. Expect the golden hash and the culture and settlement unit tests to fail: the house limit, centre-first placement, custom draws and talk outcomes all change state. A run should show a density hamlet stopping houses at its limit, and a `ringPlan` hamlet with 20 parcels placing on ring parcels or falling back.
+
+## Batch fix round 5
+
+Fixes from the last round's type check and unit tests. Development only: fixed by code reading, with no test or tsc run in this batch. Behaviour is unchanged except item 3, which now enables the landmark and beacon powers.
+
+1. **OpinionContext optional properties (`src/sim/dominions/opinion.ts`).** `rulerOf` and `lens` now accept an explicit `undefined`, as `exactOptionalPropertyTypes` requires. intrigue.ts and pacts.ts forward the optional values unchanged, so their own types pick this up and they need no edit. Runtime values are the same.
+2. **Custom zone and lot rules (`src/sim/settlements/custom-rules.ts`).** The indexed lookups `ZONE_OF[zoneId]` and `LOT_OF[lotId]` are typed as possibly undefined. Each is now read into a local and assigned only when defined. The trait is found by the same table, so the lookup always succeeds and the result is the same.
+3. **SIM_HANDLERS (`src/ui/powerSupport.ts`).** `place_structure` is a live sim case (handlers.ts, the landmark and beacon powers, placed through landmarks.ts). It is added to the list, so those powers are enabled. The test in `tests/unit/ui-powers.test.ts` compares the sorted case list with the sorted list and was already right, so its expectation is unchanged.
+4. **Window test (`tests/unit/ui-windows.test.ts`).** `open_window` takes a full window id (win_* or list_*, as in src/app/main.ts and powerSupport.ts). The test checks `WINDOW_IDS.has(String(def.params['window']))` in place of the old `win_` prefix, which turned `win_rules` into `win_win_rules`.
+
+GOLDEN_HASH is not edited.

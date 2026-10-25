@@ -50,9 +50,9 @@ export interface OpinionContext {
   pacts: readonly { memberIds: readonly number[] }[];
   tick: number;
   /** Ruler stats of a dominion, or undefined without a living ruler (rulers.ts). Optional: without it the stand-in holds. */
-  rulerOf?: (dominionId: number) => RulerStats | undefined;
+  rulerOf?: ((dominionId: number) => RulerStats | undefined) | undefined;
   /** Custom and strain lens (DominionLens). Optional. */
-  lens?: DominionLens;
+  lens?: DominionLens | undefined;
 }
 
 /** The supreme dominion id (most strength, ties to the lower id), or -1. */

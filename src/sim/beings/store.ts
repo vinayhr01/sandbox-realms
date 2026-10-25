@@ -93,6 +93,8 @@ export class BeingStore {
   readonly shelledUntil: Uint32Array;
   /** 1 while the Being is rooted for its pregnancy (06 section 6.3 rooting): immovable until the sprout is born. Saved. */
   readonly rooted: Uint8Array;
+  /** Tick the `unnerved` flight ends (08 section 5.3): the 60-tick flee after a 100-tick roll. Not saved; 0 when none. */
+  readonly unnervedUntil: Uint32Array;
   /** Lover and best friend (06 section 4.4): partner slot and its generation at link time; -1 when none. Saved. */
   readonly loverWith: Int32Array;
   readonly loverGen: Uint32Array;
@@ -168,6 +170,7 @@ export class BeingStore {
     this.aggroUntil = new Uint32Array(capacity * AGGRO_SLOTS);
     this.shelledUntil = new Uint32Array(capacity);
     this.rooted = new Uint8Array(capacity);
+    this.unnervedUntil = new Uint32Array(capacity);
     this.loverWith = new Int32Array(capacity).fill(-1);
     this.loverGen = new Uint32Array(capacity);
     this.friendWith = new Int32Array(capacity).fill(-1);
@@ -239,6 +242,7 @@ export class BeingStore {
     this.aggroUntil.fill(0, slot * AGGRO_SLOTS, slot * AGGRO_SLOTS + AGGRO_SLOTS);
     this.shelledUntil[slot] = 0;
     this.rooted[slot] = 0;
+    this.unnervedUntil[slot] = 0;
     this.loverWith[slot] = -1;
     this.loverGen[slot] = 0;
     this.friendWith[slot] = -1;

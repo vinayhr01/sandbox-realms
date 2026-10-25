@@ -93,6 +93,8 @@ export interface BoatHost {
   readonly realm: Realm;
   readonly tick: number;
   rng(name: string): Rng;
+  /** A trading boat's cannon shot from (x0, y0) toward (x1, y1) (siege_ball, 08 3.3). Optional: hosts without projectiles skip it. */
+  volley?(x0: number, y0: number, x1: number, y1: number): void;
 }
 
 const states = new WeakMap<object, BoatState>();
@@ -117,6 +119,7 @@ interface Dock {
 }
 
 interface StepCtx {
+  host: BoatHost;
   realm: Realm;
   rng: Rng;
   docks: readonly Dock[];
@@ -460,6 +463,9 @@ function attackPass(ctx: StepCtx, boats: readonly Boat[]): void {
     if (best) {
       best.hp -= CANNON_DAMAGE;
       best.hit = true;
+      // The shot is a siege_ball (08 3.3, 18c section 6 "vessel cannon"): it flies to the target and its siegeburst
+      // dazes the Beings beside it. The hull damage above is the boat's own rule.
+      ctx.host.volley?.(a.x, a.y, best.x, best.y);
     }
   }
 }
@@ -492,7 +498,7 @@ export function boatsStep(
       produce(host, st, d, rng);
     }
   }
-  const ctx: StepCtx = { realm, rng, docks, boats: st.boats, mayTrade, isEnemy };
+  const ctx: StepCtx = { host, realm, rng, docks, boats: st.boats, mayTrade, isEnemy };
   st.boats = st.boats.filter((b) => stepBoat(ctx, b));
   attackPass(ctx, st.boats);
   st.boats = st.boats.filter((b) => b.hp > 0);

@@ -45,6 +45,7 @@ import {
   popMultiplier,
   reflectDamage,
   roamsFar,
+  sightRadius,
   strainHas,
   strikeScale,
   type BreedMode,
@@ -80,6 +81,12 @@ const DEATH_ROLL = 20;
 const REGEN = 60;
 /** Mating lull after a birth, in ticks (06 section 6.1). */
 const LULL = 1800;
+/** Ticks a newborn is `sheltered` (08 section 5.3: 100; the 1800 of parent care is not modelled, no care state). */
+const SHELTER_BIRTH = 100;
+/** `unnerved` (08 section 5.3): every 100 ticks a 20% roll cancels the behaviour and flees for 60 ticks. */
+const UNNERVE_TICKS = 100;
+const UNNERVE_CHANCE = 0.2;
+const UNNERVE_FLEE = 60;
 /** Fuel at or below which a being is hungry (06 section 2.1). */
 const HUNGRY_AT = 50;
 /** Fuel spent by a birth on the bearer (06 section 2.1 and 6.4). */
@@ -959,6 +966,21 @@ function mateTarget(sim: Sim, slot: number): number {
   );
 }
 
+/**
+ * Nearest non-allied Being in sight (hostile or neutral to this one), or -1. The `unnerved` flight runs from it
+ * (08 section 5.3). Inert Beings do not count.
+ */
+function unnervedSource(sim: Sim, slot: number): number {
+  return sim.beings.nearest(
+    slot,
+    (o) => {
+      const r = relationOf(sim, slot, o, false);
+      return r === 'H' || r === 'N';
+    },
+    sightRadius(sim, slot),
+  );
+}
+
 /** Nearest hunter within the flee radius, or -1 (07 section 3.6 `flee`). */
 function fleeFrom(sim: Sim, slot: number): number {
   const b = sim.beings;
@@ -1188,6 +1210,15 @@ function brawlBlow(sim: Sim, attacker: number, victim: number): boolean {
   return s.alive[victim] === 1 && s.alive[attacker] === 1;
 }
 
+/**
+ * Takes a lull (06 section 6.3, 08 section 5.3): blocks breeding for LULL ticks. The store field is what saves carry;
+ * the `lull` status carries the same span so that mayBreed reads the effect flag too.
+ */
+function takeLull(sim: Sim, slot: number): void {
+  sim.beings.store.lull[slot] = sim.tick + LULL;
+  sim.effects.add(slot, 'lull', sim.tick);
+}
+
 /** Mating (06 section 6.3): a pregnancy for the bearer, with its gestation, litter and fuel cost (06 section 6.4). */
 function beginPregnancy(sim: Sim, bearer: number, brood: number | null, anySex: boolean): void {
   const s = sim.beings.store;
@@ -1196,6 +1227,8 @@ function beginPregnancy(sim: Sim, bearer: number, brood: number | null, anySex: 
   const def = sim.beings.species(s.species[bearer] ?? 0);
   s.expecting[bearer] = 1;
   s.expectUntil[bearer] = sim.tick + Math.round((s.gestationA[bearer] ?? def.gestationMonths) * MONTH_TICKS);
+  // The `expecting` status runs for the gestation (08 section 5.3: pace x0.8); its expiry is the birth in stepBeings.
+  sim.effects.add(bearer, 'expecting', sim.tick, Math.max(0, (s.expectUntil[bearer] ?? 0) - sim.tick));
   s.brood[bearer] = brood ?? litterRoll(sim, Math.round(s.broodA[bearer] ?? def.litter));
   s.fuel[bearer] = Math.max(0, (s.fuel[bearer] ?? 0) - BIRTH_FUEL);
 }
@@ -1217,7 +1250,7 @@ function splitBirth(sim: Sim, slot: number): void {
   s.endurance[slot] = endurance;
   s.mood[slot] = mood;
   s.fuel[slot] = fuel;
-  s.lull[slot] = sim.tick + LULL;
+  takeLull(sim, slot);
   spawnCopy(sim, slot, tile.x, tile.y, { vit, endurance, mood, fuel, baby: true, link: true, birth: true, reborn: false });
 }
 
@@ -1232,12 +1265,13 @@ function sporeBirth(sim: Sim, slot: number): void {
   const n = ROUND8.sporeMin + rng.int(ROUND8.sporeMax - ROUND8.sporeMin + 1);
   const r = ROUND8.sporeRadius;
   const species = s.species[slot] ?? 0;
-  s.lull[slot] = sim.tick + LULL;
+  takeLull(sim, slot);
   s.fuel[slot] = Math.max(0, (s.fuel[slot] ?? 0) - BIRTH_FUEL);
   for (let k = 0; k < n && b.store.size < WORLD_CAP; k++) {
     const x = (s.x[slot] ?? 0) + rng.int(2 * r + 1) - r;
     const y = (s.y[slot] ?? 0) + rng.int(2 * r + 1) - r;
-    spawnBeing(sim, species, x, y, false, slot);
+    const child = spawnBeing(sim, species, x, y, false, slot);
+    if (child >= 0) sim.effects.add(child, 'sheltered', sim.tick, SHELTER_BIRTH);
   }
 }
 
@@ -1399,7 +1433,7 @@ const DOUSE_SELF: readonly StepFn[] = [
  */
 function layEgg(sim: Sim, bearer: number): void {
   const s = sim.beings.store;
-  s.lull[bearer] = sim.tick + LULL;
+  takeLull(sim, bearer);
   s.fuel[bearer] = Math.max(0, (s.fuel[bearer] ?? 0) - BIRTH_FUEL);
   const tile = freeNeighbour(sim, s.x[bearer] ?? 0, s.y[bearer] ?? 0);
   if (!tile) return;
@@ -1550,12 +1584,12 @@ const TASKS: Record<string, TaskFn> = {
     }
     if (mode === 'spore') {
       sporeBirth(sim, slot);
-      s.lull[slot] = tick + LULL;
+      takeLull(sim, slot);
       return false;
     }
     if (mode === 'bud' || mode === 'self') {
       beginPregnancy(sim, slot, mode === 'bud' ? 1 : null, true);
-      s.lull[slot] = tick + LULL;
+      takeLull(sim, slot);
       return false;
     }
     // Sexual pairing (06 section 6.1): the bearer is pregnant for its gestation and carries a litter (06 section 6.4).
@@ -1572,10 +1606,14 @@ const TASKS: Record<string, TaskFn> = {
     } else {
       beginPregnancy(sim, bearer, null, false);
       // Rooting (06 section 6.3, beings build 3): the bearer stays put for the gestation, and the sprout is born then.
-      if (mode === 'rooted') s.rooted[bearer] = 1;
+      if (mode === 'rooted') {
+        s.rooted[bearer] = 1;
+        // `taking_root` (08 section 5.3) holds the bearer for the gestation, the same span as `expecting`.
+        sim.effects.add(bearer, 'taking_root', tick, Math.max(0, (s.expectUntil[bearer] ?? 0) - tick));
+      }
     }
-    s.lull[slot] = tick + LULL;
-    s.lull[partner] = tick + LULL;
+    takeLull(sim, slot);
+    takeLull(sim, partner);
     return false;
   },
 };
@@ -1677,6 +1715,18 @@ function decide(sim: Sim, slot: number): void {
     setNext(sim, slot, 2);
     b.task[slot] = -1;
     return;
+  }
+  if (tick < (s.unnervedUntil[slot] ?? 0)) {
+    // `unnerved` flight (08 section 5.3): the 60 ticks after the roll, away from the non-allied Being in sight.
+    const from = unnervedSource(sim, slot);
+    if (from >= 0) {
+      const x = s.x[slot] ?? 0;
+      const y = s.y[slot] ?? 0;
+      stepToward(sim, slot, x + Math.sign(x - (s.x[from] ?? 0)) * 3, y + Math.sign(y - (s.y[from] ?? 0)) * 3);
+      setNext(sim, slot, 2);
+      b.task[slot] = -1;
+      return;
+    }
   }
 
   // Override layer (07 sections 4.2 and 10.1): a flight ends any task but flee; an engaged fight takes over any task
@@ -1853,11 +1903,19 @@ export function stepBeings(sim: Sim): void {
       }
     }
 
+    // `unnerved` roll (08 section 5.3): every 100 ticks, 20% cancel the behaviour for a 60-tick flight.
+    if (tick % UNNERVE_TICKS === 0 && sim.effects.has(slot, 'unnerved') && unnervedSource(sim, slot) >= 0 && rng.next() < UNNERVE_CHANCE) {
+      s.unnervedUntil[slot] = tick + UNNERVE_FLEE;
+      b.task[slot] = -1;
+    }
+
     if (s.expecting[slot] && tick >= (s.expectUntil[slot] ?? 0)) {
       s.expecting[slot] = 0;
+      sim.effects.remove(slot, 'expecting');
       // A rooted bearer's young is a sprout: immovable for its own spell (06 section 6.3, beings build 3).
       const sprout = (s.rooted[slot] ?? 0) === 1;
       s.rooted[slot] = 0;
+      sim.effects.remove(slot, 'taking_root');
       const brood = Math.max(1, s.brood[slot] ?? 1);
       let born = 0;
       for (let n = 0; n < brood && b.store.size < WORLD_CAP; n++) {
@@ -1865,6 +1923,7 @@ export function stepBeings(sim: Sim): void {
         if (child >= 0) {
           born++;
           if (sprout) sim.effects.add(child, 'sprouting', tick);
+          sim.effects.add(child, 'sheltered', tick, SHELTER_BIRTH);
         }
       }
       if (born > 0) addMood(sim, slot, 'child_born');

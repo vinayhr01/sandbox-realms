@@ -51,6 +51,10 @@ export const CREEP_IMMUNITY: Readonly<Record<CreepImmunityTag, readonly string[]
 
 /** Chance per evaluation that a Being on gloomgrowth gains growth fever (18e 1.4: 5%). */
 export const GLOOM_FEVER_CHANCE = 0.05;
+/** Bloatmoss chance per evaluation to add `unnerved` (18e 1.4, 18c: 15%). */
+export const BLOAT_UNNERVE_CHANCE = 0.15;
+/** Gourdgrowth chance per evaluation to add `giggling` (18e 1.4, 18c: 3%). */
+export const GOURD_GIGGLE_CHANCE = 0.03;
 
 /** Effect a landmark or beacon runs on its pulse (18e 2.1). `none` is passive or dormant (no lore, night or fear system). */
 export type LandmarkEffect = 'freeze' | 'ignite' | 'acid' | 'none';

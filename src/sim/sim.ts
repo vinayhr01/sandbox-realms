@@ -26,7 +26,7 @@ import { Beings } from './beings/system.ts';
 import { TUNING } from './beings/tuning.ts';
 import { EffectStore, MAX_EFFECTS, STATUSES, UNTIL_CLEARED } from './effects.ts';
 import { CombatState, applyDamage, stepProjectiles, tickAttackTimers, type CombatContext, type Projectile } from './combat.ts';
-import { landProjectile, shootStep } from './projectiles.ts';
+import { landProjectile, launchProjectile, shootStep } from './projectiles.ts';
 import { ExplosionGuard, type ExplosionContext } from './explosions.ts';
 import { createWeatherState, weatherStep, type WeatherContext, type WeatherState } from './weather.ts';
 import { rainDrop } from './terrain/water.ts';
@@ -35,6 +35,7 @@ import { startFire } from './terrain/fire.ts';
 import { stepBeings, killBeing } from './beings/system.ts';
 import { hamletsAtWar, hamletsOf, settlementsStep } from './settlements/adapter.ts';
 import { boatsStep } from './boats/boats.ts';
+import { hasTrait } from './beings/afflictions.ts';
 import { dominionsYearly, stepDominions } from './dominions/adapter.ts';
 import { cultureTick, createCultureState, type CultureState } from './culture/adapter.ts';
 import { rollAndRunCalamity, usePowerById } from './powers/handlers.ts';
@@ -242,6 +243,11 @@ export class Sim {
     return { ...this.combatContext(), realm: this.realm, guard: this.guard, startFire: (tile, force) => startFire(this, tile, force) };
   }
 
+  /** A trading boat's cannon shot (boats.ts attackPass): a siege_ball flying from one sea tile to another, fired by no Being. */
+  volley(x0: number, y0: number, x1: number, y1: number): void {
+    launchProjectile(this, 'siege_ball', x0, y0, x1, y1, -1, 0, []);
+  }
+
   /** Being occupying a tile, or -1. Linear scan: only used for projectile impacts. */
   beingAt(x: number, y: number): number {
     const s = this.beings.store;
@@ -288,6 +294,12 @@ export class Sim {
         return rainDrop(this, tile);
       },
       freeze: (tile) => freeze(this, tile),
+      ashDrop: (tile) => {
+        const side = this.realm.side;
+        const slot = this.beingAt(tile % side, Math.floor(tile / side));
+        // Warded blood is immune to ash_sickness (18b warded_blood).
+        if (slot >= 0 && !hasTrait(this, slot, 'warded_blood')) this.effects.add(slot, 'ash_sickness', this.tick);
+      },
       startFire: (tile, force) => startFire(this, tile, force),
       blast: this.explosionContext(),
     };

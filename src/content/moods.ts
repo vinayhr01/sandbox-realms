@@ -30,6 +30,8 @@ export const MOOD_VALUE = {
   born: 50,
   grew_up: 30,
   hatched: 20,
+  // Combat close 5: applied when `unnerved` is first added (18c section 5: mood -8).
+  unnerved: -8,
   ate: 10,
   relieved: 5,
   slept: 5,

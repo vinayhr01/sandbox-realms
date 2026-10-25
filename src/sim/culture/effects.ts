@@ -15,8 +15,10 @@ import { PARCEL, YEAR_TICKS } from '../../shared/constants.ts';
 import { addMood } from '../beings/social.ts';
 import { MAX_BEINGS } from '../beings/store.ts';
 import { vitalityRatio } from '../beings/trait-hooks.ts';
-import { dominionOwnerOf } from '../dominions/adapter.ts';
-import { addXp, customOfGroup, readBookEffects, type Book } from './culture.ts';
+import { CUSTOM_TRAIT_BY_ID } from '../../content/customs.ts';
+import { dominionOwnerOf, dominionsOfSim } from '../dominions/adapter.ts';
+import { hamletsOf } from '../settlements/adapter.ts';
+import { addCustomTrait, addXp, customOfGroup, readBookEffects, type Book } from './culture.ts';
 import { blocksConversion, blocksWar, childMayWork, CONVERT_CHANCE, CONVERT_HP_RATIO, MENTOR_XP, successionRuleOf } from './trait-rules.ts';
 
 const NONE: readonly string[] = [];
@@ -69,11 +71,81 @@ export function grantXp(sim: Sim, slot: number, amount: number): void {
 }
 
 /**
- * A reader takes a book (11 section 5): xp through readBookEffects (eagerReaders, then the reader's study traits). Returns
- * the mood the reading gives (bookLovers), for the caller to apply. Called by the `read` decision (system.ts).
+ * A reader takes a book (11 section 5): xp through readBookEffects (eagerReaders, then the reader's study traits), the
+ * conversion lottery, and the ruler or leader copy. Returns the mood the reading gives (bookLovers), for the caller to
+ * apply. Called by the `read` decision (system.ts). Not built, the sim has no state for them: the author's mind trait
+ * (the book keeps no author), the reading-effect traits and the dialect and creed copies (no dialect or creed holds traits),
+ * the mana and the attribute gains (the book keeps no type). See DECISIONS.md "Beings close 6".
  */
 export function readBook(sim: Sim, reader: number, book: Book): number {
-  return readBookEffects(sim.culture, keyOfSlot(sim, reader), traitsOfSlot(sim, reader), book);
+  const mood = readBookEffects(sim.culture, keyOfSlot(sim, reader), traitsOfSlot(sim, reader), book);
+  bookConversion(sim, reader, book);
+  bookCopy(sim, reader, book);
+  return mood;
+}
+
+/**
+ * Book conversion lottery (11 section 5): the reader's current meta and the book's meta hold three tickets each, and the
+ * winner is the meta the reader follows. The book's meta wins 50%, which converts the reader (allegiance, as talkSpread
+ * does). `stylish` adds to its dialect's side and no dialect holds traits here. Needs a custom on both sides; a `rooted`
+ * custom of the reader blocks it. Draws from `culture` only when every condition holds.
+ */
+function bookConversion(sim: Sim, reader: number, book: Book): void {
+  const current = groupOfSlot(sim, reader);
+  if (current === 0 || current === book.group) return;
+  if (!customOfGroup(sim.culture, current) || !customOfGroup(sim.culture, book.group)) return;
+  if (blocksConversion(traitsOfSlot(sim, reader))) return;
+  if (sim.rng('culture').next() >= 0.5) return;
+  const allegiance: Record<string, number> = sim.culture.allegiance ?? {};
+  allegiance[String(keyOfSlot(sim, reader))] = book.group;
+  sim.culture.allegiance = allegiance;
+}
+
+/**
+ * Ruler or leader copy (11 section 5): a reader who rules a dominion or leads a hamlet copies one tradable trait of the
+ * book's custom onto its dominion's custom, with 50%. The book's custom is the writer's current custom (the book keeps no
+ * trait list: a substitution), and the hamlet meta is the dominion's (hamlet customs are not modelled, as in talkSpread).
+ * Draws from `culture` only when the reader rules or leads and both customs exist.
+ */
+function bookCopy(sim: Sim, reader: number, book: Book): void {
+  if (!rulesOrLeads(sim, reader)) return;
+  const group = groupOfSlot(sim, reader);
+  const target = customOfGroup(sim.culture, group);
+  const source = customOfGroup(sim.culture, book.group);
+  if (!target || !source) return;
+  if (sim.rng('culture').next() >= 0.5) return;
+  // The catalogue has no canBeInBook column (11 section 9), so a trait is tradable unless it is locked (customs.ts).
+  const tradable = source.traits.filter((id) => {
+    const def = CUSTOM_TRAIT_BY_ID.get(id);
+    return def !== undefined && def.rarity !== 'locked';
+  });
+  if (tradable.length === 0) return;
+  const id = tradable[sim.rng('culture').int(tradable.length)];
+  if (id !== undefined) addCustomTrait(target.traits, id);
+}
+
+/** Whether a Being is the living ruler of a dominion or the leader of a hamlet (11 section 5 `ruler/leader`). */
+function rulesOrLeads(sim: Sim, slot: number): boolean {
+  const s = sim.beings.store;
+  if (dominionsOfSim(sim).some((d) => d.ruler !== undefined && d.ruler.slot === slot && s.isCurrent(slot, d.ruler.gen))) return true;
+  return hamletsOf(sim).some((h) => h.leader === slot);
+}
+
+/**
+ * Architect talk (07 section 13): the Being spoken to takes the custom of the controlled Being's dominion. This is the
+ * talkSpread result without the draw, since the Architect's word is the winner. Both must be Folk, in different dominions,
+ * and the controlled Being's dominion must hold a custom; a `rooted` custom of the listener blocks it. Creed and dialect
+ * imposition are not built (no creed or dialect holds traits in the sim). Draws no rng.
+ */
+export function imposeCustom(sim: Sim, speaker: number, listener: number): void {
+  if (sim.culture.customs.length === 0) return;
+  if (!isFolkSlot(sim, speaker) || !isFolkSlot(sim, listener)) return;
+  const group = groupOfSlot(sim, speaker);
+  if (group === 0 || groupOfSlot(sim, listener) === group) return;
+  if (!customOfGroup(sim.culture, group) || blocksConversion(traitsOfSlot(sim, listener))) return;
+  const allegiance: Record<string, number> = sim.culture.allegiance ?? {};
+  allegiance[String(keyOfSlot(sim, listener))] = group;
+  sim.culture.allegiance = allegiance;
 }
 
 /** Living Folk whose parcel the owner function gives to a dominion. Draws no rng. */

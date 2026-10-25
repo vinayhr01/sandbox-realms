@@ -45,6 +45,7 @@ import { itemRain, itemsStep, setGear, setItemFavourite, setItemRain } from './i
 import { hamletGearStep } from './items/hamlet-gear.ts';
 import { possessCommand } from './beings/possession.ts';
 import { possessAbilities } from './beings/abilities.ts';
+import { addMood } from './beings/social.ts';
 import { wearOnHit } from './items/wear.ts';
 import type { Snapshot } from '../shared/protocol.ts';
 import { clansStep, createClanState, type ClanState } from './clans/clans.ts';
@@ -265,7 +266,10 @@ export class Sim {
     tickAttackTimers(this.combat, s);
     for (let k = s.size - 1; k >= 0; k--) {
       const slot = s.at(k);
-      this.effects.expire(slot, this.tick);
+      this.effects.expire(slot, this.tick, (code) => {
+        // Expiry hook (08 section 5.4): an outburst that ends gives `outburst_done`.
+        if (STATUSES[code - 1]?.id === 'outburst') addMood(this, slot, 'outburst_done');
+      });
       for (let e = 0; e < MAX_EFFECTS; e++) {
         const code = this.effects.code[slot * MAX_EFFECTS + e] ?? 0;
         const def = code > 0 ? STATUSES[code - 1] : undefined;

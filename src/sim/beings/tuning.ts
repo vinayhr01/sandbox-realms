@@ -173,4 +173,8 @@ export const ROUND9 = {
   outburstSight: 3,
   /** Ticks an emote task holds the Being still (06 section 4.5: two to three seconds, 40 to 60 ticks). */
   emoteTicks: 40,
+  /** Mood below which a reflecting Being starts an outburst (06 section 4.2 step 5: mood < -70, unless stalwartheart). */
+  outburstMood: -70,
+  /** Ticks an outburst lasts from its start (06 section 4.2: effect `outburst` 1200 ticks; 08 5.4 lists 2400). */
+  outburstTicks: 1200,
 } as const;

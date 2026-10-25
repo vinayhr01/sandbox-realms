@@ -2172,3 +2172,36 @@ Scope: 10 section 7 and 9 (watchspire bolts, `DEF_PER_TOWER`), 18e section 3.1 (
 - `GOLDEN_HASH`: a watchspire in the golden scenario changes its run (new bolts and new RNG draws). Not checked, since no run was allowed. The constant is unchanged; it needs a re-baseline if the golden run has a watchspire.
 
 **Not verified.** Nothing was run. Types were checked by reading against `strict`, `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. Scan timing and target choice need a seeded test with a hostile Being in a watchspire's patches.
+## Beings close 6
+
+Scope: the four items after Beings close 5. Spec: `game\Spec` (read only): 06 sections 4.2 and 4.5, 07 sections 3.6, 5 E and 13, 08 section 5.4, 09 section 4 (building book slots), 11 sections 4.4, 5 and 9.1, 18b. Touch set: `src/sim/effects.ts` (expiry callback), `src/sim/sim.ts` (expiry hook), `src/sim/beings/system.ts` (outburst task, reflect), `src/sim/beings/tuning.ts` (ROUND9 outburst knobs), `src/sim/beings/abilities.ts` (talk), `src/sim/culture/effects.ts` (read effects, talk imposition). Development only: no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` is not edited and will drift. No schema bump: no saved field changed (`outburst` was already a saved status; allegiance and customs were already saved).
+
+**Closed.**
+
+1. **Outburst source and expiry (06 4.2 step 5, 07 5 E, 08 5.4).**
+   - `startOutburst` (system.ts) is the `start_outburst` task. It applies `outburst` for `ROUND9.outburstTicks` (1200) and holds for `emoteTicks` (40, the six flips; TUNE).
+   - The `reflect` row now runs `reflectTask`: when the Being feels mood (06 4.1, `feelsMood`), its mood is below -70 (`outburstMood`), it does not hold `stalwartheart` (the iron_will tag of 05, granted by steadfast), and it is not already in an outburst, it starts the outburst. Otherwise it holds as before. `outburst_action` (tier 4) then runs while the status lasts.
+   - Expiry hook: `EffectStore.expire` takes an optional `onEnd(code)` that runs before a code is cleared. `sim.ts` gives `outburst_done` (+25) when an `outburst` ends. The effect store can carry the hook, so nothing is recorded as unbuilt here.
+   - Spec ambiguity: 06 4.2 gives the effect 1200 ticks, 08 5.4 gives 2400 "(task adds 1200)". The task applies 1200. The table default of 2400 stays on the status (no other caller). The lead may choose otherwise.
+   - Not built: the `fiery_temper` trigger. 06 4.2 step 3 gives the trait only a +4 grumble weight in the reflection pot, and ties its outburst to an "aggressive strain with mood < 0". The roster has no aggressive strain trait (18a `Ag` is a species temperament the sim does not carry), and the reflection pot is not built (emote tasks are holds; no state reads an emote id). So the fiery_temper branch has no effect in the sim. The rest of the reflection pot (steps 1, 2, 4 and 6) is also not built.
+
+2. **Book read effects (11 section 5, Read).** Built in `readBook` (culture/effects.ts), in spec order after xp and mood:
+   - Conversion lottery: the reader's current dominion meta and the book's meta (the writer's group) hold three tickets each. The book's meta wins 50%, and the reader's allegiance moves to it. A `rooted` custom of the reader blocks it. Both metas need a custom. Draws from `culture` only when those hold.
+   - Ruler or leader copy: a living dominion ruler (`dominion.ruler`) or a hamlet leader (`hamlet.leader`) copies one tradable trait of the book's custom onto its dominion's custom with 50% (`addCustomTrait`).
+   - Substitutions: the book keeps only group, mood, xp and `readAt`, so its custom is the writer group's current custom. The sim has no `canBeInBook` column (11 section 9 has one), so a trait is tradable unless it is `locked`.
+   - Not built, the sim has no state for them: the 50% author mind-trait gate (the book keeps no author or trait); the reading-effect traits and `stylish` (no dialect holds traits; `Dialect` has no traits field); the dialect and creed copies (no creed or dialect holds traits); mana (no mana in the sim); attribute gains (the book keeps no type); `timesRead` (not in `Book`).
+   - `writeBook` and the `write_book` row stay dormant. The 09 section 4 table gives book slots to great hall I to III (3), shrine (3) and archive (4), so a slot does exist in the spec. The sim's settlement catalogue has no book slot field, though. The writer also needs the 11 section 5 type pot, whose checks use family, clan, weapon and ruler data, and whose attribute gains the `Book` record cannot hold. Not built. This is a judgment on "unless a building slot exists in the spec": the lead may choose to build the writer anyway.
+
+3. **Talk imposition (07 13, 11 4.4).** `imposeCustom` (culture/effects.ts) is called by the possession `talk` ability after the mood. The Folk listener takes the custom of the controlled Being's dominion (allegiance), with no draw: the Architect's word is the winner. It needs both sides to be Folk in different dominions, a custom on the controlled side, and no `rooted` custom on the listener. It applies whether or not the listener is surprised. The culture layer is reachable without a cycle: beings code already imports culture/effects (system.ts). Creed and dialect imposition are not built (no creed or dialect holds traits; newCreed and newDialect are not built, see "Dominions close 5"). The chat path (`talkSpread`) is unchanged and still draws.
+
+4. **canControl flags (07 13).** Not built. The roster has no `canControl` data: `src/content/species-roster.ts`, `species-folk.ts`, `beasts.ts` and the 18a table in Spec carry none, and 07 section 13 gives only the rule. As before, every Being stays controllable. Wyrm and craft are not in play.
+
+**Remains, and why.**
+- `fiery_temper` outburst trigger and the reflection pot: see item 1.
+- Book writer (`writeBook`, `write_book`) dormant: see item 2.
+- Book mind-trait gate, reading-effect traits, `stylish`, mana, attribute gains, dialect and creed copies: the sim has no state for them (item 2).
+- Creed and dialect talk imposition: no creed or dialect state in play (item 3).
+- `canControl` flags: no roster data (item 4).
+- `GOLDEN_HASH` (2562049680) is not edited. The outburst, the expiry mood and the talk and read effects change state, so it will drift. It needs a re-baseline by a run with test access.
+
+**Not verified.** Nothing was run. Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Check the `expire` callback signature (sim.ts is its only caller) and the book read path, which is dormant in play, with a unit test when tests run.

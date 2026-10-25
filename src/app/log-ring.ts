@@ -8,6 +8,8 @@
 export const LOG_RING_MAX = 2_000;
 /** A crash record attaches at most this many lines (19 section 5). */
 export const CRASH_LOG_LINES = 200;
+/** The diagnostics bundle attaches this many lines (17 section 9: last 500 log lines). */
+export const DIAGNOSTIC_LOG_LINES = 500;
 const LINE_MAX = 300;
 
 export type LogLevel = 'warn' | 'error' | 'fatal';

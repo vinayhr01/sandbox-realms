@@ -242,6 +242,12 @@ function uaFamily(ua: string): string {
   return 'other';
 }
 
+/** The device class fields (17 section 9): UA family, memory and cores. Shared by crash records and the diagnostics bundle. */
+export function deviceClass(): { uaFamily: string; memGB: number; cores: number } {
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  return { uaFamily: uaFamily(nav.userAgent), memGB: nav.deviceMemory ?? 0, cores: nav.hardwareConcurrency ?? 0 };
+}
+
 function errorName(message: string): string {
   return /^([A-Za-z]*Error)\b/.exec(message)?.[1] ?? 'Error';
 }
@@ -280,12 +286,10 @@ export function buildRecord(input: CrashInput, nowMs: number = Date.now()): Cras
     at: nowMs,
     app: { version: APP_VERSION, build, contentHash: build, schemaVersion: CRASH_RECORD_SCHEMA },
     env: {
-      uaFamily: uaFamily(nav.userAgent),
+      ...deviceClass(),
       touch: nav.maxTouchPoints > 0,
       dpr: window.devicePixelRatio,
       online: nav.onLine,
-      cores: nav.hardwareConcurrency ?? 0,
-      memGB: (nav as Navigator & { deviceMemory?: number }).deviceMemory ?? 0,
     },
     run: { uptimeMs: Math.max(0, nowMs - run.startedMs), tick: run.tick, speed: run.speed, age: run.age, safeMode: run.safeMode },
     err: { name: errorName(msg), msg, frames: kept },

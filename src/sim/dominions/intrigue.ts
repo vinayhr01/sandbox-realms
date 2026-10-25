@@ -4,17 +4,19 @@ import { goodOpinionOfAll, opinion, powerOf, supremeOf, type OpinionContext } fr
 import { dissolvePact, formPact, hasEnemy, joinPact, pactOf, pactPower, PACT_TIMEOUT_TICKS, warPair, type Pact, type PactState } from './pacts.ts';
 import type { Dominion, RelationMatrix } from './types.ts';
 import { foundAllowed, splitAllowed, type FoundFacts, type SplitFacts } from '../culture/trait-rules.ts';
+import { uprisingAllowed, type UprisingFacts } from './rebellion.ts';
 
 /**
  * Intrigue records (10 sections 11-12, 11 section 3 catalogue). Rulers and the intrigue engine do not exist here, so an
  * intrigue is a record on the dominion: proposed in the yearly pass when the dominion's state meets the gates, and
  * resolved in the next yearly pass. The pact intrigues resolve through the pact functions in pacts.ts. The three split
  * intrigues (divideCustom, schismCreed, divergeDialect; 11 section 2) resolve through the culture hooks in `split`, and the
- * two founding intrigues (newDialect, newCreed; 11 section 3) through the culture hooks in `found`.
- * See DECISIONS.md "Pacts and armies round 5", "Dominions close 5" and "Culture founding close 6" for each substitution.
+ * two founding intrigues (newDialect, newCreed; 11 section 3) through the culture hooks in `found`. The uprising (10 section
+ * 11) resolves through the hooks in `rebel`.
+ * See DECISIONS.md "Pacts and armies round 5", "Dominions close 5", "Culture founding close 6" and "Rebellion close 14".
  */
 
-export type IntrigueKind = 'formPact' | 'joinPact' | 'dissolvePact' | 'divideCustom' | 'schismCreed' | 'divergeDialect' | 'newDialect' | 'newCreed';
+export type IntrigueKind = 'formPact' | 'joinPact' | 'dissolvePact' | 'divideCustom' | 'schismCreed' | 'divergeDialect' | 'newDialect' | 'newCreed' | 'uprising';
 
 /** The split intrigues (11 section 2): a custom divides, a creed schisms, a dialect diverges. */
 export type SplitKind = 'divideCustom' | 'schismCreed' | 'divergeDialect';
@@ -38,7 +40,8 @@ export const FORM_PACT_STRENGTH = 60;
 export const JOIN_PACT_STRENGTH = 50;
 /**
  * Strength paid when an intrigue is proposed (TUNE; the spec's money costs: formPact 20, joinPact 5, dissolvePact 15,
- * divideCustom 20, schismCreed 15, divergeDialect 15, newDialect 0, newCreed 25; strength is the only pool a dominion has).
+ * divideCustom 20, schismCreed 15, divergeDialect 15, newDialect 0, newCreed 25, uprising 15; strength is the only pool a
+ * dominion has).
  */
 export const INTRIGUE_COST: Readonly<Record<IntrigueKind, number>> = {
   formPact: 20,
@@ -49,6 +52,7 @@ export const INTRIGUE_COST: Readonly<Record<IntrigueKind, number>> = {
   divergeDialect: 15,
   newDialect: 0,
   newCreed: 25,
+  uprising: 15,
 };
 /** Every intrigue kind, for the save check (adapter.ts restoreDominions). */
 export const INTRIGUE_KINDS: readonly IntrigueKind[] = Object.keys(INTRIGUE_COST) as IntrigueKind[];
@@ -59,7 +63,7 @@ export const DISSOLVE_PACT_AGE_TICKS = 10 * YEAR_TICKS;
 /** Pact power must be at least this multiple of the power of all dominions outside it (the spec's 2x, TUNE). */
 export const DISSOLVE_POWER_RATIO = 2;
 
-/** One intrigue. `targetId` is the asked dominion for formPact, and the pact id for joinPact and dissolvePact. */
+/** One intrigue. `targetId` is the asked dominion for formPact, the pact id for joinPact and dissolvePact, and the hamlet index for uprising. */
 export interface Intrigue {
   id: number;
   kind: IntrigueKind;
@@ -99,6 +103,17 @@ export interface FoundHooks {
   apply(kind: FoundKind, dominionId: number): boolean;
 }
 
+/**
+ * Hooks of the uprising intrigue (10 section 11; adapter.ts builds them). `hamlets` lists the hamlet indices a dominion holds
+ * (hamletsOf order), and none while the `uprisings` rule is off. `facts` gives the gate facts of one hamlet, undefined when
+ * the rule is off or the hamlet is not the dominion's. `apply` runs the uprising and returns false when it is refused.
+ */
+export interface RebelHooks {
+  hamlets(dominionId: number): number[];
+  facts(dominionId: number, hamlet: number): UprisingFacts | undefined;
+  apply(dominionId: number, hamlet: number): boolean;
+}
+
 /** What the gates read: the dominions, borders, relations, truces and pacts, and the tick. */
 export interface IntrigueEnv {
   dominions: readonly Dominion[];
@@ -117,6 +132,8 @@ export interface IntrigueEnv {
   split?: SplitHooks;
   /** Culture hooks for the founding intrigues (11 section 3). Optional: without them no founding is proposed. */
   found?: FoundHooks;
+  /** Hooks for the uprising intrigue (10 section 11). Optional: without them no uprising is proposed. */
+  rebel?: RebelHooks;
 }
 
 function opinionOf(env: IntrigueEnv): OpinionContext {
@@ -217,6 +234,25 @@ export function foundOk(env: IntrigueEnv, kind: FoundKind, d: number): boolean {
   return facts !== undefined && foundAllowed(kind, facts);
 }
 
+/**
+ * Gate for an uprising by dominion `d` in its hamlet `hamlet` (10 section 11): the hook gives the facts, and uprisingAllowed
+ * (rebellion.ts) tests the spec's terms. Used when proposing and again when resolving. Draws no randomness.
+ */
+export function uprisingOk(env: IntrigueEnv, d: number, hamlet: number): boolean {
+  if (!dom(env, d) || !env.rebel) return false;
+  const facts = env.rebel.facts(d, hamlet);
+  return facts !== undefined && uprisingAllowed(facts);
+}
+
+/** The lowest-index hamlet of dominion `d` that passes the uprising gate, or -1. Draws no randomness. */
+function uprisingTarget(env: IntrigueEnv, d: number): number {
+  if (!env.rebel) return -1;
+  for (const h of [...env.rebel.hamlets(d)].sort((x, y) => x - y)) {
+    if (uprisingOk(env, d, h)) return h;
+  }
+  return -1;
+}
+
 /** The dominion a formPact by `a` would ask (the lowest-id free neighbour with no intrigue running), or -1. */
 function formPactTarget(env: IntrigueEnv, state: IntrigueState, a: number): number {
   if (active(state, a) || cooling(state, a, env.tick)) return -1;
@@ -278,6 +314,11 @@ export function proposeIntrigues(env: IntrigueEnv, state: IntrigueState): void {
         }
       }
     }
+    // An uprising (10 section 11) is tried last, when no other intrigue was picked. Its target is a hamlet of the dominion.
+    if (!pick) {
+      const hamlet = uprisingTarget(env, d.id);
+      if (hamlet >= 0) pick = { kind: 'uprising', targetId: hamlet };
+    }
     if (!pick) continue;
     const cost = INTRIGUE_COST[pick.kind];
     if (d.strength < cost) continue;
@@ -313,6 +354,8 @@ export function resolveIntrigues(env: IntrigueEnv, state: IntrigueState): void {
       if (splitOk(env, i.kind, i.dominionId)) env.split?.apply(i.kind, i.dominionId);
     } else if (isFoundKind(i.kind) && foundOk(env, i.kind, i.dominionId)) {
       env.found?.apply(i.kind, i.dominionId);
+    } else if (i.kind === 'uprising' && uprisingOk(env, i.dominionId, i.targetId)) {
+      env.rebel?.apply(i.dominionId, i.targetId);
     }
   }
 }

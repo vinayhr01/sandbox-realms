@@ -2822,3 +2822,37 @@ Scope: the raze check (10 section 7, every 40 ticks; 10 section 15). Owner decis
 - A hamlet of a dominion that holds no beings at a check is razed, and its parcels are released. This can happen in any run where a hamlet empties. `GOLDEN_HASH` will drift. Not checked.
 
 **Not verified.** Nothing was run. Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Needed with test access: a hamlet with no folk is razed and its parcels leave the dominion; a being left on its parcels moves to the nearest same-dominion hamlet; the razed mood values with the capital and the 8000-tick window; `hamletsRazed` round-trips through save and load; an old save without `hamletsRazed` loads with 0.
+
+## Rebellion close 14
+
+Scope: the rebellion items left open by "Loyalty reader close 9" and "Loyalty terms close 8". Spec read at `game\Spec`: 10 section 1 (the Campaign schema: id, kind, attackers, defenders, mainAttacker, mainDefender, startTick), 10 section 5 (candidacy: unhappy hamlets), 10 section 11 (uprising, startUprising, makeOwnDominion, checkMoreAligned), 10 section 15 (loyalty cache), 11 section 3 table (row `uprising`: leader level 2, cost 15, stew 6, war 5). The campaign schema is in 10 section 1; section 11 names it in the start rules. Development only: nothing was run. `GOLDEN_HASH` is not edited.
+
+**Built.**
+- Campaign record (`src/sim/dominions/campaigns.ts`, new). `Campaign` holds id, kind, attackers, defenders, mainAttacker, mainDefender and startTick (10 section 1). `CampaignState` (items, nextId) sits on `DominionState`. Saved as the optional `campaigns` field of the dominion section, written only while a record exists or an id was given. `restoreDominions` checks each kind, id and side member against the realm. `chronicle.ts` checks the shape. No save without it changes.
+- Loyalty reader (10 section 5). Candidacy reads the cached `isHappy` (loyalty.ts) through the hamlet's cache entry. No new reader: the reader from "Loyalty reader close 9" is now used.
+- Rebellion candidacy and gate (`src/sim/dominions/rebellion.ts`, new). `rebelCandidate` (10 section 5 and section 11): unhappy hamlet, not the capital, a capital exists, more than one hamlet, dominion older than 15 years, hamlets > 6 or > max, not pacifist, no uprising campaign with this dominion as main defender. `uprisingAllowed` adds the leader (not the ruler, level >= 2, stewardship >= 6, warfare >= 5) and the soldiers (>= 10, and >= the capital's times 1 - 0.1 x unhappy hamlets).
+- Uprising intrigue (`intrigue.ts`, `adapter.ts`). New kind `uprising`, cost 15 strength (the spec's money cost, as the other intrigues do). Targets a hamlet index, so `targetId` is a hamlet index for this kind. Proposed last in `proposeIntrigues`, only when no pact, split or founding was picked. Re-gated on resolve. Hooks are `RebelHooks` on `IntrigueEnv`, optional, built by `rebelHooksOf` in the adapter.
+- Uprising effect (`uprise` in `adapter.ts`). `addDominion` gives the hamlet's parcels to the next free id, with strength folk / ARMY_DIVISOR (foundFromHamlets rule). The hold is restamped to the new dominion, so belonging restarts and trackHolds does not read it as a conquest. The loyalty entry is dropped so it is recomputed. The campaign record has the old dominion as main attacker, pact members whose opinion of it is >= 0 as attackers, and the new dominion as main defender. If the old dominion already leads an uprising campaign, the new one joins as defender. Each attacker is set to war with the new dominion. A ruler of the old dominion standing in the hamlet flees (`fleeRuler`, the capture rule).
+
+**Substitutions and TUNE values.**
+- `REBEL_HAMLET_MAX` = 5 (TUNE) stands in for maxHamlets. The spec's baseHamlets default is 5, but the lineage mapping and `ruler.hamletBonus` are not in the sim or the spec, so the same value is used for every dominion. The over-cap loyalty term (10 section 5, `(max - count) x 25`) is still not built.
+- Pacifist: the sim's war block (`warBlocked`: custom `peaceable` or `serenity`, 11 section 9.1), since no pacifist trait exists.
+- Leader level: the leader's study level (`culture.studies`), as `splitHooksOf` reads the actor's level. Stewardship is husbandry and warfare is valor, each plus its creed harmony bonus, as `loyaltyStep` and `garrison-adapter.ts` read them.
+- Hamlet soldiers: the hamlet's garrison record (`garrisonsOf`). Capital soldiers: the capital hamlet's record.
+- Dominion age missing (a save without `foundedTick`): no candidacy.
+- Pact allies: "good opinion" read as the ally's opinion of the old dominion (`opinion(ally, old) >= 0`). The spec does not say which side's opinion.
+- "No rebellion campaign already against the dominion with them as main defender" read as: no uprising campaign whose mainDefender is the dominion. The old dominion as main attacker is the normal case, and is not blocked.
+- The campaign is a war relation, as the sim's campaigns are (step.ts). It does not set `target` or `campaignSince`, which stay the strength exchange's.
+- Mood on the uprising (`justRebelled` +30, `dominionFellApart` -5) is not applied, and the counter `hamletsRebelled` is not written. Nothing reads them yet.
+
+**Not built, and why.**
+- checkMoreAligned: the extra hamlets (n = min(newMax - 1, floor(oldHamlets / 3)), neighbours first, 50% coin). The spec's order and coin need draws from a named rng stream and a seed-stable order the spec does not give, and newMax needs the cap above. A guess would not be a spec term.
+- Participant hamlets of the pact allies defecting. Needs a per-hamlet join for allies, the `joinAnother(rebelled)` path. Not built. The allies join as attackers only.
+- Campaign ending: the outcome, peace, renown and merge rules of 10 section 11, and the `endCampaign` intrigue. No campaign ends in this build, so a rebellion record stays until the save ends. The "main defender" gate above therefore holds for that whole time.
+- Garrison soldiers of the uprising hamlet stay recorded under the old dominion until the garrison pass reconciles them. Not checked.
+- `addDominion` moves every parcel of the hamlet, including any owned by another dominion, to the new dominion. The yearly pass's hamlet owner is the majority, so a mixed hamlet moves whole.
+- Hamlet cap and the sea link (10 section 5) stay out, as "Loyalty terms close 8" and "Loyalty reader close 9" recorded.
+- The culture `rebellion` intrigue record (culture.ts `startIntrigue`) is still not wired to this uprising.
+- Ruler: the leader is derived each second from the census, so "leader removed" has no state to clear.
+
+**Not verified.** Nothing was run. Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. `GOLDEN_HASH` is not edited. A run that reaches an uprising (uprisings on, a dominion older than 15 years, more than 5 hamlets, an unhappy non-capital hamlet with a leader at level 2 or more) changes the sim, so the golden hash may move there. The golden replay runs 1200 ticks, which is unlikely to reach that. Inferred, not run.

@@ -1,7 +1,7 @@
 import type { Sim } from '../sim.ts';
 import { PARCEL } from '../settlements/hamlet.ts';
 import { hamletsOf } from '../settlements/adapter.ts';
-import { garrisonedSoldiers } from '../settlements/garrison-adapter.ts';
+import { garrisonedSoldiers, garrisonsOf } from '../settlements/garrison-adapter.ts';
 import { SS_TICKS } from '../clock.ts';
 import { YEAR_TICKS } from '../../shared/constants.ts';
 import { dominionStep } from './step.ts';
@@ -22,9 +22,12 @@ import {
   type Intrigue,
   type IntrigueEnv,
   type IntrigueState,
+  type RebelHooks,
   type SplitHooks,
   type SplitKind,
 } from './intrigue.ts';
+import { CAMPAIGN_KINDS, newCampaignState, type Campaign, type CampaignSnapshot, type CampaignState } from './campaigns.ts';
+import { type RebelLeaderFacts, type UprisingFacts } from './rebellion.ts';
 import { taxFlowOf, taxRatesOf, type TaxFlow } from './tax.ts';
 import { leadingHamlet, rulersStep, rulerLive, rulerStatsOf, RULER_WAIT_MIN, RULER_WAIT_SPAN, type RulerRef, type RulerStats } from './rulers.ts';
 import { rankDominions, RANK_PERIOD_TICKS } from './rank.ts';
@@ -40,6 +43,7 @@ import { opinion, powerOf, type DominionLens, type OpinionContext } from './opin
 
 /** Aptitude indices of a Being in the store (05 section 2): rapport (diplomacy), husbandry (stewardship), wit (intelligence). */
 const APT_RAPPORT = 0;
+const APT_VALOR = 1;
 const APT_HUSBANDRY = 2;
 const APT_WIT = 3;
 
@@ -74,6 +78,8 @@ export interface DominionState {
   armies: Army[];
   /** Pact intrigue records (intrigue.ts). */
   intrigues: IntrigueState;
+  /** Campaign records (campaigns.ts; the uprising of 10 section 11). Saved as `campaigns`. */
+  campaigns: CampaignState;
   /** Gold each hamlet held at the last yearly pass, keyed by the hamlet's lowest parcel (tax.ts loot). */
   taxSeen: Map<number, number>;
   /** Per-hamlet tax flows written by the latest yearly pass (tax.ts TaxFlow). Replaced each pass; empty before the first. */
@@ -117,6 +123,7 @@ export function dominionState(sim: Sim): DominionState {
       pacts: newPactState(),
       armies: [],
       intrigues: newIntrigueState(),
+      campaigns: newCampaignState(),
       taxSeen: new Map(),
       taxFlows: [],
       loyalty: new Map(),
@@ -266,6 +273,8 @@ export interface DominionSnapshot {
   armies?: { id: number; name: string; dominionId: number; soldiers: number; renown: number; captains?: number; parcel?: number; slots?: number; order?: number }[];
   /** Pact intrigues (intrigue.ts). Optional: written only when one is pending or a cooldown runs, so older saves load with none. */
   intrigues?: IntrigueSnapshot;
+  /** Campaign records (campaigns.ts). Optional: written only while one exists or an id was given, so older saves load with none. */
+  campaigns?: CampaignSnapshot;
 }
 
 /** Plain-data form of the pact intrigue records (intrigue.ts). */
@@ -331,7 +340,13 @@ export function snapshotDominions(sim: Sim): DominionSnapshot | null {
     ...(s.intrigues.items.length > 0 || s.intrigues.cooldowns.length > 0 || s.intrigues.nextId > 1
       ? { intrigues: { items: s.intrigues.items.map((i) => ({ ...i })), nextId: s.intrigues.nextId, cooldowns: s.intrigues.cooldowns.map((c) => ({ ...c })) } }
       : {}),
+    ...(s.campaigns.items.length > 0 || s.campaigns.nextId > 1 ? { campaigns: { items: s.campaigns.items.map(copyCampaign), nextId: s.campaigns.nextId } } : {}),
   };
+}
+
+/** A copy of a campaign record, its side lists included. */
+function copyCampaign(c: Campaign): Campaign {
+  return { ...c, attackers: [...c.attackers], defenders: [...c.defenders] };
 }
 
 /** Plain copy of the pact records, or null when there are none and no formation has happened (no section then). */
@@ -457,6 +472,19 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
     intrigues.nextId = ig.nextId;
     intrigues.cooldowns = ig.cooldowns.map((c) => ({ dominionId: c.dominionId, until: c.until }));
   }
+  // Campaign records (campaigns.ts): each kind is known, each side lists dominions of the realm, and ids are below the next id.
+  const campaigns = newCampaignState();
+  if (snap.campaigns !== undefined) {
+    const cg = snap.campaigns;
+    if (!isNum(cg.nextId) || !Number.isInteger(cg.nextId) || !Array.isArray(cg.items)) bad('campaigns');
+    for (const c of cg.items) {
+      const sides = Array.isArray(c.attackers) && Array.isArray(c.defenders) ? [...c.attackers, ...c.defenders] : [];
+      if (!isNum(c.id) || !Number.isInteger(c.id) || c.id < 1 || c.id >= cg.nextId || !CAMPAIGN_KINDS.includes(c.kind) || !isNum(c.startTick)) bad(`campaign ${c.id}`);
+      if (!isNum(c.mainAttacker) || !isNum(c.mainDefender) || !sides.every((m) => isNum(m) && dominions.some((d) => d.id === m))) bad(`campaign ${c.id} sides`);
+    }
+    campaigns.items = cg.items.map(copyCampaign);
+    campaigns.nextId = cg.nextId;
+  }
   const taxSeen = new Map<number, number>();
   for (const pair of snap.taxSeen ?? []) {
     if (!Array.isArray(pair) || pair.length !== 2) bad('tax seen');
@@ -498,7 +526,7 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
   if (!isNum(hamletsConquered) || !Number.isInteger(hamletsConquered) || hamletsConquered < 0) bad('hamlets conquered');
   const hamletsRazed = snap.hamletsRazed ?? 0;
   if (!isNum(hamletsRazed) || !Number.isInteger(hamletsRazed) || hamletsRazed < 0) bad('hamlets razed');
-  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen, taxFlows, loyalty, captures, hold, conqueredAt: new Map(), hamletsConquered, hamletsRazed });
+  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, campaigns, taxSeen, taxFlows, loyalty, captures, hold, conqueredAt: new Map(), hamletsConquered, hamletsRazed });
 }
 
 /** Majority owner of a hamlet's parcels (ties to the lower id), or UNOWNED. Draws no randomness. */
@@ -579,6 +607,7 @@ export function dominionsYearly(sim: Sim): void {
     hamlets: hamletCount,
     split: splitHooksOf(sim, s, settlements, hamletCount),
     found: foundHooksOf(sim, s, settlements),
+    rebel: rebelHooksOf(sim, s, settlements),
   };
   resolveIntrigues(ienv, s.intrigues);
   proposeIntrigues(ienv, s.intrigues);
@@ -1203,6 +1232,97 @@ function foundHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof
   };
 }
 
+/**
+ * Uprising hooks (10 section 11; intrigue.ts RebelHooks). The facts come from the owner bytes, the loyalty cache (isHappy,
+ * loyalty.ts), the garrison records (soldiers per hamlet), the hamlet leader's being (level from studies; stewardship as
+ * husbandry, warfare as valor, each with the creed harmony bonus, as the loyalty and garrison terms read them) and the
+ * campaign records. Nothing is read while the `uprisings` rule is off. Draws no randomness.
+ */
+function rebelHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof hamletsOf>): RebelHooks {
+  const store = sim.beings.store;
+  const on = (): boolean => sim.rules.isOn('uprisings');
+  const holdsOf = (d: number): number[] => settlements.flatMap((h, i) => (ownerOfHamlet(h.parcels, s.owner) === d ? [i] : []));
+  const unhappy = (i: number): boolean => {
+    const c = s.loyalty.get(i);
+    return c !== undefined && !isHappy(c.value);
+  };
+  const soldiersAt = (i: number): number => garrisonsOf(sim).find((r) => r.hamlet === i)?.soldiers ?? 0;
+  return {
+    hamlets: (d) => (on() ? holdsOf(d) : []),
+    facts: (d, i): UprisingFacts | undefined => {
+      if (!on()) return undefined;
+      const dom = s.dominions.find((x) => x.id === d);
+      const h = settlements[i];
+      if (!dom || !h || ownerOfHamlet(h.parcels, s.owner) !== d) return undefined;
+      const capital = leadingHamlet(d, settlements, s.owner);
+      const slot = h.leader ?? -1;
+      const ruler = rulerLive(store, dom);
+      const leader: RebelLeaderFacts | undefined =
+        slot >= 0 && store.alive[slot] === 1
+          ? {
+              level: sim.culture.studies?.[String((store.generation[slot] ?? 0) * MAX_BEINGS + slot)]?.level ?? 0,
+              stewardship: (store.attrs[slot * 4 + APT_HUSBANDRY] ?? 0) + harmonyBonus(sim.culture, d, 'stewardship'),
+              warfare: (store.attrs[slot * 4 + APT_VALOR] ?? 0) + harmonyBonus(sim.culture, d, 'warfare'),
+              isRuler: ruler !== undefined && ruler.slot === slot,
+            }
+          : undefined;
+      const mine = holdsOf(d);
+      return {
+        unhappy: unhappy(i),
+        isCapital: capital === h,
+        hasCapital: capital !== undefined,
+        hamlets: mine.length,
+        dominionYears: dom.foundedTick !== undefined ? wholeYears(sim.tick, dom.foundedTick) : undefined,
+        pacifist: warBlockedBy(sim, d),
+        defendedAgainst: s.campaigns.items.some((c) => c.kind === 'uprising' && c.mainDefender === d),
+        leader,
+        soldiers: soldiersAt(i),
+        capitalSoldiers: capital === undefined ? 0 : soldiersAt(settlements.indexOf(capital)),
+        unhappyHamlets: mine.filter(unhappy).length,
+      };
+    },
+    apply: (d, i) => uprise(sim, s, settlements, d, i),
+  };
+}
+
+/**
+ * The uprising (10 section 11, startUprising and makeOwnDominion; intrigue.ts applies it). The hamlet becomes a dominion of its
+ * own: addDominion takes its parcels under the next free id, with the strength foundFromHamlets gives (folk / ARMY_DIVISOR).
+ * foundFromHamlets itself needs unowned parcels, so it is not reused. The holding is restamped to the new dominion now, so
+ * belonging restarts and the yearly pass does not read the move as a conquest (trackHolds). The campaign has the old dominion
+ * as main attacker, with the pact members whose opinion of it is good, and the new dominion as main defender. An uprising
+ * campaign that the old dominion already leads takes the new one as a defender. Each attacker is at war with the new dominion.
+ * A ruler of the old dominion standing in the hamlet flees (fleeRuler). Returns false when the ids are used up. Draws no
+ * randomness, except through fleeRuler (the rulers stream).
+ */
+function uprise(sim: Sim, s: DominionState, settlements: ReturnType<typeof hamletsOf>, old: number, i: number): boolean {
+  const hamlet = settlements[i];
+  if (!hamlet) return false;
+  let max = 0;
+  for (const d of s.dominions) max = Math.max(max, d.id);
+  if (max >= 255) return false;
+  const fresh = max + 1;
+  addDominion(sim, fresh, Math.floor(hamlet.folk / ARMY_DIVISOR), [...hamlet.parcels].sort((x, y) => x - y));
+  s.hold.set(i, { dominion: fresh, since: sim.tick });
+  s.loyalty.delete(i);
+  let campaign: Campaign;
+  const ruling = s.campaigns.items.find((c) => c.kind === 'uprising' && c.mainAttacker === old);
+  if (ruling !== undefined) {
+    ruling.defenders.push(fresh);
+    campaign = ruling;
+  } else {
+    const oc = opinionContextOf(sim, s);
+    const allies = (pactOf(s.pacts.pacts, old)?.memberIds ?? []).filter((m) => m !== old && opinion(oc, m, old) >= 0);
+    campaign = { id: s.campaigns.nextId, kind: 'uprising', attackers: [old, ...allies], defenders: [fresh], mainAttacker: old, mainDefender: fresh, startTick: sim.tick };
+    s.campaigns.items.push(campaign);
+    s.campaigns.nextId += 1;
+  }
+  for (const a of campaign.attackers) s.relations.set(a, fresh, 'war');
+  const oldDom = s.dominions.find((d) => d.id === old);
+  if (oldDom) fleeRuler(sim, s, oldDom, hamlet, settlements);
+  return true;
+}
+
 /** Whole years from `since` to `tick` (ageYears and the loyalty terms read whole years, 09 section 1). Zero before `since`. */
 function wholeYears(tick: number, since: number): number {
   return Math.max(0, Math.floor((tick - since) / YEAR_TICKS));
@@ -1210,8 +1330,9 @@ function wholeYears(tick: number, since: number): number {
 
 /**
  * Hamlet holdings (10 section 5, belonging and conquest), read at the yearly pass before the loyalty terms. A hamlet first
- * seen with a dominion starts its belonging tick here. A change of dominion is a capture: the sim has no rebellion and no
- * voluntary join, so the dominion that takes the hamlet gets newConquestTick. A hamlet with no dominion drops its record.
+ * seen with a dominion starts its belonging tick here. A change of dominion is a capture, so the dominion that takes the hamlet
+ * gets newConquestTick; an uprising restamps its own holding first (uprise), so it is not read here as a capture. A hamlet
+ * with no dominion drops its record.
  * Stamps are at the yearly pass that sees the change, not the tick it happened. Draws no randomness.
  */
 function trackHolds(s: DominionState, settlements: ReturnType<typeof hamletsOf>, tick: number): void {

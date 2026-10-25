@@ -50,9 +50,9 @@ function creditsWindow(deps: WindowDeps): WindowBuild {
       const list = el('dl', 'facts');
       const rows: Array<[string, string]> = [
         ['Game', 'Sandbox Realms, an original browser god-game'],
-        ['Rendering', 'PixiJS'],
-        ['Build and tests', 'TypeScript, Vite, Vitest, Playwright'],
-        ['Licences', 'Each library is licensed under its own terms; see its package.'],
+        ['Rendering', 'PixiJS 8.22.0, MIT licence'],
+        ['Build and test tools (not shipped)', 'TypeScript 7.0.2, Vite 8.3.5, Vitest 5.0.5, Playwright 1.64.1, @types/node 26.6.5'],
+        ['Licences', 'Each library is licensed under its own terms. The project file ASSET-LICENSES.md lists them all.'],
       ];
       for (const [k, v] of rows) list.append(el('dt', undefined, k), el('dd', undefined, v));
       body.append(list, button('Done', () => deps.close(), true));

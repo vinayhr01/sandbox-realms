@@ -592,3 +592,41 @@ Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruc
 - **Running decision task is saved.** A save-and-load run diverged on its first step because the beings' running task was not saved (07 section 14 leaves this OPEN). The task is now saved as an i16 per Being in the beings section; the schema stays 4 since no release has shipped schema 4.
 - **Golden hash re-baselined.** `GOLDEN_HASH` 2562049680 -> 1492628085 after the round 4 to round 6 sim changes (pacts, armies, items, mood, sleep, bonds, decisions, lineage, engine heartbeat). Determinism check passes.
 - **Test updates.** `pacts-records`: a war inside a three-member pact dissolves the whole pact (round 4 rule). `pacts-opinion`: the march test measures distance to the enemy parcel (column 9, row 0). `audio-respawn`: the zero Ready reply carries `contentHash: ''`.
+
+## Crash record and release round 7
+
+Scope: spec 19 crash record, consent and export (sections 5, 6, 8, 9), "not responding" copy (17 section 10, 19 section 2), LEGAL-CHECKLIST release files. Code: `src/app/crash-record.ts` (new), `src/app/recovery.ts`, `src/app/main.ts`, `src/ui/staticWindows.ts` (credits only), `ASSET-LICENSES.md` (new), `docs/QA-LOG.md` (new).
+
+Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). Types were checked by reading. No QA run has been done (`docs/QA-LOG.md`).
+
+**Crash record (19 section 5, 6, 8).**
+- Written on each fatal fault (`reportCrash`: uncaught errors, unhandled rejections, `sim_fatal`, `worker_dead`) and on a worker stall (`WORKER_STALL`, kind `worker_dead`). Local only. No network code in the module.
+- Store: IndexedDB `sr-crash`, store `crashes`, ring of 20 (oldest deleted in the same transaction). Write budget 300 ms; on timeout or failure the summary goes to localStorage `sr-crash-lite` (last five: id, kind, fp, ts, version). Records from this page are also kept in memory, so export still works when IndexedDB is blocked.
+- Fields: id (128-bit random), fp (two FNV-1a passes, 16 hex), kind, severity (from the taxonomy table), ctx, time, app (version from `package.json`, build = content hash, schema 1), env (UA family, touch, dpr, online, cores, memory), run (uptime, tick, speed, Age, Safe Mode), err (name, scrubbed message, up to 30 frames), crumbs (last 20 journal entries, scrubbed), recovery step. Record cap 64 KB: crumbs, then frames, are dropped first.
+- Scrubbing (19 section 6): URLs, paths, e-mail addresses, long tokens, double-quoted text and digit runs over four digits are replaced. Frames keep the chunk name only; other origins become `<ext>`. Not built: fuzz redaction test (T-19-6).
+- Repeats: the same fingerprint is not written twice within 2 s, so an error inside a frame loop cannot flood the ring.
+- Deviations from spec 19: non-fatal worker faults (`warn`, `error`) are journal-only and get no record. No breadcrumb ring of 50, no log attachment, no perf block, no `sys` block, no emergency save. Build identity: no git hash is injected (`vite.config.ts` is out of scope), so `app.build` is the registry content hash.
+
+**Consent and send (brief item 2, 19 section 9).**
+- `privacy.errorReports` (boolean, default off) gates export. It is read at boot and on every change (`setCrashConsent`). With it off, export refuses and downloads nothing.
+- This build has no crash endpoint (OPEN-19-1 unset). Decision: no network send exists in this build. `NETWORK_SEND_AVAILABLE = false` is written into each export. "Send" is replaced by a JSON file download; the message says "Nothing was sent."
+- Deviation: spec 19 section 8 makes Export available regardless of consent. The brief's gate was followed. Revisit if the spec wins. Not built: ask, always and never modes, the preview, the first-fatal explanation, the rate limits and the unsent queue. DNT and GPC are not checked (the default is already off).
+
+**Export (brief item 3, partly done).**
+- Export is reachable now as "Export crash record" on the fatal dialog (src/app). It downloads the newest record.
+- OPEN: the Help window button. Help is built in `src/ui/windowContent.ts` (`buildHelp`), and the brief limits `src/ui` to copy and credits. Adding the button needs a one-line change there. Needs approval.
+
+**"Not responding" dialog (brief item 4).**
+- Title "Simulation not responding" and the Wait button already match 17 section 10 and 19. Copy changed only: the primary button is "Reload" (was "Restart simulation"), and the text now says "Reload to resume from the newest autosave" (was "Restart it to resume").
+- Open (behaviour, not copy): 19 section 2 says the overlay shows "when it wakes". The code shows it when the stall is detected (6 s with no heartbeat), not on wake.
+
+**Release files (brief item 5).**
+- `ASSET-LICENSES.md`: the six packages from `package.json`, with versions from the lockfile. Licences read from the installed packages in the main checkout's `node_modules` (`node_modules` is absent in this worktree). Licence text files were not checked. The project licence is undecided (`package.json` says ISC by default).
+- Credits window (`win_credits`): versions and licence summary added. The spec has no credits text (13 lists the row only, "credits and licences"), so none was copied.
+
+**QA log (brief item 6).** `docs/QA-LOG.md`: template and a first entry stating that no QA run has been done.
+
+**Not done, and why.**
+- Lawyer review of ASSET-LICENSES.md and LEGAL-CHECKLIST: needs a lawyer. Not written.
+- Look-and-feel review, trademark search, name audit (LEGAL-CHECKLIST): need people outside the project.
+- Unclean-exit sentinel and restore prompt changes: out of the brief.

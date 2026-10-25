@@ -372,6 +372,37 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
   states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen });
 }
 
+/** Majority owner of a hamlet's parcels (ties to the lower id), or UNOWNED. Draws no randomness. */
+function ownerOfHamlet(parcels: ReadonlySet<number>, owner: Uint8Array): number {
+  const counts = new Map<number, number>();
+  for (const p of parcels) {
+    const o = owner[p] ?? UNOWNED;
+    if (o !== UNOWNED) counts.set(o, (counts.get(o) ?? 0) + 1);
+  }
+  let best = UNOWNED;
+  let bestN = 0;
+  for (const [id, n] of counts) {
+    if (n > bestN || (n === bestN && id < best)) {
+      best = id;
+      bestN = n;
+    }
+  }
+  return best;
+}
+
+/**
+ * Hamlets per dominion id, for the power formula (10 section 2; opinion.ts powerOf). Each settlement counts once, for
+ * the dominion that owns most of its parcels. Read from the settlements adapter; draws no randomness.
+ */
+export function hamletCountsOf(settlements: readonly { parcels: ReadonlySet<number> }[], owner: Uint8Array): Map<number, number> {
+  const out = new Map<number, number>();
+  for (const h of settlements) {
+    const best = ownerOfHamlet(h.parcels, owner);
+    if (best !== UNOWNED) out.set(best, (out.get(best) ?? 0) + 1);
+  }
+  return out;
+}
+
 /**
  * Yearly dominion pass (10 sections 3, 10, 11 and 12; see founding.ts). Runs once per sim-year on a
  * phase derived from its name. Settlements are read through the hamlet adapter; the dominion state is
@@ -401,9 +432,12 @@ export function dominionsYearly(sim: Sim): void {
   });
   const rulerOf = rulerLookup(sim, s.dominions);
   const lens = lensOf(sim, s);
-  pactYear(s.pacts, s.dominions, s.borders, s.relations, sim.tick, s.truce, rulerOf, lens);
+  // Hamlet counts for the power formula (10 section 2), taken once after founding so every pact and intrigue gate this
+  // year reads the same counts.
+  const hamletCount = hamletCountsOf(settlements, s.owner);
+  pactYear(s.pacts, s.dominions, s.borders, s.relations, sim.tick, s.truce, rulerOf, lens, hamletCount);
   // Pact intrigues (intrigue.ts): last year's intrigues resolve through the pact functions, then new ones are proposed.
-  const ienv: IntrigueEnv = { dominions: s.dominions, borders: s.borders, relations: s.relations, truce: s.truce, pacts: s.pacts, tick: sim.tick, rulerOf, lens };
+  const ienv: IntrigueEnv = { dominions: s.dominions, borders: s.borders, relations: s.relations, truce: s.truce, pacts: s.pacts, tick: sim.tick, rulerOf, lens, hamlets: hamletCount };
   resolveIntrigues(ienv, s.intrigues);
   proposeIntrigues(ienv, s.intrigues);
   // Culture (11 sections 2 and 3): each dominion gets a custom once, and a scheme while none runs (culture/adapter.ts).
@@ -422,19 +456,7 @@ export function dominionsYearly(sim: Sim): void {
     const seen = s.taxSeen.get(anchor);
     const loot = seen === undefined ? 0 : Math.max(0, h.gold - seen);
     nextSeen.set(anchor, h.gold);
-    const counts = new Map<number, number>();
-    for (const p of h.parcels) {
-      const o = s.owner[p] ?? UNOWNED;
-      if (o !== UNOWNED) counts.set(o, (counts.get(o) ?? 0) + 1);
-    }
-    let best = UNOWNED;
-    let bestN = 0;
-    for (const [id, n] of counts) {
-      if (n > bestN || (n === bestN && id < best)) {
-        best = id;
-        bestN = n;
-      }
-    }
+    const best = ownerOfHamlet(h.parcels, s.owner);
     if (best !== UNOWNED) {
       const ruler = s.dominions.find((d) => d.id === best);
       if (ruler && loot > 0) {

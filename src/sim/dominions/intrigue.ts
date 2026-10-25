@@ -1,6 +1,6 @@
 import { YEAR_TICKS } from '../../shared/constants.ts';
 import type { Truce } from './founding.ts';
-import { goodOpinionOfAll, opinion, supremeOf, type OpinionContext } from './opinion.ts';
+import { goodOpinionOfAll, opinion, powerOf, supremeOf, type OpinionContext } from './opinion.ts';
 import { dissolvePact, formPact, hasEnemy, joinPact, pactOf, pactPower, PACT_TIMEOUT_TICKS, warPair, type Pact, type PactState } from './pacts.ts';
 import type { Dominion, RelationMatrix } from './types.ts';
 
@@ -58,10 +58,12 @@ export interface IntrigueEnv {
   rulerOf?: OpinionContext['rulerOf'];
   /** Custom and strain lens for the opinion terms (opinion.ts). Optional. */
   lens?: OpinionContext['lens'];
+  /** Hamlets per dominion for the power formula (opinion.ts powerOf). Optional: absent counts as 0. */
+  hamlets?: OpinionContext['hamlets'];
 }
 
 function opinionOf(env: IntrigueEnv): OpinionContext {
-  return { dominions: env.dominions, borders: env.borders, relations: env.relations, truce: env.truce, pacts: env.pacts.pacts, tick: env.tick, rulerOf: env.rulerOf, lens: env.lens };
+  return { dominions: env.dominions, borders: env.borders, relations: env.relations, truce: env.truce, pacts: env.pacts.pacts, tick: env.tick, rulerOf: env.rulerOf, lens: env.lens, hamlets: env.hamlets };
 }
 
 function dom(env: IntrigueEnv, id: number): Dominion | undefined {
@@ -95,7 +97,7 @@ export function formPactOk(env: IntrigueEnv, a: number, b: number): boolean {
   if (a === b || !dom(env, a) || !dom(env, b)) return false;
   if (!bordered(env, a, b) || env.relations.get(a, b) !== 'peace') return false;
   if (env.pacts.lastFormedTick >= 0 && env.tick - env.pacts.lastFormedTick < PACT_TIMEOUT_TICKS) return false;
-  const sup = supremeOf(env.dominions);
+  const sup = supremeOf(env.dominions, env.hamlets);
   if (a === sup || b === sup) return false;
   if ((dom(env, a)?.strength ?? 0) < FORM_PACT_STRENGTH || (dom(env, b)?.strength ?? 0) < FORM_PACT_STRENGTH) return false;
   if (!free(env, a) || !free(env, b)) return false;
@@ -108,7 +110,7 @@ export function joinPactOk(env: IntrigueEnv, d: number, pactId: number): boolean
   const p = env.pacts.pacts.find((x) => x.id === pactId);
   if (!p || !dom(env, d)) return false;
   if ((dom(env, d)?.strength ?? 0) < JOIN_PACT_STRENGTH) return false;
-  const sup = supremeOf(env.dominions);
+  const sup = supremeOf(env.dominions, env.hamlets);
   if (d === sup || p.memberIds.includes(sup)) return false;
   if (!free(env, d) || warPair(p.memberIds, env.relations)) return false;
   if (!p.memberIds.some((m) => bordered(env, d, m))) return false;
@@ -128,9 +130,9 @@ export function dissolvePactOk(env: IntrigueEnv, d: number, pactId: number): boo
   if (!p.memberIds.includes(d) || p.founders.includes(d)) return false;
   if (!free(env, d)) return false;
   if (env.tick - p.formedTick < DISSOLVE_PACT_AGE_TICKS) return false;
-  const ranked = [...env.dominions].sort((x, y) => y.strength - x.strength || x.id - y.id).map((x) => x.id);
+  const ranked = [...env.dominions].sort((x, y) => powerOf(y, env.hamlets) - powerOf(x, env.hamlets) || x.id - y.id).map((x) => x.id);
   if (!ranked.slice(0, 2).includes(d)) return false;
-  if (!p.memberIds.includes(supremeOf(env.dominions))) return false;
+  if (!p.memberIds.includes(supremeOf(env.dominions, env.hamlets))) return false;
   const outside = env.dominions.filter((x) => !p.memberIds.includes(x.id));
   if (outside.length === 0) return false;
   const outsidePower = outside.reduce((sum, x) => sum + x.strength, 0);

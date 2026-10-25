@@ -1248,6 +1248,7 @@ async function boot(): Promise<void> {
           campaigns: boolOption(options, 'marks.campaigns'),
           battles: boolOption(options, 'marks.battles'),
           intrigues: boolOption(options, 'marks.intrigues'),
+          boats: boolOption(options, 'marks.boats'),
           names: stringOption(options, 'map.names') as 'full' | 'banner' | 'off',
           favouritesOnlyNames: boolOption(options, 'map.favouritesOnlyNames'),
           nameScale: numberOption(options, 'ui.scaleNames'),

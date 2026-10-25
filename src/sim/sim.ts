@@ -33,7 +33,8 @@ import { rainDrop } from './terrain/water.ts';
 import { freeze, } from './terrain/freeze.ts';
 import { startFire } from './terrain/fire.ts';
 import { stepBeings, killBeing } from './beings/system.ts';
-import { settlementsStep } from './settlements/adapter.ts';
+import { hamletsOf, settlementsStep } from './settlements/adapter.ts';
+import { boatsStep } from './boats/boats.ts';
 import { dominionsYearly, stepDominions } from './dominions/adapter.ts';
 import { cultureTick, createCultureState, type CultureState } from './culture/adapter.ts';
 import { rollAndRunCalamity, usePowerById } from './powers/handlers.ts';
@@ -194,6 +195,8 @@ export class Sim {
     this.runTerrain();
     this.runBehaviours();
     settlementsStep(this);
+    // Boats run once per sim-second, after hamlets and their docks (boats.ts).
+    if (this.tick % 20 === 0) boatsStep(this, hamletsOf(this));
     cultureTick(this);
     stepBeings(this);
     clansStep(this);

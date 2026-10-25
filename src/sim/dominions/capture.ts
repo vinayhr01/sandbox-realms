@@ -64,6 +64,21 @@ export interface CaptureContext {
   ownerOf(parcels: ReadonlySet<number>): number;
   /** Capture progress by the hamlet's lowest parcel. Edited in place. */
   captures: Map<number, Capture>;
+  /**
+   * The dominion that takes a hamlet its captor took (10 section 7 findDominionAfterCapture; adapter.ts takerOfCapture). Read
+   * before the owner bytes change. Returns the captor when no ally hands the hamlet over.
+   */
+  takerOf(captor: number, loser: number, anchor: number): number;
+  /** True when the hamlet with this lowest parcel is the loser's capital (rulers.ts leadingHamlet). Read before the bytes change. */
+  isCapital(loser: number, anchor: number): boolean;
+}
+
+/** A hamlet that fell in one capture step: its lowest parcel, the dominion it left, the dominion that takes it, and whether it was the capital. */
+export interface CaptureFall {
+  anchor: number;
+  loser: number;
+  winner: number;
+  capital: boolean;
 }
 
 /** True when parcel `q` is within CAPTURE_REACH parcels of a parcel of `parcels`. Draws no randomness. */
@@ -89,10 +104,12 @@ function inReach(q: number, parcels: ReadonlySet<number>, perAxis: number): bool
  * - `defended` when O has soldiers in reach or its defence beats the attack points; `defenderTicks` counts the steps in a row;
  * - `ticks` rises by CAPTURE_RISE when the capturer leads and no defender has held DEFENDER_TICKS steps; otherwise it falls
  *   by CAPTURE_FALL_DEFENDED when defended, or by CAPTURE_FALL_NOBODY when nobody is there;
- * - at `ticks >= threshold` (BASTION_THRESHOLD with a bastion, else CAPTURE_THRESHOLD) the hamlet falls to the capturer.
- * Draws no randomness. Iterates hamlets in list order and dominions in id order.
+ * - at `ticks >= threshold` (BASTION_THRESHOLD with a bastion, else CAPTURE_THRESHOLD) the hamlet falls (finishCapture).
+ * Returns the hamlets that fell in this step, in list order. Draws no randomness. Iterates hamlets in list order and
+ * dominions in id order.
  */
-export function captureStep(ctx: CaptureContext): void {
+export function captureStep(ctx: CaptureContext): CaptureFall[] {
+  const falls: CaptureFall[] = [];
   const live = new Set<number>();
   for (const h of ctx.hamlets) {
     if (h.parcels.size === 0) continue;
@@ -132,21 +149,28 @@ export function captureStep(ctx: CaptureContext): void {
     state.ticks = Math.max(0, state.ticks);
     ctx.captures.set(anchor, state);
     const threshold = h.buildings.some((b) => b.def.id === 'bastion') ? BASTION_THRESHOLD : CAPTURE_THRESHOLD;
-    if (leads && state.ticks >= threshold) finishCapture(ctx, h.parcels, owner, capturer, anchor);
+    if (leads && state.ticks >= threshold) {
+      const fall = finishCapture(ctx, h.parcels, owner, capturer, anchor);
+      if (fall) falls.push(fall);
+    }
   }
   for (const key of [...ctx.captures.keys()]) if (!live.has(key)) ctx.captures.delete(key);
+  return falls;
 }
 
 /**
- * finishCapture (10 section 7): the hamlet's parcels that the loser held pass to the capturer, in the owner bytes and in the
- * dominions' parcel sets, and the capture record is dropped. The captor takes it (the spec's findDominionAfterCapture
- * ally hand-over is not built). Garrisons follow the existing owner-change rule of garrison-adapter.ts (the company goes
- * back to the old dominion). Draws no randomness.
+ * finishCapture (10 section 7): the taker (ctx.takerOf: the captor, or the main party of an allied campaign) receives the
+ * hamlet's parcels that the loser held, in the owner bytes and in the dominions' parcel sets, and the capture record is
+ * dropped. The loser's capital is read before the bytes change. Garrisons follow the existing owner-change rule of
+ * garrison-adapter.ts (the company goes back to the old dominion). The moods, the ruler and the holdings are set by the
+ * adapter after the step (adapter.ts applyFall). Draws no randomness.
  */
-function finishCapture(ctx: CaptureContext, parcels: ReadonlySet<number>, loser: number, winner: number, anchor: number): void {
+function finishCapture(ctx: CaptureContext, parcels: ReadonlySet<number>, loser: number, captor: number, anchor: number): CaptureFall | undefined {
+  const winner = ctx.takerOf(captor, loser, anchor);
+  const capital = ctx.isCapital(loser, anchor);
   const from = ctx.dominions.find((d) => d.id === loser);
   const to = ctx.dominions.find((d) => d.id === winner);
-  if (!to) return;
+  if (!to) return undefined;
   for (const p of parcels) {
     if (ctx.owner[p] !== loser) continue;
     ctx.owner[p] = winner;
@@ -154,4 +178,5 @@ function finishCapture(ctx: CaptureContext, parcels: ReadonlySet<number>, loser:
     to.parcels.add(p);
   }
   ctx.captures.delete(anchor);
+  return { anchor, loser, winner, capital };
 }

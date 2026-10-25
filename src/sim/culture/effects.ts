@@ -319,6 +319,56 @@ export function campaignMood(sim: Sim, kind: 'start' | 'end', winner: number, lo
   if (warlike(loser)) for (const f of folkOf(sim, ownerAt, loser)) addMood(sim, f, 'campaign_lost');
 }
 
+/** A conquered unit keeps the wasConquered stamp for this many ticks (10 section 7: the last 400 s = 8000 ticks). */
+export const CONQUERED_WINDOW = 8000;
+
+/** Living Folk, in slot order. Draws no rng. */
+function folkSlots(sim: Sim): number[] {
+  const s = sim.beings.store;
+  const out: number[] = [];
+  for (let k = 0; k < s.size; k++) {
+    const slot = s.at(k);
+    if (sim.beings.species(s.species[slot] ?? 0).folk) out.push(slot);
+  }
+  return out;
+}
+
+/**
+ * Capture moods (10 section 7, finishCapture), applied after the owner bytes pass the hamlet to `winner`. The Folk standing on
+ * the hamlet's parcels were conquered: they feel `conquered` (wasConquered, -20) and keep the stamp in `conqueredAt`. The
+ * winner's other Folk feel `hamlet_conquered` (+30). The loser's other Folk feel `hamlet_lost` (-15), or `home_lost` (-30)
+ * when the hamlet was its capital. A unit stamped within CONQUERED_WINDOW feels none of these. Reads the stamps before any is
+ * written. Draws no rng.
+ */
+export function captureMood(
+  sim: Sim,
+  winner: number,
+  loser: number,
+  capital: boolean,
+  hamletParcels: ReadonlySet<number>,
+  ownerAt: (parcel: number) => number,
+  conqueredAt: Map<number, number>,
+  tick: number,
+): void {
+  const recent = (slot: number): boolean => {
+    const t = conqueredAt.get(keyOfSlot(sim, slot));
+    return t !== undefined && tick - t < CONQUERED_WINDOW;
+  };
+  const folk = folkSlots(sim);
+  const inHamlet = (slot: number): boolean => hamletParcels.has(parcelOfSlot(sim, slot));
+  const onOther = (dominion: number): number[] => folk.filter((f) => !inHamlet(f) && ownerAt(parcelOfSlot(sim, f)) === dominion);
+  const winners = onOther(winner);
+  const losers = onOther(loser);
+  const conquered = folk.filter(inHamlet);
+  for (const f of winners) if (!recent(f)) addMood(sim, f, 'hamlet_conquered');
+  for (const f of losers) if (!recent(f)) addMood(sim, f, capital ? 'home_lost' : 'hamlet_lost');
+  for (const f of conquered) {
+    if (recent(f)) continue;
+    addMood(sim, f, 'conquered');
+    conqueredAt.set(keyOfSlot(sim, f), tick);
+  }
+}
+
 /**
  * convertOrElse (11 section 9.1): after a blow that did not kill (beings/system.ts strike), a civil attacker (a Folk whose
  * custom holds the trait) below 30% vitality converts a weak non-mind target (not Folk, below 30% vitality) with 30%: the

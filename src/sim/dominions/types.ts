@@ -31,7 +31,7 @@ export interface Dominion {
   foundedTick?: number;
   /** Tick the current ruler was installed (rulers.ts). Optional: absent until a ruler is installed after it was recorded (10 section 5 ruler tenure). */
   rulerSinceTick?: number;
-  /** Tick a hamlet of this dominion was last taken from another dominion (10 section 1 newConquestTick; adapter.ts trackHolds). Optional: absent until a capture. */
+  /** Tick a hamlet of this dominion was last taken from another dominion (10 section 1 newConquestTick; adapter.ts applyFall, and trackHolds for a change it does not see). Optional: absent until a capture. */
   newConquestTick?: number;
 }
 

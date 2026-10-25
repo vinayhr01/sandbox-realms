@@ -73,7 +73,7 @@ test('the crash dialog restores the newest valid autosave into the live realm', 
   await page.evaluate(() => window.dispatchEvent(new ErrorEvent('error', { message: 'simulated crash' })));
   await expect(page.locator('#fatal')).toBeVisible();
 
-  const restore = page.getByRole('button', { name: 'Restore last autosave', exact: true });
+  const restore = page.getByRole('button', { name: 'Reload last autosave', exact: true });
   await expect(restore).toBeEnabled();
   await restore.click();
 
@@ -95,7 +95,7 @@ test('the boot-loop dialog restores the newest valid autosave and clears the loo
   const dialog = page.locator('#fatal');
   await expect(dialog).toBeVisible();
   await expect(page.locator('#fatal-title')).toHaveText('Stopped several times in a row');
-  const restore = page.getByRole('button', { name: 'Restore last autosave', exact: true });
+  const restore = page.getByRole('button', { name: 'Reload last autosave', exact: true });
   await expect(restore).toBeEnabled();
   await restore.click();
 
@@ -111,6 +111,6 @@ test('with no valid autosave the restore button is shown but disabled', async ({
 
   await page.evaluate(() => window.dispatchEvent(new ErrorEvent('error', { message: 'simulated crash' })));
   await expect(page.locator('#fatal')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Restore last autosave', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: 'Reload last autosave', exact: true })).toBeDisabled();
   await expect(page.getByRole('button', { name: 'Start in Safe Mode', exact: true })).toBeEnabled();
 });

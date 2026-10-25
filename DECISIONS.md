@@ -2423,3 +2423,28 @@ Scope: 10 section 7 (capture of hamlets: capture points, the base threshold of 1
 - Pre-existing gap fixed on the way: `restoreDominions` built a `DominionState` without `loyalty`, which the type requires. The literal now sets `loyalty` and `captures` to empty maps.
 
 **Not verified.** Nothing was run. Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Needed with test access: a seeded test of the rise, the defender stop (`defenderTicks >= 5`), the bastion threshold of 130, and `finishCapture` moving the owner bytes and the parcel sets. The test must avoid the spec test 5 conflict above.
+
+## Recovery dialog close 8
+
+Scope: the recovery dialog that pump isolation left unbuilt. Spec: `Spec/systems/17-engine-runtime-performance.md` section 9 (auto-pause dialog with "Reload last autosave" / "Continue (feature disabled)" / "Export diagnostics"), and `Spec/systems/19-crash-reporting.md` sections 7 (fatal dialog), 8 and 9 (export, consent). Spec verified at `game/Spec` before editing. Files: `src/app/main.ts` (`CONTINUE_OFF`, `restoreAction`, `reportCrash`, `showSimStopped` in `boot`, the `SYS_STOP` branch), `tests/e2e/finish-restore.spec.ts` (label strings only). Development only: no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` is not edited.
+
+**Closed.**
+- Sim switched off (17 section 9, `SYS_STOP`). The worker's third switch-off pauses the sim, and `main.ts` now shows the dialog "Simulation paused" with three buttons in the spec's order: **Reload last autosave** (primary; the existing `restoreAction`, which loads the newest valid autosave through `SaveController.restoreAutosave`; the button waits until the save list is read, as the fatal dialog does), **Continue (feature disabled)**, and **Export diagnostics** (the existing `exportCrashAndDownload`, which uses `exportCrashRecord`).
+- Continue (17 section 9, 19 section 7). Hides the dialog, sets `paused` to false and calls `applySpeed()`, which sends the speed the player had. The worker is alive, so the sim runs. The switched-off part stays off until its 600 ticks end (pump isolation, deviation 3).
+- Fatal path (19 section 7 step 3). `reportCrash` now uses the spec's labels: **Reload last autosave**, **Continue (feature disabled)** shown disabled, **Export diagnostics**, then the existing extra buttons (**Start a new Realm** when a reset is chosen, **Start in Safe Mode**). Continue is disabled because the sim has stopped (`sim_fatal`, `worker_dead`). For `js_main` the sim keeps running, so the button is left out there.
+- The reload label is shared by the boot-loop dialog (`restoreAction`), so that dialog now reads "Reload last autosave" too. The three e2e expectations in `tests/e2e/finish-restore.spec.ts` were changed to match. They were not run.
+
+**Decisions.**
+- Continue is enabled when the worker is alive and the stop is not fatal. The brief says Continue resumes "only if the sim is not switched off". I read "switched off" as a fatal stop of the sim. A switched-off part does not block Continue, because the label itself says "feature disabled".
+- Export diagnostics is not gated by consent. The header of `crash-record.ts` says consent gates sending only, and export never sends. The exported JSON records `consentMode`. No code was changed in `crash-record.ts`.
+- The stop dialog follows 17 section 9 (dialog on the third switch-off). 19 section 7 step 2 says a disabled system gets a non-modal banner. That is a conflict between the specs. The single `SYS_OFF` warning keeps its toast and log line; only the stop gets the dialog.
+- The title "Simulation paused" and the detail sentence are our copy. Neither spec gives text for this dialog. The detail names the part (`sys`), which carries no user data.
+- Reload label: 17 says "Reload last autosave" and 19 says "Reload last save". The brief asks for the 17 label, so 17 is used on both paths.
+
+**Not built, and why.**
+- "Start in Safe Mode" is not on the stop dialog. 17 section 9 does not list it there. It stays on the fatal dialog, where 19 section 7 uses it.
+- "Send report" and "Start fresh (keeps saves)" from 19 section 7 are not built. Sending waits on OPEN-19-1 (no endpoint, so local only). "Start fresh" is named in one line of 19 with no defined behaviour.
+- The diagnostics bundle of 17 section 9 (replay ring, perf summary, last 500 log lines) is not built. The export is the crash record of 19 section 5, which is the diagnostics the code has.
+- The Help window's "Export crash record" button (`src/ui/windowContent.ts`) keeps its old label. It was not in scope.
+
+**Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. The `SYS_STOP` dialog, Continue after a stop, and the relabelled e2e tests need a run with test access. A Playwright check should force three switch-offs and confirm the three buttons, their order, and that Continue resumes the speed.

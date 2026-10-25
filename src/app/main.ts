@@ -155,10 +155,16 @@ const QUALITY_OPTIONS: ReadonlySet<string> = new Set(['ui.fpsCap', 'perf.renderS
 let mainHangRecordedMs = Number.NEGATIVE_INFINITY;
 const MAIN_HANG_DEDUP_MS = 10_000;
 
-/** The restore button. `hasSave` null means the save list is still being read, so the button waits. */
+/**
+ * The Continue button of a stopped sim, shown off (17 section 9 labels it "Continue (feature disabled)"). A fatal stop has
+ * no running sim to resume, so the button cannot be pressed (19 section 7).
+ */
+const CONTINUE_OFF: FatalAction = { label: 'Continue (feature disabled)', disabled: true, run: () => undefined };
+
+/** The reload button (17 section 9: "Reload last autosave"). `hasSave` null means the save list is still being read, so the button waits. */
 function restoreAction(hasSave: boolean | null, primary: boolean, onRestored: () => void = () => undefined): FatalAction {
   return {
-    label: 'Restore last autosave',
+    label: 'Reload last autosave',
     primary: primary && hasSave === true,
     disabled: hasSave !== true,
     run: async () => {
@@ -215,7 +221,11 @@ function reportCrash(kind: FaultKind, title: string, detail: string, stack?: str
     // The first fatal dialog explains the consent choice once (19 section 9).
     const note = firstFatalNote();
     const text = note === null ? detail : `${detail} ${note}`;
+    // The spec's order is Reload last autosave, Continue, Export diagnostics (17 section 9); the others follow it.
+    // js_main leaves the sim running, so it has no Continue button here.
     const actions: FatalAction[] = [restoreAction(hasSave, decision.level === 'restart_from_autosave')];
+    if (kind !== 'js_main') actions.push(CONTINUE_OFF);
+    actions.push({ label: 'Export diagnostics', run: exportCrashAndDownload });
     if (kind === 'sim_fatal' && decision.level === 'reset_realm' && restartRealm) {
       const restart = restartRealm;
       actions.push({
@@ -227,7 +237,6 @@ function reportCrash(kind: FaultKind, title: string, detail: string, stack?: str
         },
       });
     }
-    actions.push({ label: 'Export crash record', run: exportCrashAndDownload });
     actions.push(safeModeAction(decision.enterSafeMode));
     showFatal(title, text, actions);
   })();
@@ -645,6 +654,33 @@ async function boot(): Promise<void> {
     for (const btn of document.querySelectorAll<HTMLButtonElement>('.speed-btn')) {
       btn.setAttribute('aria-pressed', String(!state.paused && Number(btn.dataset['speed']) === state.speed));
     }
+  };
+
+  /** The dialog title of a stopped sim, so a late save-list answer only redraws this dialog. */
+  const SIM_PAUSED_TITLE = 'Simulation paused';
+  /**
+   * The sim switched itself off after a part's third switch-off (17 section 9, SYS_STOP). The worker has paused the sim and
+   * the page shows that pause. The dialog offers the three options of 17 section 9 in their order. Continue resumes the sim
+   * when the worker is still running, and the switched-off part stays off until its ticks run out. Reload last autosave
+   * loads the newest valid save, which starts every part on.
+   */
+  const showSimStopped = (part: string | undefined, hasSave: boolean | null): void => {
+    showFatal(
+      SIM_PAUSED_TITLE,
+      `A part of the simulation (${part ?? 'unknown'}) failed three times and is switched off. The simulation is paused.`,
+      [
+        restoreAction(hasSave, true),
+        {
+          label: 'Continue (feature disabled)',
+          run: () => {
+            hideFatal();
+            state.paused = false;
+            applySpeed();
+          },
+        },
+        { label: 'Export diagnostics', run: exportCrashAndDownload },
+      ],
+    );
   };
 
   const togglePause = (): void => {
@@ -1288,6 +1324,15 @@ async function boot(): Promise<void> {
         if (event.code === 'SYS_STOP') {
           state.paused = true;
           applySpeed();
+          const part = event.sys;
+          showSimStopped(part, null);
+          // The save list answers later: the reload button waits for it, as the fatal dialog does.
+          const recovery = autosaveRecovery;
+          if (recovery) {
+            void recovery.hasSave().then((has) => {
+              if (fatalOpen() && document.getElementById('fatal-title')?.textContent === SIM_PAUSED_TITLE) showSimStopped(part, has);
+            });
+          }
         }
         if (event.code === 'WORKER_RESPAWN') crumb('WORKER_RESTART', 'respawn');
         else journal(event.code, event.detail);

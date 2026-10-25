@@ -3,8 +3,8 @@
  * stall. It stays on this device: the IndexedDB database `sr-crash` keeps the newest 20, and a
  * localStorage summary (`sr-crash-lite`) is the fallback when IndexedDB does not answer in time.
  *
- * Consent (19 section 9): `privacy.errorReports` picks `always` (on) or `ask` (off); Do Not Track or
- * Global Privacy Control force `never`. Consent gates sending only. Export (19 section 8) is not gated:
+ * Consent (19 section 9): `privacy.errorReports` is a three-way choice, `ask`, `always` or `never`; Do Not Track
+ * or Global Privacy Control force `never`. Consent gates sending only. Export (19 section 8) is not gated:
  * the file is downloaded on an explicit player action and stays on the device until the player shares it.
  * This build has no crash endpoint (OPEN-19-1 unset), so nothing is sent. Records that would have been
  * sent wait in the unsent queue (max 20). Nothing in this module calls fetch, sendBeacon or any other
@@ -16,11 +16,13 @@ import pkg from '../../package.json';
 import { contentHash } from '../content/content-hash.ts';
 import { fnv1a } from '../shared/rng.ts';
 import { FAULT_SEVERITY, recentJournal, type FaultKind, type Severity } from './recovery.ts';
+import { CRASH_LOG_LINES, logLine, recentLogLines, type LogLevel } from './log-ring.ts';
+import { perfSummary, type PerfSummary } from './perf-sample.ts';
 
 const APP_VERSION: string = pkg.version;
 
-/** Schema of the record itself (not the Chronicle save schema). Bump when the fields change. */
-export const CRASH_RECORD_SCHEMA = 1;
+/** Schema of the record itself (not the Chronicle save schema). Bump when the fields change. 2: logs, perf, sys, recovery list. */
+export const CRASH_RECORD_SCHEMA = 2;
 /** No crash endpoint exists in this build. Recorded here so the decision is visible in code. */
 export const NETWORK_SEND_AVAILABLE = false;
 
@@ -38,6 +40,8 @@ const FRAMES_MAX = 30;
 const MSG_MAX = 300;
 /** The same fingerprint is not written twice inside this window (an error inside a frame loop would flood the ring). */
 const SAME_FP_MIN_MS = 2_000;
+/** A simulation part counts its faults over this window for the `sys` block (19 section 5). */
+const SYS_WINDOW_MS = 10_000;
 
 export interface CrashFrame {
   fn: string;
@@ -72,8 +76,14 @@ export interface CrashRecord {
   run: { uptimeMs: number; tick: number | null; speed: number | null; age: string | null; safeMode: boolean };
   err: { name: string; msg: string; frames: CrashFrame[] };
   crumbs: CrashCrumb[];
-  /** The recovery step the ladder chose (19 section 7), or 'none'. */
-  recovery: string;
+  /** Warn-and-up lines, oldest first, collapsed repeats, scrubbed (19 section 5: last 200). */
+  logs: string[];
+  /** Frame and sim timings near the fault. Absent before anything was sampled. */
+  perf?: PerfSummary;
+  /** The simulation part that faulted. `disabled` stays false until system isolation (17 section 9) exists. */
+  sys?: { id: string; errorCount: number; disabled: boolean };
+  /** The steps taken, in order: the emergency save result, then the ladder step (19 section 5, section 7). */
+  recovery: string[];
 }
 
 export interface CrashInput {
@@ -81,7 +91,10 @@ export interface CrashInput {
   ctx: 'main' | 'worker';
   message: string;
   stack?: string | undefined;
-  recovery: string;
+  /** Steps taken so far, in order (see CrashRecord.recovery). */
+  recovery: string[];
+  /** The simulation part that faulted, when the fault names one (for example 'pump'). */
+  sys?: string | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -108,28 +121,34 @@ export function noteCrashRun(update: Partial<Omit<CrashRun, 'startedMs'>>): void
 
 /**
  * ask: a preview before anything leaves the device (the default).
- * always: sends without asking (opt-in, the `privacy.errorReports` option).
- * never: nothing is queued or sent. Forced by Do Not Track or Global Privacy Control.
+ * always: sends without asking (the player chose it in Settings > Privacy).
+ * never: nothing is queued or sent. Also forced by Do Not Track or Global Privacy Control.
  */
 export type ConsentMode = 'ask' | 'always' | 'never';
 
 export interface ConsentInput {
-  optionOn: boolean;
+  /** The player's choice from `privacy.errorReports`. */
+  choice: ConsentMode;
   dnt: boolean;
   gpc: boolean;
 }
 
-/** Pure: DNT or GPC forces `never`; otherwise the option picks `always` (on) or `ask` (off). */
+/** Pure: DNT or GPC forces `never`; otherwise the player's choice stands. */
 export function resolveConsentMode(input: ConsentInput): ConsentMode {
   if (input.dnt || input.gpc) return 'never';
-  return input.optionOn ? 'always' : 'ask';
+  return input.choice;
 }
 
-let optionOn = false;
+/** Reads the `privacy.errorReports` value. Anything unknown counts as the default, `ask`. */
+export function consentFromOption(value: string): ConsentMode {
+  return value === 'always' || value === 'never' ? value : 'ask';
+}
 
-/** Set from the `privacy.errorReports` option at boot and on every change. Off by default. */
-export function setCrashConsent(allowed: boolean): void {
-  optionOn = allowed;
+let choice: ConsentMode = 'ask';
+
+/** Set from the `privacy.errorReports` option at boot and on every change. Defaults to `ask`. */
+export function setCrashConsent(next: ConsentMode): void {
+  choice = next;
 }
 
 /** The browser's privacy signals. Any access that throws counts as not set. */
@@ -146,7 +165,7 @@ function privacySignals(): { dnt: boolean; gpc: boolean } {
 /** The consent mode in force now (19 section 9). */
 export function crashMode(): ConsentMode {
   const signals = privacySignals();
-  return resolveConsentMode({ optionOn, dnt: signals.dnt, gpc: signals.gpc });
+  return resolveConsentMode({ choice, dnt: signals.dnt, gpc: signals.gpc });
 }
 
 // ---------------------------------------------------------------------------
@@ -225,7 +244,20 @@ function errorName(message: string): string {
   return /^([A-Za-z]*Error)\b/.exec(message)?.[1] ?? 'Error';
 }
 
-/** Builds a scrubbed record. Over the 64 KB cap, breadcrumbs and then frames are dropped first. */
+/** Counts of recent faults per simulation part, newest last (19 section 5, `sys`). */
+const sysFaults = new Map<string, number[]>();
+
+/** Notes one fault in a simulation part and returns how many it has had inside SYS_WINDOW_MS, this one included. */
+export function noteSysFault(id: string, nowMs: number): number {
+  const recent = [...(sysFaults.get(id) ?? []).filter((t) => nowMs - t < SYS_WINDOW_MS && t <= nowMs), nowMs];
+  sysFaults.set(id, recent);
+  return recent.length;
+}
+
+/**
+ * Builds a scrubbed record. Over the 64 KB cap, the oldest log lines go first, then the oldest breadcrumbs,
+ * then frames beyond the first ten (19 section 5).
+ */
 export function buildRecord(input: CrashInput, nowMs: number = Date.now()): CrashRecord {
   const origin = location.origin;
   const msg = scrubText(input.message);
@@ -233,7 +265,10 @@ export function buildRecord(input: CrashInput, nowMs: number = Date.now()): Cras
   const build = contentHash();
   const nav = navigator;
   let crumbs: CrashCrumb[] = recentJournal(CRUMBS_MAX).map((e) => ({ at: e.at, code: scrubText(e.code, 40), detail: scrubText(e.detail, 120) }));
+  let logs: string[] = recentLogLines(CRASH_LOG_LINES).map((line) => scrubText(line, 320));
   let kept = frames;
+  const perf = perfSummary();
+  const sys = input.sys === undefined ? undefined : { id: scrubText(input.sys, 40), errorCount: noteSysFault(input.sys, nowMs), disabled: false };
   const make = (): CrashRecord => ({
     id: randomId(),
     fp: fingerprint(input.kind, msg, kept),
@@ -253,11 +288,15 @@ export function buildRecord(input: CrashInput, nowMs: number = Date.now()): Cras
     run: { uptimeMs: Math.max(0, nowMs - run.startedMs), tick: run.tick, speed: run.speed, age: run.age, safeMode: run.safeMode },
     err: { name: errorName(msg), msg, frames: kept },
     crumbs,
-    recovery: input.recovery,
+    logs,
+    ...(perf === undefined ? {} : { perf }),
+    ...(sys === undefined ? {} : { sys }),
+    recovery: input.recovery.map((step) => scrubText(step, 60)),
   });
   let record = make();
-  while (JSON.stringify(record).length > RECORD_MAX_BYTES && (crumbs.length > 0 || kept.length > 10)) {
-    if (crumbs.length > 0) crumbs = crumbs.slice(1);
+  while (JSON.stringify(record).length > RECORD_MAX_BYTES && (logs.length > 0 || crumbs.length > 0 || kept.length > 10)) {
+    if (logs.length > 0) logs = logs.slice(1);
+    else if (crumbs.length > 0) crumbs = crumbs.slice(1);
     else kept = kept.slice(0, 10);
     record = make();
   }
@@ -368,6 +407,8 @@ function writeLite(rec: CrashRecord): void {
  */
 export async function recordCrash(input: CrashInput): Promise<CrashRecord | null> {
   try {
+    // Every record also goes into the warn-and-up log, so the next record's logs show it (19 section 3).
+    logLine(logLevelOf(FAULT_SEVERITY[input.kind]), `${input.kind}: ${input.message}`);
     const rec = buildRecord(input);
     const now = Date.now();
     const last = lastWriteByFp.get(rec.fp);
@@ -382,6 +423,10 @@ export async function recordCrash(input: CrashInput): Promise<CrashRecord | null
   } catch {
     return null;
   }
+}
+
+function logLevelOf(severity: Severity): LogLevel {
+  return severity === 'fatal' ? 'fatal' : severity === 'error' ? 'error' : 'warn';
 }
 
 /** Stored records, newest first: IndexedDB plus any from this page that did not reach it. */

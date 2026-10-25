@@ -1,4 +1,4 @@
-import { Cmd, Ev, PROTOCOL_VERSION, type BrushOp, type BrushShape, type Command, type Event, type Speed } from '../shared/protocol.ts';
+import { Cmd, Ev, PING_EVERY_MS, PROTOCOL_VERSION, type BrushOp, type BrushShape, type Command, type Event, type Speed } from '../shared/protocol.ts';
 
 /** Command shape without the `seq` the client assigns. Distributes over the union. */
 type Draft<T> = T extends unknown ? Omit<T, 'seq'> : never;
@@ -74,9 +74,28 @@ export class SimClient {
   private heartbeatAt: number | null = null;
   /** Realm-replacing requests (NewRealm, LoadRealm) still waiting: worldgen and decode may block the worker. */
   private heavyPending = 0;
+  /** performance.now() of the last Pong; null until the worker has answered a ping. */
+  private pongAt: number | null = null;
+  private pingTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.worker = this.spawn();
+  }
+
+  /**
+   * Pings the worker every PING_EVERY_MS so it can tell when this page has frozen (19 section 2, main_hang).
+   * `isHidden` is read at each ping, so the worker knows not to judge a hidden page.
+   */
+  startPings(isHidden: () => boolean): void {
+    if (this.pingTimer !== null) return;
+    this.pingTimer = setInterval(() => {
+      this.send({ kind: Cmd.Ping, hidden: isHidden() });
+    }, PING_EVERY_MS);
+  }
+
+  /** performance.now() of the last Pong, or null before the worker has answered a ping. */
+  get lastPong(): number | null {
+    return this.pongAt;
   }
 
   onEvent(listener: (event: Event) => void): void {
@@ -128,8 +147,11 @@ export class SimClient {
     const seq = this.seq++;
     const full = { ...command, seq } as Command;
     this.worker.postMessage(full, transfer);
-    this.sent.push(full.kind);
-    if (this.sent.length > SENT_LOG_MAX) this.sent.shift();
+    // Pings arrive every 2 s and would push the e2e command log out, so they are not logged.
+    if (full.kind !== Cmd.Ping) {
+      this.sent.push(full.kind);
+      if (this.sent.length > SENT_LOG_MAX) this.sent.shift();
+    }
     return seq;
   }
 
@@ -217,6 +239,8 @@ export class SimClient {
     const now = Date.now();
     this.deaths = [...this.deaths.filter((t) => now - t < RESPAWN_WINDOW_MS), now];
     if (!respawnAllowed(this.deaths, now)) {
+      // No worker will answer again: settle the requests now, so an emergency save (19 section 7) gets an answer at once.
+      this.settlePending();
       this.listener?.({ kind: Ev.Fault, severity: 'fatal', code: 'WORKER_ERROR', detail });
       return;
     }
@@ -259,6 +283,10 @@ export class SimClient {
   private dispatch(event: Event): void {
     if (event.kind === Ev.Heartbeat) {
       this.heartbeatAt = performance.now();
+      return;
+    }
+    if (event.kind === Ev.Pong) {
+      this.pongAt = performance.now();
       return;
     }
     if (event.kind === Ev.Ready && event.reply === 0) {

@@ -10,6 +10,11 @@ export const SNAPSHOT_VERSION = 1;
 /** Largest Snapshot the worker posts, in bytes of its JSON form (the UI budget, 13 section 1). */
 export const SNAPSHOT_MAX_BYTES = 32 * 1024;
 
+/** The page pings the worker this often (19 section 2, main_hang). Additive; PROTOCOL_VERSION unchanged. */
+export const PING_EVERY_MS = 2_000;
+/** The worker reports the page as hung after this long without a ping while the page is visible (19 section 2). */
+export const PING_LOST_MS = 8_000;
+
 export enum Cmd {
   Init = 1,
   NewRealm = 2,
@@ -39,6 +44,11 @@ export enum Cmd {
    * `beingId` is generation * MAX_BEINGS + slot, as in SetGear. Additive kind; PROTOCOL_VERSION unchanged.
    */
   Possess = 16,
+  /**
+   * Main-thread liveness ping, every PING_EVERY_MS (19 section 2, main_hang). `hidden` is the page's visibility: the worker
+   * does not judge a hidden page, since browsers throttle its timers. The worker answers with Ev.Pong. Additive kind.
+   */
+  Ping = 17,
 }
 
 export enum Ev {
@@ -53,6 +63,8 @@ export enum Ev {
   Heartbeat = 109,
   /** Worldgen job progress (03 section 10). Additive kind; PROTOCOL_VERSION unchanged. */
   WorldgenProgress = 110,
+  /** Reply to Cmd.Ping (19 section 2, main_hang). Additive kind; PROTOCOL_VERSION unchanged. */
+  Pong = 111,
 }
 
 export type Speed = 0 | 0.5 | 1 | 2 | 5 | 10;
@@ -80,7 +92,8 @@ export type Command =
   | { kind: Cmd.SetItemRain; seq: number; ids: string[] }
   | { kind: Cmd.ItemRain; seq: number; x: number; y: number; radius: number }
   | { kind: Cmd.SetItemFavourite; seq: number; itemId: number; on: boolean }
-  | { kind: Cmd.Possess; seq: number; beingId: number; on: boolean; x: number; y: number; attack: boolean };
+  | { kind: Cmd.Possess; seq: number; beingId: number; on: boolean; x: number; y: number; attack: boolean }
+  | { kind: Cmd.Ping; seq: number; hidden: boolean };
 
 /** Rows of the index texture: RGBA8 per tile = [ground, cover, elevation, flags & 0xff]. */
 export interface FrameRows {
@@ -567,7 +580,10 @@ export type Event =
   | { kind: Ev.WorldgenProgress; reply: number; stage: number; name: string; progress: number; attempt: number; resumed: boolean }
   | { kind: Ev.Frame; rows: FrameRows | null; stats: FrameStats }
   | { kind: Ev.QueryResult; reply: number; tileX: number; tileY: number; elevation: number; ground: string; inBounds: boolean }
-  | { kind: Ev.Fault; severity: 'warn' | 'error' | 'fatal'; code: string; detail: string }
+  /** `sys` names the part of the sim that faulted (for example 'pump' or 'command'), when the worker knows it. */
+  | { kind: Ev.Fault; severity: 'warn' | 'error' | 'fatal'; code: string; detail: string; sys?: string }
+  /** Reply to Cmd.Ping. Not a request reply: no seq is waited on. */
+  | { kind: Ev.Pong; reply: number }
   | { kind: Ev.Snapshot; snap: Snapshot }
   /** Reply to Cmd.SaveRealm. Empty bytes when there is no realm. */
   | { kind: Ev.Saved; reply: number; bytes: Uint8Array }

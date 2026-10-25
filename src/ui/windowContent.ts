@@ -9,7 +9,7 @@ import type { BrushShape, Command, Snapshot } from '../shared/protocol.ts';
 import { buildList } from './listView.ts';
 import { detailWindowFor } from './detailWindows.ts';
 import { staticWindowFor } from './staticWindows.ts';
-import { GROUP_LABELS, SETTINGS, boolOption, resetGroup, type OptionGroup, type OptionValue, type Options, type SettingDef } from './panels/options.ts';
+import { GROUP_LABELS, SETTINGS, boolOption, choiceLabel, resetGroup, type OptionGroup, type OptionValue, type Options, type SettingDef } from './panels/options.ts';
 import { TUTORIAL_TEXT, TUTORIAL_STEPS, type TutorialState } from './panels/tutorial.ts';
 import { powerStatus } from './powerSupport.ts';
 import { snapshotWindowFor } from './snapshotWindows.ts';
@@ -160,7 +160,7 @@ function settingControl(def: SettingDef, value: OptionValue, onChange: (v: Optio
   if (note) label.append(el('span', 'option-note', note));
   const select = el('select');
   for (const choice of def.choices ?? []) {
-    const opt = el('option', undefined, String(choice === 0 && def.id === 'ui.fpsCap' ? 'display rate' : choice));
+    const opt = el('option', undefined, choice === 0 && def.id === 'ui.fpsCap' ? 'display rate' : choiceLabel(def.id, choice));
     opt.value = String(choice);
     opt.selected = choice === value;
     select.append(opt);
@@ -393,7 +393,13 @@ function buildPrivacy(deps: WindowDeps): WindowBuild {
   return {
     title: windowTitle('win_privacy'),
     build: (body) => {
-      body.append(el('p', 'option-note', 'Both are off. This build sends no data; the switches only record your choice.'));
+      body.append(
+        el(
+          'p',
+          'option-note',
+          'Usage data is off. Crash reports stay on this device. This build has no report server, so nothing is sent. Ask every time shows a preview first.',
+        ),
+      );
       settingsBody(body, deps, ['privacy.telemetry', 'privacy.errorReports']);
     },
   };

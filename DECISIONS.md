@@ -2007,3 +2007,43 @@ Files: `src/sim/effects.ts` (two rows appended), `src/sim/beings/system.ts` and 
 **Save.** `expecting`, `taking_root`, `lull`, `sheltered` and `unnerved` are status effects and save with the effect slots (`unnerved` and `giggling` are new codes at the end of the table). `unnervedUntil` and the brazier reload are not saved. No schema bump: the saved fields and the decision count are unchanged.
 
 **Not verified.** Nothing was run: no tests, tsc, vitest, build or Playwright (instruction). Types were checked by reading against `noUncheckedIndexedAccess` and `strict`. `GOLDEN_HASH` is not edited and will not match: the new status rows, the lull and pregnancy effects, the creep sources, the brazier row, the build-order row and the boat volley all change a run. It needs a re-baseline with test access, as in round 6. The tower's enemy rule, the flight's 20% and 60 ticks, and the 100-tick sheltering are choices inside the spec's ranges, not tuned.
+
+## Crash and settings close 5
+
+Scope: spec 19 section 2 (`main_hang`), section 3 (breadcrumbs), section 5 (logs, perf, sys blocks), section 7 step 3b (emergency save on fatal paths), section 9 and 14 (the three-way consent control). Files: `src/shared/protocol.ts`, `src/sim/scheduler.ts`, `src/sim/worker.ts`, `src/app/sim-client.ts`, `src/app/crash-record.ts`, `src/app/recovery.ts`, `src/app/save-controller.ts`, `src/app/main.ts`, `src/app/log-ring.ts` (new), `src/app/perf-sample.ts` (new), `src/ui/panels/options.ts`, `src/ui/windowContent.ts`, and this log. Transport, send, preview and endpoint are not started: they wait on OPEN-19-1.
+
+Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). Types were checked by reading. `GOLDEN_HASH` is not edited. Nothing is merged. The existing unit tests were not updated and not run. Their imports still resolve (`scrubText`, `parseFrames`, `decideRecovery`, `bootGuard`), and the settings count (78 rows, 58 live) is unchanged.
+
+**Consent control (19 section 9, 14 section 10.5).** `privacy.errorReports` is now a choice: `ask` (default), `always` or `never`. It stays live, so the live count is unchanged. Labels come from `choiceLabel`. Saved settings with the old boolean are migrated in `sanitizeOptions`: `true` becomes `always`, `false` becomes `ask`. `resolveConsentMode` takes the choice; DNT or GPC still force `never`. `consentFromOption` reads the stored value. The Settings copy now says that nothing is sent in this build.
+
+**Main-thread hang, 8 s (19 section 2).** New protocol kinds, additive, `PROTOCOL_VERSION` unchanged: `Cmd.Ping` (with a `hidden` flag) and `Ev.Pong`. `Ev.Fault` gains an optional `sys`. Constants `PING_EVERY_MS` (2 s) and `PING_LOST_MS` (8 s) are in `protocol.ts`.
+- The page pings the worker every 2 s (`SimClient.startPings`). The worker answers each ping with a Pong and keeps the time of the last ping.
+- Deviation from the spec table: the table says the worker pings main. Here the page pings the worker. A frozen page cannot send its own pong, so only the worker can see the silence. The Pong tells the page the worker is alive. `SimClient.lastPong` records it; the watchdog does not use it.
+- The worker judges silence with the pure rule `mainPingLost`. It never judges a hidden page, because background timers are throttled. It posts one `MAIN_HANG` fault per silence, and the page shows the overlay on wake (`showMainHang`).
+- `showMainHang` writes at most one `main_hang` record per 10 s, because the frame-gap check and the ping check can both fire on the same wake.
+
+**Logs block (19 section 5).** `log-ring.ts` keeps warn-and-up lines only, collapses consecutive repeats into `(xN)`, and holds 2,000 lines. A record takes the last 200, scrubbed. Lines come from every `recordCrash` and from warning-level worker faults. There is no console capture: `src/` has no `console.warn` or `console.error` calls.
+
+**Perf block.** `perf-sample.ts` keeps 300 frame intervals (gaps over 500 ms are dropped, as in the degrade ladder), 300 sim samples, and up to 100 long-task starts. The block has `frameMsP50`, `frameMsP95`, `simMsP95` and `longTasks30s` (30 s window). The sim samples are the worker's smoothed tick time, so the p95 is of the smoothed value, not of raw ticks. The block is omitted when nothing has been sampled.
+
+**Sys block.** The worker names the faulting part on `SIM_PUMP` (`pump`), `SIM_COMMAND` (`command`) and the ping fault (`ping`). The record gets `sys: {id, errorCount, disabled}`, where `errorCount` counts that part's faults in 10 s. `disabled` is always `false`, because system isolation (17 section 9) is not built in this build, so nothing is switched off yet.
+
+**Emergency save (19 section 7 step 3b, principle 1).** `SaveController.emergencySave()` writes the suspend slot within 1.5 s and ignores the suspend throttle. It returns `emergency_save_ok`, `_no_realm`, `_full`, `_failed`, `_timeout`, `_throttled` or `_unavailable`. Emergency saves are at least 10 s apart, so a main-thread error that repeats every frame does not write every frame. `reportCrash` runs it on every fatal-dialog path, and the result is the first recovery step.
+- Deviation: the fatal dialog still shows at once, and the save runs behind it. The full buttons appear after the save and the record. The reason is that the crash handler must show something even when storage hangs.
+- Stop stepping is implicit. The worker's pump is not re-armed after a fatal fault (`pumpFaultAction`), and a dead worker has nothing to step. Main-thread faults keep the sim running, as before.
+- `SimClient.workerDied` now settles pending requests on its give-up path, so the emergency save gets an answer at once instead of waiting out its budget.
+
+**Record shape, schema 2.** `CrashRecord.recovery` is now a list of steps, and so is `CrashInput.recovery`. `CRASH_RECORD_SCHEMA` is 2. Schema 1 records already stored in IndexedDB keep their string `recovery`. Nothing reads that field except the export, which writes it as stored. Over the 64 KB cap, the oldest log lines go first, then the oldest crumbs, then frames beyond ten.
+
+**Breadcrumb types (19 section 3).** `crumb()` in `recovery.ts` takes a `CrumbCode`: `WINDOW_OPEN`, `POWER_SELECT`, `POWER_APPLY`, `SAVE_START`, `SAVE_DONE`, `SPEED`, `QUALITY`, `AGE`, `WORKER_RESTART`. Details are ids, numbers and outcomes only.
+- `POWER_APPLY` is written once per press, not once per stroke tile, so a drag does not write to storage on every tile.
+- `SPEED`, `AGE` and `QUALITY` are written on change only. `QUALITY` covers `ui.fpsCap`, `perf.renderScale`, `map.shadows`, `map.bloom`, `map.particles` and `map.treeWind`.
+- `SAVE_START` and `SAVE_DONE` cover manual and quick saves, autosave, suspend and emergency save.
+- The ladder's `DEGRADE` journal entry stays as it was.
+
+**Remaining, and why.**
+- Transport, send, preview, retry and any endpoint: these wait on OPEN-19-1, which the user must decide.
+- System isolation (17 section 9), so that `sys.disabled` can become true: not built here.
+- Record fields from section 5 outside this brief: `qualityTier`, `degradeHistory`, `beings`, `lastAutosaveAgeMs`, `bootCount24h`, `ctx 'sw'`, and `env` detail beyond today's fields.
+- The Pong is recorded, but no watchdog decision uses it yet.
+- No new tests were written for the ping rule, log ring, percentile or consent migration. They are small pure functions, so a unit test is the next step.

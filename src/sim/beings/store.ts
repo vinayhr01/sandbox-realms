@@ -246,6 +246,10 @@ export class BeingStore {
       if ((this.childCount[p] ?? 0) > 0) this.childCount[p] = (this.childCount[p] ?? 0) - 1;
     }
     this.alive[slot] = 0;
+    // A dead slot keeps no position or vitality, so the state hash and a loaded save agree (the save drops dead slots).
+    this.x[slot] = 0;
+    this.y[slot] = 0;
+    this.vit[slot] = 0;
     this.generation[slot] = (this.generation[slot] ?? 0) + 1;
     const pos = this.slotPos[slot] ?? -1;
     const last = this.list[--this.count] ?? 0;

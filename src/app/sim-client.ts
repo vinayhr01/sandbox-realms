@@ -198,9 +198,17 @@ export class SimClient {
   /**
    * Architect control of one Being (07 section 13). `on` true orders it to tile (x,y), with `attack` to strike beside it;
    * `on` false releases it. `beingId` is the snapshot id (generation * MAX_BEINGS + slot). The sim applies it on the next tick.
+   * `abilities` are the one-shot flags of 07 section 13 (absent flags are false); they run on this order's tick.
    */
-  possess(beingId: number, on: boolean, x: number, y: number, attack: boolean): void {
-    this.send({ kind: Cmd.Possess, beingId, on, x, y, attack });
+  possess(
+    beingId: number,
+    on: boolean,
+    x: number,
+    y: number,
+    attack: boolean,
+    abilities: { kick?: boolean; jump?: boolean; talk?: boolean; dash?: boolean; steal?: boolean; swear?: boolean } = {},
+  ): void {
+    this.send({ kind: Cmd.Possess, beingId, on, x, y, attack, ...abilities });
   }
 
   /** Sets one Realm Rule by id (src/sim/rules.ts). */

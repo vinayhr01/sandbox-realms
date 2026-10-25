@@ -13,6 +13,7 @@ import { CANNOT_CAPTURE, CANNOT_RESTORE, SaveController, type ActionOutcome, typ
 import { setCalendar, setDebug, setStatus, toast } from '../ui/hud.ts';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
+import { mountPossessPad, possessActionOfCode, type PossessAction } from '../ui/panels/possessControls.ts';
 import { currentStep, parseTutorial, skipTutorial, TUTORIAL_TEXT, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
 import { cooldownSecondsLeft, dominionAtTile, hamletAtTile, linePoints, masterOfViewFlag, nearestMapPoint, nextOptionValue, powerStatus, strokeOp, toggleViewFlag, viewFlagsDefault } from '../ui/powerSupport.ts';
 import { HistoryTicker, TickerView } from '../ui/historyTicker.ts';
@@ -462,6 +463,17 @@ async function boot(): Promise<void> {
   /** Insight Possess (07 section 13): armed (the next tap picks a being), and the being held by its snapshot id or null. Not saved. */
   let possessPending = false;
   let possessedId: number | null = null;
+  /** The held Being's last order tile (its move target), and whether attack is held (J or the touch button). Not saved. */
+  let possessOrder = { x: 0, y: 0 };
+  let attackHeld = false;
+  /** Touch pad for the held Being (src/ui/panels/possessControls.ts). Its handlers run possessControl, defined below. */
+  const possessPad = mountPossessPad($('map'), {
+    onAbility: (ability) => possessControl(ability, true),
+    onAttack: (held) => possessControl('attack', held),
+    onRelease: () => {
+      if (possessedId !== null) releasePossession();
+    },
+  });
   /** Insight Hamlet Select: armed (the next tap picks a tile) and the hamlet picked (hamletsOf index, or -1). */
   let hamletPending = false;
   let selectedHamlet = -1;
@@ -665,6 +677,8 @@ async function boot(): Promise<void> {
     // A new or loaded realm has new Beings: the held one is not carried over (control is not saved, 07 section 14).
     possessPending = false;
     possessedId = null;
+    attackHeld = false;
+    possessPad.setVisible(false);
     hamletPending = false;
     selectedHamlet = -1;
     dominionPending = false;
@@ -759,8 +773,28 @@ async function boot(): Promise<void> {
     if (possessedId !== null) client.possess(possessedId, false, 0, 0, false);
     possessedId = null;
     possessPending = false;
+    attackHeld = false;
     setStatus(wasHeld ? 'Possession released.' : 'Possess: off.');
     updatePowerButtons();
+  };
+
+  /**
+   * Runs one possession control for the held Being (13 section 10 key or touch button; 07 section 13). Attack is held: each
+   * change re-sends the order with the attack flag. An ability is one shot: a press sends the order with its flag set, on the
+   * last order tile, and the held attack state is carried along (an order without it would clear the attack).
+   */
+  const possessControl = (action: PossessAction, held: boolean): void => {
+    if (possessedId === null) return;
+    if (action === 'attack') {
+      if (attackHeld === held) return;
+      attackHeld = held;
+      client.possess(possessedId, true, possessOrder.x, possessOrder.y, attackHeld);
+      return;
+    }
+    if (!held) return;
+    const abilities: { kick?: boolean; jump?: boolean; talk?: boolean; dash?: boolean; steal?: boolean; swear?: boolean } = {};
+    abilities[action] = true;
+    client.possess(possessedId, true, possessOrder.x, possessOrder.y, attackHeld, abilities);
   };
 
   /** Carries out a power button press: UI actions run at once, sim powers arm or disarm. */
@@ -898,6 +932,7 @@ async function boot(): Promise<void> {
 
   /** Keeps aria-pressed on the power buttons in step with the armed power and the rules. */
   const updatePowerButtons = (): void => {
+    possessPad.setVisible(possessedId !== null);
     for (const btn of document.querySelectorAll<HTMLButtonElement>('.power')) {
       const power = POWER_BY_ID.get(btn.dataset['powerId'] ?? '');
       if (!power) continue;
@@ -1333,7 +1368,8 @@ async function boot(): Promise<void> {
         if (hit) {
           possessPending = false;
           possessedId = hit.id;
-          client.possess(hit.id, true, hit.x, hit.y, false);
+          possessOrder = { x: hit.x, y: hit.y };
+          client.possess(hit.id, true, hit.x, hit.y, attackHeld);
           setStatus('Possessing that being. Tap the ground to move it. Esc releases.');
           updatePowerButtons();
         } else {
@@ -1342,8 +1378,9 @@ async function boot(): Promise<void> {
         return;
       }
       if (possessedId !== null) {
-        // Held Being: a tap on the ground is a move order (the attack flag and the six actions have no binding yet).
-        client.possess(possessedId, true, t.x, t.y, false);
+        // Held Being: a tap on the ground is a move order. The attack hold (J or the touch button) carries over the order.
+        possessOrder = { x: t.x, y: t.y };
+        client.possess(possessedId, true, t.x, t.y, attackHeld);
         return;
       }
       // Inspect (default tap with nothing armed): a being near the tap opens its window when the
@@ -1581,6 +1618,10 @@ async function boot(): Promise<void> {
   window.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
     keysDown.add(e.code);
+    // Possession keys (13 section 10, DECISIONS "Possession controls close 14"): J holds attack, K/L/U/T/Y/N are one-shot
+    // abilities. Modifier chords and auto-repeat do not fire them. They do nothing unless a Being is held.
+    const control = possessActionOfCode(e.code);
+    if (control !== null && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey) possessControl(control, true);
     if (e.code === 'KeyP') {
       togglePause();
     } else if (e.code === 'KeyH') {
@@ -1599,9 +1640,14 @@ async function boot(): Promise<void> {
       setArmed(null);
     }
   });
-  window.addEventListener('keyup', (e: KeyboardEvent) => keysDown.delete(e.code));
+  window.addEventListener('keyup', (e: KeyboardEvent) => {
+    keysDown.delete(e.code);
+    const control = possessActionOfCode(e.code);
+    if (control !== null) possessControl(control, false);
+  });
   // Pause when the window loses focus, when the Settings row asks for it. Focus does not resume the sim.
   window.addEventListener('blur', () => {
+    possessControl('attack', false);
     if (boolOption(options, 'game.pauseOnBlur') && !state.paused) togglePause();
   });
   document.addEventListener('visibilitychange', () => {

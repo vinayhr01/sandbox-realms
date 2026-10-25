@@ -4,8 +4,10 @@
  * supplies the launches (worn ranged weapons and the thrower skills), the landing blast, the impact ignite
  * and the device triggers of 04 section 8.4 (devices.ts, polled from the launch step).
  *
- * Owners in this build: `scatter_shot` (scatter gun), `powder_flask` (powderhurler) and `pitch_torch`
- * (torchhurler) are launched; the other seven have no owner yet (see DECISIONS.md, Combat build 3).
+ * Owners: the weapons of items.ts (`scatter_shot`, `arc_sphere`, `wail_skull`, `ember_orb`, `rime_orb`, `sap_orb`, `flint_dart`),
+ * the thrower skills (`powder_flask`, `pitch_torch`), the Brazier Tower (`blaze_sphere`, brazierStep) and a trading boat's
+ * cannon (`siege_ball`, boats.ts through Sim.volley). `snow_pellet`, `knuckle_bone`, `hurled_stone`, `frenzy_sphere` and
+ * `acid_glob` have no owner in the spec (DECISIONS.md, Combat close 5).
  *
  * Not modelled (the flags of 08 section 3 with no mechanic yet): `blockable` (no block pool),
  * `stayOnGround` fade, `hitFreeze`, `hitShake`, `lookAtTarget`, the 3D arc and the in-flight collision
@@ -19,6 +21,8 @@ import { BEING_TRAIT_INDEX } from '../content/traits.ts';
 import type { BombProfile } from '../content/powers.ts';
 import { detonateBomb } from './powers/handlers.ts';
 import { deviceStruck, devicesStep } from './devices.ts';
+import { hamletsOf } from './settlements/adapter.ts';
+import { relation, type Faction } from './beings/hostility.ts';
 
 /** Ticks per second (17: 20 ticks/s); spec speeds are tiles per second. */
 const TICKS_PER_SECOND = 20;
@@ -232,6 +236,56 @@ function lobStep(sim: Sim, ctx: CombatContext, slot: number): void {
   launchProjectile(sim, projectile, sx, sy, tx, ty, slot, raw, []);
 }
 
+/**
+ * Brazier Tower (18e 3.1, the owner of `blaze_sphere` with the magmaling gear, which 18c and 08 do not define): fires one
+ * blaze sphere at the nearest enemy Being within BRAZIER_RANGE, then reloads for BRAZIER_RELOAD ticks (6 s). An enemy is
+ * a Being hostile (`H`) to Folk (07 section 9.4); the spec gives no other rule. The reload is kept per building object,
+ * so a loaded realm starts with every tower ready. The blast (blazeburst: 30 Fire, radius 3) runs on landing.
+ */
+const BRAZIER_RANGE = 14;
+const BRAZIER_RELOAD = 120;
+const BRAZIER_FOLK: Faction = { kind: 'folk', id: 0 };
+const brazierReload = new WeakMap<object, number>();
+
+/** Nearest living Being hostile to Folk within `range` tiles of (x, y), or -1. */
+function nearestEnemyOf(sim: Sim, x: number, y: number, range: number): number {
+  const s = sim.beings.store;
+  let best = -1;
+  let bestD = Infinity;
+  for (let k = 0; k < s.size; k++) {
+    const slot = s.at(k);
+    if (s.alive[slot] !== 1) continue;
+    const d = Math.hypot((s.x[slot] ?? 0) - x, (s.y[slot] ?? 0) - y);
+    if (d > range || d >= bestD) continue;
+    const rt = sim.beings.runtime[s.species[slot] ?? 0];
+    if (!rt || relation(rt.faction, BRAZIER_FOLK, false) !== 'H') continue;
+    best = slot;
+    bestD = d;
+  }
+  return best;
+}
+
+/** One step of every Brazier Tower in every hamlet: reload, then fire at the nearest enemy in range. */
+function brazierStep(sim: Sim): void {
+  for (const h of hamletsOf(sim)) {
+    for (const b of h.buildings) {
+      if (b.def.id !== 'brazier_tower') continue;
+      const left = brazierReload.get(b) ?? 0;
+      if (left > 0) {
+        brazierReload.set(b, left - 1);
+        continue;
+      }
+      // Centre of the 2x2 footprint, in tile units (the origin tile is the top-left one).
+      const cx = b.x + 0.5;
+      const cy = b.y + 0.5;
+      const target = nearestEnemyOf(sim, cx, cy, BRAZIER_RANGE);
+      if (target < 0) continue;
+      const s = sim.beings.store;
+      if (launchProjectile(sim, 'blaze_sphere', cx, cy, s.x[target] ?? 0, s.y[target] ?? 0, -1, 0, [])) brazierReload.set(b, BRAZIER_RELOAD);
+    }
+  }
+}
+
 /** Runs one bomb profile for a device (devices.ts); the guard may refuse it, which returns false. */
 function detonateDevice(sim: Sim, prof: BombProfile, x: number, y: number): boolean {
   return detonateBomb(sim, prof, x, y, false);
@@ -247,6 +301,7 @@ export function shootStep(sim: Sim): void {
   const s = sim.beings.store;
   const ctx = sim.combatContext();
   devicesStep(sim, detonateDevice);
+  brazierStep(sim);
   for (let k = 0; k < s.size; k++) {
     if (sim.projectiles.length >= MAX_PROJECTILES) return;
     const slot = s.at(k);

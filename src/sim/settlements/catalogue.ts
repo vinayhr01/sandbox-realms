@@ -1,7 +1,7 @@
 /**
  * Hamlet buildings: the 18c section 4.1 civic buildings the sim can run, plus the legacy slice entries
  * (house, well, storehouse, workshop) that saves may still hold. Costs are in stockpile units. Iron costs are paid
- * from the hamlet iron store (`iron`, fed by iron deposits); only the slipway carries one (18e). The other 18c iron
+ * from the hamlet iron store (`iron`, fed by iron deposits); only the slipway and the brazier tower carry one (18e). The other 18c iron
  * costs stay cut, as garrison and bazaar already were.
  * Footprints are in tiles: `footprint` is the width (x), `height` the depth (y), absent meaning square.
  * Numbers are TUNE. Construction takes a site and builder progress (hamlet.ts SITE_PROGRESS, one value for every def),
@@ -10,7 +10,7 @@
  * Cut from the 09 catalogue (not in this table; reasons in DECISIONS.md "Settlements round 4"):
  * springwell, drill_post, watchspire, shrine, archive, mill_a, mill_b,
  * farmstead, smithy, apothecary, palisade, gatehouse, beacon_tower, lecture_stone, pyre, and the
- * 18e extended set except quarry_lodge (bastion, brazier_tower, slipway, arsenal, paddock, sea_lantern,
+ * 18e extended set except quarry_lodge and brazier_tower (bastion, slipway, arsenal, paddock, sea_lantern,
  * stargazer, hide_works, brewhouse, bake_oven, bee_shed, grove_lodge). The 18c section 4.2 wild, hazard,
  * resource and wonder objects are map fixtures, not hamlet buildings, and are not in this table.
  */
@@ -109,6 +109,9 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // boat on the Hamlet's docks and builds them every 150 ticks (boats.ts). Not modelled: its 300 progress (one
   // SITE_PROGRESS for every def), its 2 shipwright jobs (no such job), and the boat hp +20% (no per-boat max hp).
   { id: 'slipway', name: 'Slipway', role: 'trade', wood: 14, stone: 6, iron: 2, gold: 30, footprint: 4, height: 3, hp: 500, ...NONE, needs: ['harbor'] },
+  // 18e section 3.1 brazier_tower (Fire Tower): cost 3/16/2/20, 2x2, hp 1800, prerequisite garrison. It is the owner of
+  // blaze_sphere (projectiles.ts brazierStep). Its gunner job is not built (no soldier job in the sim), so it employs nobody.
+  { id: 'brazier_tower', name: 'Brazier Tower', role: 'defence', wood: 3, stone: 16, iron: 2, gold: 20, footprint: 2, hp: 1800, ...NONE, needs: ['garrison'] },
 ];
 
 export const BUILDING_BY_ID = new Map(BUILDINGS.map((b) => [b.id, b]));

@@ -66,6 +66,8 @@ export interface WeatherContext {
   cloudIntervalSs: number;
   rainDrop(tile: number): void;
   freeze(tile: number): void;
+  /** Ash drop on a tile (12 section 8.4 `fall_ash`): the Being standing there takes `ash_sickness`. */
+  ashDrop(tile: number): void;
   startFire(tile: number, force: boolean): boolean;
   blast: ExplosionContext;
 }
@@ -128,8 +130,12 @@ function dropAt(ctx: WeatherContext, cloud: Cloud): void {
     case 'cloud_vitriol':
       realm.setCover(tile, 0);
       break;
+    case 'cloud_cinder':
+      // `fall_ash` (02 section 6, 12 section 8.4): the ash status on the Being beneath. No ash terrain is modelled.
+      ctx.ashDrop(tile);
+      break;
     default:
-      // Plain, ash and arcane drops have no terrain effect in this milestone.
+      // Plain and arcane drops have no terrain effect in this milestone.
       break;
   }
 }

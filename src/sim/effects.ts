@@ -90,6 +90,11 @@ export const STATUSES: readonly StatusDef[] = [
   S('smitten', 'Smitten', 180, {}),
   // `tagalong`: 4000 ticks, given to a Being that the Architect talks to (07 section 13). Its follow is in system.ts.
   S('tagalong', 'Tagalong', 200, {}),
+  // Combat close 5 (18c section 5, 08 section 5.3). `unnerved`: 400 ticks (20 s). Its mood -8 is on apply (creep-effects.ts,
+  // moods.ts) and its 100-tick flight roll is in beings/system.ts. `giggling`: 60 ticks (3 s), emote only, so it has no
+  // hook here; its source is the gourdgrowth evaluation (creep-effects.ts).
+  S('unnerved', 'Unnerved', 20, {}),
+  S('giggling', 'Giggling', 3, {}),
 ];
 
 /**

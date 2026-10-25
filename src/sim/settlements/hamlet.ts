@@ -383,6 +383,8 @@ const RULES: readonly BuildRule[] = [
   { id: 'bazaar', minFolk: 60, minBuildings: 15 },
   // 18e section 3.1 build-order weight: limit 1 per Hamlet, minPop 40. Its harbor prerequisite gates it (no harbor is placed yet).
   { id: 'slipway', minFolk: 40 },
+  // 18e section 3.1 build-order weight for restored buildings: limit 1 per Hamlet, minPop 40.
+  { id: 'brazier_tower', minFolk: 40 },
 ];
 
 /**

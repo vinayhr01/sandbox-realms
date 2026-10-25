@@ -1203,3 +1203,13 @@ Changing a row's `status` to `live` is the way to wire one later, once its mecha
 **Determinism.** Custom draws use the `culture` stream (`ctx.rng`). Roads and outward claims draw no rng (A* is deterministic, ties by tile index). Hub mood draws no rng. No new named stream.
 
 **Not verified.** Nothing above has run. Expect the golden test to fail (`GOLDEN_HASH` is not updated here, per the brief), and expect the culture unit tests to need a look: `addCustom` now draws by rarity, so the trait-count tests may need a new pin. Save compatibility with older saves is by design (see the save section), but not tested.
+
+## Roads close-out
+
+Scope: close the OPEN item of "Customs and roads release" (a building could cover a road). Files: `src/sim/settlements/hamlet.ts` (`buildable`) and this log. `roads.ts` is unchanged: it already lays roads with `realm.setGround(i, G.wayworn)`, which writes the same `realm.ground` array `buildable` reads, so no marking change was needed. Development only: nothing was run (no tests, tsc, vitest, build or Playwright). `GOLDEN_HASH` is not edited.
+
+- **Rule.** `buildable` returns false for a tile whose ground is `G.wayworn`. `placeBuilding` calls `buildable` for every footprint tile, so no footprint can cover a road. `placeHamlets` uses `buildable` too, so a hamlet seed cannot land on a road either.
+- **Determinism.** The check reads the ground array only. It draws no rng and adds no state.
+- **Existing roads.** Roads never cover a building (`layRoads` excludes `civilTiles`), and buildings are never placed on roads after this change, so the two cannot overlap.
+- **Cut.** Roads are not removed or decayed (the `pathDecay` rule stays unbuilt). A road tile that a later ground change turns into another kind (for example heat turning wayworn into strand) becomes buildable again, as any ground does.
+- **Golden.** `GOLDEN_HASH` is not edited. Whether it moves depends on whether a golden run lays a road, which was not checked.

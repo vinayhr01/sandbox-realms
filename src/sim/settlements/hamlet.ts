@@ -1,4 +1,4 @@
-import { ground } from '../../content/grounds.ts';
+import { G, ground } from '../../content/grounds.ts';
 import { PARCEL } from '../../shared/constants.ts';
 import type { Rng } from '../../shared/rng.ts';
 import { BUILDING_BY_ID, type BuildingDef } from './catalogue.ts';
@@ -139,7 +139,7 @@ function heightOf(def: BuildingDef): number {
   return def.height ?? def.footprint;
 }
 
-/** True when a tile can carry a building: land (not water, molten, slime or blocked), no flora, free of other buildings. */
+/** True when a tile can carry a building: land (not water, molten, slime or blocked), no flora, not a road, free of other buildings. */
 export function buildable(ctx: HamletContext, x: number, y: number, h: Hamlet): boolean {
   const side = ctx.realm.side;
   if (x < 0 || y < 0 || x >= side || y >= side) return false;
@@ -147,6 +147,8 @@ export function buildable(ctx: HamletContext, x: number, y: number, h: Hamlet): 
   const kind = ground(ctx.realm.ground[i] ?? 0);
   if (kind.layer !== 'land' || kind.damages > 0) return false;
   if ((ctx.realm.flora[i] ?? 0) !== 0) return false;
+  // Road tiles (roads.ts sets them to wayworn) stay open for roads, not buildings.
+  if (ctx.realm.ground[i] === G.wayworn) return false;
   const p = Math.floor(y / PARCEL) * (side / PARCEL) + Math.floor(x / PARCEL);
   if (!h.parcels.has(p)) return false;
   for (const b of h.buildings) {

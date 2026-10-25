@@ -85,6 +85,11 @@ export const STATUSES: readonly StatusDef[] = [
   S('lull', 'Lull', 90, { noBreed: true }),
   S('expecting', 'Expecting', 45, { speed: 0.8 }),
   S('sated', 'Sated', 200, {}),
+  // Beings close 4 (08 section 5.3, 07 section 13). Appended, so the codes above keep their numbers in saves.
+  // `smitten`: 3600 ticks, given to both lovers when the lover link forms (06 4.4). Its mood +40 is the `bonded` event.
+  S('smitten', 'Smitten', 180, {}),
+  // `tagalong`: 4000 ticks, given to a Being that the Architect talks to (07 section 13). Its follow is in system.ts.
+  S('tagalong', 'Tagalong', 200, {}),
 ];
 
 /**
@@ -138,14 +143,16 @@ export class EffectStore {
   }
 
   /**
-   * Applies a status to a being. Re-applying refreshes the timer (the longer of the two wins).
+   * Applies a status to a being. Re-applying refreshes the timer (the longer of the two wins). `ticks` overrides the
+   * table duration for one application (the hatch stun is 100 ticks, 06 life events, where the table gives `dazed` 80).
    * Returns false when all slots are full of other statuses.
    */
-  add(slot: number, id: string, tick: number): boolean {
+  add(slot: number, id: string, tick: number, ticks?: number): boolean {
     const code = statusCode(id);
     const def = STATUSES[code - 1];
     if (!def) return false;
-    const end = def.ticks === UNTIL_CLEARED ? UNTIL_CLEARED : tick + def.ticks;
+    const span = ticks ?? def.ticks;
+    const end = def.ticks === UNTIL_CLEARED && ticks === undefined ? UNTIL_CLEARED : tick + span;
     const base = slot * MAX_EFFECTS;
     let free = -1;
     for (let k = 0; k < MAX_EFFECTS; k++) {

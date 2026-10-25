@@ -3,9 +3,11 @@
  * already has: the blow of a combat hit (system.ts strike) and the statuses of effects.ts. The conversion table and gates
  * are data; the spawn of the converted Being is in system.ts (`convertOnDeath`), which owns the Being lifecycle.
  *
- * Not built: the `spore` affliction's cloud drop, the tumor tile contact (creep cover), the plague and the hex spell (08
- * sections 5 and 8). Those sources need terrain or spell state the sim does not have yet.
+ * Tumor tile contact (creep cover) is built (`creepContact`, beings close 4). Not built: the `spore` affliction's cloud
+ * drop, the plague, the hex spell (08 sections 5 and 8; no spell state exists) and the tumor tick. A hex source needs the
+ * spell, and no combat hit or Favour drop applies the `hexed` status (DECISIONS.md "Beings close 4").
  */
+import { ground } from '../../content/grounds.ts';
 import { BEING_TRAIT_INDEX } from '../../content/traits.ts';
 import type { SpeciesDef } from '../../content/beasts.ts';
 import type { Sim } from '../sim.ts';
@@ -66,6 +68,21 @@ export function conversionOf(sim: Sim, slot: number, def: SpeciesDef): string | 
   if (!haloed && hasTrait(sim, slot, TUMOR_TRAIT)) return 'patchbeast';
   if (sim.effects.has(slot, 'hexed')) return 'boneshambler';
   return null;
+}
+
+/**
+ * Tumor source by tile contact (08 section 8: a Being on creep cover may catch growth fever). Runs every ROUND9.tumorTicks.
+ * The `canBeTumor` species flag is not in the roster data, so every species that is not a conversion target stands in for
+ * it (TUNE, as `convertible`). Warded blood blocks it. Draws only on creep, so the stream is unchanged elsewhere.
+ */
+export function creepContact(sim: Sim, slot: number, rng: { next(): number }): void {
+  const s = sim.beings.store;
+  const tumor = traitIndex(TUMOR_TRAIT);
+  if (tumor < 0 || s.hasMark(slot, tumor) || hasTrait(sim, slot, 'warded_blood')) return;
+  if (CONVERSION_TARGETS.has(sim.beings.species(s.species[slot] ?? 0).id)) return;
+  const i = (s.y[slot] ?? 0) * sim.realm.side + (s.x[slot] ?? 0);
+  if (!ground(sim.realm.ground[i] ?? 0).creep) return;
+  if (rng.next() < ROUND9.tumorContact) s.setMark(slot, tumor, true);
 }
 
 /**

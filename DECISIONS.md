@@ -1649,3 +1649,31 @@ Scope: 02 section 7 `pathDecay` (`wayworn` roads outside any Custom's hamlet ter
 - OPEN: a road tile with no record never decays. Such tiles come from a painted `wayworn` (power `shape_wayworn`), whose base is unknown. The spec does not say what base such a tile has.
 - OPEN: `heat` turning a road into `strand` drops the record on the next sim-second (the tile is no longer road). That is the existing ground rule, not a new one.
 - Not run: the golden hash is not re-baselined. It moves only in a golden run that lays a road and reaches a decay run.
+
+## Beings close 4
+
+Scope: the close-out list for the beings layer after build 3: the 07 catalogue items the sim state supports, the possession faction, the canControl flags and the 07 section 13 abilities, the smitten effect, the hex source, the tumor source, and the hatch stun. Touch set: `src/sim/beings/` (`system.ts`, `afflictions.ts`, `social.ts`, `hostility.ts`, `tuning.ts`) and `src/sim/effects.ts`. Roster data in `src/content/` is read and not changed. Development only: no tests, tsc, vitest, build or Playwright. `GOLDEN_HASH` is not edited and will drift (see item 10).
+
+**1. Smitten (08 section 5.3, 06 section 4.4).** `smitten` is a status of 180 seconds (3600 ticks), tier B, with no per-tick hook. `loveCheck` gives it to both lovers when the lover link forms. Its +40 mood is the existing `bonded` event (moods.ts), not re-applied each tick. Lover death (`killBeing`) removes it from the survivor. The lover link outlives the effect. The hearts are a render concern and are not built here.
+
+**2. Hatch stun, 100 ticks.** `hatch` gives `dazed` for `ROUND9.hatchStun` (100) ticks. `EffectStore.add` takes an optional `ticks` override for one application; the table duration is unchanged for every other caller (the table gives `dazed` 80 ticks, and 08 says 80 to 100). The source of the 100 is the 06 life event `Hatched`.
+
+**3. Possession faction (07 section 13).** `hostility.ts` gains faction kind `steered` (`STEERED_FACTION`). `relation` returns `H` between a `steered` Being and any other faction, except `hand`, which stays `I` (07 section 9.4 treats nature as inert). `relationOf` in `system.ts` uses the steered faction for a Being that `isPossessed`, on both sides of the pair. The possessed Being's species faction is not overwritten.
+
+**4. Tagalong (07 section 13, 08 section 5.3).** `tagalong` is a status of 200 seconds (4000 ticks). A `tagalong` Being walks to the nearest possessed Being within `ROUND9.tagalongRadius` (6, TUNE). The follow runs as a tier 4 override in `decide`, not as a decision row (item 6). Producer not built: the only source of `tagalong` in 07 and 08 is the `talk` ability, which needs a protocol command (item 7). Until then no Being carries the status.
+
+**5. Muddled (07 section 3.6, tier 4 weight 3.5).** A Being with the `wander` flag (`bewildered`, 200 ticks) takes one random step per 2-tick cadence while the status lasts. It runs as a tier 4 override after `steered_follow`. No source of `bewildered` exists in the sim yet (dream failure and dread are not built), so the branch is reachable only once a source is added.
+
+**6. Why no decision rows.** `chronicle.ts` writes the decision count from `DECISION_ROWS.length` and rejects any mismatch (line 782). A new row would make every schema 6 save fail to load. `chronicle.ts` is outside this build's touch set, so the catalogue additions wait for a chronicle round with a schema bump (6 to 7). The two tier 4 items are done as overrides: a critical candidate preempts the pool, and with one eligible candidate the softmax weight does not change the pick.
+
+**7. Abilities (07 section 13) and canControl.** The roster data names no control ability. `species-roster.ts` says "Abilities are not modelled", and the 18a notes name combat abilities, not Architect controls (`Kick x1.5` on stridebird is a damage multiplier). Not built: `kick`, `jump`, `talk`, `dash`, `steal`, `swear`. Each needs a new `Cmd.Possess` field (`protocol.ts`, outside the touch set), and `talk` also needs the custom, creed and dialect transfer. `canControl` flags are not in the roster data, so every Being stays controllable, as in build 3. Wyrm and craft, which 07 defaults to false, are not built.
+
+**8. Hex source (08 section 9.2, 12 section 8.7).** Not closed. The spec names no combat hit that applies `hexed`. The Favour `fav_hex` drop (12 section 8.7) adds a random bad trait; `favour.ts` already treats `hexmarked` as a bad trait, and 12 names no status for the drop. The only spec source of `hexed` is the `hex_cast` spell (08 section 9.2, curse drop of radius 3), and the sim has no spell state. The `hexed` to boneshambler conversion (afflictions.ts) is wired and becomes reachable once a source exists.
+
+**9. Tumor source (08 section 8).** `creepContact` in `afflictions.ts`: every `ROUND9.tumorTicks` (20), a Being standing on a `creep` ground (grounds.ts) catches growth fever with `ROUND9.tumorContact` (0.1, TUNE; 08 gives no chance). The `canBeTumor` species flag is not in the roster data, so every species that is not a conversion target stands in for it. Warded blood blocks it. The tumor tick (10% of max vitality per 20 ticks, 08 section 8) is not built: the sim has no per-tick hook for the four afflictions yet.
+
+**10. Remaining 07 catalogue.** Not closed beyond items 4 and 5. The rest needs a decision row (item 6) or state the sim does not have: `eat_hamlet_food` (a row), `reach_land` and `outburst_action` (the `gasping` and `outburst` statuses are not in the table), `extinguish` (fire state), `swim_about` and the boat tasks (boat state in beings), the emote and sound tasks (no emote state), and the wyrm, craft and hand tasks (not built). No task outside items 4 and 5 can be added without a row or new state.
+
+**Save.** Effects are saved as raw codes and expiries. `smitten` and `tagalong` are appended to `STATUSES`, so the existing codes keep their numbers. No schema bump: the layout and the decision count are unchanged.
+
+**Golden.** `GOLDEN_HASH` is not edited. It drifts in a run that has creep tiles under Beings (the creep draws), in lovers and hatching (the new effects and the 100-tick stun), and in possession (the relation). It needs a re-baseline by a run with test access, as in round 6.

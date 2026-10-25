@@ -11,7 +11,13 @@
 import type { SpeciesDef } from '../../content/beasts.ts';
 
 /** Faction kinds (07 section 9.4 archetypes, reduced to what the roster can express). */
-export type FactionKind = 'grazer' | 'predator' | 'omni' | 'monster' | 'undead' | 'good' | 'folk' | 'hand';
+export type FactionKind = 'grazer' | 'predator' | 'omni' | 'monster' | 'undead' | 'good' | 'folk' | 'hand' | 'steered';
+
+/**
+ * The faction of a possessed Being (07 section 13: `puppeted` forces faction `steered`, hostile to all but nature). Nature,
+ * ruins and hand are inert in 07 section 9.4; here `hand` stays ignored (checked first in `relation`).
+ */
+export const STEERED_FACTION: Faction = { kind: 'steered', id: 0 };
 
 /** A Being's faction. `id` is the species index for a monster (each monster is its own faction), else 0. */
 export interface Faction {
@@ -43,6 +49,8 @@ export function factionOf(def: SpeciesDef, speciesIdx: number): Faction {
  */
 export function relation(a: Faction, b: Faction, hungry: boolean): Relation {
   if (a.kind === 'hand' || b.kind === 'hand') return 'I';
+  // A possessed Being is hostile to every other faction, and every faction is hostile to it (07 section 13).
+  if (a.kind === 'steered' || b.kind === 'steered') return 'H';
   if (a.kind === 'monster' && b.kind === 'monster') return a.id === b.id ? 'F' : 'I';
   switch (a.kind) {
     case 'folk':

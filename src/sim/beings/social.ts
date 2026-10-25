@@ -217,8 +217,8 @@ function pairedBreeder(sim: Sim, slot: number): boolean {
 /**
  * Lover check for one Being (06 section 4.4, beings build 3). Two adults of one species, opposite sexes, both paired
  * breeders, neither with a lover, not related, within the partner radius, become lovers at ROUND9.loveChance. Lovers get
- * the `bonded` mood event. The `smitten` effect of the spec is not built (effects.ts is outside this build), so a live
- * lover link stands for it.
+ * the `bonded` mood event (+40, the spec's smitten mood) and the `smitten` effect (3600 ticks, 08 section 5.3). The lover
+ * link itself outlives the effect; the hearts are a render concern.
  */
 export function loveCheck(sim: Sim, slot: number): void {
   const b = sim.beings;
@@ -244,6 +244,8 @@ export function loveCheck(sim: Sim, slot: number): void {
   s.loverGen[slot] = s.generation[cand] ?? 0;
   s.loverWith[cand] = slot;
   s.loverGen[cand] = s.generation[slot] ?? 0;
+  sim.effects.add(slot, 'smitten', sim.tick);
+  sim.effects.add(cand, 'smitten', sim.tick);
   addMood(sim, slot, 'bonded');
   addMood(sim, cand, 'bonded');
   b.stats.lovers++;

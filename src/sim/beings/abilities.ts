@@ -5,6 +5,7 @@
  * 2 tiles); the rest are TUNE choices, recorded in DECISIONS.md "Beings close 5". Draws only from the `beings` stream.
  */
 import { ground } from '../../content/grounds.ts';
+import { imposeCustom } from '../culture/effects.ts';
 import type { Sim } from '../sim.ts';
 import { unwear, wear } from '../items/system.ts';
 import { isAccursed } from '../items/store.ts';
@@ -118,8 +119,9 @@ function dash(sim: Sim, slot: number): void {
 
 /**
  * Talk (07 section 13): the nearest Being within two tiles gains `tagalong`, so it follows the controlled Being. 30% of the
- * talks surprise it (mood `talked_badly`); the rest leave it well (mood `talked_well`). The custom, creed and dialect
- * imposition is not built: the culture layer is inert in play.
+ * talks surprise it (mood `talked_badly`); the rest leave it well (mood `talked_well`). The custom of the controlled Being's
+ * dominion is imposed (culture/effects.ts imposeCustom). Creed and dialect imposition is not built (no creed or dialect
+ * holds traits in the sim).
  */
 function talk(sim: Sim, slot: number): void {
   const b = sim.beings;
@@ -128,6 +130,7 @@ function talk(sim: Sim, slot: number): void {
   if (other < 0) return;
   const surprised = sim.rng('beings').next() < ROUND9.talkSurprise;
   addMood(sim, other, surprised ? 'talked_badly' : 'talked_well');
+  imposeCustom(sim, slot, other);
   sim.effects.add(other, 'tagalong', sim.tick);
 }
 

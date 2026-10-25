@@ -111,7 +111,8 @@ export const STATUSES: readonly StatusDef[] = [
   // `gasping`: 20 ticks (1 s; 08 5.3 gives durations in ticks), 1 point of Drowning every 10 ticks. Added by system.ts
   // `gaspCheck` when a Being stands in liquid with no endurance. Not saved (08 section 11).
   S('gasping', 'Gasping', 1, { every: 10, flat: 1, drown: true, ignoreFights: true, persist: false }),
-  // `outburst`: 2400 ticks (08 5.4). Grants the `outburst_action` decision (system.ts). Its source is not built.
+  // `outburst`: 2400 ticks (08 5.4). Grants the `outburst_action` decision (system.ts). Its source is `reflect` at mood below -70
+  // (system.ts `start_outburst`, which applies it for 1200 ticks, 06 4.2). Its expiry mood `outburst_done` is run by sim.ts.
   S('outburst', 'Outburst', 120, {}),
 ];
 
@@ -233,12 +234,17 @@ export class EffectStore {
     return false;
   }
 
-  /** Drops expired timers. Returns the codes that ended this tick for one slot (for hooks). */
-  expire(slot: number, tick: number): void {
+  /**
+   * Drops expired timers. `onEnd` runs once for each code that expires on this tick, before it is cleared, so the caller
+   * can run an expiry hook (sim.ts runs `outburst_done` for `outburst`, 08 section 5.4).
+   */
+  expire(slot: number, tick: number, onEnd?: (code: number) => void): void {
     const base = slot * MAX_EFFECTS;
     for (let k = 0; k < MAX_EFFECTS; k++) {
       const idx = base + k;
-      if (this.code[idx] !== 0 && this.until[idx] !== UNTIL_CLEARED && (this.until[idx] ?? 0) <= tick) {
+      const code = this.code[idx] ?? 0;
+      if (code !== 0 && this.until[idx] !== UNTIL_CLEARED && (this.until[idx] ?? 0) <= tick) {
+        onEnd?.(code);
         this.code[idx] = 0;
       }
     }

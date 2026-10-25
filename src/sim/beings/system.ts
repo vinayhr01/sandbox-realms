@@ -13,7 +13,7 @@ import { DECISION_INDEX, DECISION_ROWS, EMPTY_PAUSE } from '../../content/decisi
 import { BeingStore } from './store.ts';
 import { newGenome, SEED_SALT_RANGE, speciesBudget } from './genome.ts';
 import { addStrainTrait, mutateFrom, strainMutation, Strains } from './strains.ts';
-import { addMood, addMoodValue, beginSleep, bondCheck, bondPartners, isAsleep, loveCheck, sleepCheck, tryFriend } from './social.ts';
+import { addMood, addMoodValue, beginSleep, bondCheck, bondPartners, feelsMood, isAsleep, loveCheck, sleepCheck, tryFriend } from './social.ts';
 import { convertByFight, heritageAttr, readBook, talkOutcome, talksWithBeasts } from '../culture/effects.ts';
 import { readableBook } from '../culture/culture.ts';
 import { ROUND6, ROUND8, ROUND9, TUNING } from './tuning.ts';
@@ -1592,6 +1592,25 @@ const emoteTask: TaskFn = (sim, slot) => {
   return false;
 };
 
+/**
+ * The outburst trigger of the reflect decision (06 section 4.2 step 5): a Being that feels mood and is below -70 starts an
+ * outburst, unless it holds `stalwartheart` (the iron_will tag of 05, granted by steadfast; 18b MND), and unless it is in one.
+ */
+function outburstDue(sim: Sim, slot: number): boolean {
+  if (!feelsMood(sim, slot) || beingHas(sim, slot, 'stalwartheart') || sim.effects.has(slot, 'outburst')) return false;
+  return (sim.beings.store.mood[slot] ?? 0) < ROUND9.outburstMood;
+}
+
+/** start_outburst (07 section 5 E): the Being flips six times while it takes the `outburst` status (06 section 4.2). */
+const startOutburst: TaskFn = (sim, slot) => {
+  sim.effects.add(slot, 'outburst', sim.tick, ROUND9.outburstTicks);
+  setNext(sim, slot, ROUND9.emoteTicks);
+  return false;
+};
+
+/** The reflect decision (06 section 4.2): the mood trigger of an outburst, else the emote hold. */
+const reflectTask: TaskFn = (sim, slot) => (outburstDue(sim, slot) ? startOutburst(sim, slot) : emoteTask(sim, slot));
+
 /** The decision tasks of the beast layer (07 section 5, beast subset). Each returns true while the task continues. */
 const TASKS: Record<string, TaskFn> = {
   wander: (sim, slot) => {
@@ -1728,7 +1747,7 @@ const TASKS: Record<string, TaskFn> = {
     return false;
   },
   // The emotes (07 section 5 E): a short hold. The emote itself is shown from the task id (no emote state in the sim).
-  reflect: emoteTask,
+  reflect: reflectTask,
   laugh: emoteTask,
   sing: emoteTask,
   grumble: emoteTask,

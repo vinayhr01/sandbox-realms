@@ -46,6 +46,8 @@ export interface Hamlet {
   steps: number;
   /** Hamlet gold: the purse that building costs and gear coins are paid from (09 section 10.5). */
   gold: number;
+  /** Hamlet iron: the store a transport boat (10 section 13: iron 2) is paid from. No income is built yet, so it starts at 0. */
+  iron: number;
 }
 
 /** Coins a completing builder earns (09 section 8). The sim has no builder beings, so the coins go to the hamlet gold (TUNE). */
@@ -144,7 +146,7 @@ const MOOD_BUILDING_CAP = 30;
 
 export function createHamlet(parcelIndex: number, folk: number): Hamlet {
   // Gold starts at 0: the spec gives no starting gold for a hamlet (10.1 lists deposits, tax, trade and loot only).
-  return { parcels: new Set([parcelIndex]), food: BASE_FOOD_STORE, wood: 60, stone: 30, folk, buildings: [], growTimer: 0, outcrops: OUTCROP_START, steps: 0, gold: 0 };
+  return { parcels: new Set([parcelIndex]), food: BASE_FOOD_STORE, wood: 60, stone: 30, folk, buildings: [], growTimer: 0, outcrops: OUTCROP_START, steps: 0, gold: 0, iron: 0 };
 }
 
 /** Food capacity of the store: the base store plus the capacity each granary adds. */

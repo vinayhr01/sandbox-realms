@@ -662,6 +662,10 @@ function checkHamlets(raw: unknown): HamletSnapshot | null {
       if (!Array.isArray(pair) || pair.length !== 2 || !isFiniteNumber(pair[0]) || !isFiniteNumber(pair[1])) throw fail;
     }
   }
+  // Hamlet iron (settlements iron store): optional per record, absent in older saves; when present, finite and not negative.
+  for (const h of raw.hamlets) {
+    if (isRecord(h) && h.iron !== undefined && !(isFiniteNumber(h.iron) && h.iron >= 0)) throw fail;
+  }
   return raw as unknown as HamletSnapshot;
 }
 
@@ -686,6 +690,9 @@ function checkBoats(raw: unknown, side: number): BoatSave {
     if (!xOk || !yOk || !tile(b.home, -1) || !tile(b.berth, 0) || !tile(b.target, -1)) throw fail;
     if (!num(b.hp) || !num(b.wait) || !num(b.progress) || !num(b.orphan)) throw fail;
     if (!num(b.cargoGold) || !num(b.cargoFood) || (b.cargoGold as number) < 0 || (b.cargoFood as number) < 0) throw fail;
+    // Optional combat and path fields (boats.ts): a hit flag, and a planned route of tiles that ends at the target.
+    if (b.hit !== undefined && typeof b.hit !== 'boolean') throw fail;
+    if (b.path !== undefined && (!Array.isArray(b.path) || !b.path.every((t) => tile(t, 0)))) throw fail;
   }
   for (const pair of raw.builds) {
     if (!Array.isArray(pair) || pair.length !== 2 || !Number.isInteger(pair[0]) || !isFiniteNumber(pair[1])) throw fail;

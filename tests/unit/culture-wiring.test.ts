@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { decodeChronicle, encodeChronicle } from '../../src/sim/chronicle.ts';
 import { culturePayload, regionContacts } from '../../src/sim/culture/adapter.ts';
+import { addBorder, addDominion, parcelsPerAxis } from '../../src/sim/dominions/adapter.ts';
 import { generateRealm } from '../../src/sim/worldgen.ts';
 import type { Sim } from '../../src/sim/sim.ts';
 
@@ -15,15 +16,32 @@ function firstContact(sim: Sim): [number, number] {
   return [pair[0], pair[1]];
 }
 
+/** Two dominions (1 and 2) split down the middle of the realm, at peace, sharing a border. Returns their ids. */
+function bordered(sim: Sim): [number, number] {
+  const perAxis = parcelsPerAxis(sim);
+  const left: number[] = [];
+  const right: number[] = [];
+  for (let py = 0; py < perAxis; py++) {
+    for (let px = 0; px < perAxis; px++) (px < perAxis / 2 ? left : right).push(py * perAxis + px);
+  }
+  addDominion(sim, 1, 5, left);
+  addDominion(sim, 2, 5, right);
+  addBorder(sim, 1, 2, 'peace');
+  return [1, 2];
+}
+
 describe('culture wiring', () => {
   it('a sim starts with an empty culture state', () => {
     const sim = realmSim();
     expect(culturePayload(sim.culture)).toEqual({ customs: [], creeds: [], dialects: [], intrigues: [], families: [], nextId: 1 });
   });
 
-  it('a creed in one region spreads to a neighbouring region in a running sim', () => {
+  // Updated for "Culture founding close 6" (DECISIONS.md): culture groups are dominion ids and contacts are dominion
+  // borders (dominions/adapter.ts dominionBordersOf). Region ids are no longer groups, so the test builds two bordering
+  // dominions and seeds the creed in dominion 1. The code is unchanged; spread stays group-level at the creed rate.
+  it('a creed in one dominion spreads to a neighbouring dominion in a running sim', () => {
     const sim = realmSim();
-    const [a, b] = firstContact(sim);
+    const [a, b] = bordered(sim);
     sim.culture.creeds.push({ id: 1, holders: new Set([a]) });
     for (let t = 0; t < 8000 && !sim.culture.creeds[0]?.holders.has(b); t++) sim.step();
     expect(sim.culture.creeds[0]?.holders.has(b)).toBe(true);

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { SPECIES } from '../../src/content/beasts.ts';
+import { DECISION_INDEX } from '../../src/content/decisions.ts';
 import { FLORA_BY_ID, floraCode } from '../../src/sim/flora.ts';
 import { generateRealm } from '../../src/sim/worldgen.ts';
 import { seedStartingBeasts, spawnBeing, stepBeings } from '../../src/sim/beings/system.ts';
@@ -65,6 +66,11 @@ describe('omnivore diet', () => {
     store.fuel[slot] = 0;
     sim.realm.setFlora(tile, floraCode('herb'), 0);
     expect(sim.realm.flora[tile]).toBe((FLORA_BY_ID.get('herb') ?? 0) + 1);
+    // Close 5 added `reflect` (tier 2, weight 2.5). Under the tier rule (07 section 3.5) one decision in five lets every
+    // candidate compete by weight, and `reflect` can then take the single softmax draw, so an unpinned decision no longer
+    // reliably picks eat_grass (DECISIONS.md, "Test regressions close 12"). The test pins the running task to eat_grass,
+    // which the decide override layer runs first, so it checks the eating itself.
+    sim.beings.task[slot] = DECISION_INDEX.get('eat_grass') ?? -1;
 
     const before = store.fuel[slot] ?? 0;
     stepBeings(sim);

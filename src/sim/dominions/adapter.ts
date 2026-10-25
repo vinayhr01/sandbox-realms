@@ -1,6 +1,7 @@
 import type { Sim } from '../sim.ts';
 import { PARCEL } from '../settlements/hamlet.ts';
 import { hamletsOf } from '../settlements/adapter.ts';
+import { garrisonedSoldiers } from '../settlements/garrison-adapter.ts';
 import { SS_TICKS } from '../clock.ts';
 import { YEAR_TICKS } from '../../shared/constants.ts';
 import { dominionStep } from './step.ts';
@@ -378,6 +379,7 @@ export function dominionsYearly(sim: Sim): void {
     perAxis,
     tick: sim.tick,
     isOn: (id) => sim.rules.isOn(id),
+    garrisoned: (id) => garrisonedSoldiers(sim, id),
     land: (p) => {
       const i = (Math.floor(p / perAxis) * PARCEL + PARCEL / 2) * sim.realm.side + ((p % perAxis) * PARCEL + PARCEL / 2);
       return ground(sim.realm.ground[i] ?? 0).layer === 'land';

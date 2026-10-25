@@ -54,6 +54,8 @@ export interface FoundingEnv {
   isOn(id: string): boolean;
   /** True when a parcel's centre is land a dominion may hold. */
   land(parcel: number): boolean;
+  /** Soldiers a dominion has stationed in hamlet garrisons (garrison-adapter.ts). Absent: none. */
+  garrisoned?(dominionId: number): number;
 }
 
 /** Ids a new dominion may take: 1..255 (the owner byte). Returns 0 when none is free. */
@@ -181,9 +183,11 @@ export function foundingYear(state: FoundingState, settlements: readonly Settlem
     for (let k = 0; k < CLAIMS_PER_YEAR; k++) claimNearest(d, owner, perAxis, settledParcels, env.land);
   }
 
-  // 3. Army regrowth toward the folk cap.
+  // 3. Army regrowth toward the folk cap. Soldiers stationed in garrisons are not refilled: the field ceiling is the cap
+  // less the garrisoned soldiers, so a garrison draw is not replaced by regrowth and the total never passes the cap.
   for (const d of dominions) {
-    const cap = Math.floor((folkOf.get(d.id) ?? 0) / ARMY_DIVISOR);
+    const held = env.garrisoned?.(d.id) ?? 0;
+    const cap = Math.max(0, Math.floor((folkOf.get(d.id) ?? 0) / ARMY_DIVISOR) - held);
     if (d.strength < cap) d.strength = Math.min(cap, d.strength + Math.max(1, Math.floor(cap / 4)));
   }
 

@@ -30,6 +30,13 @@ export function hamletHasGarrison(hamlet: Hamlet): boolean {
   return hamlet.buildings.some((b) => b.def.id === 'garrison');
 }
 
+/** Soldiers a dominion has stationed in this host's garrisons (the records whose dominion is it). Read only; 0 before the first pass. */
+export function garrisonedSoldiers(host: object, dominionId: number): number {
+  let n = 0;
+  for (const r of states.get(host)?.records.values() ?? []) if (r.dominion === dominionId) n += r.soldiers;
+  return n;
+}
+
 /** Ticks per garrison pass: one sim-second. */
 const PASS_TICKS = SS_TICKS;
 

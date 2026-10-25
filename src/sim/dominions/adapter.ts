@@ -11,6 +11,7 @@ import { addPactRenown, forcePact as forcePactRecord, makePact, newPactState, pa
 import { armyWon, attackOrders, centroidParcel, marchArmies, raiseArmies, setCaptains, setSlots, syncArmies, type Army } from './armies.ts';
 import { newIntrigueState, proposeIntrigues, resolveIntrigues, type Intrigue, type IntrigueEnv, type IntrigueState } from './intrigue.ts';
 import { taxRatesOf, taxSplit } from './tax.ts';
+import { rulersStep, rulerStatsOf, type RulerRef, type RulerStats } from './rulers.ts';
 import { cultureYearly } from '../culture/adapter.ts';
 
 /** Dominion traits a dominion may hold (tax.ts reads the four tax ones; `markFate` is a locked marker, 11 section 9.4). */
@@ -163,7 +164,8 @@ export function addBorder(sim: Sim, a: number, b: number, relation: Relation = '
 /** Plain-data form of the dominion state, JSON-safe (Chronicle section 15). */
 export interface DominionSnapshot {
   /** `traits` and `taxRaised` are optional: written only when set, so older saves and untaxed dominions keep their shape. */
-  dominions: { id: number; parcels: number[]; strength: number; target: number; campaignSince: number; traits?: string[]; taxRaised?: number }[];
+  /** `ruler` and `rulerWaitUntil` are optional too: written only while a ruler is held or a succession wait runs (rulers.ts). */
+  dominions: { id: number; parcels: number[]; strength: number; target: number; campaignSince: number; traits?: string[]; taxRaised?: number; ruler?: RulerRef; rulerWaitUntil?: number }[];
   /** Hamlet gold at the last yearly pass by the hamlet's lowest parcel (tax.ts loot). Optional: written only when present. */
   taxSeen?: [number, number][];
   /** Pairs whose relation is not the default peace: [a, b, relation]. */
@@ -220,6 +222,8 @@ export function snapshotDominions(sim: Sim): DominionSnapshot | null {
       campaignSince: d.campaignSince,
       ...(d.traits !== undefined && d.traits.length > 0 ? { traits: [...d.traits] } : {}),
       ...(d.taxRaised !== undefined && d.taxRaised > 0 ? { taxRaised: d.taxRaised } : {}),
+      ...(d.ruler !== undefined ? { ruler: { slot: d.ruler.slot, gen: d.ruler.gen } } : {}),
+      ...(d.rulerWaitUntil !== undefined ? { rulerWaitUntil: d.rulerWaitUntil } : {}),
     })),
     ...(s.taxSeen.size > 0 ? { taxSeen: [...s.taxSeen] } : {}),
     relations,
@@ -293,6 +297,10 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
     }
     if (d.traits !== undefined && (!Array.isArray(d.traits) || !d.traits.every((t) => (DOMINION_TRAITS as readonly string[]).includes(t)))) bad(`dominion ${d.id} traits`);
     if (d.taxRaised !== undefined && (!isNum(d.taxRaised) || d.taxRaised < 0)) bad(`dominion ${d.id} tax receipts`);
+    // The ruler ref names a Being slot and generation; liveness is checked by the ruler step, not here (a stale ref is succession).
+    const rulerOk = (r: RulerRef): boolean => Number.isInteger(r.slot) && r.slot >= 0 && r.slot < sim.beings.store.capacity && Number.isInteger(r.gen) && r.gen >= 0;
+    if (d.ruler !== undefined && (typeof d.ruler !== 'object' || d.ruler === null || !rulerOk(d.ruler))) bad(`dominion ${d.id} ruler`);
+    if (d.rulerWaitUntil !== undefined && (!isNum(d.rulerWaitUntil) || d.rulerWaitUntil < 0)) bad(`dominion ${d.id} ruler wait`);
     dominions.push({
       id: d.id,
       parcels: new Set(d.parcels),
@@ -301,6 +309,8 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
       campaignSince: d.campaignSince,
       ...(d.traits !== undefined ? { traits: [...d.traits] } : {}),
       ...(d.taxRaised !== undefined ? { taxRaised: d.taxRaised } : {}),
+      ...(d.ruler !== undefined ? { ruler: { slot: d.ruler.slot, gen: d.ruler.gen } } : {}),
+      ...(d.rulerWaitUntil !== undefined ? { rulerWaitUntil: d.rulerWaitUntil } : {}),
     });
   }
   snap.owner.forEach((id, p) => {
@@ -374,9 +384,10 @@ export function dominionsYearly(sim: Sim): void {
     },
   };
   foundingYear(s, settlements, env);
-  pactYear(s.pacts, s.dominions, s.borders, s.relations, sim.tick, s.truce);
+  const rulerOf = rulerLookup(sim, s.dominions);
+  pactYear(s.pacts, s.dominions, s.borders, s.relations, sim.tick, s.truce, rulerOf);
   // Pact intrigues (intrigue.ts): last year's intrigues resolve through the pact functions, then new ones are proposed.
-  const ienv: IntrigueEnv = { dominions: s.dominions, borders: s.borders, relations: s.relations, truce: s.truce, pacts: s.pacts, tick: sim.tick };
+  const ienv: IntrigueEnv = { dominions: s.dominions, borders: s.borders, relations: s.relations, truce: s.truce, pacts: s.pacts, tick: sim.tick, rulerOf };
   resolveIntrigues(ienv, s.intrigues);
   proposeIntrigues(ienv, s.intrigues);
   // Culture (11 sections 2 and 3): each dominion gets a custom once, and a scheme while none runs (culture/adapter.ts).
@@ -466,4 +477,18 @@ export function stepDominions(sim: Sim): void {
   dominionStep(ctx, s.relations);
   syncArmies(s.armies, s.dominions);
   for (const [p, id] of owner) s.owner[p] = id;
+  // Rulers (rulers.ts, 10 section 4): once the owner bytes are written back, the leading hamlet of each dominion is
+  // read and any dead ruler is replaced (after its wait). The 'rulers' stream is taken only when a ruler dies.
+  rulersStep(
+    { tick: sim.tick, perAxis, beings: sim.beings, hamlets: hamletsOf(sim), owner: s.owner, rng: () => sim.rng('rulers') },
+    s.dominions,
+  );
+}
+
+/** Ruler stats per dominion id for the opinion terms (rulers.ts). Reads the being store; draws no randomness. */
+function rulerLookup(sim: Sim, dominions: readonly Dominion[]): (id: number) => RulerStats | undefined {
+  return (id) => {
+    const d = dominions.find((x) => x.id === id);
+    return d ? rulerStatsOf(sim.beings.store, d) : undefined;
+  };
 }

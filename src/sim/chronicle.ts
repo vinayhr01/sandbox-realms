@@ -605,7 +605,9 @@ function checkDominions(raw: unknown): DominionSnapshot | null {
   if (raw.taxSeen !== undefined && (!Array.isArray(raw.taxSeen) || !raw.taxSeen.every((p) => Array.isArray(p) && p.length === 2))) {
     throw new Error('chronicle: dominion section tax records are not valid');
   }
-  if (!raw.dominions.every((d) => isRecord(d) && (d.traits === undefined || Array.isArray(d.traits)) && (d.taxRaised === undefined || isFiniteNumber(d.taxRaised)))) {
+  // Optional ruler (rulers.ts): a record whose slot and generation are numbers, and a finite succession-wait tick. restoreDominions checks the ranges.
+  const rulerShape = (r: unknown): boolean => isRecord(r) && isFiniteNumber(r.slot) && isFiniteNumber(r.gen);
+  if (!raw.dominions.every((d) => isRecord(d) && (d.traits === undefined || Array.isArray(d.traits)) && (d.taxRaised === undefined || isFiniteNumber(d.taxRaised)) && (d.ruler === undefined || rulerShape(d.ruler)) && (d.rulerWaitUntil === undefined || isFiniteNumber(d.rulerWaitUntil)))) {
     throw new Error('chronicle: dominion section records are not valid');
   }
   return raw as unknown as DominionSnapshot;

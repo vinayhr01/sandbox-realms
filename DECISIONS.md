@@ -1023,3 +1023,23 @@ Deviations (OPEN defaults): a birth inherits the bearer's morph; castes are not 
 **Ecology risk (not measured).** Hungry predators now fight any grazer in sight (H when hungry, 07 9.4), and monsters (group G, wild in the roster) are hostile to every kind. Monsters are seeded by `seedStartingBeasts` as before, so the world now has fighting that the sim did not have. Expect the strict soak (`STRICT=1 npm run soak`) to move. Not run.
 
 **Not verified.** Nothing above has run. Expect failures in the golden test, and check the test suite for pins on the schema number, decision count and the beast ecology. The tests cannot be edited under this brief's touch set.
+
+## Rulers release
+
+Scope: 10 section 4 (ruler, succession) and the ruler terms of 10 section 10 (opinion). Code: `src/sim/dominions/rulers.ts` (new); `adapter.ts`, `opinion.ts`, `pacts.ts`, `intrigue.ts`, `types.ts` (additive); the dominion section of `src/sim/chronicle.ts`. `src/sim/beings/` is untouched. GOLDEN_HASH is not edited. Development only: nothing was run.
+
+**Ruler is a Being in the leading hamlet.** The leading hamlet of a dominion is the one with the most buildings, then the most folk, then the lowest parcel (the capital rule of 10 section 2, with the folk tie-break). The ruler is the oldest living adult folk Being standing in that hamlet's parcels that rules no other dominion (ties to the lower slot). It is stored on the dominion as `ruler: { slot, gen }`, so a death is seen by `BeingStore.isCurrent` with no hook in `killBeing`. No ruler marker is added to beings: the stored pair does the job.
+
+**Succession (10 section 4).** One step per sim-second, after the owner bytes are written back. A ruler found dead is cleared and `rulerWaitUntil = tick + randomInt(100, 400)` (the spec's `timers.newRuler`). The draw uses the `rulers` stream and happens only at a death, so the stream is never created otherwise. When the wait is over, a dominion with no ruler takes its successor. If none qualifies, it stays unruled and the check repeats every second. Dominions are visited in array order, so the pass is deterministic.
+
+**Opinion (10 section 10).** With a living ruler, b's ruler's rapport times `OPINION_PER_RAPPORT` (5) replaces the 25 stand-in in the "ruler diplomacy of b" term. A's ruler's mood divided by `OPINION_MOOD_DIVISOR` (10) is added to a's opinion, which is the spec's "a's ruler opinion stat". The sim keeps no separate opinion stat on a Being, so mood stands in (TUNE). Rapport maps to diplomacy: the creed tenets name four stats and the Being has four aptitudes (rapport, valor, husbandry, wit). Without a ruler, the 25 stand-in holds, and a caller that passes no `rulerOf` (the existing tests) gets the same numbers as before. The ruler reaches opinion through an optional `rulerOf` on `OpinionContext`, `IntrigueEnv` and a trailing optional argument of `pactYear`.
+
+**`supremeOf` kept.** Spec 10 section 2 ranks supremacy by power (soldiers x 2 + hamlets x 5 + 1). It names no ruler, so it is not a ruler stand-in and was not replaced. The code ranks by strength. Changing that is a power-formula change, outside this release.
+
+**Cut.** Royal clan and clan membership (dominions have no royal clan; the spec's clan test is not applied), the hamlet-leader fallback and chaos (there are no hamlet leaders or clans to fall back on), `shatteredCrown`, `moveToCapital`, the `ruler.changed` bus event, the gold-tooth decoration, the ruler-driven decisions of 10 section 4 (foundTown, adoptCustom and the like), and the custom succession orders (patriarchy, youngestFirst and the rest).
+
+**Dormant in ordinary play.** A ruler needs a folk Being in a hamlet's parcels. Folk come from the god tool (`spawnFolk` through the powers handler), and hamlets carry a folk count, not folk Beings. So rulers appear only when a folk Being is spawned inside a dominion's leading hamlet. In a sim with no such Being, the step does nothing and no draw is made.
+
+**Persisted changes.** Dominion section (chronicle tag 15), optional per dominion and written only when set: `ruler: { slot, gen }` and `rulerWaitUntil`. `checkDominions` checks the record shapes (both numbers, and a finite wait). `restoreDominions` checks slot in range of the being store, gen not negative, and wait not negative. A stale ref (a dead ruler) loads and is handled by succession. No schema bump. Beings section unchanged.
+
+**Not verified.** Nothing was run (development-only brief). Expect no change to the golden hash, since nothing here runs without a folk Being in a dominion, but check it when the suite is run.

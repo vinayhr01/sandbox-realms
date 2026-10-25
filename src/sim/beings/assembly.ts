@@ -6,6 +6,7 @@
  */
 import type { Aptitudes, SpeciesDef } from '../../content/beasts.ts';
 import { BEING_TRAIT_BY_ID, STRAIN_TRAIT_BY_ID, type TraitFx } from '../../content/traits.ts';
+import { NO_VARIANT, type VariantFx } from '../../content/variants.ts';
 import { TUNING } from './tuning.ts';
 
 /** Assembled values of one Being (or of a strain's members before babies are halved). */
@@ -46,6 +47,8 @@ export interface AssemblyInput {
   baby: boolean;
   /** Flat stat sums of the Being's worn items (08 section 6.1; items/store.ts fxOf). Absent means no gear. */
   equipment?: EquipmentFx;
+  /** Morph and caste multipliers (18a 3.1, 3.3; round 8). Absent means none. */
+  variant?: VariantFx;
 }
 
 export type FlatKey = 'wit' | 'rapport' | 'valor' | 'husbandry' | 'plating' | 'litter' | 'brood' | 'might' | 'pace' | 'vitality';
@@ -123,7 +126,15 @@ export function assemble(input: AssemblyInput): Assembled {
   let span = scale('span', base.span);
   let metabolism = scale('metabolism', base.metabolism);
   let litter = scale('litter', base.litter + flat.litter);
-  const brood = Math.max(0, base.brood + flat.brood);
+  // Variant multipliers (18a 3.5, 4 test 3): morph and caste each multiply the assembled stat once, so hp = base x morph
+  // x caste. The brood queen's litter x3 scales the extra-baby count as well (18a 3.3).
+  const vf = input.variant ?? NO_VARIANT;
+  vitality *= vf.hp;
+  might *= vf.dmg;
+  pace *= vf.spd;
+  span *= vf.life;
+  litter *= vf.litter;
+  const brood = Math.max(0, (base.brood + flat.brood) * vf.litter);
 
   // Clamps (05 section 1 table and 3 step 12). A mult that empties a stat leaves the clamp minimum.
   vitality = Math.max(1, Math.floor(vitality));
@@ -132,7 +143,7 @@ export function assemble(input: AssemblyInput): Assembled {
   span = Math.max(0, span);
   metabolism = Math.max(1, metabolism);
   litter = Math.max(0, Math.floor(litter));
-  const plating = Math.min(99, Math.max(0, base.plating + flat.plating));
+  const plating = Math.min(99, Math.max(0, base.plating + flat.plating + vf.arm));
 
   // Step 14: babies halve vitality and might, floored at the clamp minimum (05 section 1.1).
   if (input.baby) {

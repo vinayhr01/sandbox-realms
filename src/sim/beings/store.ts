@@ -4,6 +4,12 @@
  */
 export const MAX_BEINGS = 4096;
 
+/**
+ * Aggro entries kept per Being (07 section 10.4 has no cap; the sim keeps the four most recent, so the set can be
+ * saved as fixed-size arrays). Each entry is an attacker slot, its generation, and the tick its grudge ends.
+ */
+export const AGGRO_SLOTS = 4;
+
 export class BeingStore {
   readonly capacity: number;
   readonly alive: Uint8Array;
@@ -51,6 +57,8 @@ export class BeingStore {
   readonly metabolismA: Float32Array;
   readonly adultA: Float32Array;
   readonly gestationA: Float32Array;
+  /** Assembled plating (05 section 1, 0..99; round 8). Derived by refreshStats, not saved. */
+  readonly platingA: Uint8Array;
   /** Mood -100..+100 (06 section 4.1). Changed only by mood events. */
   readonly mood: Int16Array;
   /** Current endurance, 0..species endurance (06 section 1). */
@@ -66,6 +74,21 @@ export class BeingStore {
   readonly closeWith: Int32Array;
   readonly closeGen: Uint32Array;
   readonly closeSince: Uint32Array;
+  /** Biome morph (18a 3.1) plus one; 0 for none. Set on wild spawns; births inherit it. */
+  readonly morph: Uint8Array;
+  /** Caste (18a 3.3) plus one; 0 for none. */
+  readonly caste: Uint8Array;
+  /** Colour palette index (variants.ts PALETTES) and shade 0..3 (05 section 8). */
+  readonly palette: Uint8Array;
+  readonly shade: Uint8Array;
+  /** 1 once the Being has used its death-time rebirth (18b REB traits, 06 section 7.4). Copies start at 1. */
+  readonly reborn: Uint8Array;
+  /** Tick the next enemy search is due (07 section 8). */
+  readonly searchAt: Uint32Array;
+  /** Aggro entries: attacker slot (-1 empty), attacker generation, and the tick the grudge ends. AGGRO_SLOTS per Being. */
+  readonly aggroId: Int32Array;
+  readonly aggroGen: Uint32Array;
+  readonly aggroUntil: Uint32Array;
 
   private readonly list: Uint32Array;
   private readonly slotPos: Int32Array;
@@ -108,6 +131,7 @@ export class BeingStore {
     this.metabolismA = new Float32Array(capacity);
     this.adultA = new Float32Array(capacity);
     this.gestationA = new Float32Array(capacity);
+    this.platingA = new Uint8Array(capacity);
     this.mood = new Int16Array(capacity);
     this.endurance = new Uint16Array(capacity);
     this.sleepUntil = new Uint32Array(capacity);
@@ -117,6 +141,15 @@ export class BeingStore {
     this.closeWith = new Int32Array(capacity).fill(-1);
     this.closeGen = new Uint32Array(capacity);
     this.closeSince = new Uint32Array(capacity);
+    this.morph = new Uint8Array(capacity);
+    this.caste = new Uint8Array(capacity);
+    this.palette = new Uint8Array(capacity);
+    this.shade = new Uint8Array(capacity);
+    this.reborn = new Uint8Array(capacity);
+    this.searchAt = new Uint32Array(capacity);
+    this.aggroId = new Int32Array(capacity * AGGRO_SLOTS).fill(-1);
+    this.aggroGen = new Uint32Array(capacity * AGGRO_SLOTS);
+    this.aggroUntil = new Uint32Array(capacity * AGGRO_SLOTS);
     this.list = new Uint32Array(capacity);
     this.slotPos = new Int32Array(capacity).fill(-1);
     this.freeStack = new Uint32Array(capacity);
@@ -168,6 +201,15 @@ export class BeingStore {
     this.bondWith[slot] = -1;
     this.closeWith[slot] = -1;
     this.closeSince[slot] = 0;
+    this.morph[slot] = 0;
+    this.caste[slot] = 0;
+    this.palette[slot] = 0;
+    this.shade[slot] = 0;
+    this.reborn[slot] = 0;
+    this.searchAt[slot] = 0;
+    this.aggroId.fill(-1, slot * AGGRO_SLOTS, slot * AGGRO_SLOTS + AGGRO_SLOTS);
+    this.aggroGen.fill(0, slot * AGGRO_SLOTS, slot * AGGRO_SLOTS + AGGRO_SLOTS);
+    this.aggroUntil.fill(0, slot * AGGRO_SLOTS, slot * AGGRO_SLOTS + AGGRO_SLOTS);
     this.slotPos[slot] = this.count;
     this.list[this.count++] = slot;
     return slot;

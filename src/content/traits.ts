@@ -403,6 +403,11 @@ const STRAIN_FX: Record<string, TraitFx> = {
   light_frame: { mult: { vitality: -0.1, pace: 0.1 } },
   dense_frame: { mult: { vitality: 0.1, pace: -0.1 } },
   elect_line: { mult: { vitality: 0.1, might: 0.1, pace: 0.1 } },
+  // Round 8: stat numbers the 18b rows state (their behaviour hooks are in src/sim/beings/trait-hooks.ts).
+  clawed_grip: { mult: { might: 0.1 } },
+  scaled_plates: { flat: { plating: 3 } },
+  skin_plated: { flat: { plating: 1 } },
+  skin_ribbed: { mult: { vitality: 0.03 } },
 };
 
 function parseRows<T>(text: string, build: (cols: string[]) => T): T[] {

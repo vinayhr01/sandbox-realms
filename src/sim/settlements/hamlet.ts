@@ -1,8 +1,9 @@
 import { ground } from '../../content/grounds.ts';
 import { PARCEL } from '../../shared/constants.ts';
 import type { Rng } from '../../shared/rng.ts';
-import { BUILDING_BY_ID, type BuildingDef, type JobId } from './catalogue.ts';
-import { assignJobs, MINER_COIN_STEPS, JOBS, workMultiplier } from './jobs.ts';
+import { BUILDING_BY_ID, type BuildingDef } from './catalogue.ts';
+import { assignJobs, DEPOSIT_YIELD, HERB_FOOD, MINER_COIN_STEPS, JOBS, workMultiplier, type JobTargetCounts, type WorkerJob } from './jobs.ts';
+import { FLORA, floraCode } from '../flora.ts';
 
 /** Parcels are 8x8 tiles (01 section 2). Defined once in shared constants; re-exported here for existing importers. */
 export { PARCEL };
@@ -40,7 +41,7 @@ export const GARRISON_PARCELS = 20;
 
 /** Structural context: the hamlet step needs no Sim import. */
 export interface HamletContext {
-  realm: { side: number; ground: Uint8Array; flags: Uint16Array; cover: Uint8Array; flora: Uint8Array };
+  realm: { side: number; ground: Uint8Array; flags: Uint16Array; cover: Uint8Array; flora: Uint8Array; setFlora(i: number, kind: number, since: number): void };
   rng: Rng;
   tick: number;
   /** Realm Rule lookup (rules.isOn). */
@@ -317,19 +318,68 @@ export function buildChoices(h: Hamlet, desires: readonly string[] = []): Buildi
   return housingNeeded ? [...houses, ...tail] : tail;
 }
 
+/** Territory targets the node jobs work on this step: herb tiles and deposit tiles, in scan order. */
+export interface JobTargets {
+  herbs: number[];
+  deposits: { tile: number; stone: number; gold: number }[];
+}
+
+/**
+ * Scans the hamlet's parcels (row-major inside each parcel, parcels in ascending order, so the same
+ * realm always gives the same targets) for herb plants and for deposit nodes the prospectors take.
+ * Reads the realm only; draws no randomness.
+ */
+export function jobTargets(ctx: HamletContext, h: Hamlet): JobTargets {
+  const side = ctx.realm.side;
+  const perAxis = side / PARCEL;
+  const herbCode = floraCode('herb');
+  const targets: JobTargets = { herbs: [], deposits: [] };
+  for (const p of [...h.parcels].sort((a, b) => a - b)) {
+    const x0 = (p % perAxis) * PARCEL;
+    const y0 = Math.floor(p / perAxis) * PARCEL;
+    for (let y = y0; y < y0 + PARCEL; y++) {
+      for (let x = x0; x < x0 + PARCEL; x++) {
+        const i = y * side + x;
+        const code = ctx.realm.flora[i] ?? 0;
+        if (code === 0) continue;
+        if (code === herbCode) {
+          targets.herbs.push(i);
+          continue;
+        }
+        const yielded = DEPOSIT_YIELD.get(FLORA[code - 1]?.id ?? '');
+        if (yielded) targets.deposits.push({ tile: i, stone: yielded.stone, gold: yielded.gold });
+      }
+    }
+  }
+  return targets;
+}
+
 /**
  * Pays out the workers' output into the hamlet store (09 section 8 yields), scaled by the mood
  * multiplier. Food stops at the store cap. Miners take stone from the outcrops, plus any quarry lodge bonus.
+ * Herbalists pick herb plants and prospectors break deposit nodes; a picked or broken target leaves the realm.
  */
-function runJobs(h: Hamlet, workers: ReadonlyMap<JobId, number>, mult: number, foodCap: number): void {
+function runJobs(ctx: HamletContext, h: Hamlet, workers: ReadonlyMap<WorkerJob, number>, mult: number, foodCap: number, targets: JobTargets): void {
   const bonus = h.buildings.reduce((s, b) => s + (b.def.outcropBonus ?? 0), 0);
   for (const job of JOBS) {
     const n = workers.get(job.id) ?? 0;
     if (n === 0) continue;
-    const amount = Math.floor(n * job.perWorker * mult);
-    if (job.resource === 'food') {
+    // At least one unit per worker: the mood multiplier can only trim a yield that is already a whole unit.
+    const amount = Math.max(1, Math.floor(n * job.perWorker * mult));
+    if (job.id === 'herbalist') {
+      for (const i of targets.herbs.splice(0, amount)) {
+        ctx.realm.setFlora(i, 0, ctx.tick);
+        if (h.food < foodCap) h.food = Math.min(h.food + HERB_FOOD, foodCap);
+      }
+    } else if (job.id === 'prospector') {
+      for (const d of targets.deposits.splice(0, amount)) {
+        ctx.realm.setFlora(d.tile, 0, ctx.tick);
+        h.stone += d.stone;
+        h.gold += d.gold;
+      }
+    } else if (job.id === 'forager') {
       if (h.food < foodCap) h.food = Math.min(h.food + amount, foodCap);
-    } else if (job.resource === 'wood') {
+    } else if (job.id === 'woodcutter') {
       h.wood += amount;
     } else {
       const take = Math.min(h.outcrops, Math.floor(amount * (1 + bonus)));
@@ -366,7 +416,9 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
   const cap = foodCapacity(h);
   if (h.food < cap) h.food = Math.min(h.food + h.buildings.reduce((s, b) => s + b.def.foodYield, 0), cap);
   h.wood += h.buildings.reduce((s, b) => s + b.def.woodYield, 0);
-  runJobs(h, assignJobs(h), workMultiplier(hamletMood(h)), cap);
+  const targets = jobTargets(ctx, h);
+  const counts: JobTargetCounts = { herbs: targets.herbs.length, deposits: targets.deposits.length };
+  runJobs(ctx, h, assignJobs(h, counts), workMultiplier(hamletMood(h)), cap, targets);
   h.steps += 1;
   if (h.steps % OUTCROP_REGROW_STEPS === 0 && h.outcrops < OUTCROP_CAP) h.outcrops += 1;
 }

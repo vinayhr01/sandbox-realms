@@ -9,7 +9,7 @@ import { ground } from '../../content/grounds.ts';
 import { ARMY_DIVISOR, FOUND_FOLK, foundingYear, type FoundingEnv, type Truce } from './founding.ts';
 import { pairKey, RelationMatrix, type Dominion, type DominionContext, type Relation } from './types.ts';
 import { addPactRenown, forcePact as forcePactRecord, makePact, newPactState, pactOf, pactYear, PACT_RENOWN_PER_DEFEAT, type Pact, type PactState } from './pacts.ts';
-import { armyWon, attackOrders, centroidParcel, marchArmies, raiseArmies, setCaptains, setSlots, syncArmies, type Army } from './armies.ts';
+import { armyWon, attackOrders, centroidParcel, engageArmies, marchArmies, raiseArmies, setCaptains, setSlots, syncArmies, type Army } from './armies.ts';
 import { newIntrigueState, proposeIntrigues, resolveIntrigues, type Intrigue, type IntrigueEnv, type IntrigueState } from './intrigue.ts';
 import { taxRatesOf, taxSplit } from './tax.ts';
 import { rulersStep, rulerStatsOf, type RulerRef, type RulerStats } from './rulers.ts';
@@ -393,6 +393,7 @@ export function dominionsYearly(sim: Sim): void {
       return ground(sim.realm.ground[i] ?? 0).layer === 'land';
     },
   };
+  foundFromHamlets(sim, s, settlements, env.isOn);
   // Custom hooks (culture/effects.ts): a bigger side with peaceable or serenity does not declare war.
   foundingYear(s, settlements, {
     ...env,
@@ -474,6 +475,7 @@ export function stepDominions(sim: Sim): void {
   if (sim.rules.isOn('parley')) {
     if (sim.rules.isOn('border_creep')) attackOrders(s.armies, s.dominions, s.relations, owner, perAxis);
     marchArmies(s.armies, s.dominions, s.relations, perAxis);
+    engageContacts(sim, s, perAxis);
   }
   const ctx: DominionContext = {
     rng: sim.rng('dominions'),
@@ -512,6 +514,42 @@ export function stepDominions(sim: Sim): void {
     },
     s.dominions,
   );
+}
+
+/**
+ * Founding (10 section 2; the rule of founding.ts step 1): a hamlet with FOUND_FOLK folk and no dominion parcels founds
+ * a dominion through addDominion, with the strength foundingYear would give it. foundingYear then sees the dominion
+ * as the hamlet's owner and claims its other parcels as before. Needs rule `realm_expansion`. Draws no randomness.
+ */
+function foundFromHamlets(sim: Sim, s: DominionState, settlements: ReturnType<typeof hamletsOf>, isOn: (id: string) => boolean): void {
+  if (!isOn('realm_expansion')) return;
+  for (const h of settlements) {
+    if (h.folk < FOUND_FOLK) continue;
+    const parcels = [...h.parcels].sort((x, y) => x - y);
+    if (parcels.some((p) => (s.owner[p] ?? UNOWNED) !== UNOWNED)) continue;
+    let max = 0;
+    for (const d of s.dominions) max = Math.max(max, d.id);
+    if (max >= 255) return;
+    addDominion(sim, max + 1, Math.floor(h.folk / ARMY_DIVISOR), parcels);
+  }
+}
+
+/**
+ * Army contact (10 section 8): each war border whose two armies stand on the same or adjacent parcels engages their
+ * Folk (armies.ts engageArmies). Runs once per sim-second after the armies march, so contact is read from their
+ * new positions. Draws no randomness.
+ */
+function engageContacts(sim: Sim, s: DominionState, perAxis: number): void {
+  for (const [a, b] of s.borders) {
+    if (s.relations.get(a, b) !== 'war') continue;
+    const armyA = s.armies.find((x) => x.dominionId === a);
+    const armyB = s.armies.find((x) => x.dominionId === b);
+    if (!armyA || !armyB) continue;
+    const dx = Math.abs((armyA.parcel % perAxis) - (armyB.parcel % perAxis));
+    const dy = Math.abs(Math.floor(armyA.parcel / perAxis) - Math.floor(armyB.parcel / perAxis));
+    if (Math.max(dx, dy) > 1) continue;
+    engageArmies(sim, armyA, armyB, perAxis);
+  }
 }
 
 /**

@@ -1649,3 +1649,32 @@ Scope: 02 section 7 `pathDecay` (`wayworn` roads outside any Custom's hamlet ter
 - OPEN: a road tile with no record never decays. Such tiles come from a painted `wayworn` (power `shape_wayworn`), whose base is unknown. The spec does not say what base such a tile has.
 - OPEN: `heat` turning a road into `strand` drops the record on the next sim-second (the tile is no longer road). That is the existing ground rule, not a new one.
 - Not run: the golden hash is not re-baselined. It moves only in a golden run that lays a road and reaches a decay run.
+
+## Combat close 4
+
+Scope: 08 sections 3.3 and 5.3, 10 sections 2 and 8, 18a capstroll, 18c sections 5 and 6, 18e `brazier_tower`, 12 infection vectors. Development instruction: code only, no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` is not edited and will not match. Built on "Combat build 3" and "Road decay".
+
+Files: `src/sim/combat.ts` (spore puff in `meleeSwing`), `src/content/powers.ts` (`havoc_pestilence`), `src/sim/dominions/adapter.ts` (additive: `foundFromHamlets`, `engageContacts`, and their calls). `projectiles.ts`, `effects.ts` and `powers/handlers.ts` are unchanged: no owner or source needed them (see below).
+
+**1. Founding through addDominion (10 section 2).** `dominionsYearly` calls `foundFromHamlets` before `foundingYear`. A hamlet with at least FOUND_FOLK folk and no owned parcel founds a dominion through `addDominion` (id = highest + 1, up to 255; strength = folk / ARMY_DIVISOR, as `foundingYear` gives). `foundingYear` then sees the dominion as the owner and claims the rest of the parcels as before. Needs `realm_expansion`. Correction to "Combat build 3": dominions were already created in play by `foundingYear`, so they were never inert. This change only routes the founding through `addDominion`; the result is the same dominion.
+
+**2. Army contact (10 section 8).** `stepDominions` calls `engageContacts` once per sim-second inside the `parley` branch, after `marchArmies`. Each war border whose two armies stand on the same or adjacent parcels calls `engageArmies` (armies.ts, CONTACT_MAX 4 pairs). Folk fight through the aggro path from their next decision. Not closed: the strength exchange in `dominionStep` still needs war relations and armies, and `engageArmies` re-runs every second while contact holds (a balance point, to check in play).
+
+**3. Statuses (18c section 5, 08 section 5.3).**
+- `bewildered`: closed. A capstroll (18a) hurt below 30% vitality puffs at the Being that struck it (`sporePuff`, after a landed melee hit that does not kill). Not built: the flora spore puff (`capped_tree` felling), strain-change bewilderment and dream-weaving failure (beings and flora are outside this change).
+- `coughing`: closed through the infection vector. `havoc_pestilence` (havoc tab, brush, `favour_status`, fall 0.3) gives `coughing` to the Beings on the tapped tile. The 0.04 per tick contagion to adjacent Beings is not modelled.
+- `sprouting`: already in play before this change (`beings/system.ts`, a sprout bearer's young; not touched).
+- `taking_root`: not closed. Its source is the rooting birth (`rooted` flag set in `beings/system.ts`, which adds no effect). Wiring it needs that file.
+- `lull`, `expecting`, `sheltered`: not closed. Pairing, pregnancy and birth keep these as store fields (`lull`, `expecting`) or in `beings/system.ts`. Wiring them as effects needs that file.
+- `ash_sickness`: not closed. Source is the `fall_ash` cloud drop, which spec 12 lists as cloud-only with no tool button. No cloud drop system exists, so a power entry would put a button on the screen against the spec.
+- `hexed`: not closed. Source is `hex_cast` (08 spell table), a spell with no spell system. Spec 12 `fav_hex` is a trait drop, not a hex.
+
+**4. Projectile owners (08 3.3, 18c section 6, 10 section 13).**
+- `snow_pellet`, `knuckle_bone`, `hurled_stone`, `frenzy_sphere`: no owner. The spec names none for these, so none was built. They stay in the data table only.
+- `blaze_sphere`: not built. Owners are the brazier tower (18e: range 14, reload 120 ticks, impact radius 3, 30 dmg) and `magmaling` gear. The gear is not defined in 18c or 08. The tower sits in the buildings code (outside this change), and its target rule ("enemies") is undefined for Beings with no dominion.
+- `siege_ball`: not built. The owner is the trading boat's cannon (10 section 13). `boats/boats.ts` already fires its own hull damage (`CANNON_DAMAGE`), not a projectile. Routing it to `siege_ball` needs `boats.ts`.
+- `acid_glob`: not built. The owner is the "vessel mortar" named in 18c only. No boat type in 10 or `boats/types.ts` carries a mortar, so there is no owner to attach to.
+
+**5. Bomb and owner cases in handlers.ts.** No change. The bomb case already routes device bombs (Combat build 3). No owner was built that needs a handler case.
+
+**Remaining, and why.** Owners of `blaze_sphere`, `siege_ball`, `acid_glob` (buildings and boats code, outside this change). Sources of `taking_root`, `lull`, `expecting`, `sheltered` (beings system). `ash_sickness` (no cloud drops), `hexed` (no spells). Golden: not re-baselined.

@@ -134,8 +134,26 @@ export function meleeSwing(ctx: CombatContext, attacker: number, victim: number,
   if (!hit.blocked) {
     ctx.onWeaponHit?.(attacker, victim);
     applyOnHit(ctx, victim, ctx.weaponMods?.(attacker) ?? []);
+    if (!hit.killed) sporePuff(ctx, attacker, victim);
   }
   return hit;
+}
+
+/** Species whose spore puff bewilders attackers (18a capstroll: puffs at under 30% hp). */
+const SPORE_PUFF_SPECIES = 'capstroll';
+/** Vitality share under which a spore puff fires (18a). */
+const SPORE_PUFF_BELOW = 0.3;
+
+/**
+ * Spore puff (18a capstroll, 18c source "spore puff"): a capstroll hurt below 30% vitality puffs at the
+ * Being that struck it, which takes `bewildered`. Draws no randomness.
+ */
+function sporePuff(ctx: CombatContext, attacker: number, victim: number): void {
+  const s = ctx.beings.store;
+  const species = SPECIES[s.species[victim] ?? -1];
+  if (!species || species.id !== SPORE_PUFF_SPECIES) return;
+  if ((s.vit[victim] ?? 0) >= SPORE_PUFF_BELOW * (s.maxVit[victim] ?? 0)) return;
+  ctx.effects.add(attacker, 'bewildered', ctx.tick);
 }
 
 /**

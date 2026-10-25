@@ -6,8 +6,14 @@
 
 import { YEAR_TICKS } from '../../shared/constants.ts';
 
-/** Soldiers a garrison holds at most (TUNE: the spec gives no company size). */
-export const GARRISON_COMPANY = 5;
+/** Adults a hamlet needs before it has any soldier slot (09 section 8 acceptance: slots 0 while adults <= 15). */
+export const ARMY_ADULTS_MIN = 15;
+/** Base share of adults that may serve (09 section 8: `lineage.armyBase(0.35)`; the lineage default is the spec value). */
+export const ARMY_BASE = 0.35;
+/** Leader army bonus in `armyFactor` (09 section 8). The sim has no hamlet leader entity, so the term is 0 (TUNE). */
+export const LEADER_ARMY_BONUS = 0;
+/** Soldier timer after a release over the soldier limit, in ticks (09 section 8: `timers.soldier = 600`, not halved). */
+export const SOLDIER_OVER_LIMIT_TIMER = 600;
 /** Hamlet gold above which a soldier may be recruited (09 section 8 soldier gate: gold > 10). */
 export const SOLDIER_GOLD_GATE = 10;
 /** Soldier timer before a recruit, in ticks (09 section 8: 300 - leader.warfare x 10). */
@@ -32,13 +38,23 @@ export function soldierTimer(warfare: number, garrison: boolean): number {
   return garrison ? Math.floor(base / 2) : base;
 }
 
+/**
+ * Soldier slots of a hamlet (09 section 8 quota, acceptance 6): `floor(adults x armyFactor)` with
+ * `armyFactor = ARMY_BASE + leader.armyBonus + leader.warfare x 0.02`, and 0 while adults <= ARMY_ADULTS_MIN.
+ * The rule `standing_armies` is checked by the caller. Pure: no sim, no RNG.
+ */
+export function soldierSlots(adults: number, warfare: number, armyBonus: number): number {
+  if (adults <= ARMY_ADULTS_MIN) return 0;
+  return Math.floor(adults * (ARMY_BASE + armyBonus + warfare * 0.02));
+}
+
 /** One hamlet's garrison: its owner when it last drew, the soldiers it holds, and the ticks until the next recruit. */
 export interface GarrisonRecord {
   /** Hamlet index (hamlets are never removed, so the index is stable). */
   hamlet: number;
   /** Dominion the soldiers were drawn from (0 when the hamlet had no owner). */
   dominion: number;
-  /** Soldiers held, 0 to GARRISON_COMPANY. */
+  /** Soldiers held, 0 up to the hamlet's soldier slots (soldierSlots). A save over the limit is released by the next pass. */
   soldiers: number;
   /** Ticks until the next recruit may be drawn; at or below 0 the draw is attempted each second. */
   timer: number;

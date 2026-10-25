@@ -694,11 +694,16 @@ function checkHamlets(raw: unknown): HamletSnapshot | null {
     }
   }
   // garrisons (garrison.ts): optional records of a hamlet index, a dominion id, a soldier count, a recruit timer and a
-  // wage timer (absent in saves written before wages).
+  // wage timer (absent in saves written before wages). Whole numbers for the indexes and the soldier count; the soldier
+  // count may sit over the limit (the next garrison pass releases the surplus). Contents are checked in restoreGarrisons.
   if (raw.garrisons !== undefined) {
     if (!Array.isArray(raw.garrisons)) throw fail;
     for (const g of raw.garrisons) {
-      if (!isRecord(g) || !isFiniteNumber(g.hamlet) || !isFiniteNumber(g.dominion) || !isFiniteNumber(g.soldiers) || !isFiniteNumber(g.timer)) throw fail;
+      if (!isRecord(g)) throw fail;
+      if (!Number.isInteger(g.hamlet) || (g.hamlet as number) < 0) throw fail;
+      if (!Number.isInteger(g.dominion) || (g.dominion as number) < 0) throw fail;
+      if (!Number.isInteger(g.soldiers) || (g.soldiers as number) < 0) throw fail;
+      if (!isFiniteNumber(g.timer)) throw fail;
       if (g.wage !== undefined && !isFiniteNumber(g.wage)) throw fail;
     }
   }

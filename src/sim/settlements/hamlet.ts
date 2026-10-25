@@ -4,6 +4,7 @@ import type { Rng } from '../../shared/rng.ts';
 import { BUILDING_BY_ID, type BuildingDef } from './catalogue.ts';
 import { assignJobs, DEPOSIT_YIELD, HERB_FOOD, MINER_COIN_STEPS, JOBS, workMultiplier, type JobTargetCounts, type WorkerJob } from './jobs.ts';
 import { FLORA, floraCode } from '../flora.ts';
+import { BASE_RULES, centreOf, housesMax, lotOk, narrow, zoneOk, ZONE_HOUSING, ZONE_PARCELS, type CustomRules } from './custom-rules.ts';
 
 /** Parcels are 8x8 tiles (01 section 2). Defined once in shared constants; re-exported here for existing importers. */
 export { PARCEL };
@@ -50,6 +51,8 @@ export interface HamletContext {
   claimed?: (parcel: number) => boolean;
   /** Build ids this hamlet is drawn to by nearby beacon pillars (18e 2.3), derived each second, never saved. */
   desires?: readonly string[];
+  /** Custom building rules (custom-rules.ts), derived each second from the hamlet's custom, never saved. Absent: the base rules. */
+  rules?: CustomRules;
 }
 
 /** Folk at which a hamlet is a town (09 section 2 size tier, TOWN_POP; TUNE). A label: build orders gate on pop directly. */
@@ -156,13 +159,21 @@ export function buildable(ctx: HamletContext, x: number, y: number, h: Hamlet): 
   return true;
 }
 
-/** Tries to place a building of `def` in the first free spot of the hamlet's parcels (scan order). */
+/**
+ * Places a building of `def` on the hamlet's parcels (09 section 6 placement, custom-driven). Every valid anchor tile is
+ * a candidate. A lot rule (custom-rules.ts) and a zone plan (once the hamlet is large enough) narrow the candidates when
+ * any of them passes. Then the first candidate is taken (scatteredBuild), or else the candidate nearest the hamlet centre.
+ * A wobble lot draws one roll from the settlements stream, whether or not a tile is found.
+ */
 export function placeBuilding(ctx: HamletContext, h: Hamlet, def: BuildingDef): boolean {
   if (h.wood < def.wood || h.stone < def.stone || h.gold < (def.gold ?? 0)) return false;
+  const rules = ctx.rules ?? BASE_RULES;
   const side = ctx.realm.side;
   const ordered = [...h.parcels].sort((a, b) => a - b);
   const perAxis = side / PARCEL;
   const depth = heightOf(def);
+  const shift = rules.lot === 'wobble' && ctx.rng.next() < 0.6;
+  const spots: { x: number; y: number }[] = [];
   for (const p of ordered) {
     const px = (p % perAxis) * PARCEL;
     const py = Math.floor(p / perAxis) * PARCEL;
@@ -174,16 +185,37 @@ export function placeBuilding(ctx: HamletContext, h: Hamlet, def: BuildingDef): 
             ok = buildable(ctx, x + dx, y + dy, h);
           }
         }
-        if (!ok) continue;
-        h.wood -= def.wood;
-        h.stone -= def.stone;
-        h.gold -= def.gold ?? 0;
-        h.buildings.push({ def, x, y });
-        return true;
+        if (ok) spots.push({ x, y });
       }
     }
   }
-  return false;
+  if (spots.length === 0) return false;
+  const centre = centreOf(h.parcels, perAxis);
+  let pool: readonly { x: number; y: number }[] = spots;
+  const lot = rules.lot;
+  if (lot !== undefined) pool = narrow(pool, (s) => lotOk(lot, s.x, s.y, shift));
+  const zone = rules.zone;
+  const zoned = housingSlots(h) >= ZONE_HOUSING || h.parcels.size >= ZONE_PARCELS;
+  if (zone !== undefined && zoned) {
+    pool = narrow(pool, (s) => zoneOk(zone, Math.floor(s.x / PARCEL), Math.floor(s.y / PARCEL), centre.px, centre.py, rules.worldSeed));
+  }
+  let pick = pool[0];
+  if (pick === undefined) return false;
+  if (!rules.scattered) {
+    let bestD = Number.POSITIVE_INFINITY;
+    for (const s of pool) {
+      const d = (s.x - centre.tx) * (s.x - centre.tx) + (s.y - centre.ty) * (s.y - centre.ty);
+      if (d < bestD) {
+        bestD = d;
+        pick = s;
+      }
+    }
+  }
+  h.wood -= def.wood;
+  h.stone -= def.stone;
+  h.gold -= def.gold ?? 0;
+  h.buildings.push({ def, x: pick.x, y: pick.y });
+  return true;
 }
 
 /** Extends the territory by one parcel next to an owned one, if the parcel is mostly land. */
@@ -294,18 +326,22 @@ const RULES: readonly BuildRule[] = [
  * first while folk outnumber housing or fewer than four houses stand, highest tier first. Only
  * buildings whose `needs` are standing are listed.
  */
-export function buildChoices(h: Hamlet, desires: readonly string[] = []): BuildingDef[] {
+export function buildChoices(h: Hamlet, desires: readonly string[] = [], rules: CustomRules = BASE_RULES): BuildingDef[] {
   const houseCount = h.buildings.filter((b) => (HOUSE_TIERS as readonly string[]).includes(b.def.id)).length;
   const housingNeeded = h.folk > housingSlots(h) || houseCount < 4;
+  // House limit (09 section 5): no house or lean-to once the houses stand at the limit.
+  const houseLimit = housesMax(h.parcels.size, h.buildings.map((b) => b.def.id), rules.density);
   const houses: BuildingDef[] = [];
   for (const id of HOUSE_TIERS) {
     const def = BUILDING_BY_ID.get(id);
-    if (def && hasAll(h, def.needs ?? [])) houses.push(def);
+    if (def && houseCount < houseLimit && hasAll(h, def.needs ?? [])) houses.push(def);
   }
   const specials: BuildingDef[] = [];
   for (const rule of RULES) {
     const def = BUILDING_BY_ID.get(rule.id);
-    if (!def || countOf(h, rule.id) > 0 || !hasAll(h, def.needs ?? [])) continue;
+    // One of each civic building per hamlet; the monument limit is raised by statuePride (custom-rules.ts).
+    const limit = rule.id === 'monument' ? rules.monumentLimit : 1;
+    if (!def || countOf(h, rule.id) >= limit || !hasAll(h, def.needs ?? [])) continue;
     if (rule.minFolk !== undefined && h.folk < rule.minFolk) continue;
     if (rule.minBuildings !== undefined && h.buildings.length < rule.minBuildings) continue;
     if (rule.minParcels !== undefined && h.parcels.size < rule.minParcels) continue;
@@ -405,7 +441,7 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
   const housing = housingSlots(h);
   if (ctx.isOn('folk_births') && h.food > h.folk * 2 && h.folk < housing && h.folk < 100) h.folk += 1;
   // One building per step. Territory grows only after a building is actually placed; the builder's coins follow the placement.
-  for (const def of buildChoices(h, ctx.desires ?? [])) {
+  for (const def of buildChoices(h, ctx.desires ?? [], ctx.rules ?? BASE_RULES)) {
     if (placeBuilding(ctx, h, def)) {
       h.gold += BUILDER_COINS;
       expandTerritory(ctx, h);

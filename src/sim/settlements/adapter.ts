@@ -18,6 +18,7 @@ import { ground } from '../../content/grounds.ts';
 import { MONTH_TICKS } from '../../shared/constants.ts';
 import { terrainState, type CreepHub } from '../terrain/state.ts';
 import { garrisonStep, garrisonsOf, restoreGarrisons } from './garrison-adapter.ts';
+import { rulesOf } from './custom-rules.ts';
 import type { GarrisonRecord } from './garrison.ts';
 
 /** Hamlets placed per realm at worldgen (TUNE). Kept: 09 does not place hamlets at worldgen, but the worldgen placement stays as it was. */
@@ -267,12 +268,13 @@ export function settlementsStep(host: SettlementHost): void {
   for (const h of state.hamlets) {
     h.folk = census(host, h);
     // Another hamlet owning a parcel blocks this hamlet from expanding into it.
+    const custom = customOf(host, h);
     const own: HamletContext = {
       ...ctx,
       claimed: (q) => state.hamlets.some((o) => o !== h && o.parcels.has(q)),
       desires: desiresOf(state.structures, h, host.realm.side),
+      rules: rulesOf(custom?.traits ?? [], host.realm.seed),
     };
-    const custom = customOf(host, h);
     const parcelsBefore = custom && customHas(custom, 'outwardGrowth') ? new Set(h.parcels) : null;
     const buildingsBefore = h.buildings.length;
     hamletStep(own, h);
@@ -282,7 +284,12 @@ export function settlementsStep(host: SettlementHost): void {
   }
   // Garrisons (09 section 8, 10 section 8): soldiers are drawn from the owner's dominion strength. The owner is read only
   // once a dominion exists (dominionState creates the state on first use).
-  garrisonStep(host as unknown as Sim, state.hamlets, (h) => majorityOwner(dominionState(host as unknown as Sim).owner, h));
+  garrisonStep(
+    host as unknown as Sim,
+    state.hamlets,
+    (h) => majorityOwner(dominionState(host as unknown as Sim).owner, h),
+    (h) => rulesOf(customOf(host, h)?.traits ?? []).levy,
+  );
   // Landmarks and beacon pillars (18e 2) pulse on their own timers. The effects act on the realm through the
   // terrain modules, which take the Sim; the host is the Sim at runtime (sim.ts passes itself).
   structureStep(host as unknown as Sim, state.structures);
@@ -298,7 +305,7 @@ export function settlementsStep(host: SettlementHost): void {
  * The custom of a hamlet (11 section 4.1): the custom of the dominion holding most of its parcels. Undefined when no
  * custom exists yet or the hamlet is in no dominion. Reads the dominion state only when customs exist.
  */
-function customOf(host: SettlementHost, h: Hamlet): Custom | undefined {
+export function customOf(host: SettlementHost, h: Hamlet): Custom | undefined {
   const sim = host as unknown as Sim;
   if (sim.culture.customs.length === 0) return undefined;
   const dom = majorityOwner(dominionState(sim).owner, h);

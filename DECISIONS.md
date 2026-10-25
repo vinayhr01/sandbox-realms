@@ -1203,3 +1203,45 @@ Changing a row's `status` to `live` is the way to wire one later, once its mecha
 **Determinism.** Custom draws use the `culture` stream (`ctx.rng`). Roads and outward claims draw no rng (A* is deterministic, ties by tile index). Hub mood draws no rng. No new named stream.
 
 **Not verified.** Nothing above has run. Expect the golden test to fail (`GOLDEN_HASH` is not updated here, per the brief), and expect the culture unit tests to need a look: `addCustom` now draws by rarity, so the trait-count tests may need a new pin. Save compatibility with older saves is by design (see the save section), but not tested.
+
+## Customs close-out
+
+Scope: the 51 custom traits that the Customs and roads release left as data (11 section 9.1; the table has 53 rows, 2 were live). Implemented 41, left 10 (list below). Nothing was run: tests, tsc, vitest, build and Playwright were out of scope, so every change here is unverified by machine. `GOLDEN_HASH` is not edited and will not match.
+
+**Where the effects live.**
+- `src/sim/culture/trait-rules.ts` (new, pure): succession rule of a trait list, opinion term, war block, craft group weights, the eight `craft` uniques, the smith skill.
+- `src/sim/culture/effects.ts` (new, sim-touching): trait lookup of a being (through the dominion owner byte) and of a dominion; talk outcome, beast partner, newborn attribute, campaign moods, war-block mood, ruler install moods.
+- `src/sim/settlements/custom-rules.ts` (new): house limit, statue limit, zone plans, lot placements, levy sex.
+- Call sites, one line or a small guard each: `beings/system.ts` (chat partner and outcome, newborn copy), `settlements/hamlet.ts` (house limit, monument limit, placement), `settlements/adapter.ts` (rules per hamlet, levy to the garrison), `settlements/garrison-adapter.ts` (levy gate), `dominions/*` (campaign and war hooks, ruler step, opinion lens), `items/hamlet-gear.ts` (craft). Dominion hooks are additive: optional fields on `DominionContext`, `FoundingEnv`, `RulerEnv`, `OpinionContext` and `IntrigueEnv`, and one trailing optional argument of `pactYear`.
+- `src/content/customs.ts`: the 41 rows and the 2 old rows are `live`; 10 rows stay `data`.
+
+**Implemented (41), with the mechanism and any substitution.**
+- Houses: `crowded` x2, `spacious` x1/3, `swarm` x3 on the house limit `housesMax = parcels x density + sum(maxHouses)` (09 section 5). `maxHouses` comes from the spec for the catalogue ids that have it (hearth_fire 3, great_hall_1..3 2, monument 3, bazaar 2). Substitution: the spec's second clause (`housingFree > 10`) is not built. Base change: the house limit now applies to every hamlet at density 1, since a density trait has no meaning without a base.
+- `statuePride`: monument limit 1 to 5 (the catalogue's `monument` is the statue). `towerPride` stays data (no tower building; `beacon_tower` was cut).
+- Placement, base change for every hamlet: the valid anchor tile nearest the hamlet centre (09 section 6). The first build used to be first-fit. `scatteredBuild` keeps the first valid tile.
+- Plans (`ringPlan`, `crossPlan`, `lattice2Plan` to `lattice4Plan`, `checkerPlan`, `grovePlan`): a zone filter on the anchor's parcel, from parcel offsets to the centre parcel (ring: Chebyshev distance mod 2 >= 1; cross: |dx| or |dy| <= 1; lattice: px mod s < 1 or py mod s < 1 on absolute parcel coordinates; checker: (floor(px/2) + floor(py/2)) mod 2 = 0; grove: `worldgen/noise.ts` noise01 at (0.7px, 0.7py) with the realm seed, over 0.4). Gate: housing >= 10 or parcels >= 20. Substitution: when no candidate passes, the zone is dropped for that build, so growth never stalls. Grove uses the sim's value noise, not the spec's noise function.
+- Lots (`centeredLot`, `stairLot`, `wobbleLot`): a soft preference on the anchor's local tile. Centre; stair = row 3 above the centre when x+y is even, 3 below when odd; wobble = centre, or with a 60% roll the tile one step right. Same fallback as plans. The wobble roll draws one value from the `settlements` stream.
+- Levies (`maleLevy`, `femaleLevy`): a garrison recruit needs one more living adult of that sex in the hamlet than the company holds. Substitution: soldiers are still drawn from the dominion's strength, since the sim has no per-Folk soldiers.
+- Talk (the `chat` task, the sim's only talk): `gossipers` gives each talker whose custom holds it `gossiped`; `chatterCircle` gives both talkers `inspired` at 50%; `childShelter` and `elderRespect` give an adult talker a gift to a younger or older partner at 20% (50% when parent and child): `gift_given` and `gift_received`. Substitution: the sim has no items to give, so the gift is the mood pair. `beastFriends`: a Folk whose custom holds it may chat with the nearest beast of any species; otherwise the partner stays same-species.
+- Birth (`heritageLore`): on a child copy (`spawnCopy` with `baby` and `link`), the child's copy of the parent's best attribute is set to floor(best x 0.5) + 1. Reading taken from "the newborn inherits the parent's best attribute x0.5 + 1"; the parent's custom decides.
+- Campaigns (`warlikeJoy`): `campaign_started` for the winner side when a campaign begins; `campaign_won` for the winner and `campaign_lost` for the loser when the loser's strength reaches 0. Only folk of a dominion whose custom holds it feel it. Hook: `onCampaign` in `dominionStep`.
+- War block (`peaceable`, `serenity`): the bigger side of a tension does not declare war (founding step 5 stays at tension). `peaceable` also gives its folk `peace_made` on each blocked declaration (the "love of peace" tag; no festive event exists).
+- Opinion (`insular`, `welcoming`, `kinGuard`): `insular` -50 toward a dominion of another strain; `welcoming` +20 toward the same strain; `kinGuard` -50 toward the same strain. A dominion's strain is the majority strain of its folk on its parcels. Substitution: `insular`'s razing of conquered towns is not built.
+- Succession (`patriarchy`, `matriarchy`, `youngestFirst`, `envoyLine`, `warLine`, `fameLine`, `goldLine`, `unbrokenLine`): the successor is the first folk of the rule's order. A sex preference (male for patriarchy, female for matriarchy) applies when any candidate has it; then the stat (rapport for envoyLine, valor for warLine, the sum of the four aptitudes as fame for fameLine); then the oldest (youngest under youngestFirst). `unbrokenLine` searches the dominion's other hamlets when the leading hamlet has no successor; the spec's hamlet-leader fallback has no sim counterpart. Substitutions: `goldLine` has no per-Folk wealth, so it falls back to age; an opposite-sex ruler under patriarchy or matriarchy takes -50 on its own mood, standing in for the loyalty stat.
+- `shatteredCrown`: when a successor takes the crown, folk outside the capital's parcels take `crown_lost`. Substitution: the split into new dominions is not built.
+- Crafting (`weaponLovers`, `smithMastery`, `craft`): `weaponLovers` weights the weapon group draw (blade, cleaver, maul, pike 10; bow 6; staff 1), with the same draw count when no weight applies. `smithMastery` adds 5 to the roll count, which is the crafter skill (08 section 7.1). `craft` lets a hamlet build the eight named uniques. Substitutions: the unique order is tier-first, not weighted 10 each; flame_maul's cost includes wyrm scale, which the hamlet stock does not hold, so it stays unbuildable.
+
+**Remaining (10), and why.**
+- `towerPride`: no tower building in this build (`beacon_tower` cut in the settlements catalogue).
+- `childLabour`: jobs take the whole census (`h.folk`), with no child and adult split, so there is no child exclusion to lift.
+- `swiftStudy`, `mentorTrade`, `deepTraining`: no xp and no levels in the sim.
+- `bookLovers`, `eagerReaders`: no books in the sim (11 section 5 is not built).
+- `convertOrElse`: no civil combat and no conversion of a meta by fight.
+- `rooted`: no conversion by talk to replace a meta (11 section 4.4 spread is not built).
+- `keepers`: no divide, schism or divergence in the sim.
+
+**Determinism.** New draws use only named streams: `culture` (talk outcome, gifts), `settlements` (wobble roll, via the hamlet context) and `items` (weapon group, weighted only with weaponLovers). Campaign, war-block, succession, opinion and house-limit rules draw nothing. Hamlet custom rules are derived each second and never saved.
+
+**Persisted changes.** None. No new saved field: mood, buildings, rulers and garrison records keep their existing shapes. So no chronicle check was added; the culture and dominion checks already cover the shapes these hooks read.
+
+**Not verified.** Everything above. Expect the golden hash and the culture and settlement unit tests to fail: the house limit, centre-first placement, custom draws and talk outcomes all change state. A run should show a density hamlet stopping houses at its limit, and a `ringPlan` hamlet with 20 parcels placing on ring parcels or falling back.

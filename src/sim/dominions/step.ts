@@ -91,11 +91,15 @@ function exchange(ctx: DominionContext, a: Dominion, b: Dominion, relations: Rel
   winner.strength = Math.max(0, winner.strength - Math.floor(hit / 2));
   loser.strength = Math.max(0, loser.strength - hit);
   winner.target = loser.id;
-  if (winner.campaignSince < 0) winner.campaignSince = ctx.tick;
+  if (winner.campaignSince < 0) {
+    winner.campaignSince = ctx.tick;
+    ctx.onCampaign?.('start', winner.id, loser.id);
+  }
   if (loser.strength === 0) {
     relations.set(a.id, b.id, 'peace');
     if (ctx.isOn('border_creep')) takeParcel(ctx, winner, loser);
     ctx.onDefeat?.(winner.id);
+    ctx.onCampaign?.('end', winner.id, loser.id);
   }
 }
 

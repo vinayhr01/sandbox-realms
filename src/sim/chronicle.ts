@@ -716,6 +716,10 @@ function checkDominions(raw: unknown): DominionSnapshot | null {
   if (raw.hamletHolds !== undefined && (!Array.isArray(raw.hamletHolds) || !raw.hamletHolds.every((t) => Array.isArray(t) && t.length === 3 && t.every(isFiniteNumber)))) {
     throw new Error('chronicle: dominion section hamlet holdings are not valid');
   }
+  // Optional hamlet loyalty cache (dominions/adapter.ts, loyalty.ts): a list of [hamlet index, value, tick] number triples.
+  if (raw.hamletLoyalty !== undefined && (!Array.isArray(raw.hamletLoyalty) || !raw.hamletLoyalty.every((t) => Array.isArray(t) && t.length === 3 && t.every(isFiniteNumber)))) {
+    throw new Error('chronicle: dominion section hamlet loyalty is not valid');
+  }
   return raw as unknown as DominionSnapshot;
 }
 

@@ -1,8 +1,9 @@
 /**
  * Hamlet loyalty (10 section 5): the sum of the terms the sim has. Pure: no sim, no rng. The caller reads the facts
- * (adapter.ts loyaltyYearly). Terms the sim lacks are not here and are listed in DECISIONS.md "Loyalty terms close 8":
- * the loyalty stat cache and its readers (no isHappy, no rebellion), the hamlet cap, the sea link, the leader's
- * loyaltyMood and trait mod, the Age loyalty bonus, and the strain `bond` modifier.
+ * (adapter.ts loyaltyStep). The cache and isHappy are here too (10 section 5, 09 section 4 checkLoyalty). Terms the sim
+ * lacks are not here and are listed in DECISIONS.md "Loyalty terms close 8" and "Loyalty reader close 9": the rebellion
+ * reader and uprising, the hamlet cap, the sea link, the leader's loyaltyMood and trait mod, the Age loyalty bonus, and
+ * the strain `bond` modifier.
  */
 import { rankLoyalty } from './rank.ts';
 import type { Rank } from './types.ts';
@@ -112,7 +113,7 @@ function clamp(v: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, v));
 }
 
-/** Loyalty of a hamlet: the sum of its terms (10 section 5). `isHappy` is loyalty >= 0 (no reader yet). */
+/** Loyalty of a hamlet: the sum of its terms (10 section 5). `isHappy` (below) reads it. */
 export function hamletLoyalty(f: HamletLoyaltyFacts): number {
   let sum = f.ruler;
   if (f.leader !== undefined) sum -= f.leader;
@@ -140,4 +141,31 @@ export function hamletLoyalty(f: HamletLoyaltyFacts): number {
   if (f.clan !== undefined) sum += f.clan ? LOYALTY_CLAN_SAME : LOYALTY_CLAN_DIFF;
   if (f.rulerSexMismatch) sum += LOYALTY_RULER_SEX;
   return sum;
+}
+
+/**
+ * Loyalty cache (10 section 5): the sum is recomputed at most every LOYALTY_CACHE_TICKS ticks. TUNE: the 60 is the spec's
+ * value, and section 10 says every number in it is TUNE.
+ */
+export const LOYALTY_CACHE_TICKS = 60;
+/**
+ * Period of the loyalty task (09 section 4 `checkLoyalty`, 10 section 15 "task every 40"). TUNE, as above. A hamlet is
+ * recomputed at the first task at least LOYALTY_CACHE_TICKS after its last computation.
+ */
+export const LOYALTY_TASK_TICKS = 40;
+
+/** A cached loyalty sum and the tick it was computed. Saved per hamlet (`hamletLoyalty`, adapter.ts). */
+export interface LoyaltyCache {
+  value: number;
+  tick: number;
+}
+
+/** isHappy (10 section 5): a hamlet is happy when its loyalty is >= 0. */
+export function isHappy(loyalty: number): boolean {
+  return loyalty >= 0;
+}
+
+/** Whether a hamlet's cache is due at `tick`: no entry, or the entry is at least LOYALTY_CACHE_TICKS old. */
+export function loyaltyDue(cache: LoyaltyCache | undefined, tick: number): boolean {
+  return cache === undefined || tick - cache.tick >= LOYALTY_CACHE_TICKS;
 }

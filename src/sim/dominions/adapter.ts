@@ -28,7 +28,7 @@ import {
 import { taxFlowOf, taxRatesOf, type TaxFlow } from './tax.ts';
 import { leadingHamlet, rulersStep, rulerLive, rulerStatsOf, type RulerRef, type RulerStats } from './rulers.ts';
 import { rankDominions, RANK_PERIOD_TICKS } from './rank.ts';
-import { hamletLoyalty, type HamletLoyaltyFacts } from './loyalty.ts';
+import { hamletLoyalty, isHappy, loyaltyDue, LOYALTY_TASK_TICKS, type HamletLoyaltyFacts, type LoyaltyCache } from './loyalty.ts';
 import { captureStep, CAPTURE_STEP_TICKS, HAMLET_CAPTURE, type Capture } from './capture.ts';
 import { cultureYearly } from '../culture/adapter.ts';
 import { blockedWarMood, campaignMood, convertLineageUnits, groupOfSlot, lineageHas, rulerInstalled, traitsOfGroup, warBlocked as warBlockedBy } from '../culture/effects.ts';
@@ -77,8 +77,11 @@ export interface DominionState {
   taxSeen: Map<number, number>;
   /** Per-hamlet tax flows written by the latest yearly pass (tax.ts TaxFlow). Replaced each pass; empty before the first. */
   taxFlows: TaxFlow[];
-  /** Hamlet loyalty by the hamlet's lowest parcel, from the latest yearly pass (loyalty.ts). Derived, not saved. */
-  loyalty: Map<number, number>;
+  /**
+   * Hamlet loyalty cache, keyed by the hamlet's index in hamletsOf order (as `hold`). Recomputed by the loyalty task (loyaltyStep,
+   * loyalty.ts LOYALTY_CACHE_TICKS). Saved as `hamletLoyalty`.
+   */
+  loyalty: Map<number, LoyaltyCache>;
   /** Hamlet capture progress by the hamlet's lowest parcel (capture.ts). Not saved: a load starts every capture at 0. */
   captures: Map<number, Capture>;
   /**
@@ -227,6 +230,8 @@ export interface DominionSnapshot {
   dominions: { id: number; parcels: number[]; strength: number; target: number; campaignSince: number; traits?: string[]; taxRaised?: number; ruler?: RulerRef; rulerWaitUntil?: number; rank?: Rank; foundedTick?: number; rulerSinceTick?: number; newConquestTick?: number }[];
   /** Hamlet holdings (`DominionState.hold`): [hamlet index, dominion id, tick first seen]. Optional: written only while one exists. */
   hamletHolds?: [number, number, number][];
+  /** Hamlet loyalty cache (`DominionState.loyalty`): [hamlet index, value, tick computed]. Optional: written only while one exists. */
+  hamletLoyalty?: [number, number, number][];
   /** Hamlet gold at the last yearly pass by the hamlet's lowest parcel (tax.ts loot). Optional: written only when present. */
   taxSeen?: [number, number][];
   /** Per-hamlet tax flows of the latest yearly pass (tax.ts TaxFlow). Optional: written only when the pass taxed a hamlet. */
@@ -293,6 +298,7 @@ export function snapshotDominions(sim: Sim): DominionSnapshot | null {
       ...(d.newConquestTick !== undefined ? { newConquestTick: d.newConquestTick } : {}),
     })),
     ...(s.hold.size > 0 ? { hamletHolds: [...s.hold].map(([i, h]): [number, number, number] => [i, h.dominion, h.since]) } : {}),
+    ...(s.loyalty.size > 0 ? { hamletLoyalty: [...s.loyalty].map(([i, c]): [number, number, number] => [i, c.value, c.tick]) } : {}),
     ...(s.taxSeen.size > 0 ? { taxSeen: [...s.taxSeen] } : {}),
     ...(s.taxFlows.length > 0 ? { taxFlows: s.taxFlows.map((f) => ({ ...f })) } : {}),
     relations,
@@ -452,7 +458,13 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
     if (!isNum(i) || !Number.isInteger(i) || i < 0 || !isNum(dom) || !dominions.some((d) => d.id === dom) || !isNum(since) || !Number.isInteger(since) || since < 0) bad('hamlet hold');
     hold.set(i, { dominion: dom, since });
   }
-  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen, taxFlows, loyalty: new Map(), captures: new Map(), hold });
+  // Hamlet loyalty cache (10 section 5): [hamlet index, value, tick]. Saves without it start with no cache, so every hamlet is due.
+  const loyalty = new Map<number, LoyaltyCache>();
+  for (const [i, value, tick] of snap.hamletLoyalty ?? []) {
+    if (!isNum(i) || !Number.isInteger(i) || i < 0 || !isNum(value) || !isNum(tick) || !Number.isInteger(tick) || tick < 0) bad('hamlet loyalty');
+    loyalty.set(i, { value, tick });
+  }
+  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen, taxFlows, loyalty, captures: new Map(), hold });
 }
 
 /** Majority owner of a hamlet's parcels (ties to the lower id), or UNOWNED. Draws no randomness. */
@@ -538,8 +550,9 @@ export function dominionsYearly(sim: Sim): void {
   proposeIntrigues(ienv, s.intrigues);
   // Culture (11 sections 2 and 3): each dominion gets a custom once, and a scheme while none runs (culture/adapter.ts).
   cultureYearly(sim, s.dominions.map((d) => d.id));
-  // Hamlet loyalty (10 section 5), after the year's rank (rank.ts).
-  loyaltyYearly(sim, s, settlements, hamletCount);
+  // Hamlet holdings (10 section 5, belonging and conquest) are stamped here, once a year. The loyalty cache reads them
+  // (loyaltyStep, run by the loyalty task in stepDominions).
+  trackHolds(s, settlements, sim.tick);
   // Standing armies off raises no armies (09 section 8); existing armies still sync below.
   if (sim.rules.isOn('standing_armies')) raiseArmies(s.armies, s.dominions, perAxis);
   // Captains and slots: one captain per hamlet, and the hamlet's folk, both counted by the hamlet's majority owner
@@ -640,6 +653,15 @@ export function stepDominions(sim: Sim): void {
     },
     s.dominions,
   );
+  // Hamlet loyalty (10 section 5, loyalty.ts): the loyalty task, after the rank (the rank term), the owner write-back and the
+  // rulers (the ruler term). Every LOYALTY_TASK_TICKS ticks.
+  if (sim.tick % LOYALTY_TASK_TICKS === 0) loyaltyStep(sim, s);
+}
+
+/** Hamlet happiness (10 section 5, isHappy): whether the cached loyalty of the hamlet at `index` (hamletsOf order) is >= 0. Undefined before its first computation. Read only. */
+export function hamletHappyOf(sim: Sim, index: number): boolean | undefined {
+  const c = states.get(sim)?.loyalty.get(index);
+  return c === undefined ? undefined : isHappy(c.value);
 }
 
 /**
@@ -1075,12 +1097,16 @@ function folkMajorities(sim: Sim, s: DominionState, settlements: ReturnType<type
 }
 
 /**
- * Hamlet loyalty (10 section 5), the yearly pass: the sum of the terms the sim has (loyalty.ts hamletLoyalty) for each
- * hamlet held by a dominion, kept on the dominion state by the hamlet's lowest parcel. Runs after the year's rank (rank.ts,
- * the rank term). The map is not saved: it is recomputed each year, and nothing reads it yet (no rebellion). The holdings
- * it reads are saved (`hamletHolds`). Draws no randomness.
+ * Hamlet loyalty (10 section 5), the loyalty task: every LOYALTY_TASK_TICKS ticks, each hamlet whose cache is due (loyaltyDue)
+ * gets the sum of the terms the sim has (loyalty.ts hamletLoyalty), stamped with this tick. A hamlet with no dominion or no
+ * capital loses its entry. The folk majorities are read once, and only when a hamlet is due. The rank is set by rankStep and
+ * the rulers by rulersStep just before. The holdings are stamped by the yearly pass (trackHolds). Draws no randomness.
  */
-function loyaltyYearly(sim: Sim, s: DominionState, settlements: ReturnType<typeof hamletsOf>, hamletCount: ReadonlyMap<number, number>): void {
+function loyaltyStep(sim: Sim, s: DominionState): void {
+  const settlements = hamletsOf(sim);
+  // Work only when a held hamlet is due, or an unheld hamlet still has an entry to drop. Unheld hamlets with no entry do nothing.
+  const work = settlements.some((h, i) => (ownerOfHamlet(h.parcels, s.owner) === UNOWNED ? s.loyalty.has(i) : loyaltyDue(s.loyalty.get(i), sim.tick)));
+  if (!work) return;
   const store = sim.beings.store;
   const perAxis = parcelsPerAxis(sim);
   // The ruler and the leader are followers of the dominion that holds the hamlet, so its creed harmony tenets add to both.
@@ -1098,7 +1124,8 @@ function loyaltyYearly(sim: Sim, s: DominionState, settlements: ReturnType<typeo
     const n = Math.max(1, parcels.size);
     return [x / n, y / n];
   };
-  trackHolds(s, settlements, sim.tick);
+  // Hamlet counts for the enemy and own power terms, as the rank and the pacts read them (rank.ts).
+  const hamletCount = hamletCountsOf(settlements, s.owner);
   const folk = folkMajorities(sim, s, settlements);
   // Culture metas are kept per group (a dominion id): a folk's meta is the one of the group it follows.
   const customOf = (g: number): MetaBirth | undefined => customOfGroup(sim.culture, g);
@@ -1113,12 +1140,15 @@ function loyaltyYearly(sim: Sim, s: DominionState, settlements: ReturnType<typeo
   };
   /** A live clan of a strain: one whose strain, or a strain it absorbed, is this one (clans.ts). */
   const clanOf = (strain: number): boolean => sim.clans.list.some((c) => c.mergedInto < 0 && c.extinctTick < 0 && (c.strain === strain || c.absorbed.includes(strain)));
-  s.loyalty = new Map();
   for (const [i, h] of settlements.entries()) {
     const owned = ownerOfHamlet(h.parcels, s.owner);
     const dom = s.dominions.find((d) => d.id === owned);
     const capital = dom ? leadingHamlet(owned, settlements, s.owner) : undefined;
-    if (!dom || !capital) continue;
+    if (!dom || !capital) {
+      s.loyalty.delete(i);
+      continue;
+    }
+    if (!loyaltyDue(s.loyalty.get(i), sim.tick)) continue;
     const ruler = rulerLive(store, dom);
     const leaderSlot = h.leader ?? -1;
     const isCapital = capital === h;
@@ -1165,6 +1195,6 @@ function loyaltyYearly(sim: Sim, s: DominionState, settlements: ReturnType<typeo
       ...(leaderSlot >= 0 ? { leader: skill(leaderSlot, owned) } : {}),
       ...(ruler ? { rulerAge: (sim.tick - (store.born[ruler.slot] ?? 0)) / YEAR_TICKS } : {}),
     };
-    s.loyalty.set(Math.min(...h.parcels), hamletLoyalty(facts));
+    s.loyalty.set(i, { value: hamletLoyalty(facts), tick: sim.tick });
   }
 }

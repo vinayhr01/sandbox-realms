@@ -21,9 +21,11 @@ import {
   type DominionRow,
   type HamletRow,
   MAP_BUILDING_CAP,
+  MAP_INTRIGUE_CAP,
   MAP_MARK_CAP,
   MAP_POINT_CAP,
   type MapBuilding,
+  type MapIntrigue,
   type MapKind,
   type MapKindGroup,
   type MapMarks,
@@ -91,6 +93,7 @@ export function buildSnapshot(sim: Sim): Snapshot {
     mapMarks: mapMarksOf(sim),
     mapKinds: mapKindsOf(sim),
     mapBuildings: mapBuildingsOf(sim),
+    mapIntrigues: mapIntriguesOf(sim),
   };
   return fitSnapshot(snap);
 }
@@ -218,6 +221,31 @@ function mapBuildingsOf(sim: Sim): MapBuilding[] {
   return out;
 }
 
+/**
+ * Intrigues for the intrigue marks: kind, whether still running, and the tile of the target. The intrigue's group
+ * id is resolved as a dominion id first (the dominion's centroid parcel), then as a hamlet index in hamletsOf order
+ * (hamlets carry no id in the sim; the snapshot names them by that order). No match gives x = y = -1. Running
+ * intrigues come first, then by id; capped at MAP_INTRIGUE_CAP. Reads only. The group-to-target rule is a guess
+ * until a caller starts intrigues in play (see DECISIONS.md, Map layers round 7).
+ */
+function mapIntriguesOf(sim: Sim): MapIntrigue[] {
+  const perAxis = parcelsPerAxis(sim);
+  const tileOf = (parcels: ReadonlySet<number>): { x: number; y: number } | null => {
+    if (parcels.size === 0) return null;
+    const p = centroidParcel(parcels, perAxis);
+    return { x: (p % perAxis) * PARCEL + PARCEL / 2, y: Math.floor(p / perAxis) * PARCEL + PARCEL / 2 };
+  };
+  const dominionById = new Map((snapshotDominions(sim)?.dominions ?? []).map((d) => [d.id, new Set(d.parcels)]));
+  const hamlets = hamletsOf(sim);
+  const rows = sim.culture.intrigues
+    .map((it): MapIntrigue => {
+      const place = dominionById.has(it.group) ? tileOf(dominionById.get(it.group) ?? new Set()) : tileOf(hamlets[it.group]?.parcels ?? new Set());
+      return { id: it.id, kind: it.kind, active: it.outcome === null, x: place?.x ?? -1, y: place?.y ?? -1 };
+    })
+    .sort((a, b) => Number(b.active) - Number(a.active) || a.id - b.id);
+  return rows.slice(0, MAP_INTRIGUE_CAP);
+}
+
 /** Tiles per biome id over the whole realm: a read-only scan of the cover layer. */
 function biomeCountsOf(sim: Sim): Record<string, number> {
   const counts: Record<string, number> = {};
@@ -259,7 +287,11 @@ function clansOf(sim: Sim): ClanBlock {
  */
 export function fitSnapshot(snap: Snapshot): Snapshot {
   let out = snap;
-  // Map sprite feeds go first, then map marks and map points: the map simply draws without them.
+  // Map feeds go first (intrigues, then sprite feeds), then map marks and map points: the map simply draws without them.
+  if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapIntrigues !== undefined) {
+    const { mapIntrigues: _intrigues, ...rest } = out;
+    out = { ...rest, truncated: true };
+  }
   if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapBuildings !== undefined) {
     const { mapBuildings: _buildings, ...rest } = out;
     out = { ...rest, truncated: true };

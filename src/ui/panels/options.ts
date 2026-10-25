@@ -53,7 +53,7 @@ export const SETTINGS: readonly SettingDef[] = [
   I('ui.scale', 'display', 'UI scale (%)', 70, 150, 100, true),
   I('ui.scaleWindows', 'display', 'Window scale (%)', 60, 115, 100, true),
   I('ui.scaleTooltips', 'display', 'Tooltip scale (%)', 60, 150, 100, true),
-  I('ui.scaleNames', 'display', 'Name scale (%)', 30, 160, 70),
+  I('ui.scaleNames', 'display', 'Name scale (%)', 30, 160, 70, true),
   C('ui.theme', 'display', 'Colour theme', ['dark', 'light', 'highcontrast'], 'dark', true),
   C('ui.colorBlindPalette', 'display', 'Colour-blind palette', ['none', 'deuteranopia', 'protanopia', 'tritanopia'], 'none', true),
   B('ui.reduceMotion', 'display', 'Reduce motion', false, true),
@@ -78,7 +78,7 @@ export const SETTINGS: readonly SettingDef[] = [
   // Marks (the 7 mark toggles, 13 section 15)
   B('marks.favourites', 'marks', 'Mark favourites', true, true),
   B('marks.items', 'marks', 'Mark items', true, true),
-  B('marks.intrigues', 'marks', 'Mark intrigues', true),
+  B('marks.intrigues', 'marks', 'Mark intrigues', true, true),
   B('marks.armies', 'marks', 'Mark armies', true, true),
   B('marks.battles', 'marks', 'Mark battles', true, true),
   B('marks.boats', 'marks', 'Mark boats', true),

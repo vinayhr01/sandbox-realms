@@ -422,6 +422,29 @@ Unverified (not run, not checked against typings; node_modules is absent in the 
 - Whether battles and campaigns appear in play at all (the war and campaign paths were not run).
 - Tests: any test that asserts the live count (43 before this round), the snapshot key set, or the mark layer's old `MarkToggles` shape may need an update. Not checked.
 
+## Map layers round 7
+
+Scope: nameplate text size and overlap hiding (`ui.scaleNames`), intrigue marks (`marks.intrigues`), and the `marks.boats` reason. Code: `src/shared/protocol.ts` (`MapIntrigue`, `MAP_INTRIGUE_CAP` = 16, optional `Snapshot.mapIntrigues`), `src/sim/snapshot.ts` (`mapIntriguesOf`; `fitSnapshot` drops `mapIntrigues` first), `src/render/marks.ts` (`drawIntrigues`, `nameFontPx`, overlap test on hamlet names), `src/app/main.ts` (two toggles passed to the mark layer), `src/ui/panels/options.ts` (`ui.scaleNames` and `marks.intrigues` flipped to live: 49 to 51 of 75). `PROTOCOL_VERSION` (3) and `SNAPSHOT_VERSION` (1) are unchanged; the new field is optional. Read-only: no sim state is written, no randomness is drawn, and nothing under `src/sim/dominions/`, `beings/`, `settlements/`, `items/`, `powers/` or `chronicle.ts` was touched. The intrigue feed is built from the culture records on main (`sim.culture.intrigues`), not from the pact agent's branch.
+
+Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). Types were checked by reading.
+
+- **Name scale.** `ui.scaleNames` sets the nameplate font size: 100 percent is 16 px, so the spec default of 70 gives 11.2 px (about the old fixed 11 px). The value is clamped to 30 to 160. The size is set on the pooled `Text` style.
+- **Zoom threshold.** Hamlet names are placed in list order. A name whose screen box would overlap a name already placed is hidden; its dot stays. The test runs on every camera change, so the threshold depends on zoom through the overlap itself, not on a fixed zoom number. Not built: the spec 13 section 11 priority order (selected, favourite, capital, population, id). Hamlets are the only names drawn, so list order is the priority for now.
+- **Intrigue position (assumed).** An intrigue record carries `group`, `kind` and progress only, with no target kind and no position. `group` is resolved as a dominion id first (the dominion's centroid parcel, as the armies and hamlet names are placed), and otherwise as a hamlet index in `hamletsOf` order (hamlets have no id in the sim). No id matching either gives `x = y = -1`, and the marker is skipped. This mapping is a guess: `startIntrigue` has no caller in play, so no real intrigue has been checked against it. The culture adapter's comment says groups are land regions, which would not match either rule; confirm the group meaning when the pact or intrigue caller lands.
+- **Intrigue marks.** Only running intrigues (`outcome` null) are drawn, at the target tile: a red square for a rebellion, a violet diamond for a scheme. Resolved intrigues are not drawn. The count badge for overlapping marks (spec 13 section 11, 24 px) is not built, so two intrigues on one target stack.
+- **Feed.** The list is sorted running first, then by id, and capped at 16. It is dropped first in `fitSnapshot`, before the map buildings. Rows carry `id`, `kind`, `active`, `x` and `y`.
+
+Cut, still non-live, reason updated:
+- `marks.boats`: the sim has no boat entity (spec 10 section 13 is unbuilt: boat types, docks, transport and the boat decisions). No boat positions exist in the snapshot, so there is nothing to draw. Not added in this round.
+
+Unverified (not run, not checked against typings; node_modules is absent in the worktree). All Pixi v8 calls below are from memory of the v8 API:
+- `Text.width` and `Text.height` read after setting `text`, for the overlap box. These force a text measure on each camera change for every hamlet name.
+- `label.style.fontSize = n` on a live `Text`, to resize a pooled label (assumed to re-layout).
+- `Graphics.rect(...).stroke({ width, color })` for the rebellion square.
+- `Graphics.moveTo().lineTo()...closePath().stroke({ width, color })` for the scheme diamond.
+- Tests: anything that asserts the live count (49 before this round), the snapshot key set, or the `MarkToggles` shape may need an update (`marks.intrigues`, `nameScale`, `mapIntrigues`). Not checked.
+- The golden hash should not move, since the new code only reads (expected, not measured).
+
 ## Art round 6
 
 Scope: procedural sprites for beings and hamlet buildings in place of the being dots, and two additive read-only map feeds. Code: `src/render/sprites.ts` (new: `SpriteFactory`, silhouettes per group and per building group, cached textures), `src/render/marks.ts` (being dots replaced by pooled sprites, culled to the viewport; building sprites under them), `src/sim/snapshot.ts` (`mapKindsOf`, `mapBuildingsOf`, `fitSnapshot` drops both first), `src/shared/protocol.ts` (`MapKind`, `MapKindGroup`, `MapSizeClass`, `MapBuilding`, `MAP_BUILDING_CAP` = 96, optional `Snapshot.mapKinds` and `Snapshot.mapBuildings`), `src/app/main.ts` (viewport size passed to the mark layer; nothing else). `PROTOCOL_VERSION` (3) and `SNAPSHOT_VERSION` (1) are unchanged; both new fields are optional. No file under `src/sim/beings/`, `dominions/`, `settlements/`, `items/` or `src/ui/` was touched, and no sim state is written. No randomness.

@@ -187,6 +187,23 @@ export interface Snapshot {
   mapKinds?: MapKind[];
   /** Hamlet buildings with tile positions for the map (src/render/marks.ts). Capped at MAP_BUILDING_CAP; optional; dropped first. */
   mapBuildings?: MapBuilding[];
+  /** Intrigues for the map (src/render/marks.ts): kind, whether still running, and the target's tile. Capped at MAP_INTRIGUE_CAP; optional; dropped first. */
+  mapIntrigues?: MapIntrigue[];
+}
+
+/** Most intrigues in one snapshot's map feed. */
+export const MAP_INTRIGUE_CAP = 16;
+
+/**
+ * One intrigue on the map. `x`, `y` are the tile of the dominion or hamlet it targets (parcel centre); both are -1
+ * when its group id matches no dominion and no hamlet. `id` is the intrigue id.
+ */
+export interface MapIntrigue {
+  id: number;
+  kind: 'rebellion' | 'scheme';
+  active: boolean;
+  x: number;
+  y: number;
 }
 
 /** Map sprite group: Folk, the 18a beast groups A to C, and the sea, insect, undead, monster and divine blocks. */

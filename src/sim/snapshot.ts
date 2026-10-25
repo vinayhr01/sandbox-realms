@@ -29,6 +29,7 @@ import {
   type MapKind,
   type MapKindGroup,
   type MapGroup,
+  type MapLink,
   type MapMarks,
   type MapPoint,
   type MapSizeClass,
@@ -47,6 +48,7 @@ import { encodeParcels } from '../shared/parcel-codec.ts';
 import { DECISION_ROWS } from '../content/decisions.ts';
 import { SS_TICKS } from './clock.ts';
 import { MAX_BEINGS } from './beings/store.ts';
+import { aggroFoes } from './beings/aggro.ts';
 import { dominionsOfSim, pactsOfSim, parcelsPerAxis, snapshotDominions } from './dominions/adapter.ts';
 import { centroidParcel } from './dominions/armies.ts';
 import { hamletsOf } from './settlements/adapter.ts';
@@ -101,6 +103,7 @@ export function buildSnapshot(sim: Sim): Snapshot {
     mapIntrigues: mapIntriguesOf(sim),
     mapBoats: boatMarksOf(sim),
     mapTiles: mapTilesOf(sim),
+    mapLinks: mapLinksOf(sim),
   };
   return fitSnapshot(snap);
 }
@@ -275,6 +278,74 @@ function mapKindsOf(sim: Sim): MapKind[] {
 }
 
 /**
+ * Relation links of the sampled Beings (same sample and order as mapPoints) for the cursor arrows, A01..A07. Reads only.
+ * The Being store keeps no home, destination or child list, so: home is the centre of the hamlet on the Being's parcel,
+ * destination is the possession order tile while one runs, and children are the sampled Beings whose parent it is.
+ * Only Beings with a link get a row; a link to a Being outside the sample is still named by id.
+ */
+function mapLinksOf(sim: Sim): MapLink[] {
+  const s = sim.beings.store;
+  const alive: number[] = [];
+  for (let k = 0; k < s.size; k++) alive.push(s.at(k));
+  alive.sort((a, b) => (s.born[a] ?? 0) - (s.born[b] ?? 0) || a - b);
+  const sample = alive.slice(0, MAP_POINT_CAP);
+  const idOf = (slot: number): number => (s.generation[slot] ?? 0) * MAX_BEINGS + slot;
+  const perAxis = parcelsPerAxis(sim);
+
+  // Hamlet centre tile by parcel: each parcel of a hamlet points at that hamlet's centroid parcel.
+  const hamletTile = new Map<number, { x: number; y: number }>();
+  const hamletOfParcel = new Map<number, number>();
+  hamletsOf(sim).forEach((h, index) => {
+    if (h.parcels.size === 0) return;
+    const c = centroidParcel(h.parcels, perAxis);
+    hamletTile.set(index, { x: (c % perAxis) * PARCEL + PARCEL / 2, y: Math.floor(c / perAxis) * PARCEL + PARCEL / 2 });
+    for (const p of h.parcels) hamletOfParcel.set(p, index);
+  });
+
+  // Family members by Being id, from the family records (culture.familyRecords holds snapshot ids).
+  const familyOf = new Map<number, number[]>();
+  for (const f of sim.culture.familyRecords ?? []) for (const m of f.members) if (!familyOf.has(m)) familyOf.set(m, f.members);
+  const sampledIds = new Set(sample.map(idOf));
+
+  // Children first: a sampled Being with a current parent is listed under that parent's id.
+  const childrenOf = new Map<number, number[]>();
+  for (const slot of sample) {
+    const parent = s.parent[slot] ?? -1;
+    if (!s.isCurrent(parent, s.parentGen[slot] ?? 0)) continue;
+    const pid = idOf(parent);
+    const list = childrenOf.get(pid) ?? [];
+    list.push(idOf(slot));
+    childrenOf.set(pid, list);
+  }
+
+  const out: MapLink[] = [];
+  for (const slot of sample) {
+    const id = idOf(slot);
+    const link: MapLink = { id };
+    const x = s.x[slot] ?? 0;
+    const y = s.y[slot] ?? 0;
+    const hamlet = hamletOfParcel.get(Math.floor(y / PARCEL) * perAxis + Math.floor(x / PARCEL));
+    const home = hamlet !== undefined ? hamletTile.get(hamlet) : undefined;
+    if (home) link.home = [home.x, home.y];
+    if ((s.possessUntil[slot] ?? 0) > sim.tick) link.dest = [s.orderX[slot] ?? 0, s.orderY[slot] ?? 0];
+    const bond = s.bondWith[slot] ?? -1;
+    const lover = s.loverWith[slot] ?? -1;
+    if (s.isCurrent(bond, s.bondGen[slot] ?? 0)) link.partner = idOf(bond);
+    else if (s.isCurrent(lover, s.loverGen[slot] ?? 0)) link.partner = idOf(lover);
+    const parent = s.parent[slot] ?? -1;
+    if (s.isCurrent(parent, s.parentGen[slot] ?? 0)) link.parents = [idOf(parent)];
+    const children = childrenOf.get(id);
+    if (children) link.children = children;
+    const family = (familyOf.get(id) ?? []).filter((m) => m !== id && sampledIds.has(m)).slice(0, 8);
+    if (family.length > 0) link.family = family;
+    const foes = aggroFoes(sim, slot).map(idOf);
+    if (foes.length > 0) link.foes = foes;
+    if (Object.keys(link).length > 1) out.push(link);
+  }
+  return out;
+}
+
+/**
  * Buildings of every hamlet in hamlet order, with their tile positions, capped at MAP_BUILDING_CAP. Reads only.
  * The hamlet rows carry counts only, and the notable rows are capped at 16, so the map gets its own list.
  */
@@ -357,7 +428,11 @@ function clansOf(sim: Sim): ClanBlock {
  */
 export function fitSnapshot(snap: Snapshot): Snapshot {
   let out = snap;
-  // Map feeds go first (layer tiles, boats, intrigues, then sprite feeds), then map marks and map points: the map simply draws without them.
+  // Map feeds go first (cursor arrows, layer tiles, boats, intrigues, then sprite feeds), then map marks and map points: the map simply draws without them.
+  if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapLinks !== undefined) {
+    const { mapLinks: _links, ...rest } = out;
+    out = { ...rest, truncated: true };
+  }
   if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapTiles !== undefined) {
     const { mapTiles: _tiles, ...rest } = out;
     out = { ...rest, truncated: true };

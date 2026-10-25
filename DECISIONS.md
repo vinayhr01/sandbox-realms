@@ -1649,3 +1649,36 @@ Scope: 02 section 7 `pathDecay` (`wayworn` roads outside any Custom's hamlet ter
 - OPEN: a road tile with no record never decays. Such tiles come from a painted `wayworn` (power `shape_wayworn`), whose base is unknown. The spec does not say what base such a tile has.
 - OPEN: `heat` turning a road into `strand` drops the record on the next sim-second (the tile is no longer road). That is the existing ground rule, not a new one.
 - Not run: the golden hash is not re-baselined. It moves only in a golden run that lays a road and reaches a decay run.
+
+## Insight close 4
+
+Scope: the Insight rows (12 section 8.8) still cut after "Insight build 3": M07 boats, O05 to O07 overlays, A01 to A07 cursor arrows, tips (2), ties, forecast and accord. Code: `src/content/powers.ts` (rows, `viewToggle`, `ARROW_ROWS`), `src/ui/powerSupport.ts` (`UI_HANDLERS`, view flags), `src/ui/historyTicker.ts` (new), `src/ui/worldTip.ts` (new), `src/render/insight-layers.ts` (talk bubbles, arrows), `src/app/main.ts` (dispatch, hover, tooltip, ticker strip), `src/ui/styles.css`, `src/sim/snapshot.ts` (`mapLinksOf`, drop order), `src/shared/protocol.ts` (`MapLink`, `Snapshot.mapLinks`). Sim state, commands and saves are unchanged; `src/sim/powers/` gets no file, since every new row is a UI handler. `GOLDEN_HASH` is not edited.
+
+**Two kinds of control.** Settings masters `ui.cursorArrows` and `ui.worldTooltips` stay in Settings. The Insight rows choose kinds, and each kind is a UI-only view flag (`toggle_view`, `params.key`), held for the session and not saved. Arrow kinds and tip kinds start on; the ticker starts off. Pressing a kind row while its master is off says so in the status line. No Settings row was added, so the option counts in `tests/unit/ui-options.test.ts` and `ui-live-options.test.ts` do not move. `ui.talkBubbles` is read now but, like `ui.happinessIcons` and `ui.taskIcons`, is not marked live: that follows the existing convention for Insight overlays.
+
+**Built.**
+- M07 Boats (`ins_mark_boats`, option `marks.boats`): `src/render/marks.ts` already draws boats; the row only exposes the option.
+- O06 Talk bubbles (`ins_overlay_talk_bubbles`, option `ui.talkBubbles`): a bubble over each sampled Being whose task is `chat`. Approximation: the snapshot holds the Being's task, not a talk record. The talk outcome (`talked_well`, `talked_badly`, `beings/system.ts`) is not in the snapshot, so bubbles show who talks, not what was said.
+- O07 History ticker (`ins_overlay_ticker`, view flag `ticker`): `src/ui/historyTicker.ts` diffs each snapshot against the one before. It reports hamlets and dominions added or lost (counts exact, lists only when neither snapshot was cut), war started or ended, pacts sworn or ended, the Age, and population crossing 10, 25, 50 up to 10000. The feed is held in memory, rebuilt from snapshots, cleared on a new realm, and not saved. The sim keeps no event log, so an entry names a change the snapshot shows, not its cause.
+- A01 to A07 cursor arrows (`ins_arrow_a01` to `ins_arrow_a07`, view flags `arrow.*`, master `ui.cursorArrows`, default off, never on touch): arrows start at the Being under the pointer (desktop, 10 px) and go to its links in the sampled 96. `snapshot.mapLinks` carries them, one row per Being that has a link:
+  - A01 destination: the possession order tile, while a possession order runs (`possessUntil`). No other destination is stored.
+  - A02 home: the centre tile of the hamlet on the Being's parcel. The store keeps no home, so this stands in for it.
+  - A03 partner: the bond partner, else the lover, when living.
+  - A04 family: sampled members of the Being's family record (at most eight).
+  - A05 parents: the parent, when living.
+  - A06 children: sampled Beings whose parent is this one. Children outside the sample are not drawn.
+  - A07 attack target: living attackers the Being holds a grudge against (`aggroFoes`).
+  Targets outside the sample have no position and are skipped.
+- Tips (`ins_tips_tiles`, flag `tip.tiles`; `ins_tips_beings`, flag `tip.beings`; master `ui.worldTooltips`, desktop only): a tile tooltip (tile, dominion, hamlet) and a Being tooltip (group, size, mood, task). The snapshot has no terrain, so the tile tip names owners, not ground, height or heat.
+
+**Cut, with the reason.**
+- O05 money flow (`ins_overlay_money`, not built): the tax chain runs in `src/sim/dominions/tax.ts` and the yearly pass in `src/sim/dominions/adapter.ts`. The dominion keeps one `taxRaised` total, and nothing records a flow per hamlet. The fix is a sim write outside the paths this brief allowed.
+- Ties: the snapshot has the relation strings per pair but not the opinion value. `opinion()` (`src/sim/dominions/opinion.ts`) needs the truce map, the rulers and the custom lens, which `adapter.ts` holds privately. Colouring the lines by relation would not be the spec's opinion colouring, so the row stays cut. The fix is a read-only export from `adapter.ts`.
+- Accord: the pact candidates test opinion too (`goodOpinionOfAll`, `joinPactOk` in `intrigue.ts`), so it waits on the same export.
+- Campaign Forecast: the sim has no rule that brings dominions into a war. Pacts form and join through intrigue, and armies attack only on borders at war. A preview would invent the rule, so the row stays cut.
+
+**Observed, not changed.** `src/sim/beings/possession.ts` now exists on this branch and sets `orderX`, `orderY` and `possessUntil`. The Possess row's note ("not on main") may be stale. Checking that is the next step for the Possess row; it is outside this brief.
+
+**Tests and content to update (not run).** `POWERS` gains 12 rows, so `tests/unit/ui-powers.test.ts` counts and the content hash in `src/content/content-hash.ts` move. The new `UI_HANDLERS` entry `toggle_view` is covered by the existing handler-list check. Snapshot shape tests that compare whole rows, or the set of snapshot keys, need `mapLinks` added. The new field is optional and is dropped first over budget (`fitSnapshot`, with `truncated` set); its size is not measured.
+
+**Not verified.** Nothing was run: no tests, tsc, vitest, build or Playwright (instruction). Types were checked by reading against `noUncheckedIndexedAccess` and `strict`. The arrow colours, the bubble size and the ticker's three-line strip are first choices, not tuned.

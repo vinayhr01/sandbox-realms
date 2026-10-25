@@ -61,7 +61,46 @@ export const UI_HANDLERS: readonly string[] = [
   'cycle_option',
   'select_hamlet',
   'layer_toggle',
+  'toggle_view',
 ];
+
+/**
+ * Insight view flags (UI only, held for the session, not saved). Arrow kinds A01..A07 and the two tip kinds start on;
+ * the history ticker (O07) starts off. The Settings masters ui.cursorArrows and ui.worldTooltips gate the arrows and tips.
+ */
+export const VIEW_FLAGS_ON_BY_DEFAULT: readonly string[] = [
+  'arrow.destination',
+  'arrow.home',
+  'arrow.partner',
+  'arrow.family',
+  'arrow.parents',
+  'arrow.children',
+  'arrow.attack',
+  'tip.tiles',
+  'tip.beings',
+];
+
+/** A fresh set of view flags at their defaults. */
+export function viewFlagsDefault(): Set<string> {
+  return new Set(VIEW_FLAGS_ON_BY_DEFAULT);
+}
+
+/** Flips one view flag and returns its new state. */
+export function toggleViewFlag(flags: Set<string>, key: string): boolean {
+  if (flags.has(key)) {
+    flags.delete(key);
+    return false;
+  }
+  flags.add(key);
+  return true;
+}
+
+/** The Settings master a view flag depends on (ui.cursorArrows for arrows, ui.worldTooltips for tips), or null. */
+export function masterOfViewFlag(key: string): string | null {
+  if (key.startsWith('arrow.')) return 'ui.cursorArrows';
+  if (key.startsWith('tip.')) return 'ui.worldTooltips';
+  return null;
+}
 
 /** Powers whose drag is a stroke that the sim's raise and lower brush applies. */
 const STROKE_OPS: Readonly<Record<string, BrushOp>> = { terraform_raise: 'raise', terraform_lower: 'lower' };

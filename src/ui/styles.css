@@ -1034,3 +1034,39 @@ html[data-reduce-motion] * {
 .minimap[hidden] {
   display: none;
 }
+
+/* Insight overlays (src/ui/worldTip.ts, src/ui/historyTicker.ts): pointer-transparent, so they never take a tap. */
+.insight-tip,
+.insight-ticker {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 60;
+  pointer-events: none;
+  background: rgba(18, 20, 26, 0.88);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.35;
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.insight-tip {
+  max-width: 200px;
+}
+
+.insight-ticker {
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 80vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--accent);
+}
+
+.insight-tip[hidden],
+.insight-ticker[hidden] {
+  display: none;
+}

@@ -122,5 +122,42 @@ const MANURE: FloraDef = {
   beach: false,
 };
 
-/** 18d flora appended to FLORA in src/sim/flora.ts. */
-export const FLORA_18D: readonly FloraDef[] = [...BUSHES, ...CROPS, ...REMAINS, MANURE];
+/**
+ * Wild hive (18c `hive_hanging`, made an object for the honey gatherer, 09 section 8). It never grows or spreads. Its
+ * honey builds up from the tick the hive was last taken (flora.ts HONEY_TICKS); it fades only after 40 Years untouched.
+ * Seeded by wildSeeding in the biomes listed.
+ */
+const HIVE: FloraDef = {
+  id: 'hive',
+  kind: 'object',
+  biomes: ['verdant_reach', 'bloomfield', 'paleglen', 'trefoil_lea'],
+  matureTicks: 0,
+  lifespanTicks: 40 * Y,
+  spreadChance: 0,
+  spreadSteps: 0,
+  flammable: true,
+  droughtSensitive: false,
+  coldSensitive: false,
+  beach: false,
+};
+
+/**
+ * Ruins of a civil building (18c ruined_dwelling, ruined_hall; 09 section 6 damage/ruin). Objects with no growth, removed
+ * by a cleaner (09 section 8); they fade only after 40 Years.
+ */
+const ruin = (id: string): FloraDef => ({
+  id,
+  kind: 'object',
+  biomes: [],
+  matureTicks: 0,
+  lifespanTicks: 40 * Y,
+  spreadChance: 0,
+  spreadSteps: 0,
+  flammable: true,
+  droughtSensitive: false,
+  coldSensitive: false,
+  beach: false,
+});
+
+/** 18d flora appended to FLORA in src/sim/flora.ts. The jobs close-out additions (hive, ruins) come last so codes hold. */
+export const FLORA_18D: readonly FloraDef[] = [...BUSHES, ...CROPS, ...REMAINS, MANURE, HIVE, ruin('ruined_dwelling'), ruin('ruined_hall')];

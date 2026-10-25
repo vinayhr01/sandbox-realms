@@ -1,9 +1,24 @@
-import { ground } from '../../content/grounds.ts';
+import { G, ground } from '../../content/grounds.ts';
 import { PARCEL } from '../../shared/constants.ts';
 import type { Rng } from '../../shared/rng.ts';
+import type { Realm } from '../realm.ts';
 import { BUILDING_BY_ID, type BuildingDef } from './catalogue.ts';
-import { assignJobs, DEPOSIT_YIELD, HERB_FOOD, MINER_COIN_STEPS, JOBS, workMultiplier, type JobTargetCounts, type WorkerJob } from './jobs.ts';
-import { FLORA, floraCode } from '../flora.ts';
+import {
+  assignJobs,
+  CLEAN_COINS,
+  DEPOSIT_YIELD,
+  FIELD_COINS,
+  FIELD_MAX,
+  GRAIN_FOOD,
+  HERB_FOOD,
+  HONEY_FOOD,
+  JOBS,
+  MINER_COIN_STEPS,
+  workMultiplier,
+  type JobTargetCounts,
+  type WorkerJob,
+} from './jobs.ts';
+import { FLORA, floraCode, cropRipe, fertiliseCrop, harvestCrop, hiveReady, makeRuin, pickManure, plantCrop, takeHoney, till, tillable } from '../flora.ts';
 
 /** Parcels are 8x8 tiles (01 section 2). Defined once in shared constants; re-exported here for existing importers. */
 export { PARCEL };
@@ -41,7 +56,7 @@ export const GARRISON_PARCELS = 20;
 
 /** Structural context: the hamlet step needs no Sim import. */
 export interface HamletContext {
-  realm: { side: number; ground: Uint8Array; flags: Uint16Array; cover: Uint8Array; flora: Uint8Array; setFlora(i: number, kind: number, since: number): void };
+  realm: Realm;
   rng: Rng;
   tick: number;
   /** Realm Rule lookup (rules.isOn). */
@@ -318,10 +333,29 @@ export function buildChoices(h: Hamlet, desires: readonly string[] = []): Buildi
   return housingNeeded ? [...houses, ...tail] : tail;
 }
 
-/** Territory targets the node jobs work on this step: herb tiles and deposit tiles, in scan order. */
+/**
+ * Territory targets the jobs work on this step, in scan order. The lists are consumed by runJobs, so they are
+ * built fresh each step.
+ */
 export interface JobTargets {
+  /** Herb plants (herbalist). */
   herbs: number[];
+  /** Deposit nodes with a store (prospector). */
   deposits: { tile: number; stone: number; gold: number }[];
+  /** Tilled tiles with no flora on them (tiller plants here). */
+  tilled: number[];
+  /** Open land a tiller may till into a field (only while the hamlet holds fewer than FIELD_MAX fields). */
+  farmSpots: number[];
+  /** Ripe crops (tiller harvests). */
+  ripe: number[];
+  /** Crops still growing (manure collector fertilises these). */
+  unripe: number[];
+  /** Hives with honey built up (honey gatherer). */
+  hives: number[];
+  /** Ruins to clear (cleaner); wood and stone are the refund of a clean. */
+  ruins: { tile: number; wood: number; stone: number }[];
+  /** Manure piles (manure collector). */
+  manure: number[];
 }
 
 /**
@@ -333,24 +367,56 @@ export function jobTargets(ctx: HamletContext, h: Hamlet): JobTargets {
   const side = ctx.realm.side;
   const perAxis = side / PARCEL;
   const herbCode = floraCode('herb');
-  const targets: JobTargets = { herbs: [], deposits: [] };
+  const targets: JobTargets = { herbs: [], deposits: [], tilled: [], farmSpots: [], ripe: [], unripe: [], hives: [], ruins: [], manure: [] };
+  // Tiles under a building are not open ground for a field.
+  const occupied = new Set<number>();
+  for (const b of h.buildings) {
+    for (let dy = 0; dy < heightOf(b.def); dy++) {
+      for (let dx = 0; dx < b.def.footprint; dx++) occupied.add((b.y + dy) * side + b.x + dx);
+    }
+  }
+  let fields = 0;
   for (const p of [...h.parcels].sort((a, b) => a - b)) {
     const x0 = (p % perAxis) * PARCEL;
     const y0 = Math.floor(p / perAxis) * PARCEL;
     for (let y = y0; y < y0 + PARCEL; y++) {
       for (let x = x0; x < x0 + PARCEL; x++) {
         const i = y * side + x;
+        const tilled = ctx.realm.ground[i] === G.tilled;
+        if (tilled) fields++;
         const code = ctx.realm.flora[i] ?? 0;
-        if (code === 0) continue;
+        if (code === 0) {
+          if (occupied.has(i)) continue;
+          if (tilled) targets.tilled.push(i);
+          else if (tillable(ctx.realm, i)) targets.farmSpots.push(i);
+          continue;
+        }
         if (code === herbCode) {
           targets.herbs.push(i);
           continue;
         }
-        const yielded = DEPOSIT_YIELD.get(FLORA[code - 1]?.id ?? '');
-        if (yielded) targets.deposits.push({ tile: i, stone: yielded.stone, gold: yielded.gold });
+        const def = FLORA[code - 1];
+        const yielded = DEPOSIT_YIELD.get(def?.id ?? '');
+        if (yielded) {
+          targets.deposits.push({ tile: i, stone: yielded.stone, gold: yielded.gold });
+          continue;
+        }
+        if (!def) continue;
+        if (def.kind === 'crop') {
+          if (cropRipe(ctx.realm, ctx.tick, i)) targets.ripe.push(i);
+          else targets.unripe.push(i);
+        } else if (def.id === 'hive') {
+          if (hiveReady(ctx.realm, ctx.tick, i)) targets.hives.push(i);
+        } else if (def.id === 'ruined_dwelling' || def.id === 'ruined_hall') {
+          targets.ruins.push({ tile: i, wood: def.id === 'ruined_dwelling' ? 1 : 0, stone: def.id === 'ruined_hall' ? 1 : 0 });
+        } else if (def.id === 'manure_pile') {
+          targets.manure.push(i);
+        }
       }
     }
   }
+  // A hamlet with enough fields stops making new ones; the tillers then only plant, harvest and fertilise.
+  if (fields >= FIELD_MAX) targets.farmSpots = [];
   return targets;
 }
 
@@ -361,6 +427,9 @@ export function jobTargets(ctx: HamletContext, h: Hamlet): JobTargets {
  */
 function runJobs(ctx: HamletContext, h: Hamlet, workers: ReadonlyMap<WorkerJob, number>, mult: number, foodCap: number, targets: JobTargets): void {
   const bonus = h.buildings.reduce((s, b) => s + (b.def.outcropBonus ?? 0), 0);
+  const feed = (units: number): void => {
+    if (h.food < foodCap) h.food = Math.min(h.food + units, foodCap);
+  };
   for (const job of JOBS) {
     const n = workers.get(job.id) ?? 0;
     if (n === 0) continue;
@@ -369,7 +438,7 @@ function runJobs(ctx: HamletContext, h: Hamlet, workers: ReadonlyMap<WorkerJob, 
     if (job.id === 'herbalist') {
       for (const i of targets.herbs.splice(0, amount)) {
         ctx.realm.setFlora(i, 0, ctx.tick);
-        if (h.food < foodCap) h.food = Math.min(h.food + HERB_FOOD, foodCap);
+        feed(HERB_FOOD);
       }
     } else if (job.id === 'prospector') {
       for (const d of targets.deposits.splice(0, amount)) {
@@ -377,17 +446,67 @@ function runJobs(ctx: HamletContext, h: Hamlet, workers: ReadonlyMap<WorkerJob, 
         h.stone += d.stone;
         h.gold += d.gold;
       }
+    } else if (job.id === 'honey_gatherer') {
+      for (const i of targets.hives.splice(0, amount)) {
+        if (takeHoney(ctx.realm, ctx.tick, i) > 0) feed(HONEY_FOOD);
+      }
+    } else if (job.id === 'tiller') {
+      // Each unit of work is one step of the field loop, in order: harvest a ripe crop, else plant a bare tilled tile,
+      // else till open ground. A step that finds nothing ends the worker's turn.
+      for (let k = 0; k < amount; k++) {
+        const ripe = targets.ripe.shift();
+        if (ripe !== undefined) {
+          if (harvestCrop(ctx.realm, ctx.tick, ripe) > 0) feed(GRAIN_FOOD);
+          continue;
+        }
+        const bare = targets.tilled.shift();
+        if (bare !== undefined) {
+          if (plantCrop(ctx.realm, ctx.tick, bare)) h.gold += FIELD_COINS;
+          continue;
+        }
+        const spot = targets.farmSpots.shift();
+        if (spot === undefined) break;
+        if (till(ctx.realm, spot)) h.gold += FIELD_COINS;
+      }
+    } else if (job.id === 'cleaner') {
+      // A cleaned ruin returns its wood or stone (09 section 8 "+1 wood/stone per cost") and pays a coin.
+      for (const r of targets.ruins.splice(0, amount)) {
+        ctx.realm.setFlora(r.tile, 0, ctx.tick);
+        h.wood += r.wood;
+        h.stone += r.stone;
+        h.gold += CLEAN_COINS;
+      }
+    } else if (job.id === 'manure_collector') {
+      // A pile taken off the ground is spread on the nearest growing crop at once (there is no manure store).
+      for (const i of targets.manure.splice(0, amount)) {
+        if (!pickManure(ctx.realm, i)) continue;
+        const crop = targets.unripe.shift();
+        if (crop !== undefined && fertiliseCrop(ctx.realm, ctx.tick, crop)) h.gold += FIELD_COINS;
+      }
     } else if (job.id === 'forager') {
-      if (h.food < foodCap) h.food = Math.min(h.food + amount, foodCap);
+      feed(amount);
     } else if (job.id === 'woodcutter') {
       h.wood += amount;
-    } else {
+    } else if (job.id === 'miner') {
       const take = Math.min(h.outcrops, Math.floor(amount * (1 + bonus)));
       h.outcrops -= take;
       h.stone += take;
+      if (h.steps % MINER_COIN_STEPS === 0) h.gold += n;
     }
-    if (job.id === 'miner' && h.steps % MINER_COIN_STEPS === 0) h.gold += n;
   }
+}
+
+/**
+ * Destroys the building at index `index` (09 section 6 damage/ruin): it leaves the hamlet, and its origin tile becomes a
+ * ruin for a cleaner to clear. Draws no randomness. Nothing in the sim calls it yet: building damage is not simulated
+ * and the calamity handlers are outside the settlements touch set.
+ */
+export function destroyBuilding(ctx: HamletContext, h: Hamlet, index: number): boolean {
+  const b = h.buildings[index];
+  if (!b) return false;
+  h.buildings.splice(index, 1);
+  makeRuin(ctx.realm, ctx.tick, b.y * ctx.realm.side + b.x, b.def.housing > 0);
+  return true;
 }
 
 /**
@@ -417,7 +536,14 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
   if (h.food < cap) h.food = Math.min(h.food + h.buildings.reduce((s, b) => s + b.def.foodYield, 0), cap);
   h.wood += h.buildings.reduce((s, b) => s + b.def.woodYield, 0);
   const targets = jobTargets(ctx, h);
-  const counts: JobTargetCounts = { herbs: targets.herbs.length, deposits: targets.deposits.length };
+  const counts: JobTargetCounts = {
+    herbs: targets.herbs.length,
+    deposits: targets.deposits.length,
+    hives: targets.hives.length,
+    tillWork: targets.tilled.length + targets.farmSpots.length + targets.ripe.length,
+    ruins: targets.ruins.length,
+    manure: targets.manure.length,
+  };
   runJobs(ctx, h, assignJobs(h, counts), workMultiplier(hamletMood(h)), cap, targets);
   h.steps += 1;
   if (h.steps % OUTCROP_REGROW_STEPS === 0 && h.outcrops < OUTCROP_CAP) h.outcrops += 1;

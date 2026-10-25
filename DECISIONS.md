@@ -2714,3 +2714,19 @@ Scope: closes the slices that "Isolation granularity close 10" left as whole sys
 - Fatal invariant violations (17 section 9) are still not detected. Deviation 2 of "Pump isolation close 7" (the ping part) is unchanged.
 
 **Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`: `UnitGuard` now takes `number | string` (armies and rulers callers pass numbers, unchanged), and `borderUnit` and `CaptureContext.unit` are optional. Needed with test access: a unit test where one border pair throws and the other pairs still exchange, counted as `border:a-b`; a hamlet fault seen by two of the hamlet systems, counted together under `hamlet:<i>`; a check that three faults on one unit switch only that unit off for 600 ticks; and a no-fault hash check with and without a gate, which should match `GOLDEN_HASH` as before.
+
+## Test regressions close 12
+
+Scope: two failing tests in `tests/unit/beings-seeding.test.ts` and `tests/unit/culture-wiring.test.ts`, both regressions from later rounds. Files: `tests/unit/beings-seeding.test.ts`, `tests/unit/culture-wiring.test.ts`. No source change. `GOLDEN_HASH` is not edited. Run: both files pass (7 of 7).
+
+**Cluckling fuel ("a hungry cluckling standing on flora gains fuel after one tick").**
+- Cause: the test assumed one unpinned decision picks `eat_grass`. Close 5 added `reflect` (tier 2, weight 2.5, `src/content/decisions.ts`). A hungry cluckling's pool is `eat_grass` (tier 3) plus the tier 0 to 2 rows, `reflect` among them. Under the tier rule (07 section 3.5) one decision in five lets every candidate compete by weight, and the single softmax draw landed on `weep` (confirmed by logging the pool and the pick once; the logging was removed).
+- The code is right: `reflect`'s tier and weight are the spec's numbers, and the tier rule is as written. The test was a single unpinned draw against a changed pool.
+- Fix (test): the test sets the running task to `eat_grass` (`sim.beings.task`, the override layer of `decide`), so one tick checks the eating itself. A comment names the change.
+
+**Culture spread (renamed "a creed in one dominion spreads to a neighbouring dominion in a running sim").**
+- Cause: "Culture founding close 6" made culture groups dominion ids and contacts dominion borders (`dominionBordersOf`, `src/sim/culture/adapter.ts`). The test seeded a region id and waited for another region id. Region ids are not groups now, so the spread could not reach the target.
+- Spec 11 section 4 talk-form rule: the talk form needs a creed per speaker, which the sim does not keep (one per group). Close 6 records the group-level form at the creed rate (2% per contact per step) as the stand-in. The code follows that record, so the code is right and the test is outdated.
+- Fix (test): the test builds two dominions (1 and 2) split down the middle, at peace, sharing a border, and seeds the creed in dominion 1. A comment names the change. The other culture tests still seed region ids; they check determinism and save round-trip only, still pass, and were left unchanged.
+
+**Not changed.** The talk form itself stays unbuilt (see "Culture founding close 6", Substitutions).

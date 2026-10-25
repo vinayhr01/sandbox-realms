@@ -59,7 +59,8 @@ describe('strains and counters (05 section 2 and 6.1)', () => {
     const sim = field(4);
     const slot = spawnBeing(sim, speciesIndex('burrfleece'), 20, 20, true);
     const strain = sim.beings.strains.get(sim.beings.store.strain[slot] ?? 0)!;
-    expect(strain.counters).toEqual({ born: 0, newAdults: 1, reproduced: 0 });
+    // The 05 section 2 counters; the strain also holds died and killed (round 8), which this test does not cover.
+    expect(strain.counters).toMatchObject({ born: 0, newAdults: 1, reproduced: 0 });
     expect(strain.species).toBe(speciesIndex('burrfleece'));
   });
 

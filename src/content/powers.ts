@@ -53,6 +53,19 @@ const click = (id: string, tab: TabId, name: string, handler: string, params: Re
   requires,
 });
 
+/** Favour magic drop: brush kind, one drop roll per tapped tile (12 section 8.7). */
+const drop = (id: string, name: string, handler: string, params: Record<string, string | number>): PowerDef => ({
+  id,
+  tab: 'favour',
+  kind: 'brush',
+  name,
+  repeatMs: 60,
+  handler,
+  params,
+  cooldownMs: 0,
+  requires: [],
+});
+
 const toggle = (id: string, name: string, rule: string): PowerDef => ({
   id,
   tab: 'realm',
@@ -162,9 +175,33 @@ export const POWERS: readonly PowerDef[] = [
     cooldownMs: 1500,
     requires: [],
   })),
-  // Favour and Insight (12 section 8.7-8.8; effects not in spec, defaults in DECISIONS.md "Powers round 3").
+  // Favour (12 section 8.7). Magic drops are brush-kind: each tapped tile is one drop roll (fall 0.3) and
+  // the beings on that tile take the effect. Substitutions are listed in DECISIONS.md "Powers round 4".
+  // Bless (not in spec; effect in DECISIONS.md "Powers round 3").
   click('favour_bless', 'favour', 'Bless', 'bless', { radius: 3, status: 'warded' }, 0, ['rituals']),
+  drop('fav_vigor', 'Vigour', 'favour_status', { status: 'emboldened', fall: 0.3 }),
+  drop('fav_ward', 'Ward', 'favour_status', { status: 'warded', fall: 0.3 }),
+  drop('fav_spark', 'Spark', 'favour_status', { status: 'emboldened', fall: 0.3 }),
+  drop('fav_surge', 'Surge', 'favour_surge', { fall: 0.3 }),
+  drop('fav_muse', 'Muse', 'favour_mood', { event: 'inspired', extra: -5, fall: 0.3 }),
+  drop('fav_kinship', 'Kinship', 'favour_mood', { event: 'made_friend', extra: -10, fall: 0.3 }),
+  drop('fav_strife', 'Strife', 'favour_mood', { event: 'talked_badly', extra: -15, fall: 0.3 }),
+  drop('fav_grudge', 'Grudge', 'favour_status', { status: 'frenzy', fall: 0.3 }),
+  drop('fav_frenzy', 'Frenzy', 'favour_trait', { trait: 'frenzied_mind', fall: 0.3 }),
+  drop('fav_grace', 'Grace', 'favour_trait_random', { polarity: 'good', chance: 0.15 }),
+  drop('fav_hex', 'Hex', 'favour_trait_random', { polarity: 'bad', chance: 0.15 }),
+  drop('fav_slumber', 'Slumber', 'favour_sleep', { fall: 0.3 }),
+  drop('fav_unweave', 'Unweave', 'favour_unweave', { fall: 0.3 }),
+  drop('fav_cleanse', 'Cleanse', 'favour_cleanse', { fall: 0.3 }),
+  drop('fav_purify', 'Purify', 'favour_purify', { fall: 1 }),
+  click('fav_foundling', 'favour', 'Foundling', 'favour_foundling'),
+  click('fav_wake', 'favour', 'Waking Flora', 'favour_wake'),
+  drop('fav_rain_items', 'Item Rain', 'favour_items', { fall: 0.3 }),
+  click('fav_rain_items_edit', 'favour', 'Edit Item Rain', 'open_window', { window: 'item_rain_edit' }),
+  drop('fav_loot', 'Loot Rain', 'favour_loot', { fall: 0.3 }),
+  // Insight (12 section 8.8). Lore (not in spec; effect in DECISIONS.md "Powers round 3").
   click('insight_lore', 'insight', 'Lore', 'lore', { radius: 4 }),
+  click('ins_compare', 'insight', 'Compare Chart', 'open_window', { window: 'compare' }),
 ];
 
 export const POWER_BY_ID = new Map(POWERS.map((p) => [p.id, p]));

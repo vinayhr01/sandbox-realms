@@ -28,6 +28,19 @@ export const SIM_HANDLERS: readonly string[] = [
   'place_creep_hub',
   'bless',
   'lore',
+  'favour_status',
+  'favour_surge',
+  'favour_mood',
+  'favour_trait',
+  'favour_trait_random',
+  'favour_sleep',
+  'favour_unweave',
+  'favour_cleanse',
+  'favour_purify',
+  'favour_foundling',
+  'favour_wake',
+  'favour_items',
+  'favour_loot',
 ];
 
 /** Handlers the UI carries out itself: pause, speed, windows, hiding the interface, and Realm Rules. */

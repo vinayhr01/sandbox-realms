@@ -2149,3 +2149,26 @@ Scope: 11 section 2 and 3 (divide, schism, divergence as intrigues; creed and di
 - `GOLDEN_HASH` will not match: watchspire and bastion enter the build order, and the rank and split fields are new state. It needs a re-baseline when a golden run is allowed.
 
 **Not verified.** Nothing was run. Types were checked by reading against `strict` and `noUncheckedIndexedAccess`. The save checks and the restore of the new fields need a round-trip test.
+
+## Defence close 6
+
+Scope: 10 section 7 and 9 (watchspire bolts, `DEF_PER_TOWER`), 18e section 3.1 (bastion capture threshold, keeper soldiers, gear store). The spec folder is `game\Spec` (checked). The bastion is not in 18c section 4 (its 60 buildings have no keep; the bastion row is 18e section 3.1), so that is where it was read. Files: `src/sim/projectiles.ts` (`watchspireStep`, `watchTarget`, `watchCandidates`, `FOLK_FACTION`, called from `shootStep` after `brazierStep`). Branch: `worktree-agent-a489d79ed09e41466`.
+
+**Closed.**
+- Watchspire bolts (10 section 9). Built on the Brazier Tower pattern: a per-building `WeakMap` timer, targets are living Beings hostile to Folk (`relation` = `H`, 07 section 9.4), and `launchProjectile` for each bolt. Five bolts per volley, 45 damage each, spec values. The scan timer is `60 + randomInt(0,60)` ticks, drawn after each scan; the first scan is at 20 ticks. Candidates are the Beings in the 3x3 patches around the tower (a patch is 16 tiles, `PATCH_SHIFT`). With more than 50 candidates, a 40% chance of a random pick (spec); a candidate at squared distance 4 or less wins at once (spec); otherwise the nearest.
+
+**Substitutions and TUNE values.**
+- Bolt kind: `flint_dart` (Weapon damage, no blast). 18c section 6 names no bolt kind, and its 16 kinds are an acceptance test (18c section 7, item 1), so no kind was added. (TUNE)
+- Empty scan: the spec gives no rule for a scan that finds no target. The scan timer is drawn after every scan, so an empty scan waits as long as a firing one. (TUNE)
+- "Attackers" is read as living Beings hostile to Folk in range, as the Brazier Tower reads its targets. (TUNE)
+- The watchspire draws from the `projectiles` RNG stream on every scan while it is built. This changes the stream for any realm with a watchspire.
+
+**Remains, and why.**
+- Buildings as targets (10 section 9 "Beings/buildings", 18c "hits buildings"): building damage is not simulated (Jobs build 3 note), so there is nothing to hit.
+- The 10 section 9 immunities (inside buildings or boats, flying, protected) and the civilian rule: the sim has no inside, flying or protected state. The civilian rule is about Folk against Folk, and the targets here are never Folk.
+- `DEF_PER_TOWER` (10 section 7, +10 capture defence per watchspire) and the bastion capture threshold of 130 (18e section 3.1, 10 section 7): there is no capture check in the sim to wire them into. `src/sim` has no `updateCapture`, capture points, ticks or `finishCapture`, and the dominion war path (`dominions/step.ts` `exchange`, `armies.ts` `attackOrders`) resolves by strength exchange and a parcel take. A hamlet capture is a new subsystem (10 section 7: capture points, ticks, `joinAnother`, mood), outside this task's scope. The 100 threshold does not exist in the sim either, so nothing rises to 130.
+- Bastion keeper soldiers (2 `keeper`, 18e section 3.1): no keeper job row exists. 07, 09 and 18a have no `keeper` job; the bastion's jobs column and the sea lantern and bee shed ones are the only mentions. The same gap holds for `gunner`, which the brazier tower also names and which is not built (catalogue.ts note). Garrison soldiers are a count per hamlet (`GarrisonRecord.soldiers`), not beings with jobs, so two keeper soldiers would need an invented job. Not built. The bastion's +10 army slots (Dominions close 5) are unchanged.
+- Bastion gear store, 30 (18e section 3.1): the spec does not say whether 30 is the total or per list. 08 section 7.2 gives six lists of 15, and the arsenal row says "+30 per list". Without a rule the owner is unclear, so the store is recorded and skipped.
+- `GOLDEN_HASH`: a watchspire in the golden scenario changes its run (new bolts and new RNG draws). Not checked, since no run was allowed. The constant is unchanged; it needs a re-baseline if the golden run has a watchspire.
+
+**Not verified.** Nothing was run. Types were checked by reading against `strict`, `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`. Scan timing and target choice need a seeded test with a hostile Being in a watchspire's patches.

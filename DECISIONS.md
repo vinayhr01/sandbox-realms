@@ -1607,3 +1607,25 @@ a Being in the save. Schema 5 saves are rejected. Possession and `stepAt` are no
 **7. Golden hash.** GOLDEN_HASH is unchanged and will not match. The new decision rows (14 and 15), the lover and friend
 checks, the affliction draws and the egg and rooting branches all change random draws or Being state. It needs a re-baseline
 by a run with test access, as in round 6. Not run here.
+
+## Batch fix round 8
+
+Scope: fixes from the last round, by code reading only. No tests, tsc, vitest or build were run (instruction). `GOLDEN_HASH` is not edited.
+
+**1. Boat route type (`src/sim/boats/boats.ts`).** Cause: with `exactOptionalPropertyTypes`, `Boat.path?: number[]` rejects assigning `undefined` (lines 267, 271, 276: the route slice and the clears). Fix: the field now reads `path?: number[] | undefined`. Behaviour is unchanged; `routeStep` already guards the read, and the save check (`chronicle.ts`) already allows an absent path.
+
+**2. Device import path (`src/sim/devices.ts`).** Cause: `import type { Sim } from '../sim.ts'` points out of `src/sim`. Fix: `'./sim.ts'`, as the other modules in the folder use.
+
+**3. Map group dialect (`src/sim/snapshot.ts`).** Cause: `Dialect.word` is a number, and `MapGroup.dialect` is a string (`protocol.ts`, "Dialect word ... or ''"). Fix: `String(...)` around the same lookup, so the empty case stays `''` and groups with equal words still match. Side effect: `insight-layers.ts` L05 passes `dialect` to `hashKey`, which takes a string. Before, a number reached `hashKey`, which read no characters, so every dialect group got the same L05 key. Now each dialect word gets its own key. This is a visible change to L05 colouring, and it is the intended one.
+
+**4. Settlements tests (construction takes time).** Round 8 makes a placed building a site first, finished by builders at `SITE_PROGRESS` 50. Builders need folk, and a hamlet with no folk never finishes a site.
+- `tests/unit/settlements.test.ts`, "territory does not grow without a placed building": the assertion counted only finished buildings. The zero-cost hearth and larder open a site as soon as they are placed, and territory grows at placement. The test now treats "placed" as a finished building or an open site (site opened). The rule it checks is unchanged: no placement means one parcel.
+- `tests/unit/settlements.test.ts`, "builds at least one building with plenty of stock": it ran with folk 0, so no builder ever worked the site. It now starts with 6 folk and runs 1000 ticks (ten growth steps). The first step opens a site and a builder works it, and the site finishes within a few steps.
+- `tests/unit/settlements-wiring.test.ts`, "after three sim years ... has buildings and a changing population": three sim years is 3600 ticks, about 180 hamlet steps (one per sim-second), which gives only about two growth steps. That is too few for a builder site to finish reliably, so this test asserts the site is opened: a hamlet counts when it has a finished building or an open site. The land-layer check covers the site footprint too. The test name says so. The population check is unchanged.
+No production rule was changed.
+
+**5. Settings counts (`tests/unit/ui-live-options.test.ts`, `tests/unit/ui-options.test.ts`).** Counted from `src/ui/panels/options.ts`: 78 rows (13 display, 14 map, 8 marks, 11 HUD, 8 input, 8 audio, 8 game, 4 perf, 3 lang and privacy, 1 dev), of which 55 are `live` (31 bool, 16 int, 8 choice). The row count is now 78 in both files. The live test now expects 55 (was a `>= 22` floor). The `marks.` count is now 8: the 7 spec mark toggles plus `marks.armyLines`, an Insight addition. The `map.layer` and `map.layerMode` rows are the Insight layer rows. The marks comment in `options.ts` is updated the same way.
+
+**6. Golden hash.** Not edited, as instructed. It is handled separately.
+
+Not verified: none of the above has been run. The settlement test changes depend on growth-step timing read from `hamlet.ts` and `adapter.ts`, and the live count of 55 depends on a manual count of `options.ts` checked by grep. Both should be confirmed when tests are allowed.

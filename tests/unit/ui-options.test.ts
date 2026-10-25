@@ -34,10 +34,11 @@ const throwingStorage: KeyValueStorage = {
 };
 
 describe('settings table', () => {
-  it('covers the spec options: 72 rows plus 3 audio rows, 7 of the spec rows mark toggles (13 section 15)', () => {
-    // 72 spec 13 rows plus three audio options from spec 16 (audio.mono, audio.visualCues, audio.reduceLoud).
-    expect(SETTINGS.length).toBe(75);
-    expect(SETTINGS.filter((s) => s.id.startsWith('marks.')).length).toBe(7);
+  it('covers the spec options: 72 rows, 3 audio rows and 3 Insight rows; 7 spec mark toggles plus marks.armyLines (13 section 15)', () => {
+    // 72 spec 13 rows, three audio options from spec 16 (audio.mono, audio.visualCues, audio.reduceLoud), and three
+    // Insight options (map.layer, map.layerMode, marks.armyLines). The marks group holds the 7 spec toggles and armyLines.
+    expect(SETTINGS.length).toBe(78);
+    expect(SETTINGS.filter((s) => s.id.startsWith('marks.')).length).toBe(8);
   });
 
   it('ids are unique and every default is valid for its type', () => {

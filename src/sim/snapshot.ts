@@ -192,7 +192,7 @@ function mapTilesOf(sim: Sim): MapTiles {
     groups.push({
       id: d.id,
       custom: sim.culture.customs.findIndex((c) => c.group === d.id),
-      dialect: sim.culture.dialects.find((x) => x.group === d.id)?.word ?? '',
+      dialect: String(sim.culture.dialects.find((x) => x.group === d.id)?.word ?? ''),
       pact: pactOf.get(d.id) ?? -1,
       army: armed.has(d.id),
     });

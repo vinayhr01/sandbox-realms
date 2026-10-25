@@ -68,7 +68,7 @@ export interface Boat {
   /** Set when an enemy volley hit the boat; read by the danger decision on the next step. Absent when not hit. */
   hit?: boolean;
   /** Planned route to `target` (tile indices, last entry is the target), from the path search of a blocked boat. */
-  path?: number[];
+  path?: number[] | undefined;
 }
 
 /** Saved form of the boat state (chronicle tag 21). `builds` holds [dock tile, tick of the next build check]. */

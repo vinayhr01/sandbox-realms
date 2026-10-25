@@ -154,7 +154,9 @@ describe('settlements', () => {
     h.stone = 0;
     h.food = 200;
     for (let t = 0; t < 1000; t++) { ctx.tick = t; hamletStep(ctx, h); }
-    if (h.buildings.length === 0) expect(h.parcels.size).toBe(1);
+    // Round 8 construction: a placed building is first a site (h.site), and territory grows when it is placed. The
+    // zero-cost hearth opens a site with no builder here (folk 0), so "placed" means a finished building or an open site.
+    if (h.buildings.length === 0 && !h.site) expect(h.parcels.size).toBe(1);
     else expect(h.parcels.size).toBeGreaterThan(1);
   });
 
@@ -178,10 +180,12 @@ describe('settlements', () => {
   it('builds at least one building with plenty of stock, so the store gets income', () => {
     const { ctx, parcel } = setup(40);
     ctx.isOn = () => true;
-    const h = createHamlet(parcel, 0);
+    // Round 8 construction: a site needs a builder, and builders need folk. Six folk, and 1000 ticks (ten growth
+    // steps of 100 ticks): the first step opens a site and a builder adds 25, the second finishes it at 50.
+    const h = createHamlet(parcel, 6);
     h.wood = 1000;
     h.stone = 1000;
-    for (let t = 0; t < 300; t++) { ctx.tick = t; hamletStep(ctx, h); }
+    for (let t = 0; t < 1000; t++) { ctx.tick = t; hamletStep(ctx, h); }
     // The round 4 order is rule-driven (buildChoices), so the exact first building is not fixed here.
     expect(h.buildings.length).toBeGreaterThan(0);
   });

@@ -9,10 +9,11 @@ describe('live options (13 section 15)', () => {
     expect(DEFAULT_OPTIONS['game.confirmQuit']).toBe(true);
   });
 
-  it('the table has 75 rows (72 spec 13 plus 3 spec 16 audio) and the live count is recorded', () => {
-    // 72 spec 13 rows plus three audio options from spec 16 (audio.mono, audio.visualCues, audio.reduceLoud).
-    expect(SETTINGS.length).toBe(75);
-    expect(SETTINGS.filter((s) => s.live).length).toBeGreaterThanOrEqual(22);
+  it('the table has 78 rows and 55 of them are live', () => {
+    // 72 spec 13 rows, three audio options from spec 16 (audio.mono, audio.visualCues, audio.reduceLoud), and three
+    // Insight options (map.layer, map.layerMode, marks.armyLines). Counted from options.ts: 55 rows set live.
+    expect(SETTINGS.length).toBe(78);
+    expect(SETTINGS.filter((s) => s.live).length).toBe(55);
   });
 
   it('a live toggle changes its value and leaves the rest alone', () => {

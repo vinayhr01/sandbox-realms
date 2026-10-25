@@ -16,7 +16,7 @@
  * goes off, and an armed timer is not saved (an ignited timed device is armed again by the next scan that
  * sees it burn).
  */
-import type { Sim } from '../sim.ts';
+import type { Sim } from './sim.ts';
 import { BOMB_PROFILE_BY_ID, type BombProfile } from '../content/powers.ts';
 import { ground, groundId } from '../content/grounds.ts';
 

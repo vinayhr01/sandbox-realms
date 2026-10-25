@@ -23,7 +23,10 @@ function runYears(seed: number, years: number) {
 }
 
 describe('settlements wiring', () => {
-  it('after three sim years a hamlet on land has buildings and a changing population', () => {
+  it('after three sim years a hamlet on land has a building or an open site and a changing population', () => {
+    // Round 8 construction: a placed building is a site first and finishes only when builders reach SITE_PROGRESS.
+    // Three sim years is 3600 ticks, which is about two hamlet growth steps, too few for a builder-driven site to
+    // always finish. So a hamlet counts as built when it has a finished building or an open site (site opened).
     const { sim, samples } = runYears(31, 3);
     const hamlets = hamletsOf(sim);
     expect(hamlets.length).toBeGreaterThanOrEqual(1);
@@ -31,11 +34,12 @@ describe('settlements wiring', () => {
 
     const built = hamlets
       .map((h, k) => ({ h, k }))
-      .filter(({ h }) => h.buildings.length > 0);
+      .filter(({ h }) => h.buildings.length > 0 || h.site !== undefined);
     expect(built.length).toBeGreaterThanOrEqual(1);
 
     for (const { h } of built) {
-      for (const b of h.buildings) {
+      const footprint = h.site ? [...h.buildings, h.site] : h.buildings;
+      for (const b of footprint) {
         const kind = ground(sim.realm.ground[b.y * sim.realm.side + b.x] ?? 0);
         expect(kind.layer).toBe('land');
       }

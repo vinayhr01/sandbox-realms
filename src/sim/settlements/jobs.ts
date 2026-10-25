@@ -6,8 +6,8 @@ import type { Hamlet } from './hamlet.ts';
  * hamlet's buildings, territory and stock (assignJobs), so a save-and-load run assigns the same workers. The slots are
  * handed out round-robin in QUOTA_ORDER, each job up to its cap (09 section 8 quota rebuild). Output goes to the hamlet
  * store (food, wood, stone, iron and gold); the territory jobs take their targets from the realm in hamlet.ts. The builder
- * and roadwright work the hamlet's site and road queue, which are saved (hamlet.ts, adapter.ts); the soldier job is posted
- * from the garrison ledger.
+ * and roadwright work the hamlet's site and road queue, which are saved (hamlet.ts, adapter.ts); the soldier line is in the
+ * round, with its limit from the garrison rule (garrison-adapter.ts hamletSoldierLimit).
  */
 
 /**
@@ -54,13 +54,16 @@ export const SITE_BUILDERS = 3;
 /** Roadwrights a hamlet may staff at once (09 section 8 cap 1). */
 export const ROADWRIGHT_CAP = 1;
 
+/** Soldier slots a round adds (09 section 8 quota step 7: "soldier +2 up to floor(adults x armyFactor)"). */
+export const SOLDIER_PER_ROUND = 2;
+
 /** Coins a roadwright earns for each road tile laid (09 section 8 roadwright "1 coin"). */
 export const ROAD_COINS = 1;
 
 /**
  * Jobs with their unit yields and flags (09 section 8 table). Priorities: builder 9; forager, herbalist and honey gatherer
  * priorityNoFood 10. okForRuler and okForLeader are false for tiller, miner, iron miner and prospector. The soldier is not
- * in this list: it is posted from the garrison ledger (assignJobs). The quota order is QUOTA_ORDER below.
+ * in this list: its slots come from the round (assignJobs, SOLDIER_PER_ROUND). The quota order is QUOTA_ORDER below.
  */
 export const JOBS: readonly JobDef[] = [
   { id: 'builder', perWorker: BUILD_PER_BUILDER, priority: 9, priorityNoFood: 0, okForRuler: true, okForLeader: true },
@@ -80,8 +83,9 @@ export const JOBS: readonly JobDef[] = [
 
 /**
  * The round-robin order of the quota rebuild (09 section 8, "per-round order"): builder; forager, herbalist and honey
- * gatherer; tiller; prospector; woodcutter; miner (and the mine's iron miner); roadwright, cleaner, manure collector.
- * The soldier is not here (garrison ledger). Each round adds one slot per job in this order while the job is under its cap.
+ * gatherer; tiller; prospector; woodcutter; miner (and the mine's iron miner); soldier; roadwright, cleaner, manure
+ * collector. Each round adds one slot per folk job in this order while the job is under its cap. The soldier adds
+ * SOLDIER_PER_ROUND slots and takes no folk (its soldiers come from dominion strength, see assignJobs).
  */
 export const QUOTA_ORDER: readonly WorkerJob[] = [
   'builder',
@@ -93,6 +97,7 @@ export const QUOTA_ORDER: readonly WorkerJob[] = [
   'woodcutter',
   'miner',
   'iron_miner',
+  'soldier',
   'roadwright',
   'cleaner',
   'manure_collector',
@@ -167,8 +172,11 @@ export function foragerCap(food: number): number {
 
 /** Territory targets counted for the job quotas (09 section 8 "up to the number of targets"). */
 export interface JobTargetCounts {
-  /** Soldiers the hamlet's garrison ledger holds (garrison.ts). Posted to the soldier job; they are not drawn from the folk. */
-  soldiers: number;
+  /**
+   * Soldier slots the garrison rule allows this hamlet now (garrison-adapter.ts hamletSoldierLimit: floor(adults x armyFactor)
+   * plus the building bonus, 0 without `standing_armies` or at 15 adults or fewer). The soldier line of the round fills up to it.
+   */
+  soldierLimit: number;
   /** Herb plants in the hamlet's parcels. */
   herbs: number;
   /** Deposit nodes with a store (DEPOSIT_YIELD) in the hamlet's parcels. */
@@ -190,7 +198,12 @@ export interface JobTargetCounts {
  * (QUOTA_ORDER, each job up to its cap); the folk then fill them in QUOTA_ORDER, and nobody is assigned twice. Slots no
  * eligible folk fill stay empty and the rest of the folk stay idle (they still eat). Children join the pool only when the
  * custom allows it. The hamlet leader (leaders) fills only the jobs both okForRuler and okForLeader allow; other folk fill
- * any job. The soldier posting comes from the garrison ledger and takes no folk, so it is set before the folk are counted.
+ * any job.
+ *
+ * The soldier line (09 section 8 quota step 7) is part of the round: each round adds SOLDIER_PER_ROUND soldier slots up to
+ * `targets.soldierLimit`. Soldiers are not folk: they come from the owner's dominion strength (garrison-adapter.ts), so the
+ * soldier slots take nothing from `left`. The garrison pass reads the same limit (hamletSoldierLimit), so the round and the
+ * ledger agree on how many soldiers the hamlet may keep.
  */
 export function assignJobs(h: Hamlet, targets: JobTargetCounts, work: Workforce): Map<WorkerJob, number> {
   const capacity = new Map<WorkerJob, number>();
@@ -202,7 +215,7 @@ export function assignJobs(h: Hamlet, targets: JobTargetCounts, work: Workforce)
   const cap: Record<WorkerJob, number> = {
     builder: h.site ? SITE_BUILDERS : 0,
     roadwright: h.road.length > 0 ? ROADWRIGHT_CAP : 0,
-    soldier: 0,
+    soldier: Math.max(0, targets.soldierLimit),
     forager: Math.min(capacity.get('forager') ?? 0, food),
     herbalist: Math.min(targets.herbs, food),
     honey_gatherer: Math.min(targets.hives, food),
@@ -215,25 +228,32 @@ export function assignJobs(h: Hamlet, targets: JobTargetCounts, work: Workforce)
     manure_collector: Math.min(MANURE_CAP, targets.manure),
   };
   const workers = new Map<WorkerJob, number>();
-  // The soldier job reads the garrison ledger (garrison-adapter.ts). Those soldiers were drawn from dominion strength when
-  // they were recruited, so the job draws nothing more and takes no folk slot.
-  if (targets.soldiers > 0) workers.set('soldier', targets.soldiers);
   // The census ran before this step's births and starvation, so folk beyond the adults are children (new births).
   const adults = Math.min(work.adults, h.folk);
   const children = h.folk - adults;
   const leaders = Math.min(work.leaders, adults);
   // Folk who can fill a slot: the adults, and the children when the custom lets children work (09 section 8 canWork).
   const pool = adults + (work.childLabour ? children : 0);
-  // Quota rebuild (09 section 8): round-robin. Each round adds one slot to each job in QUOTA_ORDER that is under its cap,
-  // until the folk are all placed or the rounds (2 x folk + 1) run out. A round that adds nothing ends the loop.
+  // Quota rebuild (09 section 8): round-robin. Each round adds one slot to each folk job in QUOTA_ORDER that is under its cap
+  // (while folk are left), and SOLDIER_PER_ROUND soldier slots at the soldier's place in the order (up to its limit). The
+  // rounds run until a round adds nothing. Each folk slot takes one of `left`, so folk rounds stop after `pool` slots; the
+  // soldier rounds stop at the limit, so the loop is bounded by pool + ceil(limit / SOLDIER_PER_ROUND) + 1 rounds.
   const slots = new Map<WorkerJob, number>();
   let left = pool;
-  for (let round = 0; round < 2 * pool + 1 && left > 0; round++) {
+  const maxRounds = pool + 1 + Math.ceil(cap.soldier / SOLDIER_PER_ROUND);
+  for (let round = 0; round < maxRounds; round++) {
     let added = false;
     for (const id of QUOTA_ORDER) {
-      if (left <= 0) break;
       const have = slots.get(id) ?? 0;
-      if (have >= cap[id]) continue;
+      if (id === 'soldier') {
+        const n = Math.min(SOLDIER_PER_ROUND, cap.soldier - have);
+        if (n > 0) {
+          slots.set(id, have + n);
+          added = true;
+        }
+        continue;
+      }
+      if (left <= 0 || have >= cap[id]) continue;
       slots.set(id, have + 1);
       left -= 1;
       added = true;
@@ -241,12 +261,16 @@ export function assignJobs(h: Hamlet, targets: JobTargetCounts, work: Workforce)
     if (!added) break;
   }
   // Slots are filled from the common folk first; leaders (the hamlet leader, 1 at most) take only jobs both okForRuler and
-  // okForLeader allow. A slot nobody eligible fills stays empty.
+  // okForLeader allow. A slot nobody eligible fills stays empty. The soldier slots are posted as they are: no folk fill them.
   let common = pool - leaders;
   let leaderPool = leaders;
   for (const id of QUOTA_ORDER) {
     const want = slots.get(id) ?? 0;
     if (want === 0) continue;
+    if (id === 'soldier') {
+      workers.set(id, want);
+      continue;
+    }
     const job = JOB_BY_ID.get(id);
     const restricted = !job || !(job.okForRuler && job.okForLeader);
     const fromCommon = Math.min(want, common);

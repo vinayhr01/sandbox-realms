@@ -19,7 +19,7 @@ import type { MoodEvent } from '../../content/moods.ts';
 import { ground } from '../../content/grounds.ts';
 import { MONTH_TICKS } from '../../shared/constants.ts';
 import { terrainState, type CreepHub } from '../terrain/state.ts';
-import { garrisonSoldiersOf, garrisonStep, garrisonsOf, restoreGarrisons } from './garrison-adapter.ts';
+import { garrisonStep, garrisonsOf, hamletSoldierLimit, restoreGarrisons } from './garrison-adapter.ts';
 import { rulesOf } from './custom-rules.ts';
 import type { GarrisonRecord, GarrisonSave } from './garrison.ts';
 import { creepEffectsStep } from './creep-effects.ts';
@@ -338,7 +338,7 @@ export function settlementsStep(host: SettlementHost): void {
       claimed: (q) => state.hamlets.some((o) => o !== h && o.parcels.has(q)),
       desires: desiresOf(state.structures, h, host.realm.side),
       rules: rulesOf(custom?.traits ?? [], host.realm.seed),
-      garrisoned: garrisonSoldiersOf(host, state.hamlets.indexOf(h)),
+      soldierLimit: () => hamletSoldierLimit(host as unknown as Sim, h),
       workforce: { ...counted.work, childLabour: childMayWork(custom?.traits ?? []) },
     };
     const parcelsBefore = custom && customHas(custom, 'outwardGrowth') ? new Set(h.parcels) : null;

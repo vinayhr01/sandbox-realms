@@ -601,8 +601,11 @@ export type Event =
   | { kind: Ev.WorldgenProgress; reply: number; stage: number; name: string; progress: number; attempt: number; resumed: boolean }
   | { kind: Ev.Frame; rows: FrameRows | null; stats: FrameStats }
   | { kind: Ev.QueryResult; reply: number; tileX: number; tileY: number; elevation: number; ground: string; inBounds: boolean }
-  /** `sys` names the part of the sim that faulted (for example 'pump' or 'command'), when the worker knows it. */
-  | { kind: Ev.Fault; severity: 'warn' | 'error' | 'fatal'; code: string; detail: string; sys?: string }
+  /**
+   * `sys` names the part of the sim that faulted (for example 'pump' or 'command'), when the worker knows it. `sysOff` is true
+   * while that part is switched off (17 section 9, system isolation). Additive; PROTOCOL_VERSION unchanged.
+   */
+  | { kind: Ev.Fault; severity: 'warn' | 'error' | 'fatal'; code: string; detail: string; sys?: string; sysOff?: boolean }
   /** Reply to Cmd.Ping. Not a request reply: no seq is waited on. */
   | { kind: Ev.Pong; reply: number }
   | { kind: Ev.Snapshot; snap: Snapshot }

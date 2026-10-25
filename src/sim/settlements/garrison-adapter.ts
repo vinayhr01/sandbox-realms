@@ -45,14 +45,6 @@ export function hamletHasGarrison(hamlet: Hamlet): boolean {
   return hamlet.buildings.some((b) => b.def.id === 'garrison');
 }
 
-/**
- * Soldiers the garrison ledger holds for one hamlet (by hamlet index), read only; 0 when the hamlet has no record. The
- * soldier job (jobs.ts) reads this count and draws nothing, so each soldier is counted once, in the dominion draw.
- */
-export function garrisonSoldiersOf(host: object, hamlet: number): number {
-  return states.get(host)?.records.get(hamlet)?.soldiers ?? 0;
-}
-
 /** Soldiers a dominion has stationed in this host's garrisons (the records whose dominion is it). Read only; 0 before the first pass. */
 export function garrisonedSoldiers(host: object, dominionId: number): number {
   let n = 0;
@@ -110,6 +102,16 @@ function leaderWarfare(sim: Sim, hamlet: Hamlet): number {
   if (slot < 0 || s.alive[slot] !== 1) return LEADER_WARFARE;
   // Attributes are stored four per slot in the order rapport, valor, husbandry, wit (beings/store.ts); valor is index 1.
   return s.attrs[slot * 4 + 1] ?? LEADER_WARFARE;
+}
+
+/**
+ * Soldier slots of a hamlet now (09 section 8 quota step 7, 10 section 8): soldierSlots over the folk adults, the leader's
+ * warfare and the building bonuses, and 0 without the `standing_armies` rule. The soldier line of the job round (jobs.ts
+ * assignJobs, through hamlet.ts) and the garrison pass both read this, so the round and the ledger agree. Reads only; no rng.
+ */
+export function hamletSoldierLimit(sim: Sim, hamlet: Hamlet): number {
+  if (!sim.rules.isOn('standing_armies')) return 0;
+  return soldierSlots(adultsIn(sim, hamlet), leaderWarfare(sim, hamlet), LEADER_ARMY_BONUS, buildingSlotBonus(hamlet.buildings.map((b) => b.def.id)));
 }
 
 /**
@@ -193,9 +195,7 @@ export function garrisonStep(
     // Soldier limit (09 section 8 gate): `soldiersNow > soldierSlots` releases the surplus to the dominion, then the timer
     // is set to 600 (not halved). Slots are 0 without the `standing_armies` rule (10 section 8).
     // The leader's warfare (leaderWarfare) and the building slot bonus (watchspire, bastion) both add to the slots.
-    const slots = sim.rules.isOn('standing_armies')
-      ? soldierSlots(adultsIn(sim, hamlet), leaderWarfare(sim, hamlet), LEADER_ARMY_BONUS, buildingSlotBonus(hamlet.buildings.map((b) => b.def.id)))
-      : 0;
+    const slots = hamletSoldierLimit(sim, hamlet);
     if (rec.soldiers > slots) {
       release(sim, rec, rec.soldiers - slots);
       rec.timer = SOLDIER_OVER_LIMIT_TIMER;

@@ -14,7 +14,7 @@ import { setCalendar, setDebug, setStatus, toast } from '../ui/hud.ts';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
 import { currentStep, parseTutorial, skipTutorial, TUTORIAL_TEXT, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
-import { cooldownSecondsLeft, hamletAtTile, linePoints, masterOfViewFlag, nearestMapPoint, nextOptionValue, powerStatus, strokeOp, toggleViewFlag, viewFlagsDefault } from '../ui/powerSupport.ts';
+import { cooldownSecondsLeft, dominionAtTile, hamletAtTile, linePoints, masterOfViewFlag, nearestMapPoint, nextOptionValue, powerStatus, strokeOp, toggleViewFlag, viewFlagsDefault } from '../ui/powerSupport.ts';
 import { HistoryTicker, TickerView } from '../ui/historyTicker.ts';
 import { WorldTip, beingTipLines, tileTipLines } from '../ui/worldTip.ts';
 import { WindowHost } from '../ui/windowHost.ts';
@@ -433,6 +433,9 @@ async function boot(): Promise<void> {
   /** Insight Hamlet Select: armed (the next tap picks a tile) and the hamlet picked (hamletsOf index, or -1). */
   let hamletPending = false;
   let selectedHamlet = -1;
+  /** Ties (Insight select step): waiting for a tap, and the dominion picked (-1 none). Not saved. */
+  let dominionPending = false;
+  let selectedDominion = -1;
   /** Insight view flags (UI only, not saved): arrow kinds, tip kinds and the O07 ticker (src/ui/powerSupport.ts). */
   const viewFlags = viewFlagsDefault();
   /** O07 history feed, in memory and rebuilt from snapshots; its strip on the map; the cursor tooltip. */
@@ -617,6 +620,8 @@ async function boot(): Promise<void> {
     followId = null;
     hamletPending = false;
     selectedHamlet = -1;
+    dominionPending = false;
+    selectedDominion = -1;
     historyFeed.clear();
     $('realm-name').textContent = `Realm ${seed.toString(36).toUpperCase().slice(-6)}`;
   };
@@ -710,6 +715,22 @@ async function boot(): Promise<void> {
         hamletPending = true;
         setStatus('Tap a tile to select the hamlet that owns it.');
         return;
+      case 'select_dominion': {
+        // Ties: a second press on a selected row clears it. Otherwise the next tap picks the dominion owning that tile,
+        // and the map shows the dominion layer (borders), as 12 section 8.8 says.
+        setArmed(null);
+        if (selectedDominion >= 0) {
+          selectedDominion = -1;
+          dominionPending = false;
+          setStatus('Ties: cleared.');
+          updatePowerButtons();
+          return;
+        }
+        dominionPending = true;
+        setStatus('Tap a tile to select the dominion that owns it.');
+        updatePowerButtons();
+        return;
+      }
       case 'layer_toggle': {
         // One layer at a time. Tapping a layer that is off shows it as borders; tapping it again steps
         // being, then parent, then off.
@@ -773,6 +794,8 @@ async function boot(): Promise<void> {
             ? boolOption(options, String(power.params['option']))
             : power.handler === 'toggle_view'
               ? viewFlags.has(String(power.params['key']))
+            : power.handler === 'select_dominion'
+              ? selectedDominion >= 0
             : power.handler === 'layer_toggle'
               ? stringOption(options, 'map.layer') === String(power.params['layer'])
               : state.armed?.id === power.id;
@@ -1138,6 +1161,21 @@ async function boot(): Promise<void> {
         usePowerAt(state.armed, t.x, t.y);
         return;
       }
+      if (dominionPending) {
+        dominionPending = false;
+        const dom = dominionAtTile(simView.current?.mapTiles, t.x, t.y);
+        if (dom < 0) {
+          setStatus('No dominion owns that tile.');
+        } else {
+          selectedDominion = dom;
+          // The dominion layer shows the borders the relations are drawn over (12 section 8.8, "map switches to dominion layer").
+          changeOption('map.layer', 'L01');
+          changeOption('map.layerMode', 'borders');
+          setStatus(`Dominion ${dom + 1} selected: its relations are drawn. Press Ties again to clear.`);
+        }
+        updatePowerButtons();
+        return;
+      }
       if (hamletPending) {
         hamletPending = false;
         const idx = hamletAtTile(simView.current?.mapTiles, t.x, t.y);
@@ -1224,7 +1262,7 @@ async function boot(): Promise<void> {
         } else {
           // Non-fatal worker faults get a crash record too (19 section 2 js_worker; section 1, principle 3).
           // A warning is not a crash, so it only goes to the log ring (recordCrash logs the errors it records).
-          if (event.severity === 'error') void recordCrash({ kind: 'js_worker', ctx: 'worker', message: event.detail, sys: event.sys, recovery: [] });
+          if (event.severity === 'error') void recordCrash({ kind: 'js_worker', ctx: 'worker', message: event.detail, sys: event.sys, sysOff: event.sysOff, recovery: [] });
           else logLine('warn', `${event.code}: ${event.detail}`);
           notify(event.detail, CUE.error);
         }
@@ -1391,6 +1429,7 @@ async function boot(): Promise<void> {
       followPending = false;
       followId = null;
       hamletPending = false;
+      dominionPending = false;
       setArmed(null);
     }
   });
@@ -1512,7 +1551,7 @@ async function boot(): Promise<void> {
           arrows: boolOption(options, 'ui.cursorArrows') && canHover ? new Set([...viewFlags].filter((k) => k.startsWith('arrow.'))) : new Set<string>(),
           hoverId: hoverPoint?.id ?? -1,
           moneyFlow: boolOption(options, 'ui.moneyFlow'),
-          ties: viewFlags.has('ties'),
+          selectedDominion,
           accord: viewFlags.has('accord'),
         },
         { offX: cam.offX, offY: cam.offY, zoom: cam.zoom },

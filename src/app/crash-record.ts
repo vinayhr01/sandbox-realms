@@ -80,7 +80,7 @@ export interface CrashRecord {
   logs: string[];
   /** Frame and sim timings near the fault. Absent before anything was sampled. */
   perf?: PerfSummary;
-  /** The simulation part that faulted. `disabled` stays false until system isolation (17 section 9) exists. */
+  /** The simulation part that faulted. `disabled` is true while the worker has the part switched off (17 section 9). */
   sys?: { id: string; errorCount: number; disabled: boolean };
   /** The steps taken, in order: the emergency save result, then the ladder step (19 section 5, section 7). */
   recovery: string[];
@@ -95,6 +95,8 @@ export interface CrashInput {
   recovery: string[];
   /** The simulation part that faulted, when the fault names one (for example 'pump'). */
   sys?: string | undefined;
+  /** True when the worker has that part switched off after this fault (Fault.sysOff; 17 section 9). */
+  sysOff?: boolean | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -268,7 +270,7 @@ export function buildRecord(input: CrashInput, nowMs: number = Date.now()): Cras
   let logs: string[] = recentLogLines(CRASH_LOG_LINES).map((line) => scrubText(line, 320));
   let kept = frames;
   const perf = perfSummary();
-  const sys = input.sys === undefined ? undefined : { id: scrubText(input.sys, 40), errorCount: noteSysFault(input.sys, nowMs), disabled: false };
+  const sys = input.sys === undefined ? undefined : { id: scrubText(input.sys, 40), errorCount: noteSysFault(input.sys, nowMs), disabled: input.sysOff === true };
   const make = (): CrashRecord => ({
     id: randomId(),
     fp: fingerprint(input.kind, msg, kept),

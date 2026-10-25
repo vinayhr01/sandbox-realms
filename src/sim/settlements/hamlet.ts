@@ -93,8 +93,8 @@ export interface HamletContext {
   desires?: readonly string[];
   /** Custom building rules (custom-rules.ts), derived each second from the hamlet's custom, never saved. Absent: the base rules. */
   rules?: CustomRules;
-  /** Soldiers the garrison ledger holds for this hamlet (garrison-adapter.ts), read each second, never saved. */
-  garrisoned?: number;
+  /** Soldier slots the garrison rule allows (garrison-adapter.ts hamletSoldierLimit), read when the round is built, never saved. */
+  soldierLimit?: () => number;
   /** Adults, children, ruler and child-labour rule of the hamlet's folk (adapter census), read each second, never saved. Absent: all folk are adults. */
   workforce?: Workforce;
 }
@@ -768,7 +768,7 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
     tillWork: targets.tilled.length + targets.farmSpots.length + targets.ripe.length,
     ruins: targets.ruins.length,
     manure: targets.manure.length,
-    soldiers: ctx.garrisoned ?? 0,
+    soldierLimit: ctx.soldierLimit?.() ?? 0,
   };
   const work = ctx.workforce ?? { adults: h.folk, children: 0, leaders: 0, childLabour: false };
   runJobs(ctx, h, assignJobs(h, counts, work), workMultiplier(hamletMood(h)), cap, targets);

@@ -119,6 +119,8 @@ export function joinPactOk(env: IntrigueEnv, d: number, pactId: number): boolean
 export function dissolvePactOk(env: IntrigueEnv, d: number, pactId: number): boolean {
   const p = env.pacts.pacts.find((x) => x.id === pactId);
   if (!p || !dom(env, d)) return false;
+  // A forced pact (god tool, forcePact) is immune to this intrigue (10 section 12).
+  if (p.kind === 'forced') return false;
   if (!p.memberIds.includes(d) || p.founders.includes(d)) return false;
   if (!free(env, d)) return false;
   if (env.tick - p.formedTick < DISSOLVE_PACT_AGE_TICKS) return false;

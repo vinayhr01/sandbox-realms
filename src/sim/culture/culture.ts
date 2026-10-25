@@ -4,6 +4,7 @@
  * caller supplies rng, tick and a rule lookup, so this module never imports Sim.
  */
 import type { Rng } from '../../shared/rng.ts';
+import { CUSTOM_RECIPE, FAMILY_RECIPE, generateName, NAME_KIND, nameSeed } from './names.ts';
 
 /** Trait pool a custom draws from (TUNE; flavour names only). */
 export const CUSTOM_TRAITS = ['feasting', 'vigil', 'pilgrimage', 'silence', 'tithe', 'games', 'fasting', 'hymns', 'veiling', 'oaths'] as const;
@@ -11,7 +12,35 @@ export const CUSTOM_TRAITS = ['feasting', 'vigil', 'pilgrimage', 'silence', 'tit
 export interface Custom {
   group: number;
   traits: string[];
+  /** Name from the name generator (names.ts). Optional: customs made before naming have none. */
+  name?: string;
 }
+
+/** Banner indices (11 section 8): background and frame for a family. Indices only; out-of-range is read as 0. */
+export interface BannerRef {
+  background: number;
+  icon: number;
+  frame: number;
+}
+
+/** Banner index range per part (TUNE; the art sets are not in this repo, so only the indices are stored). */
+export const BANNER_PARTS = 8;
+
+/**
+ * A family as the spec defines it (11 section 7): two founders, the members (living Folk ids, capped at FAMILY_MAX),
+ * the origin hamlet, a name and a banner. Families are kept beside the genealogy links (`CultureState.families`).
+ */
+export interface FamilyRecord {
+  id: number;
+  name: string;
+  founders: [number, number];
+  members: number[];
+  originHamletId: number;
+  banner: BannerRef;
+}
+
+/** Most members one family holds (11 section 7, FAMILY_MAX = 8, OPEN, design default). */
+export const FAMILY_MAX = 8;
 
 export interface Creed {
   id: number;
@@ -41,7 +70,10 @@ export interface CultureState {
   creeds: Creed[];
   dialects: Dialect[];
   intrigues: Intrigue[];
+  /** Genealogy links: one per child recorded by addFamily. */
   families: { child: number; parentA: number; parentB: number }[];
+  /** Family records (11 section 7). Optional: absent in saves written before they existed, and while none exist. */
+  familyRecords?: FamilyRecord[];
   nextId: number;
 }
 
@@ -57,9 +89,16 @@ export interface CultureContext {
   isOn(id: string): boolean;
   /** Groups that share a border, as pairs (contact). */
   contacts: readonly (readonly [number, number])[];
+  /** World seed for the name generator (names.ts). Without it, customs and families are unnamed. */
+  worldSeed?: number;
+  /** True while a Being key (generation * MAX_BEINGS + slot) is alive. Without it, family members are never pruned. */
+  alive?(key: number): boolean;
 }
 
-/** Adds a custom to a group; trait count 1-2, or 3-5 when `chaotic_minds` is on (11 section 2). */
+/**
+ * Adds a custom to a group; trait count 1-2, or 3-5 when `chaotic_minds` is on (11 section 2). The name is drawn from
+ * the name generator when the context has a world seed; the draw uses the name's own seed, never the rng.
+ */
 export function addCustom(ctx: CultureContext, state: CultureState, group: number): Custom {
   const count = ctx.isOn('chaotic_minds') ? 3 + ctx.rng.int(3) : 1 + ctx.rng.int(2);
   const traits: string[] = [];
@@ -68,8 +107,63 @@ export function addCustom(ctx: CultureContext, state: CultureState, group: numbe
     if (t !== undefined && !traits.includes(t)) traits.push(t);
   }
   const custom: Custom = { group, traits };
+  if (ctx.worldSeed !== undefined) custom.name = generateName(CUSTOM_RECIPE, nameSeed(ctx.worldSeed, NAME_KIND.custom, state.customs.length + 1, group));
   state.customs.push(custom);
   return custom;
+}
+
+/** Banner of an entity: indices drawn from its name seed, so the same entity always has the same banner. */
+export function bannerFor(seed: number): BannerRef {
+  return { background: seed % BANNER_PARTS, icon: (seed >>> 8) % BANNER_PARTS, frame: (seed >>> 16) % BANNER_PARTS };
+}
+
+/**
+ * Records a child of two parents (11 section 7): a genealogy link, and a family record. A child joins the family its
+ * first parent belongs to while that family has room (FAMILY_MAX); otherwise a new family is founded by the two parents
+ * (only when neither has one). A child already in a family is not added again. Draws no rng: names and banners come
+ * from the name seed. `originHamletId` is -1 when the parents are not in a hamlet. Returns the family the child is in, or null.
+ */
+export function recordFamily(
+  ctx: CultureContext,
+  state: CultureState,
+  child: number,
+  parentA: number,
+  parentB: number,
+  originHamletId: number,
+): FamilyRecord | null {
+  addFamily(state, child, parentA, parentB);
+  const records = state.familyRecords ?? [];
+  if (records.some((f) => f.members.includes(child))) return null;
+  let family = records.find((f) => f.members.includes(parentA) && f.members.length < FAMILY_MAX);
+  if (!family) {
+    if (records.some((f) => f.members.includes(parentA) || f.members.includes(parentB))) return null;
+    const id = state.nextId++;
+    const seed = nameSeed(ctx.worldSeed ?? 0, NAME_KIND.family, id, parentA + parentB);
+    family = {
+      id,
+      name: generateName(FAMILY_RECIPE, seed),
+      founders: [parentA, parentB],
+      members: [parentA, parentB],
+      originHamletId,
+      banner: bannerFor(seed),
+    };
+    records.push(family);
+    state.familyRecords = records;
+  }
+  if (family.members.length >= FAMILY_MAX) return null;
+  family.members.push(child);
+  return family;
+}
+
+/**
+ * Drops dead members and dissolves families with one member or none (11 section 7). Runs inside the culture step, so
+ * it draws no rng. Without `ctx.alive` nothing is pruned.
+ */
+function pruneFamilies(ctx: CultureContext, state: CultureState): void {
+  const records = state.familyRecords;
+  if (!records || !ctx.alive) return;
+  for (const f of records) f.members = f.members.filter((m) => ctx.alive?.(m) ?? true);
+  state.familyRecords = records.filter((f) => f.members.length > 1);
 }
 
 /** Starts an intrigue unless `rituals` is off; rebellions also need `uprisings` on. */
@@ -128,4 +222,5 @@ export function cultureStep(ctx: CultureContext, state: CultureState): void {
   spreadCreeds(ctx, state);
   driftDialects(ctx, state);
   advanceIntrigues(ctx, state);
+  pruneFamilies(ctx, state);
 }

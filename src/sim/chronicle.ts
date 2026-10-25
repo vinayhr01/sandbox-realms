@@ -547,6 +547,27 @@ function checkCulture(raw: unknown): CulturePayload {
   const listsOk = [raw.customs, raw.creeds, raw.dialects, raw.intrigues, raw.families].every(Array.isArray);
   const creedsOk = Array.isArray(creeds) && creeds.every((c) => isRecord(c) && isFiniteNumber(c.id) && Array.isArray(c.holders) && c.holders.every(isFiniteNumber));
   if (!listsOk || !creedsOk) throw new Error('chronicle: culture payload is not valid');
+  // Optional family records (11 section 7): when present, each has an id, two founders, a member list and a banner.
+  if (raw.familyRecords !== undefined) {
+    const records = raw.familyRecords;
+    const recordsOk =
+      Array.isArray(records) &&
+      records.every(
+        (f) =>
+          isRecord(f) &&
+          isFiniteNumber(f.id) &&
+          typeof f.name === 'string' &&
+          Array.isArray(f.founders) &&
+          f.founders.length === 2 &&
+          f.founders.every(isFiniteNumber) &&
+          Array.isArray(f.members) &&
+          f.members.every(isFiniteNumber) &&
+          isFiniteNumber(f.originHamletId) &&
+          isRecord(f.banner) &&
+          [f.banner.background, f.banner.icon, f.banner.frame].every(isFiniteNumber),
+      );
+    if (!recordsOk) throw new Error('chronicle: culture family records are not valid');
+  }
   return raw as unknown as CulturePayload;
 }
 
@@ -559,6 +580,14 @@ function checkDominions(raw: unknown): DominionSnapshot | null {
   // Optional intrigue records (intrigue.ts): when present, the item and cooldown lists must be arrays.
   if (raw.intrigues !== undefined && (!isRecord(raw.intrigues) || !Array.isArray(raw.intrigues.items) || !Array.isArray(raw.intrigues.cooldowns))) {
     throw new Error('chronicle: dominion section intrigues are not valid');
+  }
+  // Optional tax records (dominions/tax.ts): the hamlet gold list is a list of [parcel, gold] pairs, and each dominion's
+  // traits (when present) are a list of strings. restoreDominions checks the values.
+  if (raw.taxSeen !== undefined && (!Array.isArray(raw.taxSeen) || !raw.taxSeen.every((p) => Array.isArray(p) && p.length === 2))) {
+    throw new Error('chronicle: dominion section tax records are not valid');
+  }
+  if (!raw.dominions.every((d) => isRecord(d) && (d.traits === undefined || Array.isArray(d.traits)) && (d.taxRaised === undefined || isFiniteNumber(d.taxRaised)))) {
+    throw new Error('chronicle: dominion section records are not valid');
   }
   return raw as unknown as DominionSnapshot;
 }

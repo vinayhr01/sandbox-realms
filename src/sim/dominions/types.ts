@@ -14,6 +14,10 @@ export interface Dominion {
   target: number;
   /** Tick the current campaign started, or -1. */
   campaignSince: number;
+  /** Dominion traits that set tax rates (tax.ts: highLocal, lowLocal, highTribute, lowTribute). Optional: none by default. */
+  traits?: string[];
+  /** Tax receipts from the ruler's share (tax.ts), cumulative. Optional: 0 until a hamlet pays. */
+  taxRaised?: number;
 }
 
 /** Structural context for dominionStep (no Sim import). */

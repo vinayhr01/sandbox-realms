@@ -3,8 +3,8 @@
  * planRoads when a roadTo building of that hamlet is placed. A road runs from the new building to each of the two
  * nearest other roadTo buildings of the same hamlet on the same island: A* over 4-neighbour open tiles, step cost 1,
  * 0.01 on an existing road, rejected when the path would exceed ROAD_MAX_TILES tiles, stopping on the target's edge or
- * on an existing road. Road tiles become the ground `wayworn` (18c, walk x1.4). The tiles are laid at once: the sim has
- * no roadwright job or queue (DECISIONS.md, "Customs and roads release").
+ * on an existing road. Road tiles become the ground `wayworn` (18c, walk x1.4). The planned tiles are queued on the
+ * hamlet (hamlet.ts `road`), and a roadwright lays them one at a time (09 section 8, DECISIONS.md "Jobs build 3").
  */
 import { G, ground } from '../../content/grounds.ts';
 import type { Realm } from '../realm.ts';
@@ -115,27 +115,30 @@ export function roadPath(realm: Realm, from: Placed, to: Placed, open: (i: numbe
 
 /**
  * Lays the roads of a newly placed roadTo building `b` (09 11.3): joins it to the two nearest other roadTo buildings
- * of `buildings` on its island. Sets each new road tile to `wayworn` and returns how many tiles changed.
- * `open` is evaluated as the roads are laid, so a second road may reuse the first.
+ * of `buildings` on its island. Returns the tiles of those roads, in the order a roadwright lays them, without laying
+ * them: the caller queues them on the hamlet. Tiles that are already road are left out. `open` is checked against the
+ * tiles planned so far, so a second road may reuse the first road's line without repeating its tiles. Draws no rng.
  */
-export function planRoads(realm: Realm, buildings: readonly Placed[], b: Placed, open: (i: number) => boolean): number {
-  if (!ROAD_TO_IDS.has(b.def.id)) return 0;
+export function planRoads(realm: Realm, buildings: readonly Placed[], b: Placed, open: (i: number) => boolean): number[] {
+  if (!ROAD_TO_IDS.has(b.def.id)) return [];
   const side = realm.side;
   const home = realm.region[b.y * side + b.x] ?? 0;
-  if (home === 0) return 0;
+  if (home === 0) return [];
   const dist = (p: Placed): number => Math.abs(p.x - b.x) + Math.abs(p.y - b.y);
   const others = buildings
     .filter((o) => o !== b && ROAD_TO_IDS.has(o.def.id) && (realm.region[o.y * side + o.x] ?? 0) === home)
     .sort((p, q) => dist(p) - dist(q));
-  let laid = 0;
+  const planned: number[] = [];
+  const taken = new Set<number>();
+  const free = (i: number): boolean => !taken.has(i) && open(i);
   for (const target of others.slice(0, 2)) {
-    const path = roadPath(realm, b, target, open);
+    const path = roadPath(realm, b, target, free);
     if (!path) continue;
     for (const i of path) {
-      if (isRoad(realm, i)) continue;
-      realm.setGround(i, G.wayworn);
-      laid++;
+      if (isRoad(realm, i) || taken.has(i)) continue;
+      taken.add(i);
+      planned.push(i);
     }
   }
-  return laid;
+  return planned;
 }

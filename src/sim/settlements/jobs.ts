@@ -5,14 +5,15 @@ import type { Hamlet } from './hamlet.ts';
  * Citizen jobs (09 section 8, reduced). Workers are not saved: each growth step the hamlet's folk fill
  * the job slots of its buildings and of its territory in JOBS order, so a save-and-load run assigns the
  * same workers. Output goes to the hamlet store (food, wood, stone and gold); the territory jobs take
- * their targets from the realm in hamlet.ts.
+ * their targets from the realm in hamlet.ts. The builder and roadwright work the hamlet's site and road
+ * queue, which are saved (hamlet.ts, adapter.ts); the soldier job is posted from the garrison ledger.
  */
 
 /**
  * Every job the hamlet staffs: the building jobs of the catalogue plus the territory jobs (herbalist, prospector,
- * honey gatherer, tiller, cleaner, manure collector).
+ * honey gatherer, tiller, cleaner, manure collector), the construction and road jobs, and the soldier posting.
  */
-export type WorkerJob = JobId | 'herbalist' | 'prospector' | 'honey_gatherer' | 'tiller' | 'cleaner' | 'manure_collector';
+export type WorkerJob = JobId | 'herbalist' | 'prospector' | 'honey_gatherer' | 'tiller' | 'cleaner' | 'manure_collector' | 'builder' | 'roadwright' | 'soldier';
 
 export interface JobDef {
   id: WorkerJob;
@@ -21,10 +22,27 @@ export interface JobDef {
 }
 
 /**
- * Priority order (09 section 8 quota order, reduced): food first (forager, herbalist, honey), then the fields, then
- * stone (miner, prospector), wood, and the upkeep jobs (cleaner, manure collector).
+ * Site progress one builder adds per growth step (09 section 6 buildSpeed 2 x 25 work hits; TUNE). With the default
+ * SITE_PROGRESS of 50, one builder finishes a site in two growth steps and three builders in one.
+ */
+export const BUILD_PER_BUILDER = 25;
+
+/** Builders one site may take at once (09 section 8 builder cap 3). */
+export const SITE_BUILDERS = 3;
+
+/** Roadwrights a hamlet may staff at once (09 section 8 cap 1). */
+export const ROADWRIGHT_CAP = 1;
+
+/** Coins a roadwright earns for each road tile laid (09 section 8 roadwright "1 coin"). */
+export const ROAD_COINS = 1;
+
+/**
+ * Priority order (09 section 8 quota order, reduced): the builder first (09 priority 9), then food (forager, herbalist,
+ * honey), then the fields, then stone (miner, prospector), wood, and the upkeep jobs (cleaner, manure collector), and
+ * last the roadwright. The soldier is not in this list: it is posted from the garrison ledger (assignJobs).
  */
 export const JOBS: readonly JobDef[] = [
+  { id: 'builder', perWorker: BUILD_PER_BUILDER },
   { id: 'forager', perWorker: 2 },
   { id: 'herbalist', perWorker: 2 },
   { id: 'honey_gatherer', perWorker: 1 },
@@ -34,6 +52,7 @@ export const JOBS: readonly JobDef[] = [
   { id: 'woodcutter', perWorker: 3 },
   { id: 'cleaner', perWorker: 1 },
   { id: 'manure_collector', perWorker: 1 },
+  { id: 'roadwright', perWorker: 1 },
 ];
 
 /** A miner pays one coin into the hamlet purse every this many growth steps (09 section 8 "+1 coin"; TUNE). */
@@ -86,6 +105,8 @@ export function foragerCap(food: number): number {
 
 /** Territory targets counted for the job quotas (09 section 8 "up to the number of targets"). */
 export interface JobTargetCounts {
+  /** Soldiers the hamlet's garrison ledger holds (garrison.ts). Posted to the soldier job; they are not drawn from the folk. */
+  soldiers: number;
   /** Herb plants in the hamlet's parcels. */
   herbs: number;
   /** Deposit nodes with a store (DEPOSIT_YIELD) in the hamlet's parcels. */
@@ -102,7 +123,8 @@ export interface JobTargetCounts {
 
 /**
  * Workers per job for the hamlet's current buildings, territory and stock. Folk fill slots in JOBS order and
- * nobody is assigned twice; the rest stay idle (they still eat).
+ * nobody is assigned twice; the rest stay idle (they still eat). The soldier posting comes from the garrison
+ * ledger and takes no folk, so it is set before the folk are counted.
  */
 export function assignJobs(h: Hamlet, targets: JobTargetCounts): Map<WorkerJob, number> {
   const capacity = new Map<WorkerJob, number>();
@@ -111,6 +133,9 @@ export function assignJobs(h: Hamlet, targets: JobTargetCounts): Map<WorkerJob, 
   }
   const food = foragerCap(h.food);
   const cap: Record<WorkerJob, number> = {
+    builder: h.site ? SITE_BUILDERS : 0,
+    roadwright: h.road.length > 0 ? ROADWRIGHT_CAP : 0,
+    soldier: 0,
     forager: Math.min(capacity.get('forager') ?? 0, food),
     herbalist: Math.min(targets.herbs, food),
     honey_gatherer: Math.min(targets.hives, food),
@@ -122,6 +147,9 @@ export function assignJobs(h: Hamlet, targets: JobTargetCounts): Map<WorkerJob, 
     manure_collector: Math.min(MANURE_CAP, targets.manure),
   };
   const workers = new Map<WorkerJob, number>();
+  // The soldier job reads the garrison ledger (garrison-adapter.ts). Those soldiers were drawn from dominion strength when
+  // they were recruited, so the job draws nothing more and takes no folk slot.
+  if (targets.soldiers > 0) workers.set('soldier', targets.soldiers);
   let left = h.folk;
   for (const job of JOBS) {
     const n = Math.min(cap[job.id], left);

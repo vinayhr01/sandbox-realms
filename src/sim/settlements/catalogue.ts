@@ -3,7 +3,8 @@
  * (house, well, storehouse, workshop) that saves may still hold. Costs are in stockpile units; the
  * spec's iron cost is cut (the hamlet holds no iron, as garrison already did), its gold is kept.
  * Footprints are in tiles: `footprint` is the width (x), `height` the depth (y), absent meaning square.
- * Numbers are TUNE. Construction is instant in this sim, so 18c progress times are not used.
+ * Numbers are TUNE. Construction takes a site and builder progress (hamlet.ts SITE_PROGRESS, one value for every def),
+ * so the 18c progress times are not used.
  *
  * Cut from the 09 catalogue (not in this table; reasons in DECISIONS.md "Settlements round 4"):
  * springwell, drill_post, watchspire, shrine, archive, mill_a, mill_b,

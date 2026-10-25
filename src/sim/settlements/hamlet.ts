@@ -14,12 +14,14 @@ import {
   HONEY_FOOD,
   JOBS,
   MINER_COIN_STEPS,
+  ROAD_COINS,
   workMultiplier,
   type JobTargetCounts,
   type WorkerJob,
 } from './jobs.ts';
 import { FLORA, floraCode, cropRipe, fertiliseCrop, harvestCrop, hiveReady, makeRuin, pickManure, plantCrop, takeHoney, till, tillable } from '../flora.ts';
 import { BASE_RULES, centreOf, housesMax, lotOk, narrow, zoneOk, ZONE_HOUSING, ZONE_PARCELS, type CustomRules } from './custom-rules.ts';
+import { roadTerrainOpen } from './roads.ts';
 
 /** Parcels are 8x8 tiles (01 section 2). Defined once in shared constants; re-exported here for existing importers. */
 export { PARCEL };
@@ -48,9 +50,23 @@ export interface Hamlet {
   gold: number;
   /** Hamlet iron: the store a transport boat (10 section 13: iron 2) is paid from. No income is built yet, so it starts at 0. */
   iron: number;
+  /** The building under construction (09 section 6): paid for when placed, finished when its progress reaches SITE_PROGRESS. */
+  site?: BuildSite;
+  /** Road tiles queued for the roadwright, in the order they are laid (09 section 11.3). Saved in the hamlet snapshot. */
+  road: number[];
 }
 
-/** Coins a completing builder earns (09 section 8). The sim has no builder beings, so the coins go to the hamlet gold (TUNE). */
+/** A building under construction: its def and origin, and the builder progress so far (09 section 6 progressNeeded). */
+export interface BuildSite {
+  def: BuildingDef;
+  x: number;
+  y: number;
+  progress: number;
+}
+
+/** Progress a site needs before it is finished (09 section 6 default 50; TUNE: one value for every def). */
+export const SITE_PROGRESS = 50;
+/** Coins a builder earns when a site finishes (09 section 8). The sim has no builder beings, so the coins go to the hamlet gold (TUNE). */
 export const BUILDER_COINS = 6;
 /** Garrison build gates (09 section 6 order: pop 50, bldg 16, parcels 20). */
 export const GARRISON_FOLK = 50;
@@ -70,6 +86,8 @@ export interface HamletContext {
   desires?: readonly string[];
   /** Custom building rules (custom-rules.ts), derived each second from the hamlet's custom, never saved. Absent: the base rules. */
   rules?: CustomRules;
+  /** Soldiers the garrison ledger holds for this hamlet (garrison-adapter.ts), read each second, never saved. */
+  garrisoned?: number;
 }
 
 /** Folk at which a hamlet is a town (09 section 2 size tier, TOWN_POP; TUNE). A label: build orders gate on pop directly. */
@@ -86,14 +104,18 @@ export function tierOf(h: Hamlet): 'hamlet' | 'town' {
  */
 export function civilTiles(hamlets: readonly Hamlet[], side: number): Set<number> {
   const tiles = new Set<number>();
-  for (const h of hamlets) {
-    for (const b of h.buildings) {
-      const depth = heightOf(b.def);
-      for (let dy = 0; dy < depth; dy++) {
-        for (let dx = 0; dx < b.def.footprint; dx++) tiles.add((b.y + dy) * side + b.x + dx);
-      }
-    }
-  }
+  for (const h of hamlets) for (const t of hamletTiles(h, side)) tiles.add(t);
+  return tiles;
+}
+
+/** Tile indices covered by a hamlet's finished buildings and by its site, if it has one. Derived; nothing is stored. */
+export function hamletTiles(h: Hamlet, side: number): Set<number> {
+  const tiles = new Set<number>();
+  const add = (def: BuildingDef, x: number, y: number): void => {
+    for (let dy = 0; dy < heightOf(def); dy++) for (let dx = 0; dx < def.footprint; dx++) tiles.add((y + dy) * side + x + dx);
+  };
+  for (const b of h.buildings) add(b.def, b.x, b.y);
+  if (h.site) add(h.site.def, h.site.x, h.site.y);
   return tiles;
 }
 
@@ -146,7 +168,7 @@ const MOOD_BUILDING_CAP = 30;
 
 export function createHamlet(parcelIndex: number, folk: number): Hamlet {
   // Gold starts at 0: the spec gives no starting gold for a hamlet (10.1 lists deposits, tax, trade and loot only).
-  return { parcels: new Set([parcelIndex]), food: BASE_FOOD_STORE, wood: 60, stone: 30, folk, buildings: [], growTimer: 0, outcrops: OUTCROP_START, steps: 0, gold: 0, iron: 0 };
+  return { parcels: new Set([parcelIndex]), food: BASE_FOOD_STORE, wood: 60, stone: 30, folk, buildings: [], growTimer: 0, outcrops: OUTCROP_START, steps: 0, gold: 0, iron: 0, road: [] };
 }
 
 /** Food capacity of the store: the base store plus the capacity each granary adds. */
@@ -167,14 +189,16 @@ export function buildable(ctx: HamletContext, x: number, y: number, h: Hamlet): 
   const kind = ground(ctx.realm.ground[i] ?? 0);
   if (kind.layer !== 'land' || kind.damages > 0) return false;
   if ((ctx.realm.flora[i] ?? 0) !== 0) return false;
-  // Road tiles (roads.ts sets them to wayworn) stay open for roads, not buildings.
-  if (ctx.realm.ground[i] === G.wayworn) return false;
+  // Road tiles (roads.ts sets them to wayworn) stay open for roads, not buildings. Queued road tiles are kept free too.
+  if (ctx.realm.ground[i] === G.wayworn || h.road.includes(i)) return false;
   const p = Math.floor(y / PARCEL) * (side / PARCEL) + Math.floor(x / PARCEL);
   if (!h.parcels.has(p)) return false;
   for (const b of h.buildings) {
     if (x >= b.x && y >= b.y && x < b.x + b.def.footprint && y < b.y + heightOf(b.def)) return false;
     if (x === b.x && y === b.y) return false;
   }
+  const s = h.site;
+  if (s && x >= s.x && y >= s.y && x < s.x + s.def.footprint && y < s.y + heightOf(s.def)) return false;
   return true;
 }
 
@@ -183,8 +207,11 @@ export function buildable(ctx: HamletContext, x: number, y: number, h: Hamlet): 
  * a candidate. A lot rule (custom-rules.ts) and a zone plan (once the hamlet is large enough) narrow the candidates when
  * any of them passes. Then the first candidate is taken (scatteredBuild), or else the candidate nearest the hamlet centre.
  * A wobble lot draws one roll from the settlements stream, whether or not a tile is found.
+ * The cost is paid now and the building becomes the hamlet's site (09 section 6 step 5): builders finish it over the
+ * following steps. A hamlet holds one site at a time, so a call with a site open places nothing.
  */
 export function placeBuilding(ctx: HamletContext, h: Hamlet, def: BuildingDef): boolean {
+  if (h.site) return false;
   if (h.wood < def.wood || h.stone < def.stone || h.gold < (def.gold ?? 0)) return false;
   const rules = ctx.rules ?? BASE_RULES;
   const side = ctx.realm.side;
@@ -233,8 +260,20 @@ export function placeBuilding(ctx: HamletContext, h: Hamlet, def: BuildingDef): 
   h.wood -= def.wood;
   h.stone -= def.stone;
   h.gold -= def.gold ?? 0;
-  h.buildings.push({ def, x: pick.x, y: pick.y });
+  h.site = { def, x: pick.x, y: pick.y, progress: 0 };
   return true;
+}
+
+/**
+ * Finishes the site once its progress reaches SITE_PROGRESS: the building joins the hamlet and its builders' coins are
+ * paid. Draws no randomness.
+ */
+function finishSite(h: Hamlet): void {
+  const s = h.site;
+  if (!s || s.progress < SITE_PROGRESS) return;
+  h.buildings.push({ def: s.def, x: s.x, y: s.y });
+  delete h.site;
+  h.gold += BUILDER_COINS;
 }
 
 /** Extends the territory by one parcel next to an owned one, if the parcel is mostly land. */
@@ -409,12 +448,7 @@ export function jobTargets(ctx: HamletContext, h: Hamlet): JobTargets {
   const herbCode = floraCode('herb');
   const targets: JobTargets = { herbs: [], deposits: [], tilled: [], farmSpots: [], ripe: [], unripe: [], hives: [], ruins: [], manure: [] };
   // Tiles under a building are not open ground for a field.
-  const occupied = new Set<number>();
-  for (const b of h.buildings) {
-    for (let dy = 0; dy < heightOf(b.def); dy++) {
-      for (let dx = 0; dx < b.def.footprint; dx++) occupied.add((b.y + dy) * side + b.x + dx);
-    }
-  }
+  const occupied = hamletTiles(h, side);
   let fields = 0;
   for (const p of [...h.parcels].sort((a, b) => a - b)) {
     const x0 = (p % perAxis) * PARCEL;
@@ -523,6 +557,20 @@ function runJobs(ctx: HamletContext, h: Hamlet, workers: ReadonlyMap<WorkerJob, 
         const crop = targets.unripe.shift();
         if (crop !== undefined && fertiliseCrop(ctx.realm, ctx.tick, crop)) h.gold += FIELD_COINS;
       }
+    } else if (job.id === 'builder') {
+      // Builders add their work to the site and finish it when the progress is reached (09 section 6 construction).
+      if (h.site) h.site.progress += amount;
+      finishSite(h);
+    } else if (job.id === 'roadwright') {
+      // One queued road tile per roadwright unit, in queue order (09 section 11.3). A tile that is no longer open ground
+      // (flora or damaging ground grew there since it was queued) is dropped without a coin.
+      for (let k = 0; k < amount; k++) {
+        const tile = h.road.shift();
+        if (tile === undefined) break;
+        if (!roadTerrainOpen(ctx.realm, tile)) continue;
+        ctx.realm.setGround(tile, G.wayworn);
+        h.gold += ROAD_COINS;
+      }
     } else if (job.id === 'forager') {
       feed(amount);
     } else if (job.id === 'woodcutter') {
@@ -563,12 +611,14 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
   if (h.food < h.folk) h.folk = Math.max(1, h.folk - 1);
   const housing = housingSlots(h);
   if (ctx.isOn('folk_births') && h.food > h.folk * 2 && h.folk < housing && h.folk < 100) h.folk += 1;
-  // One building per step. Territory grows only after a building is actually placed; the builder's coins follow the placement.
-  for (const def of buildChoices(h, ctx.desires ?? [], ctx.rules ?? BASE_RULES)) {
-    if (placeBuilding(ctx, h, def)) {
-      h.gold += BUILDER_COINS;
-      expandTerritory(ctx, h);
-      break;
+  // One site at a time (09 section 6 step 2): a new building is placed only when no site is open. Territory grows only after
+  // a building is actually placed; the site is finished by builders in the jobs below (its coins follow the finish).
+  if (!h.site) {
+    for (const def of buildChoices(h, ctx.desires ?? [], ctx.rules ?? BASE_RULES)) {
+      if (placeBuilding(ctx, h, def)) {
+        expandTerritory(ctx, h);
+        break;
+      }
     }
   }
   // Wells yield food per step; granaries only raise the store cap. Yield stops at the cap; stock above it is kept.
@@ -583,6 +633,7 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
     tillWork: targets.tilled.length + targets.farmSpots.length + targets.ripe.length,
     ruins: targets.ruins.length,
     manure: targets.manure.length,
+    soldiers: ctx.garrisoned ?? 0,
   };
   runJobs(ctx, h, assignJobs(h, counts), workMultiplier(hamletMood(h)), cap, targets);
   h.steps += 1;

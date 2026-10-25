@@ -657,6 +657,17 @@ function checkHamlets(raw: unknown): HamletSnapshot | null {
   if (raw === null) return null;
   if (!isRecord(raw) || !Array.isArray(raw.hamlets)) throw new Error('chronicle: hamlet section is not valid');
   const fail = new Error('chronicle: hamlet section is not valid');
+  // Per hamlet (hamlet.ts, jobs build 3): an optional construction site (catalogue id, origin, builder progress) and an
+  // optional road queue (tile indices). Their contents are checked against the tables in restoreHamlets.
+  for (const h of raw.hamlets) {
+    if (!isRecord(h)) throw fail;
+    if (h.site !== undefined) {
+      if (!isRecord(h.site) || typeof h.site.id !== 'string' || !isFiniteNumber(h.site.x) || !isFiniteNumber(h.site.y) || !isFiniteNumber(h.site.progress)) throw fail;
+    }
+    if (h.road !== undefined) {
+      if (!Array.isArray(h.road) || !h.road.every(isFiniteNumber)) throw fail;
+    }
+  }
   if (raw.structures !== undefined) {
     if (!Array.isArray(raw.structures)) throw fail;
     for (const s of raw.structures) {

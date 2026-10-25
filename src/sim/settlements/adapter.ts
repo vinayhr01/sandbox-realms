@@ -5,7 +5,7 @@ import type { BeingStore } from '../beings/store.ts';
 import type { Sim } from '../sim.ts';
 import { dominionState, UNOWNED } from '../dominions/adapter.ts';
 import { FOUND_FOLK } from '../dominions/founding.ts';
-import { buildable, civilTiles, createHamlet, goodFoundingParcel, hamletStep, PARCEL, type Hamlet, type HamletContext, type Placed } from './hamlet.ts';
+import { buildable, civilTiles, createHamlet, goodFoundingParcel, hamletStep, PARCEL, SITE_PROGRESS, type BuildSite, type Hamlet, type HamletContext, type Placed } from './hamlet.ts';
 import { BUILDING_BY_ID } from './catalogue.ts';
 import { bazaarStep, SUPPLY_PERIOD, tradeStep } from './trade.ts';
 import { desiresOf, structureStep, type Structure } from './landmarks.ts';
@@ -17,7 +17,7 @@ import type { MoodEvent } from '../../content/moods.ts';
 import { ground } from '../../content/grounds.ts';
 import { MONTH_TICKS } from '../../shared/constants.ts';
 import { terrainState, type CreepHub } from '../terrain/state.ts';
-import { garrisonStep, garrisonsOf, restoreGarrisons } from './garrison-adapter.ts';
+import { garrisonSoldiersOf, garrisonStep, garrisonsOf, restoreGarrisons } from './garrison-adapter.ts';
 import { rulesOf } from './custom-rules.ts';
 import type { GarrisonRecord, GarrisonSave } from './garrison.ts';
 
@@ -71,8 +71,9 @@ export function structuresOf(host: SettlementHost): Structure[] | null {
 
 /** Plain-data form of one hamlet, JSON-safe; buildings are kept by catalogue id (Chronicle section 16). */
 export interface HamletSnapshot {
-  /** `gold` is absent in saves written before the hamlet purse, and `iron` before the iron store; those load with 0. */
-  hamlets: { parcels: number[]; food: number; wood: number; stone: number; folk: number; buildings: { id: string; x: number; y: number }[]; growTimer: number; outcrops: number; steps: number; gold?: number; iron?: number }[];
+  /** `gold` is absent in saves written before the hamlet purse; those load with 0 gold. */
+  /** `site` (the building under construction, with its builder progress) and `road` (the queued road tiles) are absent when empty or in older saves. */
+  hamlets: { parcels: number[]; food: number; wood: number; stone: number; folk: number; buildings: { id: string; x: number; y: number }[]; growTimer: number; outcrops: number; steps: number; gold?: number; iron?: number; site?: { id: string; x: number; y: number; progress: number }; road?: number[] }[];
   /** Landmarks and beacon pillars (18e 2); absent in saves written before them. */
   structures?: { id: string; tile: number; next: number }[];
   /** Creep hubs (18e 1.1); a dead hub stores nextPulse 0. Absent in saves written before them. */
@@ -101,6 +102,8 @@ export function snapshotHamlets(host: SettlementHost): HamletSnapshot | null {
       steps: h.steps,
       gold: h.gold,
       iron: h.iron,
+      ...(h.site ? { site: { id: h.site.def.id, x: h.site.x, y: h.site.y, progress: h.site.progress } } : {}),
+      ...(h.road.length > 0 ? { road: [...h.road] } : {}),
     })),
     structures: state.structures.map((s) => ({ id: s.id, tile: s.tile, next: s.next })),
     // A dead hub's pulse is Infinity, which JSON cannot hold; it is stored as 0 and restored as Infinity.
@@ -117,6 +120,7 @@ export function restoreHamlets(host: SettlementHost, snap: HamletSnapshot): void
   // Hamlets hold disjoint parcels inside the realm, as placeHamlets guarantees.
   const perAxis = host.realm.side / PARCEL;
   const taken = new Set<number>();
+  const cells = host.realm.side * host.realm.side;
   const hamlets: Hamlet[] = snap.hamlets.map((h) => {
     if (!Array.isArray(h.parcels)) throw new Error('hamlet state: parcels are not valid');
     for (const p of h.parcels) {
@@ -133,9 +137,18 @@ export function restoreHamlets(host: SettlementHost, snap: HamletSnapshot): void
       if (!def || !isNum(b.x) || !isNum(b.y)) throw new Error(`hamlet state: building ${b.id} is not valid`);
       return { def, x: b.x, y: b.y };
     });
-    return { parcels: new Set(h.parcels), food: h.food, wood: h.wood, stone: h.stone, folk: h.folk, buildings, growTimer: h.growTimer, outcrops: h.outcrops, steps: h.steps, gold, iron };
+    // The site and the road queue are optional rows: a site's def must be a catalogue building with progress in [0, SITE_PROGRESS].
+    let site: BuildSite | undefined;
+    if (h.site !== undefined) {
+      const s = h.site;
+      const def = BUILDING_BY_ID.get(s.id);
+      if (!def || !isNum(s.x) || !isNum(s.y) || !isNum(s.progress) || s.progress < 0 || s.progress > SITE_PROGRESS) throw new Error(`hamlet state: site ${s.id} is not valid`);
+      site = { def, x: s.x, y: s.y, progress: s.progress };
+    }
+    const road = h.road ?? [];
+    if (!Array.isArray(road) || !road.every((t) => Number.isInteger(t) && t >= 0 && t < cells)) throw new Error('hamlet state: road queue is not valid');
+    return { parcels: new Set(h.parcels), food: h.food, wood: h.wood, stone: h.stone, folk: h.folk, buildings, growTimer: h.growTimer, outcrops: h.outcrops, steps: h.steps, gold, iron, road, ...(site ? { site } : {}) };
   });
-  const cells = host.realm.side * host.realm.side;
   const structures: Structure[] = (snap.structures ?? []).map((s) => {
     if (typeof s.id !== 'string' || !LANDMARK_BY_ID.has(s.id) || !isNum(s.tile) || !isNum(s.next) || s.tile < 0 || s.tile >= cells) {
       throw new Error('hamlet state: structure is not valid');
@@ -276,6 +289,7 @@ export function settlementsStep(host: SettlementHost): void {
       claimed: (q) => state.hamlets.some((o) => o !== h && o.parcels.has(q)),
       desires: desiresOf(state.structures, h, host.realm.side),
       rules: rulesOf(custom?.traits ?? [], host.realm.seed),
+      garrisoned: garrisonSoldiersOf(host, state.hamlets.indexOf(h)),
     };
     const parcelsBefore = custom && customHas(custom, 'outwardGrowth') ? new Set(h.parcels) : null;
     const buildingsBefore = h.buildings.length;
@@ -358,10 +372,12 @@ function outwardClaim(host: SettlementHost, state: SettlementState, h: Hamlet, b
 }
 
 /**
- * roadworks (11 section 9.1, 09 section 11.3): a roadTo building the hamlet has just placed is joined to its nearest
- * roadTo buildings by road (roads.ts). Roads avoid buildings of every hamlet and parcels other hamlets own.
+ * roadworks (11 section 9.1, 09 section 11.3): a roadTo building the hamlet has just finished is joined to its nearest
+ * roadTo buildings by road (roads.ts). The road is queued on the hamlet for a roadwright, and planned only while the queue
+ * is empty. Roads avoid buildings and sites of every hamlet and parcels other hamlets own.
  */
 function layRoads(host: SettlementHost, state: SettlementState, h: Hamlet): void {
+  if (h.road.length > 0) return;
   const newest = h.buildings[h.buildings.length - 1];
   if (!newest) return;
   const side = host.realm.side;
@@ -372,7 +388,7 @@ function layRoads(host: SettlementHost, state: SettlementState, h: Hamlet): void
     const p = Math.floor(Math.floor(i / side) / PARCEL) * perAxis + Math.floor((i % side) / PARCEL);
     return !state.hamlets.some((o) => o !== h && o.parcels.has(p));
   };
-  planRoads(host.realm, h.buildings, newest, open);
+  h.road.push(...planRoads(host.realm, h.buildings, newest, open));
 }
 
 /**

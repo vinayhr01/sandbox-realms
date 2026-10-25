@@ -1764,3 +1764,25 @@ Scope: the job rules of 09 section 8 (priorities, ruler and leader eligibility, 
 **Determinism.** No new rng draw. The order change alters which tile a tiller or manure collector takes first, so a run with hamlets diverges from earlier runs and from `GOLDEN_HASH`, which is not edited.
 
 **Tests that will need updating (not run).** Any test that checks the old JOBS order or the quota yields will move. `tests/unit/settlements.test.ts` uses `hamletStep` without a workforce and should keep its counts, except where the order change alters which job fills first.
+
+## Customs close 4
+
+Scope: the six custom traits the Customs build 3 left as data (towerPride, childLabour, bookLovers, eagerReaders, rooted, keepers; 11 section 9.1, with the spec rules of 11 sections 2, 4.4 and 5, and the tower rule of 09 and 10). Files: `src/sim/culture/trait-rules.ts` (split preconditions), `src/sim/culture/effects.ts` (talk spread, child flag), `src/content/customs.ts` (rooted text), `src/sim/culture/culture.ts` (one comment). No change to `src/sim/beings/`, `src/sim/chronicle.ts` or `src/sim/settlements/catalogue.ts`. Nothing was run: tests, tsc, vitest, build and Playwright were out of scope. `GOLDEN_HASH` is not edited.
+
+**Closed (live).**
+- `rooted` (11 section 4.4, talk conversion): `talkSpread` (culture/effects.ts) runs at the top of `talkOutcome`, so on every chat (good or bad, as 4.4 states it). Both speakers must be Folk, in different dominions, each with a custom. Six tickets, three per speaker's meta; one `culture` draw picks the winner. The loser's allegiance moves to the winner's dominion group (the record `convertByFight` writes). A loser whose custom holds `rooted` is not converted. Substitutions: the +1 hamlet and dominion ticket matches (hamlet customs are not modelled, the dominion is the meta here) and the creed and dialect spread (not built).
+
+**Closed as pure rules, no caller yet.**
+- `keepers` preconditions: `splitAllowed(SplitFacts)` (trait-rules.ts) holds keepers, members >= 1000, age >= 500 years, leader level >= 5, a multi-hamlet dominion, the dominion's own meta, and a creator that differs from the actor. The same rule covers divide, schism and divergence (11 section 2). Status stays `data`: no divide, schism or divergence decision exists (divide, schism and divergence are intrigues, and there is no intrigue engine for them; a creed or dialect has no tenets or lexicon split state to copy).
+- `childLabour` child flag: `isChild(sim, slot)` reads the Being's age against its adult age (the same test as `adult()`); `mayTakeJob(sim, slot)` is true for adults and for children only under `childLabour`. Status stays `data` until jobs.ts calls `mayTakeJob`. This is for the jobs agent: jobs.ts has no child exclusion today, so the default (children do not work) is not in force yet.
+
+**Remains, and why.**
+- `bookLovers`, `eagerReaders` (read decision, 11 section 5): `readBook` and the pure rules are built. The `read` decision needs a new row in `content/decisions.ts`. The chronicle beings section writes `DECISION_ROWS.length` as a u8 and rejects any other count (`decodeBeings`), so a new row breaks every saved game unless `SCHEMA_VERSION` is bumped (6 to 7). That is a save-format change, and the brief limits chronicle edits to new optional fields, so it is left for a decision. The book lottery (3 tickets reader's meta, 3 book's meta), the readable-book rule (not read in 200 ticks) and the `lastRead` field wait on the same row. Also not built: the `write` decision (the `writeBook` intrigue, ruler, leader or clan, level 10, cost 200, needs book slots in hamlet buildings, which the catalogue cut).
+- `towerPride` (+4 tower limit): `towerLimitBonus` exists. The spec's tower building is `watchspire` (10 section 9, "Towers and defence"), not `beacon_tower`, so the `beacon_tower` row was not added to the catalogue (the brief adds it only for beacon_tower with a spec cost). `watchspire` was cut in settlements round 4, and the spec gives no base tower limit to add the bonus to. Status stays `data`.
+- `keepers`: see above; no caller.
+
+**Determinism.** New draw: one `culture` draw per Folk chat between two Folk of different dominions that both hold customs. Beasts-only runs (the golden run seeds beasts and no Folk, per Customs build 3) are not reached, so `GOLDEN_HASH` should still match, but a run is needed to confirm it.
+
+**Save impact.** None. Conversions write the existing optional `allegiance` record, which is already saved and checked.
+
+**Not verified.** Everything above, including the new TypeScript (no tsc run).

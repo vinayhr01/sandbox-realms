@@ -103,13 +103,16 @@ describe('leaving and dissolving', () => {
 });
 
 describe('renown and power', () => {
-  it('renown goes to the pact the winner belongs to; power is the members strength sum', () => {
+  it('renown goes to the pact the winner belongs to; power is the members power sum (soldiers x 2 + hamlets x 5 + 1)', () => {
     const state = emptyState();
     makePact(state, 2, 3, 0);
     addPactRenown(state, 2, 3);
     addPactRenown(state, 9, 5);
     expect(state.pacts[0]?.renown).toBe(3);
-    expect(pactPower(state.pacts[0]!, [dom(1, 100), dom(2, 20), dom(3, 10)])).toBe(30);
+    // Members 2 and 3 with no hamlet counts: (20 x 2 + 1) + (10 x 2 + 1) = 62.
+    expect(pactPower(state.pacts[0]!, [dom(1, 100), dom(2, 20), dom(3, 10)])).toBe(62);
+    // With hamlet counts: member 2 has 2 hamlets, member 3 has 1: (20 x 2 + 2 x 5 + 1) + (10 x 2 + 1 x 5 + 1) = 51 + 26 = 77.
+    expect(pactPower(state.pacts[0]!, [dom(1, 100), dom(2, 20), dom(3, 10)], new Map([[2, 2], [3, 1]]))).toBe(77);
   });
 });
 

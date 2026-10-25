@@ -5,9 +5,10 @@
  * Mood goes through addMood (beings/social.ts). Draws only from the `culture` stream. Pure rules are in trait-rules.ts.
  * The study traits (xp, levels), the book traits and the fight conversion (convertOrElse, rooted) keep their state in
  * CultureState (culture.ts); their hooks are here too. The keepers guard is splitCustom in culture.ts, and the split
- * preconditions are splitAllowed (trait-rules.ts). Still data: towerPride (no tower building), childLabour (the child flag
- * `mayTakeJob` is here; jobs.ts does not call it yet), bookLovers and eagerReaders (the `read` decision calls readBook,
- * beings close 5), keepers (no divide, schism or divergence decision calls splitCustom).
+ * preconditions are splitAllowed (trait-rules.ts); the split intrigues call both (dominions/intrigue.ts, adapter.ts
+ * splitHooksOf). bookLovers and eagerReaders are applied in readBook (the `read` decision, beings close 5). The child
+ * flag reaches jobs through the settlements workforce (childMayWork). towerPride is read by the watchspire limit
+ * (settlements/custom-rules.ts).
  */
 import type { Sim } from '../sim.ts';
 import { PARCEL, YEAR_TICKS } from '../../shared/constants.ts';

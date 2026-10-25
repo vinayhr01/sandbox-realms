@@ -163,9 +163,12 @@ export const createCultureState = newCulture;
 export type { CultureState };
 
 /** Plain JSON form of the culture state (Sets become arrays). */
+/** A creed as saved: its holders are a list, and the optional split fields (tenets, creator, born) ride along when set. */
+export type CreedSave = Omit<Creed, 'holders'> & { holders: number[] };
+
 export interface CulturePayload {
   customs: CultureState['customs'];
-  creeds: { id: number; holders: number[] }[];
+  creeds: CreedSave[];
   dialects: Dialect[];
   intrigues: Intrigue[];
   families: CultureState['families'];
@@ -181,7 +184,7 @@ export interface CulturePayload {
 export function culturePayload(state: CultureState): CulturePayload {
   return {
     customs: state.customs,
-    creeds: state.creeds.map((c) => ({ id: c.id, holders: [...c.holders] })),
+    creeds: state.creeds.map((c) => ({ ...c, holders: [...c.holders] })),
     dialects: state.dialects,
     intrigues: state.intrigues,
     families: state.families,
@@ -197,7 +200,7 @@ export function culturePayload(state: CultureState): CulturePayload {
 export function cultureFromPayload(p: CulturePayload): CultureState {
   const arrays = [p.customs, p.creeds, p.dialects, p.intrigues, p.families];
   if (!arrays.every(Array.isArray) || typeof p.nextId !== 'number') throw new Error('culture: payload is malformed');
-  const creeds: Creed[] = p.creeds.map((c) => ({ id: c.id, holders: new Set(c.holders) }));
+  const creeds: Creed[] = p.creeds.map((c) => ({ ...c, holders: new Set(c.holders) }));
   return {
     customs: p.customs.map((c) => ({ ...c, traits: catalogueTraits(c.traits) })),
     creeds,

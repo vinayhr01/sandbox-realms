@@ -13,6 +13,7 @@ import {
   SOLDIER_OVER_LIMIT_TIMER,
   SOLDIER_WAGE_GOLD,
   WAGE_PERIOD,
+  buildingSlotBonus,
   soldierSlots,
   soldierTimer,
   type GarrisonRecord,
@@ -191,7 +192,10 @@ export function garrisonStep(
     if (rec.timer > 0) return;
     // Soldier limit (09 section 8 gate): `soldiersNow > soldierSlots` releases the surplus to the dominion, then the timer
     // is set to 600 (not halved). Slots are 0 without the `standing_armies` rule (10 section 8).
-    const slots = sim.rules.isOn('standing_armies') ? soldierSlots(adultsIn(sim, hamlet), leaderWarfare(sim, hamlet), LEADER_ARMY_BONUS) : 0;
+    // The leader's warfare (leaderWarfare) and the building slot bonus (watchspire, bastion) both add to the slots.
+    const slots = sim.rules.isOn('standing_armies')
+      ? soldierSlots(adultsIn(sim, hamlet), leaderWarfare(sim, hamlet), LEADER_ARMY_BONUS, buildingSlotBonus(hamlet.buildings.map((b) => b.def.id)))
+      : 0;
     if (rec.soldiers > slots) {
       release(sim, rec, rec.soldiers - slots);
       rec.timer = SOLDIER_OVER_LIMIT_TIMER;

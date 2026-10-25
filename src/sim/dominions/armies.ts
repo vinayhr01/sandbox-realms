@@ -132,14 +132,22 @@ function nearestEnemyParcel(army: Army, d: Dominion, relations: RelationMatrix, 
  * Attack orders (10 section 8, parcel form). Each sim-second, for every army in id order:
  * - An order is cleared when its parcel is no longer held by an enemy at war, or the army has no soldiers.
  * - A ready army (isReady) with no order is ordered against the nearest parcel of a dominion at war with it.
- * - An ordered army in reach (adjacent or on the parcel) attacks it: the parcel changes hands, the attacker loses
- *   ATTACK_CASUALTY_RATE of its strength, and the army gains renown. The order then clears.
+ * - An ordered army in reach (adjacent or on the parcel) attacks it when the parcel is undefended: the parcel changes
+ *   hands, the attacker loses ATTACK_CASUALTY_RATE of its strength, and the army gains renown. The order then clears.
+ *   A defended parcel (its owner's army is in reach of it) is not taken: the order waits, and the armies in contact
+ *   settle by the strength exchange (step.ts). The attacker then stands next to the parcel it took, which defends it,
+ *   so the old owner cannot take it straight back: two armies in contact do not swap one parcel back and forth.
+ * This step moves parcels, so the adapter runs it only with the `border_creep` flag (09 section 3).
  * `owner` is the owner map of the step (parcel to dominion id; unowned parcels are absent) and is edited in place,
  * as are the dominions' parcel sets. Draws no randomness. Does nothing when perAxis is 0.
  */
 export function attackOrders(armies: readonly Army[], dominions: readonly Dominion[], relations: RelationMatrix, owner: Map<number, number>, perAxis: number): void {
   if (perAxis <= 0) return;
   const byId = new Map(dominions.map((d) => [d.id, d]));
+  // Army positions do not change inside this step, so the positions by dominion are read once.
+  const posByDom = new Map<number, number[]>();
+  for (const a of armies) posByDom.set(a.dominionId, [...(posByDom.get(a.dominionId) ?? []), a.parcel]);
+  const defended = (p: number, holder: number): boolean => (posByDom.get(holder) ?? []).some((q) => inReach(q, p, perAxis));
   for (const army of armies) {
     const d = byId.get(army.dominionId);
     if (!d) {
@@ -153,6 +161,7 @@ export function attackOrders(armies: readonly Army[], dominions: readonly Domini
     if (army.order < 0 && isReady(army)) army.order = nearestEnemyParcel(army, d, relations, owner, perAxis);
     if (army.order < 0 || d.strength <= 0 || !inReach(army.parcel, army.order, perAxis)) continue;
     const target = army.order;
+    if (defended(target, owner.get(target) ?? -1)) continue;
     const from = byId.get(owner.get(target) ?? -1);
     from?.parcels.delete(target);
     owner.set(target, d.id);

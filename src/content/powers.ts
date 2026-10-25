@@ -109,6 +109,33 @@ const LIST_WINDOWS: ReadonlyArray<readonly [string, string, string]> = [
   ['fav_items', 'Favourite items', 'list_fav_items'],
 ];
 
+/** The ten Insight layer toggles L01..L10 (12 section 8.8), as [layer id, label]. Only one layer shows at a time. */
+const LAYER_ROWS: ReadonlyArray<readonly [string, string]> = [
+  ['L01', 'Dominions'],
+  ['L02', 'Hamlets'],
+  ['L03', 'Creeds'],
+  ['L04', 'Customs'],
+  ['L05', 'Dialects'],
+  ['L06', 'Families'],
+  ['L07', 'Clans'],
+  ['L08', 'Strains'],
+  ['L09', 'Pacts'],
+  ['L10', 'Armies'],
+];
+
+/** A layer toggle: `layer_toggle` cycles the layer off, borders, being and parent (src/app/main.ts). */
+const layerToggle = (layer: string, name: string): PowerDef => ({
+  id: `ins_layer_${layer.toLowerCase()}`,
+  tab: 'insight',
+  kind: 'toggle',
+  name,
+  repeatMs: 0,
+  handler: 'layer_toggle',
+  params: { layer },
+  cooldownMs: 0,
+  requires: [],
+});
+
 const CALAMITY_OMENS = [
   'whirlwind',
   'heat_spell',
@@ -317,6 +344,14 @@ export const POWERS: readonly PowerDef[] = [
   ...LIST_WINDOWS.map(([id, name, window]): PowerDef => click(`ins_list_${id}`, 'insight', name, 'open_window', { window })),
   click('ins_knowledge', 'insight', 'Codex', 'open_window', { window: 'list_codex' }),
   click('ins_compare', 'insight', 'Compare Chart', 'open_window', { window: 'win_compare' }),
+  // Built in "Insight build 3" (DECISIONS.md). Select hamlet and the layers and overlays use UI state and
+  // snapshot feeds only. Possess waits on the beings possession command, which is not on main.
+  click('ins_select_hamlet', 'insight', 'Hamlet Select', 'select_hamlet'),
+  click('ins_possess', 'insight', 'Possess', 'possess', { waiting: 'beings-possession-command' }),
+  ...LAYER_ROWS.map(([layer, name]): PowerDef => layerToggle(layer, name)),
+  optionToggle('ins_overlay_happiness', 'Happiness icons', 'ui.happinessIcons'),
+  optionToggle('ins_overlay_tasks', 'Task icons', 'ui.taskIcons'),
+  optionToggle('ins_overlay_army_lines', 'Army lines', 'marks.armyLines'),
 ];
 
 export const POWER_BY_ID = new Map(POWERS.map((p) => [p.id, p]));

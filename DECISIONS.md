@@ -1386,3 +1386,31 @@ Scope: three failing unit tests in the beings and chronicle area. Development on
 
 - Firefox projects are removed from `playwright.config.ts` and from the CI browser matrix. The Playwright Firefox build does not launch on the Windows development machine (side-by-side configuration error), so it could not be tested. The app is tested on Chromium (desktop, tablet, phone and 360x640 and 1920x1080 projects) and WebKit (360x640 and 1920x1080).
 - Firefox support is therefore not verified. Add it back when a machine can launch it.
+
+## Insight build 3
+
+Scope: the Insight rows (12 section 8.8) that the renderer or the UI can express, from the 31 cut in "Window list and insight release": Hamlet Select, the layer toggles L01 to L10, and overlays O03, O04 and O08, plus Possess as a disabled row. Code: `src/content/powers.ts` (rows, `LAYER_ROWS`, `layerToggle`), `src/ui/powerSupport.ts` (`UI_HANDLERS`, `powerStatus`, `parcelOfTile`, `hamletAtTile`), `src/ui/panels/options.ts` (`map.layer`, `map.layerMode`, `marks.armyLines`), `src/app/main.ts` (dispatch, Hamlet Select tap, layer cycle, the insight layer update), `src/render/insight-layers.ts` (new), `src/shared/parcel-codec.ts` (new), `src/shared/protocol.ts` and `src/sim/snapshot.ts` (additive). No sim state, command or save field changed; `src/sim/powers/` gets no file, because every new handler is a UI handler. `GOLDEN_HASH` is not edited.
+
+**Built.**
+- `ins_select_hamlet` (Hamlet Select, handler `select_hamlet`): arms a tap, like Follow. The tapped tile maps to its parcel, then to the hamlet index through `snapshot.mapTiles.hamlet`. The status line gives that hamlet's folk, buildings and parcels from the snapshot's hamlet row, and the hamlet's parcels are outlined. Off the realm, or on a parcel with no hamlet, the status says so. Hamlets carry no id in the sim, so the index is the hamletsOf order, as in the snapshot.
+- `ins_layer_l01` to `ins_layer_l10` (handler `layer_toggle`, params `layer`): one layer at a time, in options `map.layer` (off, L01..L10) and `map.layerMode` (borders, being, parent). Tapping a layer that is off shows it as borders; tapping it again steps being, then parent, then off. The layer rows show as pressed while their layer is on.
+  - L01 dominions, L02 hamlets, L04 customs, L05 dialects, L09 pacts and L10 armies key the parcels by their group (dominion, hamlet index, or the dominion's custom, dialect word, pact or army flag, from `mapTiles`).
+  - L03 creeds, L06 families, L07 clans and L08 strains key each Being by its own record (`mapKinds`: creed, family, clan of its strain, strain).
+  - Modes: borders tints the parcels of a group layer and draws the group edges, and a being layer colours its Beings by their own key. Being colours each Being by its group (group layers) or its own key (being layers). Parent colours parcels and Beings by the dominion that owns the parcel.
+  - Colour is a 12-colour palette keyed by the group or record id (a dialect word is hashed). Tints are drawn over the beings at low alpha.
+- `ins_overlay_happiness` (O03, option `ui.happinessIcons`): an icon above each folk Being whose mood is beyond +40 (green) or -40 (red). Mood is `store.mood` (06 section 4.1).
+- `ins_overlay_tasks` (O04, option `ui.taskIcons`): a small square at each Being with a running decision, coloured by the task id (`store.task`, `DECISION_ROWS`).
+- `ins_overlay_army_lines` (O08, option `marks.armyLines`, new, off by default): a line from each army's tile to the centroid parcel of its campaign target (`mapMarks.armyLines`).
+- `ins_possess` (Possess, handler `possess`): row added and disabled. Its note says it waits on the beings possession command. The command is not on main: `src/` has no possess code, and no commit on any branch matches "possess". Enable it when that command lands by adding `possess` to `UI_HANDLERS` and a `possess` case in `main.ts`, and drop the special case in `powerStatus`.
+
+**Snapshot additions (optional, additive, SNAPSHOT_VERSION unchanged).** `mapTiles` (`size`, `perAxis`, `dominion` and `hamlet` as two base-64 characters per parcel, `groups` with custom index, dialect word, pact id and army flag per dominion). `mapKinds` gains `mood`, `task`, `strain`, `creed`, `family`, `clan`, for each of the 96 sampled Beings. `mapMarks.armyLines`. `buildSnapshot` only reads. `fitSnapshot` drops `mapTiles` first when the message is over SNAPSHOT_MAX_BYTES (32 KB), so on a large realm the layers go dark before any other row is cut. The per-being fields add about 60 bytes each to `mapKinds`. Not measured: the sizes were estimated, not run.
+
+**Cut (Insight rows still out of this build).**
+- O05 money flow: the sim keeps tax per dominion as one total (`taxRaised`), with no flow record per hamlet, so no line can be drawn from it without a sim change.
+- O06 talk bubbles: talks are resolved in `beings/system.ts` and leave only mood events. No per-Being talk record exists to put in the snapshot.
+- O07 history ticker: the sim keeps no event feed; the chronicle is a save encoding only.
+- Not in this brief, still cut: M07 boats (`mapBoats` now exists, so this may be reachable next round), arrows A01 to A07, tips (2), and ties, forecast and accord (3).
+
+**Tests to update (not run, not edited).** `tests/unit/ui-powers.test.ts` checks the handler lists against `SIM_HANDLERS` and `UI_HANDLERS`, so its expected counts move with the new rows (183 to 198 entries in POWERS). `POWERS` is hashed in `src/content/content-hash.ts`, so the content hash changes; `GOLDEN_HASH` is not edited and the golden replay uses no powers, so the sim hash should not move. Check both when the suite runs. Snapshot shape tests, if any compare whole `mapKinds` rows, move too.
+
+**Not verified.** Nothing was run: no tests, tsc, vitest, build or Playwright (instruction). Types were checked by reading against `noUncheckedIndexedAccess` and `strict`. The layer colours, the 40-mood threshold and the snapshot size are first choices, not tuned.

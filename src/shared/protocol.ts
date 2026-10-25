@@ -199,6 +199,8 @@ export interface Snapshot {
   mapIntrigues?: MapIntrigue[];
   /** Boats for the map (src/render/marks.ts): kind and tile. Capped at MAP_BOAT_CAP; optional; dropped first. */
   mapBoats?: MapBoat[];
+  /** Parcel owners and dominion attributes for the Insight layers (src/render/insight-layers.ts). Optional; dropped first over budget. */
+  mapTiles?: MapTiles;
 }
 
 /** Most boats in one snapshot's map feed. */
@@ -238,6 +240,47 @@ export interface MapKind {
   id: number;
   group: MapKindGroup;
   size: MapSizeClass;
+  /** Mood -100..+100 (06 section 4.1). Optional: absent in older snapshots (Insight happiness icons). */
+  mood?: number;
+  /** Id of the running decision task (content/decisions.ts), or '' when none. Optional (Insight task icons). */
+  task?: string;
+  /** Strain id of the Being. Optional (Insight strain layer). */
+  strain?: number;
+  /** Index of the creed (culture list) the Being holds, or -1. Optional (Insight creed layer). */
+  creed?: number;
+  /** Index of the family record the Being belongs to, or -1. Optional (Insight family layer). */
+  family?: number;
+  /** Id of the living clan of the Being's strain, or -1. Optional (Insight clan layer). */
+  clan?: number;
+}
+
+/** Per dominion attributes for the Insight layers (src/render/insight-layers.ts). */
+export interface MapGroup {
+  /** Dominion id. */
+  id: number;
+  /** Index of the dominion's custom in the culture list, or -1. */
+  custom: number;
+  /** Dialect word of the dominion, or '' when it has none. */
+  dialect: string;
+  /** Id of the first pact the dominion belongs to, or -1. */
+  pact: number;
+  /** True when the dominion has an army on a parcel. */
+  army: boolean;
+}
+
+/**
+ * Parcel owners for the Insight layers (13 section 15, 12 section 8.8). `dominion` and `hamlet` hold one code
+ * per parcel in row-major order (`perAxis` x `perAxis`), two characters each, decoded by src/shared/parcel-codec.ts;
+ * the code of "none" decodes to -1. `hamlet` is the hamlet index (hamletsOf order). Optional; dropped first over budget.
+ */
+export interface MapTiles {
+  /** Parcel size in tiles (PARCEL). */
+  size: number;
+  /** Parcels per axis of the realm. */
+  perAxis: number;
+  dominion: string;
+  hamlet: string;
+  groups: MapGroup[];
 }
 
 /** Most buildings in one snapshot's map feed. Keeps the message inside SNAPSHOT_MAX_BYTES. */
@@ -275,6 +318,8 @@ export interface MapMarks {
   battles: { x: number; y: number }[];
   pactLinks: [number, number, number, number][];
   hamlets: { name: string; x: number; y: number }[];
+  /** Army target lines [x1, y1, x2, y2]: an army's tile to its campaign target's centroid parcel. Optional (Insight army lines). */
+  armyLines?: [number, number, number, number][];
 }
 
 /** One clan (src/sim/clans). `chiefAgeYears` is -1 when the clan has no living member. */

@@ -75,6 +75,9 @@ export const SETTINGS: readonly SettingDef[] = [
   C('map.names', 'map', 'Nameplates', ['full', 'banner', 'off'], 'full', true),
   B('map.favouritesOnlyNames', 'map', 'Nameplates for favourites only', false, true),
   B('map.cursorLights', 'map', 'Cursor lights', true),
+  // Insight layer (12 section 8.8, L01..L10): one layer at a time, and how it colours (borders, by being, by parent dominion).
+  C('map.layer', 'map', 'Insight layer', ['off', 'L01', 'L02', 'L03', 'L04', 'L05', 'L06', 'L07', 'L08', 'L09', 'L10'], 'off', true),
+  C('map.layerMode', 'map', 'Insight layer mode', ['borders', 'being', 'parent'], 'borders', true),
   // Marks (the 7 mark toggles, 13 section 15)
   B('marks.favourites', 'marks', 'Mark favourites', true, true),
   B('marks.items', 'marks', 'Mark items', true, true),
@@ -83,6 +86,7 @@ export const SETTINGS: readonly SettingDef[] = [
   B('marks.battles', 'marks', 'Mark battles', true, true),
   B('marks.boats', 'marks', 'Mark boats', true, true),
   B('marks.campaigns', 'marks', 'Mark campaigns', true, true),
+  B('marks.armyLines', 'marks', 'Army target lines', false, true),
   // HUD
   B('ui.minimap', 'hud', 'Minimap', true, true),
   I('ui.minimapSize', 'hud', 'Minimap size (px)', 80, 256, 160, true),

@@ -5,7 +5,8 @@
  * and the device triggers of 04 section 8.4 (devices.ts, polled from the launch step).
  *
  * Owners: the weapons of items.ts (`scatter_shot`, `arc_sphere`, `wail_skull`, `ember_orb`, `rime_orb`, `sap_orb`, `flint_dart`),
- * the thrower skills (`powder_flask`, `pitch_torch`), the Brazier Tower (`blaze_sphere`, brazierStep) and a trading boat's
+ * the thrower skills (`powder_flask`, `pitch_torch`), the Brazier Tower (`blaze_sphere`, brazierStep), the Watchspire
+ * (`flint_dart` bolts, watchspireStep) and a trading boat's
  * cannon (`siege_ball`, boats.ts through Sim.volley). `snow_pellet`, `knuckle_bone`, `hurled_stone`, `frenzy_sphere` and
  * `acid_glob` have no owner in the spec (DECISIONS.md, Combat close 5).
  *
@@ -22,6 +23,7 @@ import type { BombProfile } from '../content/powers.ts';
 import { detonateBomb } from './powers/handlers.ts';
 import { deviceStruck, devicesStep } from './devices.ts';
 import { hamletsOf } from './settlements/adapter.ts';
+import { PATCH_SHIFT } from '../shared/constants.ts';
 import { relation, type Faction } from './beings/hostility.ts';
 
 /** Ticks per second (17: 20 ticks/s); spec speeds are tiles per second. */
@@ -244,7 +246,7 @@ function lobStep(sim: Sim, ctx: CombatContext, slot: number): void {
  */
 const BRAZIER_RANGE = 14;
 const BRAZIER_RELOAD = 120;
-const BRAZIER_FOLK: Faction = { kind: 'folk', id: 0 };
+const FOLK_FACTION: Faction = { kind: 'folk', id: 0 };
 const brazierReload = new WeakMap<object, number>();
 
 /** Nearest living Being hostile to Folk within `range` tiles of (x, y), or -1. */
@@ -258,7 +260,7 @@ function nearestEnemyOf(sim: Sim, x: number, y: number, range: number): number {
     const d = Math.hypot((s.x[slot] ?? 0) - x, (s.y[slot] ?? 0) - y);
     if (d > range || d >= bestD) continue;
     const rt = sim.beings.runtime[s.species[slot] ?? 0];
-    if (!rt || relation(rt.faction, BRAZIER_FOLK, false) !== 'H') continue;
+    if (!rt || relation(rt.faction, FOLK_FACTION, false) !== 'H') continue;
     best = slot;
     bestD = d;
   }
@@ -286,6 +288,92 @@ function brazierStep(sim: Sim): void {
   }
 }
 
+/**
+ * Watchspire (10 section 9, 18c section 4.1 row): five bolts per volley at the attackers in its 3x3 patches, 45 damage each,
+ * reload 3 s. The scan timer is `60 + randomInt(0,60)` ticks (10 section 9), drawn after every scan, so a scan with no target
+ * waits the same time as one that fires (the spec gives no rule for an empty scan). The first scan is at 20 ticks.
+ * Bolts are `flint_dart` (18c section 6 has no bolt kind, and its 16 kinds are an acceptance test). Targets are living Beings
+ * hostile to Folk (07 section 9.4, as the Brazier Tower). Not modelled: buildings as targets (building damage is unsimulated),
+ * and the 10 section 9 immunities for flying, inside and protected Beings (the sim has no such state). The candidate rule
+ * (more than 50 candidates: 40% chance of a random pick; a candidate at squared distance 4 or less wins at once) is the spec's.
+ */
+/** Patch side in tiles (16): the watchspire scans its own patch and the eight around it. */
+const PATCH = 1 << PATCH_SHIFT;
+const WATCH_BOLTS = 5;
+const WATCH_DAMAGE = 45;
+const WATCH_RELOAD = 60;
+const WATCH_SCAN_JITTER = 60;
+const WATCH_FIRST_SCAN = 20;
+const WATCH_RANDOM_OVER = 50;
+const WATCH_RANDOM_CHANCE = 0.4;
+const WATCH_NEAR_SQ = 4;
+const watchTimer = new WeakMap<object, number>();
+
+/** Living Beings hostile to Folk within the 3x3 patches around patch (px, py), in store order. */
+function watchCandidates(sim: Sim, px: number, py: number): number[] {
+  const s = sim.beings.store;
+  const out: number[] = [];
+  for (let k = 0; k < s.size; k++) {
+    const slot = s.at(k);
+    if (s.alive[slot] !== 1) continue;
+    const dpx = Math.floor((s.x[slot] ?? 0) / PATCH) - px;
+    const dpy = Math.floor((s.y[slot] ?? 0) / PATCH) - py;
+    if (Math.abs(dpx) > 1 || Math.abs(dpy) > 1) continue;
+    const rt = sim.beings.runtime[s.species[slot] ?? 0];
+    if (!rt || relation(rt.faction, FOLK_FACTION, false) !== 'H') continue;
+    out.push(slot);
+  }
+  return out;
+}
+
+/** The Being a watchspire at (cx, cy) in patch (px, py) shoots at, or -1 (see the block comment above). */
+function watchTarget(sim: Sim, cx: number, cy: number, px: number, py: number): number {
+  const cand = watchCandidates(sim, px, py);
+  if (cand.length === 0) return -1;
+  const rng = sim.rng('projectiles');
+  if (cand.length > WATCH_RANDOM_OVER && rng.next() < WATCH_RANDOM_CHANCE) return cand[rng.int(cand.length)] ?? -1;
+  const s = sim.beings.store;
+  let best = -1;
+  let bestD = Infinity;
+  for (const slot of cand) {
+    const dx = (s.x[slot] ?? 0) - cx;
+    const dy = (s.y[slot] ?? 0) - cy;
+    const d = dx * dx + dy * dy;
+    if (d <= WATCH_NEAR_SQ) return slot;
+    if (d < bestD) {
+      best = slot;
+      bestD = d;
+    }
+  }
+  return best;
+}
+
+/** One step of every Watchspire in every hamlet: count the scan timer down, then scan and fire a volley at the target. */
+function watchspireStep(sim: Sim): void {
+  for (const h of hamletsOf(sim)) {
+    for (const b of h.buildings) {
+      if (b.def.id !== 'watchspire') continue;
+      const left = watchTimer.get(b) ?? WATCH_FIRST_SCAN;
+      if (left > 0) {
+        watchTimer.set(b, left - 1);
+        continue;
+      }
+      watchTimer.set(b, WATCH_RELOAD + sim.rng('projectiles').int(WATCH_SCAN_JITTER + 1));
+      // Centre of the footprint, in tile units (the origin tile is the top-left one).
+      const cx = b.x + b.def.footprint / 2;
+      const cy = b.y + b.def.footprint / 2;
+      const target = watchTarget(sim, cx, cy, Math.floor(cx / PATCH), Math.floor(cy / PATCH));
+      if (target < 0) continue;
+      const s = sim.beings.store;
+      const tx = s.x[target] ?? 0;
+      const ty = s.y[target] ?? 0;
+      for (let v = 0; v < WATCH_BOLTS; v++) {
+        if (!launchProjectile(sim, 'flint_dart', cx, cy, tx, ty, -1, WATCH_DAMAGE, [])) break;
+      }
+    }
+  }
+}
+
 /** Runs one bomb profile for a device (devices.ts); the guard may refuse it, which returns false. */
 function detonateDevice(sim: Sim, prof: BombProfile, x: number, y: number): boolean {
   return detonateBomb(sim, prof, x, y, false);
@@ -302,6 +390,7 @@ export function shootStep(sim: Sim): void {
   const ctx = sim.combatContext();
   devicesStep(sim, detonateDevice);
   brazierStep(sim);
+  watchspireStep(sim);
   for (let k = 0; k < s.size; k++) {
     if (sim.projectiles.length >= MAX_PROJECTILES) return;
     const slot = s.at(k);

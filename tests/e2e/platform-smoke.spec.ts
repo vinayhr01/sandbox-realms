@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 /**
  * Cross-engine smoke test for PLATFORM-REQUIREMENTS section 6. It runs in every platform project
- * (Chromium and WebKit at 360x640 and 1920x1080; Firefox is not in the matrix). It uses only the DOM that exists today and
+ * (Chromium at 360x640 and 1920x1080; Firefox and WebKit are not in the matrix). It uses only the DOM that exists today and
  * the read-only `window.__sr.tick` hook from main.ts, so it does not depend on any UI still in progress.
  */
 

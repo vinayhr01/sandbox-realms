@@ -29,7 +29,7 @@ npx playwright install chromium
 npm run test:e2e          # Playwright projects in playwright.config.ts (desktop, phone, tablet, 360x640 and 1920x1080 per browser)
 ```
 
-CI (`.github/workflows/ci.yml`) runs typecheck, unit tests, build and budgets in one job, the determinism lint and golden test in their own job, and one Playwright job per browser. The tablet and phone-landscape Playwright projects are defined but not in CI's matrix, so they never run there. Firefox could not launch on the Windows dev machine; WebKit and Chromium have run here. See `docs/release-checklist.md` for the full status.
+CI (`.github/workflows/ci.yml`) runs typecheck, unit tests, build and budgets in one job, the determinism lint and golden test in their own job, and four Chromium Playwright shards. The tablet and phone-landscape Playwright projects are defined but not in CI's matrix, so they never run there. Firefox could not launch on the Windows dev machine. WebKit is not in the test matrix; Chromium is the only browser tested. See `docs/release-checklist.md` for the full status.
 
 ## Layout
 

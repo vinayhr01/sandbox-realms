@@ -4,7 +4,7 @@ Not legal advice. Each item is marked from what the repository contains and from
 
 Browser and device status, in one place:
 
-- **Browsers that ran:** Chromium (desktop smoke, panels and platform specs) and WebKit (platform smoke at 360x640 and 1920x1080, from the last recorded local run).
+- **Browsers that ran:** Chromium (desktop smoke, panels and platform specs). WebKit was removed from the test matrix.
 - **Firefox:** configured in `playwright.config.ts` and in CI (`.github/workflows/ci.yml`), but it could not launch on the Windows dev machine ("side-by-side configuration is incorrect"). It has not run anywhere.
 - **Devices:** no real-device checks have been done (no low Android, no iPhone).
 - **Not run in CI:** the tablet and phone-landscape Playwright projects. They are defined in `playwright.config.ts` but no CI matrix entry lists them, so they never run in CI. This is documented here; CI was not changed. Run them locally with `npx playwright test --project=tablet --project=phone-landscape`. Also not in CI: `npm run bench`, `npm run test:a11y` and `npm run soak`. `vitest.config.ts` includes `tests/unit` only.
@@ -21,11 +21,11 @@ Browser and device status, in one place:
 - [ ] Lawyer review before commercial release. Not done.
 
 ## Platform (PLATFORM-REQUIREMENTS section 6)
-- [x] Playwright projects defined in `playwright.config.ts`: desktop-chromium (1280x720), phone-portrait (390x844, touch), phone-landscape (844x390, touch), tablet (820x1180, touch), and platform projects for Chromium, Firefox and WebKit at 360x640 (touch) and 1920x1080.
+- [x] Playwright projects defined in `playwright.config.ts`: desktop-chromium (1280x720), phone-portrait (390x844, touch), phone-landscape (844x390, touch), tablet (820x1180, touch), and platform project for Chromium at 360x640 (touch) and 1920x1080.
 - [x] Chromium desktop smoke, panels and windows specs (`tests/e2e/`) passed in the last recorded run (desktop-chromium: 10 of 10 across smoke and panels).
-- [x] Platform smoke (`tests/e2e/platform-smoke.spec.ts`: load, sim clock, no horizontal overflow, tap on the map) passed on Chromium and WebKit at 360x640 and 1920x1080 in the last recorded run.
+- [x] Platform smoke (`tests/e2e/platform-smoke.spec.ts`: load, sim clock, no horizontal overflow, tap on the map) passed on Chromium at 360x640 and 1920x1080 in the last recorded run.
 - [ ] Firefox runs. Not done: cannot launch on this Windows machine. CI has the job, not yet run on GitHub.
-- [ ] Full runs on WebKit beyond platform smoke. Not done.
+- [x] WebKit removed from the test matrix (DECISIONS.md, owner decision). Nothing to run.
 - [ ] Tablet and phone-landscape projects run in CI. Not done: the CI matrix does not list them (see the note above; documented, CI unchanged).
 - [x] CI (`.github/workflows/ci.yml`) runs typecheck, determinism lint, build, budgets, unit tests and one Playwright job per browser. Not yet verified on GitHub in this state.
 - [ ] Per-milestone screenshot diffs. Not done: screenshots are written but not compared.

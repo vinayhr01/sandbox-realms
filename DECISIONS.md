@@ -2754,3 +2754,7 @@ Scope: three fixes after the tsc and test failures left by "Capture close 8". Fi
   - `dominions-wiring.test.ts`: the running sim still has a campaign that defeats dominion 2, and the owner counts stay as they were. The bare continent has no hamlets (probed: `hamletsOf` is empty after three years), so no capture can run there. The test asserts no parcel moves by defeat and no capture is in progress. Capture in the running sim needs a settlement fixture, which this test does not build.
 
 **Not verified.** Only the three test files above were run, not the full `npx vitest run` suite. The running-sim test no longer shows a capture; that gap is open.
+
+## WebKit removed (owner decision, close 13)
+
+The owner asked for a Chromium-only build. WebKit projects are removed from `playwright.config.ts`, the platform smoke comment, and the release docs. The Playwright list drops from 280 to 276 tests. The WebKit-specific code paths stay: the `webkitAudioContext` fallback in `src/audio/engine.ts` and the `-webkit-` CSS prefixes are runtime support for Safari users, not test matrix entries. Revisit if a WebKit user reports a problem.

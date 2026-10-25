@@ -41,7 +41,7 @@ Copy this block for each run. Keep the fields; write "n/a" where a field does no
   - Tick cost bench (`npm run bench`): not run
   - Accessibility unit config (`npm run test:a11y`): not run
   - Ecosystem soak (`npm run soak`): not run
-  - Playwright end-to-end, all projects (desktop-chromium, phone-portrait, phone-landscape, tablet, platform Chromium, Firefox, WebKit): not run
+  - Playwright end-to-end, all projects (desktop-chromium, phone-portrait, phone-landscape, tablet, platform Chromium, Firefox, WebKit, removed from matrix): not run
   - Browser QA of the crash record, consent, export, not-responding dialog and credits window (see the "Not yet run" entry below): not run
   - Save and restore in a real browser, IndexedDB backend: not run
   - Installability and offline play (PWA): not run

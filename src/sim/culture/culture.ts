@@ -24,7 +24,17 @@ export interface Book {
   xp: number;
 }
 
-export interface Custom {
+/**
+ * Meta-object provenance (11 section 2 split preconditions). `creator` is the group that founded the meta (for a split,
+ * the group that split it off); `born` is the tick it was made. Both optional: records saved before they existed have
+ * neither, and the split gate then refuses them (no known age, no known creator).
+ */
+export interface MetaBirth {
+  creator?: number;
+  born?: number;
+}
+
+export interface Custom extends MetaBirth {
   group: number;
   /** Custom trait ids from the catalogue (content/customs.ts). Unknown ids are dropped when a save loads. */
   traits: string[];
@@ -58,10 +68,12 @@ export interface FamilyRecord {
 /** Most members one family holds (11 section 7, FAMILY_MAX = 8, OPEN, design default). */
 export const FAMILY_MAX = 8;
 
-export interface Creed {
+export interface Creed extends MetaBirth {
   id: number;
   /** Groups holding this creed. */
   holders: Set<number>;
+  /** Tenet ids copied by a schism (11 section 4.2). Optional: a creed made without tenets has none. The tenet table is not built. */
+  tenets?: string[];
 }
 
 export interface Intrigue {
@@ -75,10 +87,12 @@ export interface Intrigue {
   outcome: 'success' | 'failure' | null;
 }
 
-export interface Dialect {
+export interface Dialect extends MetaBirth {
   group: number;
   /** Lexicon drift counter; groups with equal values speak the same dialect. */
   word: number;
+  /** Lexicon ids copied by a divergence (11 section 6.5 phonology is not built). Optional: a dialect made without one has none. */
+  lexicon?: number[];
 }
 
 export interface CultureState {
@@ -182,7 +196,7 @@ export function addCustom(ctx: CultureContext, state: CultureState, group: numbe
     const def = drawCustomTrait(ctx.rng);
     if (def) addCustomTrait(traits, def.id);
   }
-  const custom: Custom = { group, traits };
+  const custom: Custom = { group, traits, creator: group, born: ctx.tick };
   if (ctx.worldSeed !== undefined) custom.name = generateName(CUSTOM_RECIPE, nameSeed(ctx.worldSeed, NAME_KIND.custom, state.customs.length + 1, group));
   state.customs.push(custom);
   return custom;
@@ -283,16 +297,43 @@ export function bookCount(state: CultureState, group: number): number {
 }
 
 /**
- * Divide or schism of a custom (11 sections 2 and 9.1): a new custom for `newGroup` with the parent's traits copied, no
- * random draw. Refused (null) when the parent has no custom, `newGroup` already has one, or the parent holds `keepers`.
- * The population, age and actor preconditions are splitAllowed (trait-rules.ts), with no caller yet. Not built: the name
- * recipe clone and the sound shift.
+ * Divide of a custom (11 sections 2 and 9.1): a new custom for `newGroup` with the parent's traits copied, no random draw.
+ * The new custom's creator is the parent's group (the group that split it off) and its birth is `tick`. Refused (null)
+ * when the parent has no custom, `newGroup` already has one, or the parent holds `keepers`. The population, age and actor
+ * preconditions are splitAllowed (trait-rules.ts), checked by the intrigue gate. Not built: the name recipe clone, the
+ * sound shift and the conversion of the actor's units.
  */
-export function splitCustom(state: CultureState, parentGroup: number, newGroup: number): Custom | null {
+export function splitCustom(state: CultureState, parentGroup: number, newGroup: number, tick: number): Custom | null {
   const parent = customOfGroup(state, parentGroup);
   if (!parent || blocksSplit(parent.traits) || customOfGroup(state, newGroup)) return null;
-  const child: Custom = { group: newGroup, traits: [...parent.traits] };
+  const child: Custom = { group: newGroup, traits: [...parent.traits], creator: parentGroup, born: tick };
   state.customs.push(child);
+  return child;
+}
+
+/**
+ * Schism of a creed (11 sections 2 and 4.2): a new creed held by `newGroup`, with the parent creed's tenets copied. The new
+ * creed's creator is `splitter` (the group that schisms it off) and its birth is `tick`. The parent's holders are kept.
+ * Refused (null) when the parent creed is not in the state or `newGroup` already holds it. Draws no rng.
+ */
+export function splitCreed(state: CultureState, parentId: number, newGroup: number, splitter: number, tick: number): Creed | null {
+  const parent = state.creeds.find((c) => c.id === parentId);
+  if (!parent || parent.holders.has(newGroup)) return null;
+  const child: Creed = { id: state.nextId++, holders: new Set([newGroup]), tenets: [...(parent.tenets ?? [])], creator: splitter, born: tick };
+  state.creeds.push(child);
+  return child;
+}
+
+/**
+ * Divergence of a dialect (11 sections 2 and 6.5): a new dialect for `newGroup` with the parent's lexicon word and lexicon
+ * copied. The new dialect's creator is the parent's group and its birth is `tick`. Refused (null) when the parent group has
+ * no dialect or `newGroup` already has one. Draws no rng.
+ */
+export function splitDialect(state: CultureState, parentGroup: number, newGroup: number, tick: number): Dialect | null {
+  const parent = state.dialects.find((d) => d.group === parentGroup);
+  if (!parent || state.dialects.some((d) => d.group === newGroup)) return null;
+  const child: Dialect = { group: newGroup, word: parent.word, lexicon: [...(parent.lexicon ?? [])], creator: parentGroup, born: tick };
+  state.dialects.push(child);
   return child;
 }
 

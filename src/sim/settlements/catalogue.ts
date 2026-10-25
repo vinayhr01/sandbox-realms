@@ -8,10 +8,11 @@
  * so the 18c progress times are not used.
  *
  * Cut from the 09 catalogue (not in this table; reasons in DECISIONS.md "Settlements round 4"):
- * springwell, drill_post, watchspire, shrine, archive, mill_a, mill_b,
+ * springwell, drill_post, shrine, archive, mill_a, mill_b,
  * farmstead, smithy, apothecary, palisade, gatehouse, beacon_tower, lecture_stone, pyre, and the
- * 18e extended set except quarry_lodge and brazier_tower (bastion, slipway, arsenal, paddock, sea_lantern,
- * stargazer, hide_works, brewhouse, bake_oven, bee_shed, grove_lodge). The 18c section 4.2 wild, hazard,
+ * 18e extended set except the nine cut here (arsenal, paddock, sea_lantern, stargazer, hide_works, brewhouse, bake_oven,
+ * bee_shed, grove_lodge). Slipway, brazier tower, quarry lodge and bastion have rows; watchspire (18c, the tower of
+ * 10 section 9) and bastion (18e section 3.1) were restored in Dominions close 5. The 18c section 4.2 wild, hazard,
  * resource and wonder objects are map fixtures, not hamlet buildings, and are not in this table.
  */
 import type { BoatKind } from '../boats/types.ts';
@@ -100,6 +101,12 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // Waystop: the 18c rest stop. 09 gives it no build order, so its gates are TUNE (see hamlet.ts).
   { id: 'waystop', name: 'Waystop', role: 'trade', wood: 8, stone: 4, gold: 25, footprint: 3, hp: 300, ...NONE, moodBonus: 10, needs: ['great_hall_1'] },
   { id: 'garrison', name: 'Garrison', role: 'defence', wood: 0, stone: 6, gold: 14, footprint: 3, hp: 600, ...NONE, needs: ['great_hall_2'] },
+  // 18c watchspire (2x2, cost 0/18/1/4, hp 2600; 09 section 6 order: hearth fire and a hall). Its tower limit is in custom-rules.ts.
+  // Its bolts (18c, 10 section 9) are not modelled: no building fires.
+  { id: 'watchspire', name: 'Watchspire', role: 'defence', wood: 0, stone: 18, iron: 1, gold: 4, footprint: 2, hp: 2600, ...NONE, needs: ['hearth_fire', 'great_hall_1'] },
+  // 18e bastion (4x4, cost 0/30/6/60, hp 4000; needs a great hall II and a garrison). +10 army slots (garrison.ts buildingSlotBonus).
+  // Not modelled: its 2 keeper soldiers (no keeper job), the 130 capture threshold (no capture threshold in the sim) and its 30 gear store.
+  { id: 'bastion', name: 'Bastion', role: 'defence', wood: 0, stone: 30, iron: 6, gold: 60, footprint: 4, hp: 4000, ...NONE, needs: ['great_hall_2', 'garrison'] },
   // 18c bazaar (iron 2 cut). Its effect is the supply-side gold conversion in trade.ts (09 10.5 default design).
   { id: 'bazaar', name: 'Bazaar', role: 'trade', wood: 8, stone: 5, gold: 90, footprint: 4, height: 3, hp: 500, ...NONE, needs: [] },
   // 18e section 3.1 quarry_lodge: one extra digger and +25% outcrop yield, beside a quarry (the 6-tile range is not checked).

@@ -25,7 +25,7 @@ outwardGrowth|uncommon||claim also takes free neighbour parcels|live
 crowded|uncommon|spacious,swarm|house limit parcels x2 (09 section 5)|live
 spacious|uncommon|crowded,swarm|house limit parcels x1/3|live
 swarm|uncommon|crowded,spacious|house limit parcels x3|live
-towerPride|uncommon||tower limit +4|data
+towerPride|uncommon||tower limit +4|live
 statuePride|uncommon||statue limit +4|live
 scatteredBuild|rare||buildings placed first-valid, not centre-first|live
 ringPlan|common|crossPlan,lattice2Plan,lattice3Plan,lattice4Plan,checkerPlan,grovePlan|zone rule: dist(zone, centre) mod 2 >= 1|live
@@ -60,7 +60,7 @@ insular|uncommon|welcoming|-50 opinion to other strains; razes conquered towns o
 kinGuard|uncommon||-50 opinion to same-strain dominions of other customs|live
 welcoming|uncommon|insular|+20 opinion to same strain|live
 rooted|rare||cannot be replaced by conversion (fight, talk)|live
-keepers|rare||blocks divide, schism and divergence|data
+keepers|rare||blocks divide, schism and divergence|live
 patriarchy|uncommon|matriarchy|male first in succession; opposite-sex ruler -50 loyalty|live
 matriarchy|uncommon|patriarchy|female first in succession; opposite-sex ruler -50 loyalty|live
 youngestFirst|uncommon||succession by age, youngest first|live

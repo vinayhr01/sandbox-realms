@@ -1,6 +1,6 @@
 import { YEAR_TICKS } from '../../shared/constants.ts';
 import type { Truce } from './founding.ts';
-import { opinion, type OpinionContext } from './opinion.ts';
+import { opinion, powerOf, type OpinionContext } from './opinion.ts';
 import type { Dominion, RelationMatrix } from './types.ts';
 
 /** Ticks between pact formations: a three-year timeout (10 section 12). Spec value. */
@@ -112,10 +112,14 @@ export function addPactRenown(state: PactState, dominionId: number, amount: numb
   if (pact) pact.renown += amount;
 }
 
-/** Strength of a pact: the sum of its members' strength (the spec's "power = sum of member power"). */
-export function pactPower(pact: Pact, dominions: readonly Dominion[]): number {
+/**
+ * Power of a pact: the sum of its members' power (10 section 12, "power = sum of member power"), each member's power the
+ * spec formula of opinion.ts powerOf (soldiers x 2 + hamlets x 5 + 1). `hamlets` is the hamlet count per dominion; absent
+ * counts as 0.
+ */
+export function pactPower(pact: Pact, dominions: readonly Dominion[], hamlets?: ReadonlyMap<number, number>): number {
   let sum = 0;
-  for (const d of dominions) if (pact.memberIds.includes(d.id)) sum += d.strength;
+  for (const d of dominions) if (pact.memberIds.includes(d.id)) sum += powerOf(d, hamlets);
   return sum;
 }
 

@@ -6,6 +6,7 @@
  */
 import { PARCEL } from '../../shared/constants.ts';
 import { noise01 } from '../worldgen/noise.ts';
+import { towerLimitBonus } from '../culture/trait-rules.ts';
 
 /** Houses a building adds to a hamlet's house limit (09 section 9, `maxHouses`; the catalogue ids that have one). */
 export const MAX_HOUSES: Readonly<Record<string, number>> = { hearth_fire: 3, great_hall_1: 2, great_hall_2: 2, great_hall_3: 2, monument: 3, bazaar: 2 };
@@ -14,6 +15,8 @@ export const MAX_HOUSES: Readonly<Record<string, number>> = { hearth_fire: 3, gr
 export const BASE_MONUMENT_LIMIT = 1;
 /** Monuments added by statuePride (09 section 6: +4 statues). */
 export const STATUE_PRIDE_BONUS = 4;
+/** Watchspires a hamlet may hold without towerPride (one per hamlet, 09 section 6 order list). */
+export const BASE_TOWER_LIMIT = 1;
 /** Hamlet size (folk in housing, or parcels) at which the zone rules apply (09 section 6: housingTotal >= 10 or parcels >= 20). */
 export const ZONE_HOUSING = 10;
 export const ZONE_PARCELS = 20;
@@ -28,6 +31,8 @@ export interface CustomRules {
   density: number;
   /** Monuments allowed in the hamlet (statuePride raises it). */
   monumentLimit: number;
+  /** Watchspires allowed in the hamlet (towerPride raises it; 09 section 6, 11 section 9.1). */
+  towerLimit: number;
   /** True: the first valid tile is taken (scatteredBuild). False: the valid tile nearest the hamlet centre (09 section 6). */
   scattered: boolean;
   /** Zone plan a building's parcel must satisfy, when the custom has one. */
@@ -52,7 +57,7 @@ const ZONE_OF: Readonly<Record<string, ZoneRule>> = {
 const LOT_OF: Readonly<Record<string, LotRule>> = { centeredLot: 'centred', stairLot: 'stair', wobbleLot: 'wobble' };
 
 /** The spec's default rules: no custom, or a custom with none of the traits below. */
-export const BASE_RULES: CustomRules = { density: 1, monumentLimit: BASE_MONUMENT_LIMIT, scattered: false, worldSeed: 0 };
+export const BASE_RULES: CustomRules = { density: 1, monumentLimit: BASE_MONUMENT_LIMIT, towerLimit: BASE_TOWER_LIMIT, scattered: false, worldSeed: 0 };
 
 /** Rules of a trait list (11 section 9.1 rows of this file's scope). Opposite traits are resolved by the catalogue. */
 export function rulesOf(traits: readonly string[], worldSeed = 0): CustomRules {
@@ -67,6 +72,7 @@ export function rulesOf(traits: readonly string[], worldSeed = 0): CustomRules {
   const rules: CustomRules = {
     density,
     monumentLimit: BASE_MONUMENT_LIMIT + (traits.includes('statuePride') ? STATUE_PRIDE_BONUS : 0),
+    towerLimit: BASE_TOWER_LIMIT + towerLimitBonus(traits),
     scattered: traits.includes('scatteredBuild'),
     worldSeed,
   };

@@ -486,6 +486,10 @@ const RULES: readonly BuildRule[] = [
   { id: 'waystop', minFolk: 25, minBuildings: 10 },
   { id: 'great_hall_2', minFolk: 30, minBuildings: 8 },
   { id: 'garrison', minFolk: GARRISON_FOLK, minBuildings: GARRISON_BUILDINGS, minParcels: GARRISON_PARCELS },
+  // 09 section 6 watchspire (pop 30, bldg 10; its limit is raised by towerPride, custom-rules.ts).
+  { id: 'watchspire', minFolk: 30, minBuildings: 10 },
+  // 18e bastion: build-order weight minPop 60 (18e section 3.2 note); its gates are its needs (great hall II, garrison).
+  { id: 'bastion', minFolk: 60 },
   { id: 'monument', minFolk: 70, minBuildings: 15 },
   { id: 'great_hall_3', minFolk: 100, minBuildings: 20 },
   // 09 section 6 bazaar (pop 60, bldg 15).
@@ -514,8 +518,9 @@ export function buildChoices(h: Hamlet, desires: readonly string[] = [], rules: 
   const specials: BuildingDef[] = [];
   for (const rule of RULES) {
     const def = BUILDING_BY_ID.get(rule.id);
-    // One of each civic building per hamlet; the monument limit is raised by statuePride (custom-rules.ts).
-    const limit = rule.id === 'monument' ? rules.monumentLimit : (rule.limit ?? 1);
+    // One of each civic building per hamlet unless its rule sets a limit; the monument limit is raised by statuePride and the
+    // watchspire limit by towerPride (custom-rules.ts).
+    const limit = rule.id === 'monument' ? rules.monumentLimit : rule.id === 'watchspire' ? rules.towerLimit : (rule.limit ?? 1);
     if (!def || countOf(h, rule.id) >= limit || !hasAll(h, def.needs ?? [])) continue;
     if (rule.minFolk !== undefined && h.folk < rule.minFolk) continue;
     if (rule.minBuildings !== undefined && h.buildings.length < rule.minBuildings) continue;

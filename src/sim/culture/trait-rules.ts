@@ -155,6 +155,57 @@ export function splitAllowed(f: SplitFacts): boolean {
   );
 }
 
+/** Members a custom needs before its group may found a creed (11 section 3, newCreed: custom >= 50 members). */
+export const FOUND_CREED_MEMBERS = 50;
+/** Level of the actor for newDialect (11 section 3: level 1). */
+export const FOUND_DIALECT_LEVEL = 1;
+/** Intelligence of the actor for newDialect (11 section 3: int 3). */
+export const FOUND_DIALECT_INTELLIGENCE = 3;
+/** Level of the actor for newCreed (11 section 3: level 5). */
+export const FOUND_CREED_LEVEL = 5;
+/** Intelligence of the actor for newCreed (11 section 3: int 8). */
+export const FOUND_CREED_INTELLIGENCE = 8;
+
+/** Facts a founding (newDialect, newCreed) needs (11 section 3 gates); the caller reads them from the sim. */
+export interface FoundFacts {
+  /** The group holds a dialect. */
+  hasDialect: boolean;
+  /** The group holds a creed. */
+  hasCreed: boolean;
+  /** The group holds a custom. */
+  hasCustom: boolean;
+  /** The actor's lineage has speech (`hasSpeech`). */
+  speech: boolean;
+  /** The actor's lineage has memory (`hasMemory`). */
+  memory: boolean;
+  /** Members of the group's custom (the Folk of its dominion's hamlets). */
+  members: number;
+  /** Study level of the actor, the ruler. */
+  leaderLevel: number;
+  /** Intelligence of the actor (the sim's wit aptitude, 05 section 2). */
+  intelligence: number;
+}
+
+/**
+ * Whether a founding may happen (11 section 3). newDialect: no dialect, speech, level 1, intelligence 3. newCreed: no creed,
+ * a custom and a dialect, memory, custom >= 50 members, level 5, intelligence 8. Pure: the founding intrigues call it
+ * through intrigue.ts foundOk (DECISIONS.md, "Culture founding close 6"). Draws no rng.
+ */
+export function foundAllowed(kind: 'newDialect' | 'newCreed', f: FoundFacts): boolean {
+  if (kind === 'newDialect') {
+    return !f.hasDialect && f.speech && f.leaderLevel >= FOUND_DIALECT_LEVEL && f.intelligence >= FOUND_DIALECT_INTELLIGENCE;
+  }
+  return (
+    !f.hasCreed &&
+    f.hasCustom &&
+    f.hasDialect &&
+    f.memory &&
+    f.members >= FOUND_CREED_MEMBERS &&
+    f.leaderLevel >= FOUND_CREED_LEVEL &&
+    f.intelligence >= FOUND_CREED_INTELLIGENCE
+  );
+}
+
 /** Whether a custom holds `rooted`: conversion cannot replace its members' custom (11 section 9.1). */
 export function blocksConversion(traits: readonly string[]): boolean {
   return traits.includes('rooted');

@@ -5,6 +5,7 @@
  */
 import type { Rng } from '../../shared/rng.ts';
 import { CUSTOM_RARITY_WEIGHT, CUSTOM_TRAIT_BY_ID, CUSTOM_TRAITS, type CustomTraitDef } from '../../content/customs.ts';
+import { CREED_TENETS, type CreedTenetDef } from '../../content/creeds.ts';
 import { CUSTOM_RECIPE, FAMILY_RECIPE, generateName, NAME_KIND, nameSeed } from './names.ts';
 import { blocksSplit, levelsPerLevelUp, readingMood, readingXp, XP_PER_LEVEL, xpGain } from './trait-rules.ts';
 
@@ -84,7 +85,7 @@ export interface Creed extends MetaBirth {
   id: number;
   /** Groups holding this creed. */
   holders: Set<number>;
-  /** Tenet ids copied by a schism (11 section 4.2). Optional: a creed made without tenets has none. The tenet table is not built. */
+  /** Tenet ids (content/creeds.ts) drawn at founding or copied by a schism (11 sections 2 and 4.2). Optional: a creed made without tenets has none. */
   tenets?: string[];
 }
 
@@ -135,7 +136,7 @@ export interface CultureContext {
   tick: number;
   /** Realm Rule lookup (`rules.isOn`). */
   isOn(id: string): boolean;
-  /** Groups that share a border, as pairs (contact). */
+  /** Groups that share a border, as pairs (contact). Dominion ids in play (dominions/adapter.ts dominionBordersOf). */
   contacts: readonly (readonly [number, number])[];
   /** World seed for the name generator (names.ts). Without it, customs and families are unnamed. */
   worldSeed?: number;
@@ -312,15 +313,84 @@ export function bookCount(state: CultureState, group: number): number {
  * Divide of a custom (11 sections 2 and 9.1): a new custom for `newGroup` with the parent's traits copied, no random draw.
  * The new custom's creator is the parent's group (the group that split it off) and its birth is `tick`. Refused (null)
  * when the parent has no custom, `newGroup` already has one, or the parent holds `keepers`. The population, age and actor
- * preconditions are splitAllowed (trait-rules.ts), checked by the intrigue gate. Not built: the name recipe clone, the
- * sound shift and the conversion of the actor's units.
+ * preconditions are splitAllowed (trait-rules.ts), checked by the intrigue gate. The name recipe is cloned: the sim has one
+ * recipe for customs (CUSTOM_RECIPE), so the child is named from it with its own seed when `worldSeed` is given. Not built:
+ * the sound shift (names.ts). The conversion of the actor's units is made by the caller (culture/effects.ts).
  */
-export function splitCustom(state: CultureState, parentGroup: number, newGroup: number, tick: number): Custom | null {
+export function splitCustom(state: CultureState, parentGroup: number, newGroup: number, tick: number, worldSeed?: number): Custom | null {
   const parent = customOfGroup(state, parentGroup);
   if (!parent || blocksSplit(parent.traits) || customOfGroup(state, newGroup)) return null;
   const child: Custom = { group: newGroup, traits: [...parent.traits], creator: parentGroup, born: tick };
+  if (worldSeed !== undefined) child.name = generateName(CUSTOM_RECIPE, nameSeed(worldSeed, NAME_KIND.custom, state.customs.length + 1, newGroup));
   state.customs.push(child);
   return child;
+}
+
+/** One weighted draw from the creed spawn pool (11 section 2): randomSpawn tenets, weighted by rarity. One rng draw. */
+export function drawCreedTenet(rng: Rng): CreedTenetDef | undefined {
+  const pool = CREED_TENETS.filter((t) => t.randomSpawn && CUSTOM_RARITY_WEIGHT[t.rarity] > 0);
+  let total = 0;
+  for (const t of pool) total += CUSTOM_RARITY_WEIGHT[t.rarity];
+  if (total <= 0) return undefined;
+  let r = rng.next() * total;
+  let last: CreedTenetDef | undefined;
+  for (const t of pool) {
+    last = t;
+    r -= CUSTOM_RARITY_WEIGHT[t.rarity];
+    if (r < 0) return t;
+  }
+  return last;
+}
+
+/**
+ * Founds a creed for `group` (11 sections 2 and 3, newCreed): tenet draws 1-2 (3-5 under `chaotic_minds`) from the spawn
+ * pool, duplicates dropped. The creator is the group and the birth is `tick`. Refused (null) when the group already holds a
+ * creed. The gate is foundAllowed (trait-rules.ts). Uses the rng it is given (the culture stream).
+ */
+export function foundCreed(state: CultureState, group: number, tick: number, rng: Rng, chaotic: boolean): Creed | null {
+  if (state.creeds.some((c) => c.holders.has(group))) return null;
+  const count = chaotic ? 3 + rng.int(3) : 1 + rng.int(2);
+  const tenets: string[] = [];
+  for (let k = 0; k < count; k++) {
+    const def = drawCreedTenet(rng);
+    if (def && !tenets.includes(def.id)) tenets.push(def.id);
+  }
+  const creed: Creed = { id: state.nextId++, holders: new Set([group]), tenets, creator: group, born: tick };
+  state.creeds.push(creed);
+  return creed;
+}
+
+/**
+ * Founds a dialect for `group` (11 sections 2 and 3, newDialect). The phonology and the birth traits are not built (11
+ * section 6.5 and the dialect trait lists), so the lexicon starts empty. The creator is the group and the birth is `tick`.
+ * Refused (null) when the group already has a dialect. The gate is foundAllowed (trait-rules.ts). Draws no rng.
+ */
+export function foundDialect(state: CultureState, group: number, tick: number): Dialect | null {
+  if (state.dialects.some((d) => d.group === group)) return null;
+  const dialect: Dialect = { group, word: 0, lexicon: [], creator: group, born: tick };
+  state.dialects.push(dialect);
+  return dialect;
+}
+
+/** Two metas are the same one when both record a creator and a birth, and the two are equal (11 section 2 meta identity). */
+export function sameMeta(a: MetaBirth, b: MetaBirth): boolean {
+  return a.creator !== undefined && a.creator === b.creator && a.born === b.born;
+}
+
+/**
+ * Meta spread of a dialect by talk (11 section 4.4, dialect side): the loser's dialect is replaced by the winner's, so the
+ * loser holds the winner's meta (word, lexicon, creator, birth). The loser's group stays the holder. Returns false, and
+ * changes nothing, when the two records are the same meta. Draws no rng.
+ */
+export function replaceDialect(loser: Dialect, winner: Dialect): boolean {
+  if (sameMeta(loser, winner)) return false;
+  loser.word = winner.word;
+  loser.lexicon = [...(winner.lexicon ?? [])];
+  if (winner.creator !== undefined) loser.creator = winner.creator;
+  else delete loser.creator;
+  if (winner.born !== undefined) loser.born = winner.born;
+  else delete loser.born;
+  return true;
 }
 
 /**
@@ -386,6 +456,23 @@ function spreadCreeds(ctx: CultureContext, state: CultureState): void {
   }
 }
 
+/**
+ * Dialects spread across contacts (11 section 4.4, group form): when two contacting groups hold dialects of different metas,
+ * at the creed rate (2% per contact per step), one of the two is replaced by the other (replaceDialect), an even draw
+ * choosing which. The spec's talk form needs a dialect per speaker, which the sim does not keep (one per group), so this
+ * group form stands in for it (DECISIONS.md, "Culture founding close 6"). Draws from the culture stream.
+ */
+function spreadDialects(ctx: CultureContext, state: CultureState): void {
+  for (const [a, b] of ctx.contacts) {
+    const da = state.dialects.find((d) => d.group === a);
+    const db = state.dialects.find((d) => d.group === b);
+    if (!da || !db || sameMeta(da, db)) continue;
+    if (ctx.rng.next() >= 0.02) continue;
+    if (ctx.rng.next() < 0.5) replaceDialect(db, da);
+    else replaceDialect(da, db);
+  }
+}
+
 /** Dialects drift per group; groups in contact pull each other's lexicon together. */
 function driftDialects(ctx: CultureContext, state: CultureState): void {
   for (const d of state.dialects) {
@@ -414,6 +501,7 @@ function advanceIntrigues(ctx: CultureContext, state: CultureState): void {
 /** One culture step: creeds spread, dialects drift and merge, intrigues advance. */
 export function cultureStep(ctx: CultureContext, state: CultureState): void {
   spreadCreeds(ctx, state);
+  spreadDialects(ctx, state);
   driftDialects(ctx, state);
   advanceIntrigues(ctx, state);
   pruneFamilies(ctx, state);

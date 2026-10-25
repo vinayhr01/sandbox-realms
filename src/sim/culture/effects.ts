@@ -11,7 +11,7 @@
  * (settlements/custom-rules.ts).
  */
 import type { Sim } from '../sim.ts';
-import { PARCEL, YEAR_TICKS } from '../../shared/constants.ts';
+import { PARCEL, PATCH, YEAR_TICKS } from '../../shared/constants.ts';
 import { addMood } from '../beings/social.ts';
 import { MAX_BEINGS } from '../beings/store.ts';
 import { vitalityRatio } from '../beings/trait-hooks.ts';
@@ -191,8 +191,8 @@ function gift(sim: Sim, giver: number, partner: number, traits: readonly string[
  * decides the winner; the loser speaker's meta is replaced, which here means the loser's allegiance moves to the
  * winner's dominion group (the same record convertByFight writes). A loser whose custom holds `rooted` keeps it.
  * Substitutions: the +1 tickets of the hamlet and dominion matches (hamlet customs are not modelled, and the speaker's
- * dominion is the meta here), and the dialect side (creed and dialect spread are not built). Draws from `culture` only
- * when every condition holds.
+ * dominion is the meta here). Creed and dialect spread are group-level, across contacts (culture.ts spreadCreeds and
+ * spreadDialects), so talk does not move them. Draws from `culture` only when every condition holds.
  */
 function talkSpread(sim: Sim, a: number, b: number): void {
   if (!isFolkSlot(sim, a) || !isFolkSlot(sim, b)) return;
@@ -207,6 +207,33 @@ function talkSpread(sim: Sim, a: number, b: number): void {
   const allegiance: Record<string, number> = sim.culture.allegiance ?? {};
   allegiance[String(keyOfSlot(sim, loser))] = winner;
   sim.culture.allegiance = allegiance;
+}
+
+/** Whether a Being's lineage holds a trait at birth (11 section 3 `hasSpeech`, `hasMemory`; species startTraits). */
+export function lineageHas(sim: Sim, slot: number, trait: string): boolean {
+  const def = sim.beings.species(sim.beings.store.species[slot] ?? 0);
+  return def.startTraits?.being.includes(trait) ?? false;
+}
+
+/**
+ * Converts a being and the same-lineage Beings within patch radius 1 of it to `group` (11 section 2, the split's unit
+ * conversion): the actor's patch and the eight patches around it, Beings of the actor's species. Written to the allegiance
+ * record (convertByFight and talkSpread use the same one), so groupOfSlot reads the new group. Returns the count converted.
+ * Draws no rng.
+ */
+export function convertLineageUnits(sim: Sim, actor: number, group: number): number {
+  const s = sim.beings.store;
+  const species = s.species[actor] ?? 0;
+  const ax = Math.floor((s.x[actor] ?? 0) / PATCH);
+  const ay = Math.floor((s.y[actor] ?? 0) / PATCH);
+  // Two patches away is at most 31 tiles (Chebyshev); the patch test below narrows it to radius 1.
+  const near = sim.beings
+    .within(actor, (o) => (s.species[o] ?? 0) === species, 2 * PATCH - 1)
+    .filter((o) => Math.abs(Math.floor((s.x[o] ?? 0) / PATCH) - ax) <= 1 && Math.abs(Math.floor((s.y[o] ?? 0) / PATCH) - ay) <= 1);
+  const allegiance: Record<string, number> = sim.culture.allegiance ?? {};
+  for (const slot of [actor, ...near]) allegiance[String(keyOfSlot(sim, slot))] = group;
+  sim.culture.allegiance = allegiance;
+  return near.length + 1;
 }
 
 /**

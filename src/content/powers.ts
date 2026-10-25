@@ -97,6 +97,57 @@ const CALAMITY_OMENS = [
   'mind_fog',
 ] as const;
 
+/**
+ * Bomb profiles (12 section 8.6). Numbers are those of 04 section 8.1 where the profile is named
+ * there (blast, spark, sunburst, worldbreaker, shard) and those of 12 section 8.6 otherwise. A blast
+ * deals its damage once to each Being in the radius (no falloff) and dazes them when `force`.
+ * `fire`: 'random' leaves the ignition roll to the terrain blast, 'all' sets every tile alight.
+ * `wasteland` strips cover; `voidCore` lowers Ground to deepmere inside that radius; `tidal` fills
+ * land with shoal; `shrapnel` detonates that many `shrapnel` bombs on random tiles in the radius.
+ * Terrain sinks by damage/10 falling off with distance for radius 2 and up (as 04 explodeTile).
+ */
+export interface BombProfile {
+  id: string;
+  radius: number;
+  damage: number;
+  type: 'Explosion' | 'Other' | 'Fire';
+  force: boolean;
+  fire: 'none' | 'random' | 'all';
+  wasteland: boolean;
+  voidCore: number;
+  tidal: boolean;
+  shrapnel: number;
+}
+
+const bomb = (id: string, radius: number, damage: number, extra: Partial<BombProfile> = {}): BombProfile => ({
+  id,
+  radius,
+  damage,
+  type: 'Explosion',
+  force: false,
+  fire: 'none',
+  wasteland: false,
+  voidCore: 0,
+  tidal: false,
+  shrapnel: 0,
+  ...extra,
+});
+
+export const BOMB_PROFILES: readonly BombProfile[] = [
+  bomb('blast', 10, 100, { force: true, fire: 'random' }),
+  bomb('spark', 5, 50, { force: true, fire: 'random' }),
+  bomb('pitchfire', 8, 40, { type: 'Fire', fire: 'all' }),
+  bomb('sunburst', 30, 10000, { wasteland: true }),
+  bomb('voidburst', 30, 500, { voidCore: 6 }),
+  bomb('worldbreaker', 70, 10000),
+  bomb('urchin', 6, 30, { shrapnel: 12 }),
+  bomb('tidal', 12, 0, { type: 'Other', tidal: true }),
+  bomb('shrapnel', 3, 30),
+  bomb('bolt_medium', 2, 47, { type: 'Other', fire: 'all' }),
+];
+
+export const BOMB_PROFILE_BY_ID: ReadonlyMap<string, BombProfile> = new Map(BOMB_PROFILES.map((b) => [b.id, b]));
+
 export const POWERS: readonly PowerDef[] = [
   // Realm tab: windows and toggles from section 8.1.
   click('realm_pause', 'realm', 'Pause', 'set_pause', {}, 0),
@@ -162,8 +213,17 @@ export const POWERS: readonly PowerDef[] = [
     requires: [],
   })),
   // Havoc tab: bombs and calamity omens (sections 8.6, 10).
-  click('havoc_bomb', 'havoc', 'Bomb', 'bomb', { radius: 3, damage: 30 }, 0),
-  click('havoc_bolt', 'havoc', 'Bolt', 'bolt', { radius: 2, damage: 47 }, 3000),
+  // Bombs (12 section 8.6). The spec id of the first is havoc_charge; it keeps the id havoc_bomb. Device
+  // grounds (powder, timed, hidden, sparkler) are cut, see DECISIONS.md "Combat release".
+  click('havoc_bomb', 'havoc', 'Charge', 'bomb', { profile: 'blast' }, 0),
+  click('havoc_handcharge', 'havoc', 'Hand charge', 'bomb', { profile: 'spark' }, 0),
+  click('havoc_pitchfire', 'havoc', 'Pitch fire', 'bomb', { profile: 'pitchfire' }, 0),
+  click('havoc_sunburst', 'havoc', 'Sunburst', 'bomb', { profile: 'sunburst' }, 2000),
+  click('havoc_voidburst', 'havoc', 'Voidburst', 'bomb', { profile: 'voidburst' }, 3000),
+  click('havoc_worldbreaker', 'havoc', 'Worldbreaker', 'bomb', { profile: 'worldbreaker' }, 4000),
+  click('havoc_urchin', 'havoc', 'Urchin', 'bomb', { profile: 'urchin' }, 0),
+  click('havoc_tidal', 'havoc', 'Tidal burst', 'bomb', { profile: 'tidal' }, 0),
+  click('havoc_bolt', 'havoc', 'Bolt', 'bolt', { profile: 'bolt_medium' }, 3000),
   ...CALAMITY_OMENS.map((id): PowerDef => ({
     id: `omen_${id}`,
     tab: 'havoc',

@@ -175,6 +175,6 @@ export const ROUND9 = {
   emoteTicks: 40,
   /** Mood below which a reflecting Being starts an outburst (06 section 4.2 step 5: mood < -70, unless stalwartheart). */
   outburstMood: -70,
-  /** Ticks an outburst lasts from its start (06 section 4.2: effect `outburst` 1200 ticks; 08 5.4 lists 2400). */
-  outburstTicks: 1200,
+  /** Ticks an outburst lasts from its start (08 5.4 status duration 2400; 06 section 4.2 says 1200, the status table wins). */
+  outburstTicks: 2400,
 } as const;

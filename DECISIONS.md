@@ -2448,3 +2448,18 @@ Scope: the recovery dialog that pump isolation left unbuilt. Spec: `Spec/systems
 - The Help window's "Export crash record" button (`src/ui/windowContent.ts`) keeps its old label. It was not in scope.
 
 **Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. The `SYS_STOP` dialog, Continue after a stop, and the relabelled e2e tests need a run with test access. A Playwright check should force three switch-offs and confirm the three buttons, their order, and that Continue resumes the speed.
+
+## Owner decisions (close 8)
+
+The owner asked for decisions on the open items that needed a choice. Each is final for this build; a later owner instruction overrides it.
+
+- **Outburst duration:** 2400 ticks. The 08 status table gives effect durations; 06 section 4.2 gives 1200 in its task text. The status table wins. Changed in `tuning.ts` (`outburstTicks`).
+- **writeBook:** stays dormant. The Book record cannot hold the type data 11 section 5 needs, and no hamlet building has a book slot in the build order. Revisit when a writer and book slot exist.
+- **Crash transport and send (OPEN-19-1):** not built. No endpoint exists, and nothing is sent. Export stays local.
+- **Campaign forecast:** stays cut (no declareCampaign in the sim).
+- **Unowned projectile kinds and acid_glob:** stay cut (no owner in 08 or 18c).
+- **Magmaling gear owner:** stays cut (08 and 18c name the gear but do not define it).
+- **Capture rule:** the spec rule stays on (`HAMLET_CAPTURE` true). Where 10 section 16 test 5 contradicts section 7, the section 7 rules win and the test is the one to correct when tests run.
+- **Package version:** 0.1.0 everywhere. `package-lock.json` root now matches `package.json`.
+- **Spec conflicts (great_hall_2 and dwelling_3 dependency; builder vs no-food priority):** follow the spec text as written.
+- **Leftover branches** `worktree-agent-a8fce00c738e4c120` and `worktree-agent-afe220df276d8b694`: kept. They are unmerged and may hold work worth salvaging; delete them only on a later instruction.

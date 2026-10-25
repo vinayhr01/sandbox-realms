@@ -2512,3 +2512,23 @@ Merge of `worktree-agent-a6ff981447fd85691` into `merge/loyalty-on-main-close8` 
 - `restoreDominions`: the hold records are read first, then one `states.set` carries `loyalty`, `captures` and `hold`.
 - Loyalty facts `ruler` term: main's `skill(ruler.slot, owned)` is kept, not the branch's `skill(ruler.slot)`. Main's `skill` takes the dominion as its group (creed harmony tenets), and the branch's one-argument call would not type-check against it. The remaining loyalty fact fields are the branch's, unchanged.
 - No other behaviour was chosen between the two sides; `GOLDEN_HASH` was not touched and nothing was run.
+
+## Loyalty reader close 9
+
+Scope: the loyalty items left open by Loyalty terms close 8. Spec read at `game\Spec`: 10 sections 3, 4, 5, 11 and 15; 09 section 4 (`checkLoyalty` every 40 ticks, cache older than 60); 11 section 2 table (row `uprising`). Development only: nothing was run. `GOLDEN_HASH` is not edited.
+
+**Built.**
+- Loyalty cache and task (10 section 5: recomputed at most every 60 ticks; 09 section 4 and 10 section 15: task every 40). `LOYALTY_CACHE_TICKS` = 60 and `LOYALTY_TASK_TICKS` = 40 in `loyalty.ts`, both TUNE (10 says all its numbers are TUNE). `stepDominions` runs the task on ticks that are multiples of 40, after the rank and the rulers. A hamlet is recomputed at the first task at least 60 ticks after its last computation, so in practice about every 80 ticks.
+- Cache keyed by the hamlet's index in `hamletsOf` order, as `hold` is. Value is `{ value, tick }` (`LoyaltyCache`). Loyalty is no longer computed yearly. A hamlet with no dominion or no capital loses its entry. The folk majorities are read only when a held hamlet is due.
+- The yearly pass still stamps holdings (`trackHolds`), so belonging and conquest keep their yearly stamps.
+- isHappy: `isHappy(loyalty)` is loyalty >= 0 (`loyalty.ts`). Reader: `hamletHappyOf(sim, index)` in `adapter.ts`, undefined before the first computation.
+- Save: optional `hamletLoyalty` of [index, value, tick] triples in the dominion section, written only when non-empty. `chronicle.ts` checks the shape; `restoreDominions` range-checks the values. A save without it loads with an empty cache, so every held hamlet is due at the next task.
+
+**Effect.** 10 gives isHappy one use: unhappy hamlets are rebellion candidates (sec 5 and sec 11). Rebellion is not built (below), so isHappy changes no behaviour yet. No effect was invented.
+
+**Not built, and why.**
+- Rebellion reader and uprising intrigue (10 sec 11; 11 table `uprising`). The spec defines the conditions and the execution, but the sim has no campaign object (dominions carry only `campaignSince`), no `makeOwnDominion`, no `joinAnother` for rebellion, no `checkMoreAligned`, and no hamlet leader level on intrigue. The cap clause "hamlets > 6 or > max" also needs the hamlet cap, which is blocked as below. A reader without these would be a guess.
+- Hamlet cap (10 sec 3). `maxHamlets = lineage.baseHamlets + ruler.hamletBonus`. The spec gives baseHamlets as "5 default, classic variants 3-5" with no lineage mapping. `ruler.hamletBonus` and `ruler.aggression` appear nowhere in `game\Spec` (grepped). Values would be guesses, so the cap and its over-cap term are not built.
+- Sea link (10 sec 5, "+20 / -35 if separated by sea or same-lineage only"). The +20 condition is not stated, so no term is built.
+
+**Not verified.** Nothing was run. Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. The golden replay runs 1200 ticks with no dominions, so `stepDominions` returns early and the hash should not move. That is inferred, not run. A save that has dominions gains a `hamletLoyalty` field, so its bytes change.

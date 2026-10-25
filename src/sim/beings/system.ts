@@ -12,9 +12,11 @@ import { DECISION_INDEX, DECISION_ROWS, EMPTY_PAUSE } from '../../content/decisi
 import { BeingStore } from './store.ts';
 import { newGenome, SEED_SALT_RANGE, speciesBudget } from './genome.ts';
 import { addStrainTrait, mutateFrom, strainMutation, Strains } from './strains.ts';
-import { addMood, beginSleep, bondCheck, isAsleep, sleepCheck } from './social.ts';
+import { addMood, beginSleep, bondCheck, bondPartners, isAsleep, loveCheck, sleepCheck, tryFriend } from './social.ts';
 import { convertByFight, heritageAttr, talkOutcome, talksWithBeasts } from '../culture/effects.ts';
-import { ROUND6, ROUND8, TUNING } from './tuning.ts';
+import { ROUND6, ROUND8, ROUND9, TUNING } from './tuning.ts';
+import { blowAfflictions, conversionOf, stripped } from './afflictions.ts';
+import { isPossessed } from './possession.ts';
 import { MONTH_TICKS, YEAR_TICKS } from '../../shared/constants.ts';
 import { predate } from '../combat.ts';
 import { chooseDecision, type CandidateContext } from './brain.ts';
@@ -25,6 +27,7 @@ import {
   beingHas,
   breedMode,
   breedsInSeason,
+  needsPartner,
   chimericBlood,
   chimericTrait,
   copiesMarks,
@@ -54,6 +57,9 @@ export type { BeingStore };
 const DECISIONS = DECISION_ROWS.length;
 /** Ticks between bond checks (round 6, ROUND6.bondCheck). */
 const BOND_CHECK = ROUND6.bondCheck;
+/** Ticks between lover checks (beings build 3, ROUND9.loveCheck). */
+const LOVE_CHECK = ROUND9.loveCheck;
+/** Ticks between the blows of a possessed Being's attack order (the fight beat, ROUND8.fightBeat). */
 /** Chance a grazing being drops a manure pile on the tile it ate from (09 section 8 manure collector; TUNE). */
 const GRAZE_MANURE_CHANCE = 0.1;
 /** Ticks between hunter checks, and the hunter's reach in tiles (09 section 8 hunter, patch radius 3). */
@@ -119,6 +125,14 @@ export interface BeingStats {
   blows: number;
   /** Deaths turned into rebirths: revivals, clones and re-formed children (round 8, 06 section 7.4). */
   rebirths: number;
+  /** Lover pairs formed (beings build 3, 06 section 4.4). */
+  lovers: number;
+  /** Best friends formed (beings build 3, 06 section 4.4). */
+  friends: number;
+  /** Deaths turned into a conversion target (beings build 3, 06 section 7.4). */
+  conversions: number;
+  /** Eggs hatched (beings build 3, 06 section 3.2). */
+  hatches: number;
 }
 
 /** Per-species derived values. */
@@ -167,6 +181,10 @@ export class Beings {
     bonds: 0,
     blows: 0,
     rebirths: 0,
+    lovers: 0,
+    friends: 0,
+    conversions: 0,
+    hatches: 0,
   };
   readonly runtime: readonly SpeciesRuntime[];
   /** Decision cooldowns: the tick each decision is eligible again, by slot * DECISIONS + index (07 section 3.4). */
@@ -178,6 +196,8 @@ export class Beings {
    * check and read by the `fight` task in the same call; reset at the start of every decision. Not saved.
    */
   readonly scratch: Int32Array;
+  /** Goal tile (flat index) of the running step-machine task, or -1 (beings build 3). Not saved. */
+  readonly goal: Int32Array;
   /** Living Beings per strain, kept in step with births and deaths and rebuilt each tick (06 section 8, pop_cap). */
   private readonly strainCounts = new Map<number, number>();
   private readonly cellsPerRow: number;
@@ -191,6 +211,7 @@ export class Beings {
     this.cooldown = new Uint32Array(this.store.capacity * DECISIONS);
     this.task = new Int8Array(this.store.capacity).fill(-1);
     this.scratch = new Int32Array(this.store.capacity).fill(-1);
+    this.goal = new Int32Array(this.store.capacity).fill(-1);
     this.runtime = SPECIES.map((def, k) => ({
       def,
       hunters: def.hunters.map((h) => speciesIndex(h)),
@@ -386,6 +407,8 @@ function tileMult(sim: Sim, slot: number): number {
 function takeStep(sim: Sim, slot: number): boolean {
   const s = sim.beings.store;
   if (sim.effects.flag(slot, 'immobile')) return false;
+  // A rooted parent stays in place for its pregnancy (06 section 6.3, beings build 3).
+  if ((s.rooted[slot] ?? 0) === 1) return false;
   if ((s.moveAcc[slot] ?? 0) < 1) return false;
   s.moveAcc[slot] = (s.moveAcc[slot] ?? 0) - 1;
   return true;
@@ -536,6 +559,72 @@ function rebirth(sim: Sim, slot: number): boolean {
 }
 
 /**
+ * Death conversion (06 section 7.4, beings build 3): a Being whose affliction or status converts it (afflictions.ts
+ * `conversionOf`) becomes the target species on its tile instead of dying. The new Being keeps the strain, age, attributes,
+ * mood, endurance, parent, children, partners and marks (less the stripped afflictions); the old one is removed silently
+ * (Metamorphosis: no death counters, no death mood, no kill credit). Returns true when the Being was converted.
+ */
+function convertOnDeath(sim: Sim, slot: number): boolean {
+  const b = sim.beings;
+  const s = b.store;
+  if (s.size >= WORLD_CAP) return false;
+  const targetId = conversionOf(sim, slot, b.species(s.species[slot] ?? 0));
+  if (!targetId) return false;
+  const target = speciesIndex(targetId);
+  const tdef = b.species(target);
+  const oldGen = s.generation[slot] ?? 0;
+  const strainId = s.strain[slot] ?? 0;
+  const at = s.spawn(target, s.x[slot] ?? 0, s.y[slot] ?? 0, s.born[slot] ?? 0, tdef.vitality, s.fuel[slot] ?? 0, s.female[slot] ?? 0);
+  if (at < 0) return false;
+  const fresh = s.generation[at] ?? 0;
+  b.task[at] = -1;
+  b.cooldown.fill(0, at * DECISIONS, at * DECISIONS + DECISIONS);
+  s.strain[at] = strainId;
+  b.bumpStrain(strainId, 1);
+  s.shade[at] = s.shade[slot] ?? 0;
+  s.reborn[at] = s.reborn[slot] ?? 0;
+  for (let k = 0; k < 4; k++) s.attrs[at * 4 + k] = s.attrs[slot * 4 + k] ?? 0;
+  for (let k = 0; k < 5; k++) s.marks[at * 5 + k] = s.marks[slot * 5 + k] ?? 0;
+  for (const id of stripped(targetId)) {
+    const k = BEING_TRAIT_INDEX.get(id);
+    if (k !== undefined) s.setMark(at, k, false);
+  }
+  refreshStats(sim, at);
+  s.vit[at] = Math.min(s.vit[slot] ?? 0, s.maxVit[at] ?? 0);
+  s.endurance[at] = Math.min(tdef.endurance, s.endurance[slot] ?? 0);
+  s.mood[at] = s.mood[slot] ?? 0;
+  s.nextDecision[at] = 0;
+  if (s.hasLiveParent(slot)) s.setParent(at, s.parent[slot] ?? -1);
+  // Children, lover, best friend and bond partner name the new Being now (their links carry the old generation).
+  for (let k = 0; k < s.size; k++) {
+    const o = s.at(k);
+    if (o === at || o === slot) continue;
+    if (s.parent[o] === slot && (s.parentGen[o] ?? 0) === oldGen) {
+      s.parent[o] = at;
+      s.parentGen[o] = fresh;
+      s.childCount[at] = (s.childCount[at] ?? 0) + 1;
+    }
+  }
+  const relink = (withArr: Int32Array, genArr: Uint32Array): void => {
+    const o = withArr[slot] ?? -1;
+    if (o < 0 || s.alive[o] !== 1 || withArr[o] !== slot || (genArr[o] ?? 0) !== oldGen) return;
+    withArr[o] = at;
+    genArr[o] = fresh;
+    withArr[at] = o;
+    genArr[at] = s.generation[o] ?? 0;
+  };
+  relink(s.loverWith, s.loverGen);
+  relink(s.friendWith, s.friendGen);
+  relink(s.bondWith, s.bondGen);
+  // The old Being leaves silently (06 section 7.2 Metamorphosis: no counters).
+  b.bumpStrain(strainId, -1);
+  s.kill(slot);
+  sim.effects.clear(slot);
+  b.stats.conversions++;
+  return true;
+}
+
+/**
  * Removes a being, counting the cause (06 section 7.2). A rebirth trait may keep it alive instead: then nothing is
  * removed. `killer` is the slot credited with the kill (round 8; -1 for none). Returns true when the Being died.
  */
@@ -543,6 +632,8 @@ export function killBeing(sim: Sim, slot: number, cause: 'eaten' | 'starved' | '
   const b = sim.beings;
   const s = b.store;
   if (s.alive[slot] !== 1) return false;
+  // A conversion (06 section 7.4) replaces the Being before any rebirth rule is read.
+  if (convertOnDeath(sim, slot)) return false;
   if (rebirth(sim, slot)) return false;
   // Death mood (06 section 7.2 step 2): the living parent gets child_died, the children kin_died, and a bond
   // partner friend_died (the bond ends). Read before the slot is freed.
@@ -555,6 +646,15 @@ export function killBeing(sim: Sim, slot: number, cause: 'eaten' | 'starved' | '
     else if (s.parent[o] === slot && s.hasLiveParent(o)) addMood(sim, o, 'kin_died');
     if (s.bondWith[o] === slot && s.bondGen[o] === gen) {
       s.bondWith[o] = -1;
+      addMood(sim, o, 'friend_died');
+    }
+    // Lover and best friend (06 section 4.4): the survivor loses the link and takes the grief.
+    if (s.loverWith[o] === slot && s.loverGen[o] === gen) {
+      s.loverWith[o] = -1;
+      addMood(sim, o, 'lover_died');
+    }
+    if (s.friendWith[o] === slot && s.friendGen[o] === gen) {
+      s.friendWith[o] = -1;
       addMood(sim, o, 'friend_died');
     }
   }
@@ -1037,6 +1137,10 @@ function strike(sim: Sim, attacker: number, victim: number, fixed = 0): void {
   if (beingHas(sim, attacker, 'venom_gland')) sim.effects.add(victim, 'venomed', sim.tick);
   addAggro(sim, victim, attacker);
   convertByFight(sim, attacker, victim);
+  // The victim's lover and best friend take up the quarrel (06 section 4.4, 07 section 10.4).
+  for (const p of bondPartners(sim, victim)) addAggro(sim, p, attacker);
+  // Affliction sources of the blow (08 section 8; beings build 3).
+  blowAfflictions(sim, attacker, victim, sim.rng('beings'), sim.tick);
   const back = reflectDamage(sim, victim);
   if (back > 0) {
     s.vit[attacker] = (s.vit[attacker] ?? 0) - back;
@@ -1166,6 +1270,173 @@ function fightStep(sim: Sim, slot: number): boolean {
   return s.alive[target] === 1 && s.alive[slot] === 1;
 }
 
+/**
+ * Step machines (07 section 1 `StepResult`, section 4.1; beings build 3). A step returns `continue` (the next step runs in
+ * the same call, at most four deep), `repeat` (this step again at the next cadence) or `stop` (the task ends). The step index
+ * lives in `stepAt` and is reset when a decision picks the task.
+ */
+type StepResult = 'continue' | 'repeat' | 'stop';
+type StepFn = (sim: Sim, slot: number) => StepResult;
+
+/** Runs a step machine for one cadence. Returns true while the task continues (the same contract as TaskFn). */
+function runSteps(sim: Sim, slot: number, steps: readonly StepFn[]): boolean {
+  const s = sim.beings.store;
+  for (let depth = 0; depth < 4; depth++) {
+    const i = s.stepAt[slot] ?? 0;
+    const step = steps[i];
+    if (!step) {
+      s.stepAt[slot] = 0;
+      return false;
+    }
+    const res = step(sim, slot);
+    if (res === 'stop') {
+      s.stepAt[slot] = 0;
+      return false;
+    }
+    if (res === 'repeat') return true;
+    s.stepAt[slot] = i + 1;
+  }
+  return true;
+}
+
+/** Whether a Being is a child with a live parent and stands more than two tiles from it (the `follow_parent` gate). */
+function followable(sim: Sim, slot: number): boolean {
+  const s = sim.beings.store;
+  if ((s.baby[slot] ?? 0) !== 1 || !s.hasLiveParent(slot)) return false;
+  const p = s.parent[slot] ?? -1;
+  return Math.max(Math.abs((s.x[p] ?? 0) - (s.x[slot] ?? 0)), Math.abs((s.y[p] ?? 0) - (s.y[slot] ?? 0))) > 2;
+}
+
+/** The nearest land tile beside water within the shore radius (flat index), or -1 (the `douse_self` goal). */
+function shoreTile(sim: Sim, slot: number): number {
+  const realm = sim.realm;
+  const side = realm.side;
+  const s = sim.beings.store;
+  const x0 = s.x[slot] ?? 0;
+  const y0 = s.y[slot] ?? 0;
+  const r = ROUND9.shoreRadius;
+  let best = -1;
+  let bestD = Number.POSITIVE_INFINITY;
+  for (let dy = -r; dy <= r; dy++) {
+    for (let dx = -r; dx <= r; dx++) {
+      const x = x0 + dx;
+      const y = y0 + dy;
+      if (x < 0 || y < 0 || x >= side || y >= side) continue;
+      const i = y * side + x;
+      if (!walkable(realm, i)) continue;
+      let beside = false;
+      for (const [ox, oy] of DIRS) {
+        const nx = x + ox;
+        const ny = y + oy;
+        if (nx < 0 || ny < 0 || nx >= side || ny >= side) continue;
+        if (ground(realm.ground[ny * side + nx] ?? 0).layer === 'water') {
+          beside = true;
+          break;
+        }
+      }
+      const d = dx * dx + dy * dy;
+      if (beside && d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+  }
+  return best;
+}
+
+/** Follow-the-parent machine: one step, repeated while the child walks, ended on arrival or when it cannot move. */
+const FOLLOW_PARENT: readonly StepFn[] = [
+  (sim, slot) => {
+    const b = sim.beings;
+    const s = b.store;
+    if (!followable(sim, slot)) return 'stop';
+    const p = s.parent[slot] ?? -1;
+    const x = s.x[slot] ?? 0;
+    const y = s.y[slot] ?? 0;
+    stepToward(sim, slot, s.x[p] ?? 0, s.y[p] ?? 0);
+    setNext(sim, slot, 2);
+    // No progress (a wall, a full stop): the task ends so the child decides again.
+    if ((s.x[slot] ?? 0) === x && (s.y[slot] ?? 0) === y) return 'stop';
+    return 'repeat';
+  },
+];
+
+/** Douse machine (07 section 3.6 `douse_self`): walk to the shore, then put the scorch out. */
+const DOUSE_SELF: readonly StepFn[] = [
+  (sim, slot) => {
+    const goal = shoreTile(sim, slot);
+    if (goal < 0) return 'stop';
+    sim.beings.goal[slot] = goal;
+    return 'continue';
+  },
+  (sim, slot) => {
+    const b = sim.beings;
+    const s = b.store;
+    if (!sim.effects.has(slot, 'scorched')) return 'stop';
+    const goal = b.goal[slot] ?? -1;
+    if (goal < 0) return 'stop';
+    const gx = goal % sim.realm.side;
+    const gy = Math.floor(goal / sim.realm.side);
+    const x = s.x[slot] ?? 0;
+    const y = s.y[slot] ?? 0;
+    if (x === gx && y === gy) return 'continue';
+    stepToward(sim, slot, gx, gy);
+    setNext(sim, slot, 2);
+    if ((s.x[slot] ?? 0) === x && (s.y[slot] ?? 0) === y) return 'stop';
+    return 'repeat';
+  },
+  (sim, slot) => {
+    sim.effects.remove(slot, 'scorched');
+    return 'stop';
+  },
+];
+
+/**
+ * Egg laying (06 section 6.3, `birth_egg`; beings build 3): the pairing lays one egg Being on a neighbouring tile at once.
+ * The egg is shelled for the gestation (06 section 3.2), then hatches. The bearer pays the birth fuel and takes a lull.
+ */
+function layEgg(sim: Sim, bearer: number): void {
+  const s = sim.beings.store;
+  s.lull[bearer] = sim.tick + LULL;
+  s.fuel[bearer] = Math.max(0, (s.fuel[bearer] ?? 0) - BIRTH_FUEL);
+  const tile = freeNeighbour(sim, s.x[bearer] ?? 0, s.y[bearer] ?? 0);
+  if (!tile) return;
+  const egg = spawnBeing(sim, s.species[bearer] ?? 0, tile.x, tile.y, false, bearer);
+  if (egg < 0) return;
+  s.shelledUntil[egg] = sim.tick + Math.max(1, Math.round((s.gestationA[bearer] ?? 1) * MONTH_TICKS));
+}
+
+/** Hatching (06 section 3.2 `Hatched`): the shell opens, the newborn is stunned and gains the hatched mood. */
+function hatch(sim: Sim, slot: number): void {
+  const s = sim.beings.store;
+  s.shelledUntil[slot] = 0;
+  sim.effects.add(slot, 'dazed', sim.tick);
+  addMood(sim, slot, 'hatched');
+  sim.beings.stats.hatches++;
+}
+
+/**
+ * The Architect's order for a possessed Being (07 section 13, beings build 3): move toward the order tile; with the attack
+ * flag, strike the Being beside it on each fight beat. Decisions are not taken while the control lasts.
+ */
+function possessedStep(sim: Sim, slot: number): void {
+  const b = sim.beings;
+  const s = b.store;
+  b.task[slot] = -1;
+  s.nextDecision[slot] = 0;
+  if (s.orderAttack[slot] === 1 && sim.tick % ROUND8.fightBeat === 0) {
+    const foe = b.nearest(slot, (o) => s.alive[o] === 1, 1);
+    if (foe >= 0) {
+      strike(sim, slot, foe);
+      return;
+    }
+  }
+  const ox = s.orderX[slot] ?? 0;
+  const oy = s.orderY[slot] ?? 0;
+  if ((s.x[slot] ?? 0) === ox && (s.y[slot] ?? 0) === oy) return;
+  stepToward(sim, slot, ox, oy);
+}
+
 /** The decision tasks of the beast layer (07 section 5, beast subset). Each returns true while the task continues. */
 const TASKS: Record<string, TaskFn> = {
   wander: (sim, slot) => {
@@ -1217,6 +1488,11 @@ const TASKS: Record<string, TaskFn> = {
     addMood(sim, slot, event);
     addMood(sim, partner, event);
     talkOutcome(sim, slot, partner, event === 'talked_well');
+    // A good chat may make best friends (06 section 4.4); foes are never friends.
+    if (event === 'talked_well') {
+      const foes = relationOf(sim, slot, partner, false) === 'H' || relationOf(sim, partner, slot, false) === 'H';
+      tryFriend(sim, slot, partner, foes);
+    }
     setNext(sim, slot, 20);
     return false;
   },
@@ -1232,6 +1508,8 @@ const TASKS: Record<string, TaskFn> = {
   },
   fight: fightStep,
   brawl: fightStep,
+  follow_parent: (sim, slot) => runSteps(sim, slot, FOLLOW_PARENT),
+  douse_self: (sim, slot) => runSteps(sim, slot, DOUSE_SELF),
   eat_grass: (sim, slot) => forage(sim, slot, 'grass'),
   eat_nectar: (sim, slot) => forage(sim, slot, 'nectar'),
   eat_hunt: (sim, slot) => {
@@ -1287,7 +1565,13 @@ const TASKS: Record<string, TaskFn> = {
       return true;
     }
     const bearer = s.female[slot] ? slot : partner;
-    beginPregnancy(sim, bearer, null, false);
+    if (mode === 'egg') {
+      layEgg(sim, bearer);
+    } else {
+      beginPregnancy(sim, bearer, null, false);
+      // Rooting (06 section 6.3, beings build 3): the bearer stays put for the gestation, and the sprout is born then.
+      if (mode === 'rooted') s.rooted[bearer] = 1;
+    }
     s.lull[slot] = tick + LULL;
     s.lull[partner] = tick + LULL;
     return false;
@@ -1338,7 +1622,11 @@ function eligible(sim: Sim, slot: number, id: string, fleeing: boolean): boolean
     case 'eat_hunt':
       return huntTarget(sim, slot) >= 0;
     case 'mate':
-      return mayBreed(sim, slot) && (modeOf(sim, slot) !== 'live' || mateTarget(sim, slot) >= 0);
+      return mayBreed(sim, slot) && (!needsPartner(modeOf(sim, slot)) || mateTarget(sim, slot) >= 0);
+    case 'follow_parent':
+      return followable(sim, slot);
+    case 'douse_self':
+      return sim.effects.has(slot, 'scorched') && shoreTile(sim, slot) >= 0;
     default:
       return true;
   }
@@ -1397,6 +1685,7 @@ function decide(sim: Sim, slot: number): void {
   if (!row) return;
   b.cooldown[slot * DECISIONS + pick.k] = tick + row.cooldown;
   b.task[slot] = pick.k;
+  s.stepAt[slot] = 0;
   if (!runTask(sim, slot, pick.k)) b.task[slot] = -1;
 }
 
@@ -1468,6 +1757,11 @@ export function stepBeings(sim: Sim): void {
     if (!rt) continue;
     const def = rt.def;
     const feeds = needsFood(def);
+    // Egg stage (06 section 3.2, beings build 3): shelled, immovable and frozen until it hatches.
+    if ((s.shelledUntil[slot] ?? 0) > 0) {
+      if (tick >= (s.shelledUntil[slot] ?? 0)) hatch(sim, slot);
+      continue;
+    }
     s.moveAcc[slot] = Math.min(2, (s.moveAcc[slot] ?? 0) + ((s.paceA[slot] ?? def.pace) * 0.2 * sim.effects.multiplier(slot, 'speed') * tileMult(sim, slot)) / 20);
 
     if (regen && s.baby[slot] === 1 && (tick - (s.born[slot] ?? 0)) / YEAR >= (s.adultA[slot] ?? 1)) {
@@ -1530,14 +1824,27 @@ export function stepBeings(sim: Sim): void {
 
     if (s.expecting[slot] && tick >= (s.expectUntil[slot] ?? 0)) {
       s.expecting[slot] = 0;
+      // A rooted bearer's young is a sprout: immovable for its own spell (06 section 6.3, beings build 3).
+      const sprout = (s.rooted[slot] ?? 0) === 1;
+      s.rooted[slot] = 0;
       const brood = Math.max(1, s.brood[slot] ?? 1);
       let born = 0;
       for (let n = 0; n < brood && b.store.size < WORLD_CAP; n++) {
-        if (spawnBeing(sim, s.species[slot] ?? 0, (s.x[slot] ?? 0) + rng.int(5) - 2, (s.y[slot] ?? 0) + rng.int(5) - 2, false, slot) >= 0) born++;
+        const child = spawnBeing(sim, s.species[slot] ?? 0, (s.x[slot] ?? 0) + rng.int(5) - 2, (s.y[slot] ?? 0) + rng.int(5) - 2, false, slot);
+        if (child >= 0) {
+          born++;
+          if (sprout) sim.effects.add(child, 'sprouting', tick);
+        }
       }
       if (born > 0) addMood(sim, slot, 'child_born');
     }
 
+    // Architect possession (07 section 13): the orders replace the AI and the sleep for the control's length.
+    if (isPossessed(sim, slot)) {
+      possessedStep(sim, slot);
+      continue;
+    }
+    if (tick % LOVE_CHECK === 0) loveCheck(sim, slot);
     if (tick % BOND_CHECK === 0) bondCheck(sim, slot);
     if (sleepCheck(sim, slot)) continue;
     if (tick >= (s.nextDecision[slot] ?? 0)) decide(sim, slot);

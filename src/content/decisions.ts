@@ -39,6 +39,10 @@ export const DECISION_ROWS: readonly DecisionRow[] = [
   // Folk brawl (08 section 2.5, 07 section 10.3): a Folk starts a fight with a Folk in sight when the fight row found no
   // hostile. Appended as row 13. Runs the fight task, with the brawl stop rule on Folk-on-Folk blows.
   { id: 'brawl', tier: 3, weight: 1, cooldown: 600, flags: [] },
+  // Beings build 3 (07 section 3.6): a child follows its live parent (`follow_parent`, tier 2 weight 0.2) and a scorched
+  // Being runs to the nearest shore to douse itself (`douse_self`, tier 4 weight 5). Appended as rows 14 and 15.
+  { id: 'follow_parent', tier: 2, weight: 0.2, cooldown: 0, flags: [] },
+  { id: 'douse_self', tier: 4, weight: 5, cooldown: 200, flags: [] },
 ];
 
 /** Decision index by id. */

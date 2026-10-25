@@ -33,6 +33,12 @@ export enum Cmd {
   ItemRain = 14,
   /** Marks or unmarks an item as a favourite (inspector star). */
   SetItemFavourite = 15,
+  /**
+   * Architect possession of one Being (07 section 13; beings build 3). `on` true gives an order to move to tile (x,y), and
+   * with `attack` to strike what stands beside it; each order refreshes the control. `on` false releases the Being.
+   * `beingId` is generation * MAX_BEINGS + slot, as in SetGear. Additive kind; PROTOCOL_VERSION unchanged.
+   */
+  Possess = 16,
 }
 
 export enum Ev {
@@ -73,7 +79,8 @@ export type Command =
   | { kind: Cmd.SetGear; seq: number; beingId: number; slot: string; item: string | null }
   | { kind: Cmd.SetItemRain; seq: number; ids: string[] }
   | { kind: Cmd.ItemRain; seq: number; x: number; y: number; radius: number }
-  | { kind: Cmd.SetItemFavourite; seq: number; itemId: number; on: boolean };
+  | { kind: Cmd.SetItemFavourite; seq: number; itemId: number; on: boolean }
+  | { kind: Cmd.Possess; seq: number; beingId: number; on: boolean; x: number; y: number; attack: boolean };
 
 /** Rows of the index texture: RGBA8 per tile = [ground, cover, elevation, flags & 0xff]. */
 export interface FrameRows {

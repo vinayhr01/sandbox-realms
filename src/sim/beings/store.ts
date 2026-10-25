@@ -89,6 +89,22 @@ export class BeingStore {
   readonly aggroId: Int32Array;
   readonly aggroGen: Uint32Array;
   readonly aggroUntil: Uint32Array;
+  /** Egg stage (beings build 3, 06 section 3.2 `shelled`): the tick the egg hatches; 0 when not an egg. Saved. */
+  readonly shelledUntil: Uint32Array;
+  /** 1 while the Being is rooted for its pregnancy (06 section 6.3 rooting): immovable until the sprout is born. Saved. */
+  readonly rooted: Uint8Array;
+  /** Lover and best friend (06 section 4.4): partner slot and its generation at link time; -1 when none. Saved. */
+  readonly loverWith: Int32Array;
+  readonly loverGen: Uint32Array;
+  readonly friendWith: Int32Array;
+  readonly friendGen: Uint32Array;
+  /** Architect possession (07 section 13): tick the control ends, the order tile and whether to strike. Not saved. */
+  readonly possessUntil: Uint32Array;
+  readonly orderX: Uint16Array;
+  readonly orderY: Uint16Array;
+  readonly orderAttack: Uint8Array;
+  /** Step index of the running step-machine task (07 section 4.1). Not saved: a loaded task restarts its steps. */
+  readonly stepAt: Uint8Array;
 
   private readonly list: Uint32Array;
   private readonly slotPos: Int32Array;
@@ -150,6 +166,17 @@ export class BeingStore {
     this.aggroId = new Int32Array(capacity * AGGRO_SLOTS).fill(-1);
     this.aggroGen = new Uint32Array(capacity * AGGRO_SLOTS);
     this.aggroUntil = new Uint32Array(capacity * AGGRO_SLOTS);
+    this.shelledUntil = new Uint32Array(capacity);
+    this.rooted = new Uint8Array(capacity);
+    this.loverWith = new Int32Array(capacity).fill(-1);
+    this.loverGen = new Uint32Array(capacity);
+    this.friendWith = new Int32Array(capacity).fill(-1);
+    this.friendGen = new Uint32Array(capacity);
+    this.possessUntil = new Uint32Array(capacity);
+    this.orderX = new Uint16Array(capacity);
+    this.orderY = new Uint16Array(capacity);
+    this.orderAttack = new Uint8Array(capacity);
+    this.stepAt = new Uint8Array(capacity);
     this.list = new Uint32Array(capacity);
     this.slotPos = new Int32Array(capacity).fill(-1);
     this.freeStack = new Uint32Array(capacity);
@@ -210,6 +237,15 @@ export class BeingStore {
     this.aggroId.fill(-1, slot * AGGRO_SLOTS, slot * AGGRO_SLOTS + AGGRO_SLOTS);
     this.aggroGen.fill(0, slot * AGGRO_SLOTS, slot * AGGRO_SLOTS + AGGRO_SLOTS);
     this.aggroUntil.fill(0, slot * AGGRO_SLOTS, slot * AGGRO_SLOTS + AGGRO_SLOTS);
+    this.shelledUntil[slot] = 0;
+    this.rooted[slot] = 0;
+    this.loverWith[slot] = -1;
+    this.loverGen[slot] = 0;
+    this.friendWith[slot] = -1;
+    this.friendGen[slot] = 0;
+    this.possessUntil[slot] = 0;
+    this.orderAttack[slot] = 0;
+    this.stepAt[slot] = 0;
     this.slotPos[slot] = this.count;
     this.list[this.count++] = slot;
     return slot;

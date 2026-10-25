@@ -436,6 +436,9 @@ async function boot(): Promise<void> {
   /** Ties (Insight select step): waiting for a tap, and the dominion picked (-1 none). Not saved. */
   let dominionPending = false;
   let selectedDominion = -1;
+  /** Accord Finder (Insight select step, 12 section 8.8): waiting for a tap, and the dominion picked (-1 none). Not saved. */
+  let accordPending = false;
+  let accordDominion = -1;
   /** Insight view flags (UI only, not saved): arrow kinds, tip kinds and the O07 ticker (src/ui/powerSupport.ts). */
   const viewFlags = viewFlagsDefault();
   /** O07 history feed, in memory and rebuilt from snapshots; its strip on the map; the cursor tooltip. */
@@ -622,6 +625,8 @@ async function boot(): Promise<void> {
     selectedHamlet = -1;
     dominionPending = false;
     selectedDominion = -1;
+    accordPending = false;
+    accordDominion = -1;
     historyFeed.clear();
     $('realm-name').textContent = `Realm ${seed.toString(36).toUpperCase().slice(-6)}`;
   };
@@ -731,6 +736,22 @@ async function boot(): Promise<void> {
         updatePowerButtons();
         return;
       }
+      case 'select_accord': {
+        // Accord Finder: as Ties, a second press on the row clears the selection. The next tap picks the dominion owning
+        // that tile, and only its pact candidates are drawn (12 section 8.8). The map layer is not changed.
+        setArmed(null);
+        if (accordDominion >= 0) {
+          accordDominion = -1;
+          accordPending = false;
+          setStatus('Accord Finder: cleared.');
+          updatePowerButtons();
+          return;
+        }
+        accordPending = true;
+        setStatus('Tap a tile to select the dominion whose pact candidates to show.');
+        updatePowerButtons();
+        return;
+      }
       case 'layer_toggle': {
         // One layer at a time. Tapping a layer that is off shows it as borders; tapping it again steps
         // being, then parent, then off.
@@ -796,6 +817,8 @@ async function boot(): Promise<void> {
               ? viewFlags.has(String(power.params['key']))
             : power.handler === 'select_dominion'
               ? selectedDominion >= 0
+            : power.handler === 'select_accord'
+              ? accordDominion >= 0
             : power.handler === 'layer_toggle'
               ? stringOption(options, 'map.layer') === String(power.params['layer'])
               : state.armed?.id === power.id;
@@ -1176,6 +1199,18 @@ async function boot(): Promise<void> {
         updatePowerButtons();
         return;
       }
+      if (accordPending) {
+        accordPending = false;
+        const dom = dominionAtTile(simView.current?.mapTiles, t.x, t.y);
+        if (dom < 0) {
+          setStatus('No dominion owns that tile.');
+        } else {
+          accordDominion = dom;
+          setStatus(`Dominion ${dom + 1} selected: its pact candidates are drawn. Press Accord Finder again to clear.`);
+        }
+        updatePowerButtons();
+        return;
+      }
       if (hamletPending) {
         hamletPending = false;
         const idx = hamletAtTile(simView.current?.mapTiles, t.x, t.y);
@@ -1436,6 +1471,7 @@ async function boot(): Promise<void> {
       followId = null;
       hamletPending = false;
       dominionPending = false;
+      accordPending = false;
       setArmed(null);
     }
   });
@@ -1558,7 +1594,7 @@ async function boot(): Promise<void> {
           hoverId: hoverPoint?.id ?? -1,
           moneyFlow: boolOption(options, 'ui.moneyFlow'),
           selectedDominion,
-          accord: viewFlags.has('accord'),
+          accordDominion,
         },
         { offX: cam.offX, offY: cam.offY, zoom: cam.zoom },
       );

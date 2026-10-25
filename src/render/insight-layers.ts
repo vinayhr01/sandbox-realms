@@ -10,9 +10,9 @@
  * The hamlet picked by Hamlet Select is outlined.
  * Cursor arrows (A01..A07): from the Being under the cursor to its links in `snap.mapLinks`, one colour per kind. Drawn
  * only when the Settings master `ui.cursorArrows` is on, and only for the kinds whose Insight flag is on (`arrows`).
- * Close 5: Money flow (O05, `ui.moneyFlow`) draws each taxed hamlet's ruler share from `snap.mapTaxFlows`; Accord Finder
- * (view flag `accord`) draws pact candidates from `snap.mapTies`. Ties (close 6, the selected dominion) draws the opinion
- * lines between that dominion and each bordering dominion, from the same feed.
+ * Close 5: Money flow (O05, `ui.moneyFlow`) draws each taxed hamlet's ruler share from `snap.mapTaxFlows`. Ties (close 6,
+ * the selected dominion) draws the opinion lines between that dominion and each bordering dominion, from `snap.mapTies`.
+ * Accord Finder (close 7, the selected dominion) draws only that dominion's pact candidates, from the same feed.
  *
  * Reads the latest snapshot only (no sim memory). Redraws when the snapshot, the toggles or the camera change. It is
  * drawn over the beings at low alpha, so the tint shows on the terrain and the Beings alike.
@@ -95,8 +95,8 @@ export interface InsightToggles {
   moneyFlow: boolean;
   /** Dominion id picked by Ties (a select step), or -1. Its relations to bordering dominions are drawn. */
   selectedDominion: number;
-  /** View flag `accord` (Insight Accord Finder): pact candidates the sim's gates allow now. */
-  accord: boolean;
+  /** Dominion id picked by Accord Finder (a select step), or -1. Its pact candidates are drawn (drawAccord). */
+  accordDominion: number;
 }
 
 /** Colours of the Ties, Accord and Money flow rows (12 section 8.8). Opinion is also marked by a square, not colour alone. */
@@ -107,8 +107,44 @@ const OPINION_MARK_PX = 2;
 const OPINION_FULL = 100;
 const ACCORD_COLOUR = 0xffd166;
 const ACCORD_RING_PX = 9;
+const ACCORD_JOIN_ALPHA = 0.5;
 const TAX_COLOUR = 0xf4c542;
 const TAX_HAMLET_PX = 2;
+
+/**
+ * The Accord Finder rows of one selected dominion (12 section 8.8), read from the ties feed. `formPact` are the partners a
+ * formPact could join it to. `joinable` are the members of each pact it could join now. `joiners` are the dominions that
+ * could join a pact the selected dominion is in. Draws nothing: the caller picks the lines.
+ */
+export interface AccordView {
+  formPact: number[];
+  joinable: number[];
+  joiners: number[];
+  canJoin: boolean;
+}
+
+/** The candidates of one dominion out of the whole Accord feed (the feed holds every pair; this narrows it). Reads only. */
+export function accordViewOf(ties: MapTies, only: number): AccordView {
+  const formPact: number[] = [];
+  for (const [a, b] of ties.formPact) {
+    if (a === only) formPact.push(b);
+    else if (b === only) formPact.push(a);
+  }
+  const pactsOfOnly = new Set<number>();
+  for (const [pactId, members] of ties.pactMembers) if (members.includes(only)) pactsOfOnly.add(pactId);
+  const joinIds = new Set<number>();
+  const joiners = new Set<number>();
+  for (const [d, pactId] of ties.joinPact) {
+    if (d === only) joinIds.add(pactId);
+    else if (pactsOfOnly.has(pactId)) joiners.add(d);
+  }
+  const joinable = new Set<number>();
+  for (const [pactId, members] of ties.pactMembers) {
+    if (!joinIds.has(pactId)) continue;
+    for (const m of members) if (m !== only) joinable.add(m);
+  }
+  return { formPact, joinable: [...joinable], joiners: [...joiners], canJoin: joinIds.size > 0 };
+}
 
 /** The camera state the layer needs. */
 export interface InsightView {
@@ -222,7 +258,7 @@ export class InsightLayer {
       snap?.mapLinks?.length ?? 0,
       t.moneyFlow,
       t.selectedDominion,
-      t.accord,
+      t.accordDominion,
       snap?.mapTies?.opinions.length ?? 0,
       snap?.mapTaxFlows?.length ?? 0,
       view.offX,
@@ -236,7 +272,7 @@ export class InsightLayer {
     if (!snap) return;
     const layerOn = t.layer !== 'off';
     const arrowsOn = t.arrows.size > 0 && t.hoverId >= 0;
-    const dominionViews = t.selectedDominion >= 0 || t.accord || t.moneyFlow;
+    const dominionViews = t.selectedDominion >= 0 || t.accordDominion >= 0 || t.moneyFlow;
     if (!layerOn && !t.happiness && !t.tasks && !t.armyLines && !t.talkBubbles && !arrowsOn && !dominionViews && t.selectedHamlet < 0) return;
 
     const d = snap.mapTiles ? this.decodedOf(snap, snap.mapTiles) : null;
@@ -277,7 +313,7 @@ export class InsightLayer {
 
     if (arrowsOn) this.drawArrows(snap, t, view);
     if (t.selectedDominion >= 0 && snap.mapTies) this.drawTies(snap.mapTies, t.selectedDominion, view);
-    if (t.accord && snap.mapTies) this.drawAccord(snap.mapTies, view);
+    if (t.accordDominion >= 0 && snap.mapTies) this.drawAccord(snap.mapTies, t.accordDominion, view);
     if (t.moneyFlow && snap.mapTaxFlows) this.drawMoneyFlow(snap.mapTaxFlows, view);
   }
 
@@ -310,21 +346,30 @@ export class InsightLayer {
   }
 
   /**
-   * Accord Finder (Insight): a gold line between two dominions a formPact could join now, and a gold ring round each
-   * dominion that some pact would take in (joinPact). Pact ids have no position, so the ring names the dominion only.
+   * Accord Finder (Insight select step, 12 section 8.8): for the selected dominion `only`, a gold line to each dominion it
+   * could form a pact with now; a thin line to each member of a pact it could join, with a ring round it; and a ring round
+   * each dominion that could join a pact it is in, with a line to it. Other pairs are not drawn.
    */
-  private drawAccord(ties: MapTies, view: InsightView): void {
+  private drawAccord(ties: MapTies, only: number, view: InsightView): void {
     const centre = new Map<number, { sx: number; sy: number }>();
     for (const [id, x, y] of ties.centres) centre.set(id, this.screenOf(x, y, view));
-    for (const [a, b] of ties.formPact) {
-      const from = centre.get(a);
-      const to = centre.get(b);
-      if (from && to) this.g.moveTo(from.sx, from.sy).lineTo(to.sx, to.sy).stroke({ width: 2, color: ACCORD_COLOUR, alpha: 0.9 });
+    const from = centre.get(only);
+    if (!from) return;
+    const accord = accordViewOf(ties, only);
+    for (const partner of accord.formPact) {
+      const to = centre.get(partner);
+      if (to) this.g.moveTo(from.sx, from.sy).lineTo(to.sx, to.sy).stroke({ width: 2, color: ACCORD_COLOUR, alpha: 0.9 });
     }
-    const joinable = new Set(ties.joinPact.map(([d]) => d));
-    for (const id of joinable) {
+    for (const member of accord.joinable) {
+      const to = centre.get(member);
+      if (to) this.g.moveTo(from.sx, from.sy).lineTo(to.sx, to.sy).stroke({ width: 1, color: ACCORD_COLOUR, alpha: ACCORD_JOIN_ALPHA });
+    }
+    if (accord.canJoin) this.g.circle(from.sx, from.sy, ACCORD_RING_PX).stroke({ width: 1.5, color: ACCORD_COLOUR, alpha: 0.9 });
+    for (const id of accord.joiners) {
       const c = centre.get(id);
-      if (c) this.g.circle(c.sx, c.sy, ACCORD_RING_PX).stroke({ width: 1.5, color: ACCORD_COLOUR, alpha: 0.9 });
+      if (!c) continue;
+      this.g.moveTo(c.sx, c.sy).lineTo(from.sx, from.sy).stroke({ width: 1, color: ACCORD_COLOUR, alpha: ACCORD_JOIN_ALPHA });
+      this.g.circle(c.sx, c.sy, ACCORD_RING_PX).stroke({ width: 1.5, color: ACCORD_COLOUR, alpha: 0.9 });
     }
   }
 

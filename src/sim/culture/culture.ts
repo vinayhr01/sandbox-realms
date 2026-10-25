@@ -360,6 +360,21 @@ export function foundCreed(state: CultureState, group: number, tick: number, rng
   return creed;
 }
 
+/** Points a harmony tenet adds to its stat for the followers of the creed (11 section 4.2: +10). */
+export const HARMONY_BONUS = 10;
+
+/** The four stats a harmony tenet names (11 section 9.4). */
+export type HarmonyStat = 'intelligence' | 'warfare' | 'diplomacy' | 'stewardship';
+
+/**
+ * The harmony bonus a group's creeds give one stat (11 section 4.2, creed effects): HARMONY_BONUS when a creed the group
+ * holds carries `harmony_<stat>`, else 0. Several creeds held by one group give the bonus once. Reads only; draws no rng.
+ */
+export function harmonyBonus(state: CultureState, group: number, stat: HarmonyStat): number {
+  const id = `harmony_${stat}`;
+  return state.creeds.some((c) => c.holders.has(group) && (c.tenets ?? []).includes(id)) ? HARMONY_BONUS : 0;
+}
+
 /**
  * Founds a dialect for `group` (11 sections 2 and 3, newDialect). The phonology and the birth traits are not built (11
  * section 6.5 and the dialect trait lists), so the lexicon starts empty. The creator is the group and the birth is `tick`.

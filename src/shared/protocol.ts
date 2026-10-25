@@ -260,12 +260,15 @@ export const MAP_TAX_CAP = 128;
  * Ties and Accord feed (12 section 8.8). `centres` holds each dominion's centroid tile. `opinions` lists [a, b, value] for
  * each bordering pair in both directions: a's opinion of b (opinion.ts), so a line can be coloured by its holder's view.
  * `formPact` and `joinPact` are the pact candidates the sim's gates allow now (intrigue.ts). Each list is capped.
+ * `pactMembers` gives the members of each pact a `joinPact` row names (pact id, member dominion ids), so the Accord Finder
+ * can draw the candidates of one selected dominion (src/render/insight-layers.ts). A pact id has no position otherwise.
  */
 export interface MapTies {
   centres: [number, number, number][];
   opinions: [number, number, number][];
   formPact: [number, number][];
   joinPact: [number, number][];
+  pactMembers: [number, number[]][];
 }
 
 /**

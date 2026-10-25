@@ -93,8 +93,8 @@ export const SETTINGS: readonly SettingDef[] = [
   B('ui.worldTooltips', 'hud', 'World tooltips', true),
   B('ui.tips', 'hud', 'Tip messages', true),
   B('ui.talkBubbles', 'hud', 'Talk bubbles', true),
-  B('ui.happinessIcons', 'hud', 'Happiness icons', false),
-  B('ui.taskIcons', 'hud', 'Task icons', false),
+  B('ui.happinessIcons', 'hud', 'Happiness icons', false, true),
+  B('ui.taskIcons', 'hud', 'Task icons', false, true),
   B('ui.moneyFlow', 'hud', 'Money flow', false),
   B('ui.cursorArrows', 'hud', 'Cursor arrows', false),
   B('ui.autoOpenContextTab', 'hud', 'Open context tab on select', true),
@@ -134,7 +134,7 @@ export const SETTINGS: readonly SettingDef[] = [
   // Language and privacy
   C('lang', 'lang', 'Language', ['auto', 'en'], 'auto'),
   B('privacy.telemetry', 'privacy', 'Share anonymous usage data', false),
-  B('privacy.errorReports', 'privacy', 'Send error reports', false),
+  B('privacy.errorReports', 'privacy', 'Send error reports', false, true),
   // Developer
   B('dev.enabled', 'dev', 'Developer tools', false, true),
 ];

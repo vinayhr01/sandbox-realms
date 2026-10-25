@@ -9,11 +9,12 @@ describe('live options (13 section 15)', () => {
     expect(DEFAULT_OPTIONS['game.confirmQuit']).toBe(true);
   });
 
-  it('the table has 78 rows and 55 of them are live', () => {
+  it('the table has 78 rows and 58 of them are live', () => {
     // 72 spec 13 rows, three audio options from spec 16 (audio.mono, audio.visualCues, audio.reduceLoud), and three
-    // Insight options (map.layer, map.layerMode, marks.armyLines). Counted from options.ts: 55 rows set live.
+    // Insight options (map.layer, map.layerMode, marks.armyLines). Counted from options.ts: 58 rows set live
+    // (Settings close 4 flipped ui.happinessIcons, ui.taskIcons and privacy.errorReports from 55).
     expect(SETTINGS.length).toBe(78);
-    expect(SETTINGS.filter((s) => s.live).length).toBe(55);
+    expect(SETTINGS.filter((s) => s.live).length).toBe(58);
   });
 
   it('a live toggle changes its value and leaves the rest alone', () => {

@@ -20,7 +20,7 @@ export const SOLDIER_GOLD_GATE = 10;
 export const SOLDIER_TIMER_BASE = 300;
 /** Lowest soldier timer after the warfare term (09 section 8: floor 20). */
 export const SOLDIER_TIMER_FLOOR = 20;
-/** Leader warfare used in the timer. The sim has no leader model, so the term is 0 (TUNE). */
+/** Leader warfare when a hamlet has no living leader (garrison-adapter.ts leaderWarfare reads the leader's valor otherwise). */
 export const LEADER_WARFARE = 0;
 /** Gold a recruit costs, paid from the hamlet purse when the soldier is drawn (TUNE: the spec gives no recruit cost). */
 export const RECRUIT_COST_GOLD = 4;

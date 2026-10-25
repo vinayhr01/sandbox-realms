@@ -17,7 +17,7 @@
 import type { BoatKind } from '../boats/types.ts';
 
 /** Jobs a building can employ (09 section 8). Output and rules live in jobs.ts. */
-export type JobId = 'forager' | 'miner' | 'woodcutter';
+export type JobId = 'forager' | 'miner' | 'iron_miner' | 'woodcutter';
 
 export interface JobSlot {
   job: JobId;
@@ -81,6 +81,10 @@ export const BUILDINGS: readonly BuildingDef[] = [
   { id: 'granary', name: 'Granary', role: 'store', wood: 6, stone: 4, footprint: 3, height: 2, hp: 250, ...NONE, foodCapacity: 200 },
   { id: 'quarry', name: 'Quarry', role: 'work', wood: 0, stone: 0, gold: 12, footprint: 3, height: 3, hp: 300, ...NONE, jobs: [{ job: 'miner', slots: 5 }] },
   { id: 'lumber_camp', name: 'Lumber Camp', role: 'work', wood: 3, stone: 0, footprint: 2, height: 3, hp: 150, ...NONE, jobs: [{ job: 'woodcutter', slots: 3 }] },
+  // Mine: the 09 draft "Mine Shaft" (09 section 7 quarry row), with the spec's digging cost (18c quarry: gold 12). Its miners
+  // break iron deposits in the territory and the iron goes to the hamlet iron store (hamlet.ts runJobs, job iron_miner).
+  // 18c has no separate mine row; the cost is the one spec digging building.
+  { id: 'mine', name: 'Mine', role: 'work', wood: 0, stone: 0, gold: 12, footprint: 3, height: 3, hp: 300, ...NONE, jobs: [{ job: 'iron_miner', slots: 5 }] },
   { id: 'lean_to', name: 'Lean-to', role: 'house', wood: 1, stone: 0, footprint: 1, hp: 40, ...NONE, housing: 2, housingMood: 5, needs: ['hearth_fire'] },
   { id: 'dwelling_1', name: 'Dwelling I', role: 'house', wood: 5, stone: 0, footprint: 2, hp: 90, ...NONE, housing: 3, housingMood: 6, needs: ['lean_to'] },
   { id: 'dwelling_2', name: 'Dwelling II', role: 'house', wood: 4, stone: 0, footprint: 2, hp: 140, ...NONE, housing: 4, housingMood: 7, needs: ['great_hall_1', 'dwelling_1'] },
@@ -103,7 +107,8 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // Docks (18c 4.1 rows; 10 section 13). Ocean siting and the boat build are in src/sim/boats. Fisher's Pier is
   // the base dock; the harbor is its upgrade. The transport boat is not on these rows: a hamlet with a slipway lists
   // it on its docks (boats.ts docksOf).
-  { id: 'fishers_pier', name: "Fisher's Pier", role: 'food', wood: 9, stone: 0, footprint: 3, height: 2, hp: 200, ...NONE, boatTypes: ['fishing'] },
+  // The pier is placed on a shore site (hamlet.ts placePier); the harbor replaces a standing pier in place (hamlet.ts upgradePier).
+  { id: 'fishers_pier', name: "Fisher's Pier", role: 'food', wood: 9, stone: 0, footprint: 3, height: 2, hp: 200, ...NONE, boatTypes: ['fishing'], needs: ['hearth_fire'] },
   { id: 'harbor', name: 'Harbor', role: 'trade', wood: 9, stone: 6, footprint: 3, height: 3, hp: 400, ...NONE, boatTypes: ['fishing', 'trading'], needs: ['fishers_pier'] },
   // 18e section 3.1 slipway: cost 14/6/2/30, footprint 4x3, hp 500, needs a harbor in the Hamlet. It unlocks the transport
   // boat on the Hamlet's docks and builds them every 150 ticks (boats.ts). Not modelled: its 300 progress (one

@@ -273,7 +273,8 @@ body {
 }
 
 .brush,
-.realm-size {
+.realm-size,
+.realm-advanced {
   display: flex;
   align-items: center;
   gap: var(--gap);

@@ -23,6 +23,7 @@ import {
 import { FLORA, floraCode, cropRipe, fertiliseCrop, harvestCrop, hiveReady, makeRuin, pickManure, plantCrop, takeHoney, till, tillable } from '../flora.ts';
 import { BASE_RULES, centreOf, housesMax, lotOk, narrow, zoneOk, ZONE_HOUSING, ZONE_PARCELS, type CustomRules } from './custom-rules.ts';
 import { roadTerrainOpen } from './roads.ts';
+import { dockPool } from '../boats/docks.ts';
 
 /** Parcels are 8x8 tiles (01 section 2). Defined once in shared constants; re-exported here for existing importers. */
 export { PARCEL };
@@ -49,12 +50,17 @@ export interface Hamlet {
   steps: number;
   /** Hamlet gold: the purse that building costs and gear coins are paid from (09 section 10.5). */
   gold: number;
-  /** Hamlet iron: the store a transport boat (10 section 13: iron 2) is paid from. No income is built yet, so it starts at 0. */
+  /** Hamlet iron: the store a transport boat (10 section 13: iron 2) is paid from, fed by iron deposits and mines. Starts at 0. */
   iron: number;
   /** The building under construction (09 section 6): paid for when placed, finished when its progress reaches SITE_PROGRESS. */
   site?: BuildSite;
   /** Road tiles queued for the roadwright, in the order they are laid (09 section 11.3). Saved in the hamlet snapshot. */
   road: number[];
+  /**
+   * The hamlet leader (09 section 8): the Being slot of the oldest adult Folk standing in the hamlet, or -1 for none. Set
+   * each sim-second from the census (adapter.ts), before the hamlet step and the garrison pass that read it. Derived, not saved.
+   */
+  leader?: number;
 }
 
 /** A building under construction: its def and origin, and the builder progress so far (09 section 6 progressNeeded). */
@@ -216,6 +222,9 @@ export function buildable(ctx: HamletContext, x: number, y: number, h: Hamlet): 
 export function placeBuilding(ctx: HamletContext, h: Hamlet, def: BuildingDef): boolean {
   if (h.site) return false;
   if (h.wood < def.wood || h.stone < def.stone || h.gold < (def.gold ?? 0) || h.iron < (def.iron ?? 0)) return false;
+  // Docks are sited on the shore, not on land (09 section 6 fishers_pier and harbor).
+  if (def.id === 'fishers_pier') return placePier(ctx, h, def);
+  if (def.id === 'harbor') return upgradePier(ctx, h, def);
   const rules = ctx.rules ?? BASE_RULES;
   const side = ctx.realm.side;
   const ordered = [...h.parcels].sort((a, b) => a - b);
@@ -265,6 +274,99 @@ export function placeBuilding(ctx: HamletContext, h: Hamlet, def: BuildingDef): 
   h.gold -= def.gold ?? 0;
   h.iron -= def.iron ?? 0;
   h.site = { def, x: pick.x, y: pick.y, progress: 0 };
+  return true;
+}
+
+/**
+ * True when tile (x, y) may hold part of a dock: inside a parcel the hamlet owns, land or water (not blocked or damaging),
+ * no flora, not a road tile or queued road, and not under another building or the site. `ignore` is a building whose
+ * tiles do not count (the pier a harbor replaces). Reads only.
+ */
+function dockTileOk(ctx: HamletContext, h: Hamlet, x: number, y: number, ignore?: Placed): boolean {
+  const side = ctx.realm.side;
+  if (x < 0 || y < 0 || x >= side || y >= side) return false;
+  const i = y * side + x;
+  const kind = ground(ctx.realm.ground[i] ?? 0);
+  if ((kind.layer !== 'land' && kind.layer !== 'water') || kind.damages > 0) return false;
+  if ((ctx.realm.flora[i] ?? 0) !== 0) return false;
+  if (ctx.realm.ground[i] === G.wayworn || h.road.includes(i)) return false;
+  const p = Math.floor(y / PARCEL) * (side / PARCEL) + Math.floor(x / PARCEL);
+  if (!h.parcels.has(p)) return false;
+  for (const b of h.buildings) {
+    if (b === ignore) continue;
+    if (x >= b.x && y >= b.y && x < b.x + b.def.footprint && y < b.y + heightOf(b.def)) return false;
+  }
+  const s = h.site;
+  if (s && x >= s.x && y >= s.y && x < s.x + s.def.footprint && y < s.y + heightOf(s.def)) return false;
+  return true;
+}
+
+/**
+ * Places a fisher's pier (09 section 6 `pickPierSite`): the site is a dock footprint on the hamlet's shore whose ocean-access
+ * test passes (docks.ts dockPool), in a pool the hamlet has no other dock on (09 section 12: one pier per pool per hamlet).
+ * The candidate nearest the hamlet centre is taken, as for other civic buildings. The pier becomes the hamlet's site. Draws
+ * no randomness.
+ */
+function placePier(ctx: HamletContext, h: Hamlet, def: BuildingDef): boolean {
+  const realm = ctx.realm;
+  const perAxis = realm.side / PARCEL;
+  const depth = heightOf(def);
+  const usedPools = new Set<number>();
+  for (const b of h.buildings) {
+    if (b.def.boatTypes && b.def.boatTypes.length > 0) usedPools.add(dockPool(realm, b.x, b.y, b.def.footprint, heightOf(b.def)));
+  }
+  const centre = centreOf(h.parcels, perAxis);
+  let best: { x: number; y: number } | null = null;
+  let bestD = Number.POSITIVE_INFINITY;
+  for (const p of [...h.parcels].sort((a, b) => a - b)) {
+    const px = (p % perAxis) * PARCEL;
+    const py = Math.floor(p / perAxis) * PARCEL;
+    for (let y = py; y < py + PARCEL; y++) {
+      for (let x = px; x < px + PARCEL; x++) {
+        const pool = dockPool(realm, x, y, def.footprint, depth);
+        if (pool < 0 || usedPools.has(pool)) continue;
+        let ok = true;
+        for (let dy = 0; dy < depth && ok; dy++) {
+          for (let dx = 0; dx < def.footprint && ok; dx++) ok = dockTileOk(ctx, h, x + dx, y + dy);
+        }
+        if (!ok) continue;
+        const d = (x - centre.tx) * (x - centre.tx) + (y - centre.ty) * (y - centre.ty);
+        if (d < bestD) {
+          bestD = d;
+          best = { x, y };
+        }
+      }
+    }
+  }
+  if (!best) return false;
+  h.wood -= def.wood;
+  h.stone -= def.stone;
+  h.gold -= def.gold ?? 0;
+  h.iron -= def.iron ?? 0;
+  h.site = { def, x: best.x, y: best.y, progress: 0 };
+  return true;
+}
+
+/**
+ * Upgrades a standing fisher's pier to a harbor in place (09 section 6 upgrade: the source building is swapped for the target
+ * def at once, the cost is paid, and the footprint is re-checked because the harbor is one row deeper). The pier's own tiles do
+ * not block it. Nothing is placed when the pool test fails. Draws no randomness.
+ */
+function upgradePier(ctx: HamletContext, h: Hamlet, def: BuildingDef): boolean {
+  const pier = h.buildings.find((b) => b.def.id === 'fishers_pier');
+  if (!pier) return false;
+  const depth = heightOf(def);
+  for (let dy = 0; dy < depth; dy++) {
+    for (let dx = 0; dx < def.footprint; dx++) {
+      if (!dockTileOk(ctx, h, pier.x + dx, pier.y + dy, pier)) return false;
+    }
+  }
+  if (dockPool(ctx.realm, pier.x, pier.y, def.footprint, depth) < 0) return false;
+  h.wood -= def.wood;
+  h.stone -= def.stone;
+  h.gold -= def.gold ?? 0;
+  h.iron -= def.iron ?? 0;
+  pier.def = def;
   return true;
 }
 
@@ -356,6 +458,8 @@ export function hamletMood(h: Hamlet): number {
 /** A building rule: its gates, on top of the limit of one per hamlet and the building's `needs` (09 section 6). */
 interface BuildRule {
   id: string;
+  /** Standing buildings of this id allowed in the hamlet (09 section 6 limit). Absent: one. */
+  limit?: number;
   minFolk?: number;
   minBuildings?: number;
   minParcels?: number;
@@ -364,7 +468,7 @@ interface BuildRule {
 
 /**
  * Build order, in priority (09 section 6 advanced list, reduced). Gates are the spec's where it gives them;
- * waystop's are TUNE. Each id is built at most once per hamlet.
+ * waystop's and mine's are TUNE. Each id is built at most once per hamlet unless its rule sets a limit.
  */
 const RULES: readonly BuildRule[] = [
   { id: 'hearth_fire' },
@@ -373,6 +477,11 @@ const RULES: readonly BuildRule[] = [
   { id: 'great_hall_1' },
   { id: 'quarry', when: (h) => h.stone < 10 && h.buildings.filter((b) => b.def.housing > 0).length >= 2 },
   { id: 'lumber_camp', when: (h) => h.wood < 30 && h.folk >= 4 },
+  // Docks (09 section 6: fishers_pier limit 5, bldg 2, needs hearth_fire and a pier site; harbor is its upgrade).
+  { id: 'fishers_pier', limit: 5, minBuildings: 2 },
+  { id: 'harbor', minBuildings: 2 },
+  // The mine (iron_miner jobs break iron deposits; TUNE gates: folk 20, iron store under 10).
+  { id: 'mine', minFolk: 20, when: (h) => h.iron < 10 },
   { id: 'quarry_lodge', minFolk: 20, when: (h) => countOf(h, 'quarry') > 0 },
   { id: 'waystop', minFolk: 25, minBuildings: 10 },
   { id: 'great_hall_2', minFolk: 30, minBuildings: 8 },
@@ -404,7 +513,7 @@ export function buildChoices(h: Hamlet, desires: readonly string[] = [], rules: 
   for (const rule of RULES) {
     const def = BUILDING_BY_ID.get(rule.id);
     // One of each civic building per hamlet; the monument limit is raised by statuePride (custom-rules.ts).
-    const limit = rule.id === 'monument' ? rules.monumentLimit : 1;
+    const limit = rule.id === 'monument' ? rules.monumentLimit : (rule.limit ?? 1);
     if (!def || countOf(h, rule.id) >= limit || !hasAll(h, def.needs ?? [])) continue;
     if (rule.minFolk !== undefined && h.folk < rule.minFolk) continue;
     if (rule.minBuildings !== undefined && h.buildings.length < rule.minBuildings) continue;
@@ -527,6 +636,17 @@ function runJobs(ctx: HamletContext, h: Hamlet, workers: ReadonlyMap<WorkerJob, 
         h.gold += d.gold;
         h.iron += d.iron;
       }
+    } else if (job.id === 'iron_miner') {
+      // A mine's miner breaks one iron node per unit: the node leaves the realm and its iron goes to the hamlet iron store.
+      // Nodes a prospector took this step are already off the list.
+      for (let k = 0; k < amount; k++) {
+        const at = targets.deposits.findIndex((d) => d.iron > 0);
+        if (at < 0) break;
+        const [d] = targets.deposits.splice(at, 1);
+        if (!d) break;
+        ctx.realm.setFlora(d.tile, 0, ctx.tick);
+        h.iron += d.iron;
+      }
     } else if (job.id === 'honey_gatherer') {
       for (const i of targets.hives.splice(0, amount)) {
         if (takeHoney(ctx.realm, ctx.tick, i) > 0) feed(HONEY_FOOD);
@@ -636,6 +756,7 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
   const counts: JobTargetCounts = {
     herbs: targets.herbs.length,
     deposits: targets.deposits.length,
+    ironDeposits: targets.deposits.filter((d) => d.iron > 0).length,
     hives: targets.hives.length,
     tillWork: targets.tilled.length + targets.farmSpots.length + targets.ripe.length,
     ruins: targets.ruins.length,

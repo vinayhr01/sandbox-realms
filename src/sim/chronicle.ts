@@ -26,7 +26,8 @@ import { restoreClans, type ClanState } from './clans/clans.ts';
 import { snapshotBoats, restoreBoats, type BoatSave } from './boats/boats.ts';
 import { fnv1a } from '../shared/rng.ts';
 import { QUAKE_SHAPE_COUNT } from './terrain/quake.ts';
-import { QUAKE_REACH, restoreTerrain, snapshotTerrain, terrainHasState, type TerrainSave } from './terrain/save.ts';
+import { QUAKE_REACH, restoreTerrain, snapshotTerrain, terrainHasState, type FloraJobSave, type TerrainSave } from './terrain/save.ts';
+import { FLORA_SPREAD_KINDS } from './terrain/state.ts';
 
 /** FNV-1a over raw bytes (the same hash as Sim.stateHash); re-exported for the save tests and tools. */
 export { fnv1a };
@@ -403,8 +404,8 @@ export function encodeChronicle(sim: Sim): Uint8Array {
   // without boats saves exactly as before.
   const boatSnap = snapshotBoats(sim);
   if (boatSnap) section(body, TAG.boats, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(boatSnap))));
-  // Optional terrain section (tag 22, 04 sections 7.2 and 9): vents, the quake in progress and the fissure shape cycle.
-  // Written only when one of them holds state, so a realm without vents or quakes saves exactly as before.
+  // Optional terrain section (tag 22, 04 sections 7.2, 9 and 10): vents, the quake in progress, the fissure shape cycle and
+  // the flora spread jobs (expiry tick, queue, cursor). Written only when one of them holds state.
   if (terrainHasState(sim)) section(body, TAG.terrain, (w) => w.bytes(new TextEncoder().encode(JSON.stringify(snapshotTerrain(sim)))));
 
   const bodyBytes = body.finish();
@@ -775,7 +776,8 @@ function checkBoats(raw: unknown, side: number): BoatSave {
  * Checks the terrain section's shape before any of it is applied. Vents: a known kind, a tile in the realm, whole radii
  * with rMin <= rMax, whole interval and burst counts and a whole next tick. Quake: null or an origin in the realm, an even
  * list of whole step offsets within QUAKE_REACH, a position inside the list and a known mode. Shape cycle: known shape
- * indexes and a cursor no further than the cycle's end.
+ * indexes and a cursor no further than the cycle's end. Flora spread jobs (optional list): a known spread kind once each,
+ * a whole expiry tick, queued tiles in the realm and a cursor no further than the queue's end.
  */
 function checkTerrain(raw: unknown, side: number): TerrainSave {
   const fail = new Error('chronicle: terrain section is not valid');
@@ -797,7 +799,19 @@ function checkTerrain(raw: unknown, side: number): TerrainSave {
     if (steps.length % 2 !== 0 || !steps.every((v) => whole(v, -QUAKE_REACH, QUAKE_REACH))) throw fail;
     if (!whole(q.pos, 0, steps.length / 2) || typeof q.mode !== 'string' || !QUAKE_MODES.includes(q.mode)) throw fail;
   }
-  return { vents: raw.vents, quake: q, shapeOrder, shapeCursor: raw.shapeCursor } as unknown as TerrainSave;
+  const jobsRaw = raw.floraJobs ?? [];
+  if (!Array.isArray(jobsRaw)) throw fail;
+  const floraJobs: FloraJobSave[] = [];
+  const kinds = new Set<string>();
+  for (const j of jobsRaw as unknown[]) {
+    if (!isRecord(j) || typeof j.kind !== 'string' || !FLORA_SPREAD_KINDS.includes(j.kind) || kinds.has(j.kind)) throw fail;
+    kinds.add(j.kind);
+    if (!whole(j.next, 0, Number.MAX_SAFE_INTEGER) || !Array.isArray(j.queue)) throw fail;
+    const queue = j.queue as unknown[];
+    if (!queue.every((t) => whole(t, 0, cells - 1)) || !whole(j.cursor, 0, queue.length)) throw fail;
+    floraJobs.push({ kind: j.kind, next: j.next as number, queue: queue as number[], cursor: j.cursor as number });
+  }
+  return { vents: raw.vents, quake: q, shapeOrder, shapeCursor: raw.shapeCursor, floraJobs } as unknown as TerrainSave;
 }
 
 /** Checks the pact section's shape; restorePacts checks the records. */

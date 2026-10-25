@@ -99,6 +99,19 @@ function adultsIn(sim: Sim, hamlet: Hamlet): number {
 }
 
 /**
+ * Leader warfare for the garrison terms (09 section 8: `leader.warfare` in the soldier timer and in `armyFactor`): the valor
+ * attribute of the hamlet leader (the oldest adult Folk, set by the census in adapter.ts). LEADER_WARFARE when the hamlet has
+ * no living leader. Reads only; draws no rng.
+ */
+function leaderWarfare(sim: Sim, hamlet: Hamlet): number {
+  const slot = hamlet.leader ?? -1;
+  const s = sim.beings.store;
+  if (slot < 0 || s.alive[slot] !== 1) return LEADER_WARFARE;
+  // Attributes are stored four per slot in the order rapport, valor, husbandry, wit (beings/store.ts); valor is index 1.
+  return s.attrs[slot * 4 + 1] ?? LEADER_WARFARE;
+}
+
+/**
  * Wage day (TUNE, not in the spec): each garrisoned soldier costs SOLDIER_WAGE_GOLD from the hamlet purse. When the purse
  * cannot cover the company, the soldiers it can pay keep their place and the rest desert. Deserters are not returned to
  * the dominion: they were drawn out of its strength already, so they leave the game. Deterministic: no rng.
@@ -160,7 +173,7 @@ export function garrisonStep(
     const owner = hasDominions ? ownerOf(hamlet) : UNOWNED;
     let rec = state.records.get(h);
     if (!rec) {
-      rec = { hamlet: h, dominion: owner, soldiers: 0, timer: soldierTimer(LEADER_WARFARE, true), wage: WAGE_PERIOD };
+      rec = { hamlet: h, dominion: owner, soldiers: 0, timer: soldierTimer(leaderWarfare(sim, hamlet), true), wage: WAGE_PERIOD };
       state.records.set(h, rec);
     }
     if (rec.dominion !== owner) {
@@ -178,7 +191,7 @@ export function garrisonStep(
     if (rec.timer > 0) return;
     // Soldier limit (09 section 8 gate): `soldiersNow > soldierSlots` releases the surplus to the dominion, then the timer
     // is set to 600 (not halved). Slots are 0 without the `standing_armies` rule (10 section 8).
-    const slots = sim.rules.isOn('standing_armies') ? soldierSlots(adultsIn(sim, hamlet), LEADER_WARFARE, LEADER_ARMY_BONUS) : 0;
+    const slots = sim.rules.isOn('standing_armies') ? soldierSlots(adultsIn(sim, hamlet), leaderWarfare(sim, hamlet), LEADER_ARMY_BONUS) : 0;
     if (rec.soldiers > slots) {
       release(sim, rec, rec.soldiers - slots);
       rec.timer = SOLDIER_OVER_LIMIT_TIMER;
@@ -193,7 +206,7 @@ export function garrisonStep(
     if (drawOne(sim, rec.dominion) > 0) {
       rec.soldiers += 1;
       hamlet.gold -= RECRUIT_COST_GOLD;
-      rec.timer = soldierTimer(LEADER_WARFARE, true);
+      rec.timer = soldierTimer(leaderWarfare(sim, hamlet), true);
     }
   });
 }

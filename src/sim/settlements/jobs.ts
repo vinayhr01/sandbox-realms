@@ -2,11 +2,12 @@ import type { JobId } from './catalogue.ts';
 import type { Hamlet } from './hamlet.ts';
 
 /**
- * Citizen jobs (09 section 8, reduced). Workers are not saved: each growth step the hamlet's folk fill
- * the job slots of its buildings and of its territory in priority order (jobOrder), first-fit, so a
- * save-and-load run assigns the same workers. Output goes to the hamlet store (food, wood, stone and gold); the territory jobs take
- * their targets from the realm in hamlet.ts. The builder and roadwright work the hamlet's site and road
- * queue, which are saved (hamlet.ts, adapter.ts); the soldier job is posted from the garrison ledger.
+ * Citizen jobs (09 section 8, reduced). Workers are not saved: each growth step the job slots are rebuilt from the
+ * hamlet's buildings, territory and stock (assignJobs), so a save-and-load run assigns the same workers. The slots are
+ * handed out round-robin in QUOTA_ORDER, each job up to its cap (09 section 8 quota rebuild). Output goes to the hamlet
+ * store (food, wood, stone, iron and gold); the territory jobs take their targets from the realm in hamlet.ts. The builder
+ * and roadwright work the hamlet's site and road queue, which are saved (hamlet.ts, adapter.ts); the soldier job is posted
+ * from the garrison ledger.
  */
 
 /**
@@ -35,7 +36,7 @@ export interface Workforce {
   adults: number;
   /** Beings in the hamlet's parcels with the baby flag set. */
   children: number;
-  /** Adult ruler of the hamlet's dominion standing in the hamlet (0 or 1). Restricted by okForRuler and okForLeader. */
+  /** The hamlet leader (adapter census: the oldest adult Folk in the hamlet), 0 or 1. Restricted by okForRuler and okForLeader. */
   leaders: number;
   /** The hamlet's custom lets children work (trait childLabour; 11 section 9.1). */
   childLabour: boolean;
@@ -57,10 +58,9 @@ export const ROADWRIGHT_CAP = 1;
 export const ROAD_COINS = 1;
 
 /**
- * Jobs in 09 section 8 quota order (the common-job rotation): builder, food (forager, herbalist, honey), tiller,
- * prospector, woodcutter, miner, roadwright, cleaner, manure collector. Priorities (09 section 8 table): builder 9;
- * forager, herbalist and honey gatherer priorityNoFood 10. okForRuler and okForLeader are false for tiller, miner
- * and prospector. The soldier is not in this list: it is posted from the garrison ledger (assignJobs).
+ * Jobs with their unit yields and flags (09 section 8 table). Priorities: builder 9; forager, herbalist and honey gatherer
+ * priorityNoFood 10. okForRuler and okForLeader are false for tiller, miner, iron miner and prospector. The soldier is not
+ * in this list: it is posted from the garrison ledger (assignJobs). The quota order is QUOTA_ORDER below.
  */
 export const JOBS: readonly JobDef[] = [
   { id: 'builder', perWorker: BUILD_PER_BUILDER, priority: 9, priorityNoFood: 0, okForRuler: true, okForLeader: true },
@@ -71,10 +71,34 @@ export const JOBS: readonly JobDef[] = [
   { id: 'prospector', perWorker: 1, priority: 0, priorityNoFood: 0, okForRuler: false, okForLeader: false },
   { id: 'woodcutter', perWorker: 3, priority: 0, priorityNoFood: 0, okForRuler: true, okForLeader: true },
   { id: 'miner', perWorker: 2, priority: 0, priorityNoFood: 0, okForRuler: false, okForLeader: false },
+  // The mine's job: one unit breaks one iron deposit node (DEPOSIT_YIELD iron) into the hamlet iron store.
+  { id: 'iron_miner', perWorker: 1, priority: 0, priorityNoFood: 0, okForRuler: false, okForLeader: false },
   { id: 'roadwright', perWorker: 1, priority: 0, priorityNoFood: 0, okForRuler: true, okForLeader: true },
   { id: 'cleaner', perWorker: 1, priority: 0, priorityNoFood: 0, okForRuler: true, okForLeader: true },
   { id: 'manure_collector', perWorker: 1, priority: 0, priorityNoFood: 0, okForRuler: true, okForLeader: true },
 ];
+
+/**
+ * The round-robin order of the quota rebuild (09 section 8, "per-round order"): builder; forager, herbalist and honey
+ * gatherer; tiller; prospector; woodcutter; miner (and the mine's iron miner); roadwright, cleaner, manure collector.
+ * The soldier is not here (garrison ledger). Each round adds one slot per job in this order while the job is under its cap.
+ */
+export const QUOTA_ORDER: readonly WorkerJob[] = [
+  'builder',
+  'forager',
+  'herbalist',
+  'honey_gatherer',
+  'tiller',
+  'prospector',
+  'woodcutter',
+  'miner',
+  'iron_miner',
+  'roadwright',
+  'cleaner',
+  'manure_collector',
+];
+
+const JOB_BY_ID: ReadonlyMap<WorkerJob, JobDef> = new Map(JOBS.map((j) => [j.id, j]));
 
 /** Effective priority of a job for a hamlet with `food` in stock: priorityNoFood while it has none, else priority. */
 export function jobPriority(job: JobDef, food: number): number {
@@ -121,7 +145,7 @@ export const FIELD_MAX = 12;
 /**
  * What a broken surface deposit gives the hamlet store (09 section 8 prospector, 10.1; TUNE). An iron deposit
  * gives 2 iron (10.1 "deposits (2)", read as the per-deposit yield; TUNE) into the hamlet iron store. Gem nodes
- * have no store in the sim, so prospectors leave them alone. Iron from mines is not built (no Mine Shaft).
+ * have no store in the sim, so prospectors leave them alone. Mines (iron_miner) break the same iron nodes.
  */
 export const DEPOSIT_YIELD: ReadonlyMap<string, { stone: number; gold: number; iron: number }> = new Map([
   ['stone_outcrop', { stone: 2, gold: 0, iron: 0 }],
@@ -149,6 +173,8 @@ export interface JobTargetCounts {
   herbs: number;
   /** Deposit nodes with a store (DEPOSIT_YIELD) in the hamlet's parcels. */
   deposits: number;
+  /** Iron deposit nodes in the hamlet's parcels (the mine's iron miners break these). */
+  ironDeposits: number;
   /** Hives with honey built up in the hamlet's parcels. */
   hives: number;
   /** Tiller steps waiting: crops to harvest, empty tilled tiles to plant, and open ground to till. */
@@ -160,10 +186,11 @@ export interface JobTargetCounts {
 }
 
 /**
- * Workers per job for the hamlet's current buildings, territory and stock. Folk fill slots first-fit in jobOrder and
- * nobody is assigned twice; the rest stay idle (they still eat). Children work only when the custom allows it. A ruler
- * (leaders) fills only the jobs both okForRuler and okForLeader allow; other folk fill any job. The soldier posting
- * comes from the garrison ledger and takes no folk, so it is set before the folk are counted.
+ * Workers per job for the hamlet's current buildings, territory and stock. The slots come from the round-robin quota
+ * (QUOTA_ORDER, each job up to its cap); the folk then fill them in QUOTA_ORDER, and nobody is assigned twice. Slots no
+ * eligible folk fill stay empty and the rest of the folk stay idle (they still eat). Children join the pool only when the
+ * custom allows it. The hamlet leader (leaders) fills only the jobs both okForRuler and okForLeader allow; other folk fill
+ * any job. The soldier posting comes from the garrison ledger and takes no folk, so it is set before the folk are counted.
  */
 export function assignJobs(h: Hamlet, targets: JobTargetCounts, work: Workforce): Map<WorkerJob, number> {
   const capacity = new Map<WorkerJob, number>();
@@ -171,6 +198,7 @@ export function assignJobs(h: Hamlet, targets: JobTargetCounts, work: Workforce)
     for (const s of b.def.jobs ?? []) capacity.set(s.job, (capacity.get(s.job) ?? 0) + s.slots);
   }
   const food = foragerCap(h.food);
+  // Quota caps (09 section 8): each job's cap, from its buildings, territory targets and stock.
   const cap: Record<WorkerJob, number> = {
     builder: h.site ? SITE_BUILDERS : 0,
     roadwright: h.road.length > 0 ? ROADWRIGHT_CAP : 0,
@@ -180,6 +208,7 @@ export function assignJobs(h: Hamlet, targets: JobTargetCounts, work: Workforce)
     honey_gatherer: Math.min(targets.hives, food),
     tiller: Math.min(TILLER_CAP, targets.tillWork),
     miner: capacity.get('miner') ?? 0,
+    iron_miner: Math.min(capacity.get('iron_miner') ?? 0, targets.ironDeposits),
     prospector: targets.deposits,
     woodcutter: Math.min(capacity.get('woodcutter') ?? 0, h.wood > WOOD_RICH ? 1 : 3),
     cleaner: targets.ruins,
@@ -193,17 +222,39 @@ export function assignJobs(h: Hamlet, targets: JobTargetCounts, work: Workforce)
   const adults = Math.min(work.adults, h.folk);
   const children = h.folk - adults;
   const leaders = Math.min(work.leaders, adults);
-  let common = adults - leaders + (work.childLabour ? children : 0);
+  // Folk who can fill a slot: the adults, and the children when the custom lets children work (09 section 8 canWork).
+  const pool = adults + (work.childLabour ? children : 0);
+  // Quota rebuild (09 section 8): round-robin. Each round adds one slot to each job in QUOTA_ORDER that is under its cap,
+  // until the folk are all placed or the rounds (2 x folk + 1) run out. A round that adds nothing ends the loop.
+  const slots = new Map<WorkerJob, number>();
+  let left = pool;
+  for (let round = 0; round < 2 * pool + 1 && left > 0; round++) {
+    let added = false;
+    for (const id of QUOTA_ORDER) {
+      if (left <= 0) break;
+      const have = slots.get(id) ?? 0;
+      if (have >= cap[id]) continue;
+      slots.set(id, have + 1);
+      left -= 1;
+      added = true;
+    }
+    if (!added) break;
+  }
+  // Slots are filled from the common folk first; leaders (the hamlet leader, 1 at most) take only jobs both okForRuler and
+  // okForLeader allow. A slot nobody eligible fills stays empty.
+  let common = pool - leaders;
   let leaderPool = leaders;
-  for (const job of jobOrder(h.food)) {
-    const want = cap[job.id];
+  for (const id of QUOTA_ORDER) {
+    const want = slots.get(id) ?? 0;
+    if (want === 0) continue;
+    const job = JOB_BY_ID.get(id);
+    const restricted = !job || !(job.okForRuler && job.okForLeader);
     const fromCommon = Math.min(want, common);
-    const restricted = !(job.okForRuler && job.okForLeader);
     const fromLeaders = restricted ? 0 : Math.min(want - fromCommon, leaderPool);
     common -= fromCommon;
     leaderPool -= fromLeaders;
     const n = fromCommon + fromLeaders;
-    if (n > 0) workers.set(job.id, n);
+    if (n > 0) workers.set(id, n);
   }
   return workers;
 }

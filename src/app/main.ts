@@ -1297,6 +1297,18 @@ async function boot(): Promise<void> {
       }
     });
   }
+  // Titan (576, 01 section 1) is behind the Advanced toggle and on a fine pointer (desktop) only. Leaving either gate
+  // drops a Titan choice back to Standard.
+  const syncTitanOption = (): void => {
+    const titan = document.querySelector<HTMLOptionElement>('#realm-size option[value="9"]');
+    if (!titan) return;
+    const allowed = $<HTMLInputElement>('realm-advanced').checked && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    titan.disabled = !allowed;
+    titan.hidden = !allowed;
+    if (!allowed && $<HTMLSelectElement>('realm-size').value === '9') $<HTMLSelectElement>('realm-size').value = '4';
+  };
+  $<HTMLInputElement>('realm-advanced').addEventListener('change', syncTitanOption);
+  syncTitanOption();
   $('new-realm').addEventListener('click', () => {
     const seed = Math.floor(Math.random() * 0x7fffffff);
     const sizeStep = Number($<HTMLSelectElement>('realm-size').value);

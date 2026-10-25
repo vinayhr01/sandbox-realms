@@ -210,6 +210,42 @@ export interface Snapshot {
   mapTiles?: MapTiles;
   /** Relation links of the sampled Beings for the cursor arrows (src/render/insight-layers.ts). Optional; dropped first over budget. */
   mapLinks?: MapLink[];
+  /** Opinions, centres and pact candidates for the Ties and Accord rows (src/render/insight-layers.ts). Optional; dropped first over budget. */
+  mapTies?: MapTies;
+  /** Per-hamlet tax flows of the latest yearly pass for the Money flow overlay, O05 (src/render/insight-layers.ts). Optional; dropped first over budget. */
+  mapTaxFlows?: MapTaxFlow[];
+}
+
+/** Most opinion entries in one snapshot's ties feed. Keeps the message inside SNAPSHOT_MAX_BYTES. */
+export const MAP_TIE_CAP = 256;
+
+/** Most tax flow rows in one snapshot's money feed. Keeps the message inside SNAPSHOT_MAX_BYTES. */
+export const MAP_TAX_CAP = 128;
+
+/**
+ * Ties and Accord feed (12 section 8.8). `centres` holds each dominion's centroid tile. `opinions` lists [a, b, value] for
+ * each bordering pair in both directions: a's opinion of b (opinion.ts), so a line can be coloured by its holder's view.
+ * `formPact` and `joinPact` are the pact candidates the sim's gates allow now (intrigue.ts). Each list is capped.
+ */
+export interface MapTies {
+  centres: [number, number, number][];
+  opinions: [number, number, number][];
+  formPact: [number, number][];
+  joinPact: [number, number][];
+}
+
+/**
+ * One hamlet's tax flow for the Money flow overlay (dominions/tax.ts TaxFlow). `x`, `y` is the tile of the hamlet's anchor
+ * parcel centre; `to` the tile of the holding dominion's centroid parcel, where its ruler's share goes. `loot` and `toRuler`
+ * are the gold of the yearly pass.
+ */
+export interface MapTaxFlow {
+  x: number;
+  y: number;
+  dominion: number;
+  to: [number, number];
+  loot: number;
+  toRuler: number;
 }
 
 /**

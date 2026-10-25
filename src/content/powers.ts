@@ -395,6 +395,11 @@ export const POWERS: readonly PowerDef[] = [
   ...ARROW_ROWS.map(([suffix, name, key]): PowerDef => viewToggle(`ins_arrow_${suffix}`, name, key)),
   viewToggle('ins_tips_tiles', 'Tile tooltips', 'tip.tiles'),
   viewToggle('ins_tips_beings', 'Being tooltips', 'tip.beings'),
+  // Close 5 (DECISIONS.md "Dominions exports close 5"): money flow (O05, the Settings option ui.moneyFlow), and the two
+  // dominion rows Ties and Accord Finder, drawn for every dominion pair at once (view flags, off by default).
+  optionToggle('ins_overlay_money', 'Money flow', 'ui.moneyFlow'),
+  viewToggle('ins_ties', 'Ties', 'ties'),
+  viewToggle('ins_accord', 'Accord Finder', 'accord'),
 ];
 
 export const POWER_BY_ID = new Map(POWERS.map((p) => [p.id, p]));

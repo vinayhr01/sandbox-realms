@@ -10,13 +10,13 @@ import { ARMY_DIVISOR, FOUND_FOLK, foundingYear, type FoundingEnv, type Truce } 
 import { pairKey, RelationMatrix, type Dominion, type DominionContext, type Relation } from './types.ts';
 import { addPactRenown, forcePact as forcePactRecord, makePact, newPactState, pactOf, pactYear, PACT_RENOWN_PER_DEFEAT, type Pact, type PactState } from './pacts.ts';
 import { armyWon, attackOrders, centroidParcel, engageArmies, marchArmies, raiseArmies, setCaptains, setSlots, syncArmies, type Army } from './armies.ts';
-import { newIntrigueState, proposeIntrigues, resolveIntrigues, type Intrigue, type IntrigueEnv, type IntrigueState } from './intrigue.ts';
-import { taxRatesOf, taxSplit } from './tax.ts';
+import { formPactOk, joinPactOk, newIntrigueState, proposeIntrigues, resolveIntrigues, type Intrigue, type IntrigueEnv, type IntrigueState } from './intrigue.ts';
+import { taxFlowOf, taxRatesOf, type TaxFlow } from './tax.ts';
 import { rulersStep, rulerStatsOf, type RulerRef, type RulerStats } from './rulers.ts';
 import { cultureYearly } from '../culture/adapter.ts';
 import { blockedWarMood, campaignMood, rulerInstalled, traitsOfGroup, warBlocked as warBlockedBy } from '../culture/effects.ts';
 import { successionRuleOf } from '../culture/trait-rules.ts';
-import type { DominionLens } from './opinion.ts';
+import { opinion, type DominionLens, type OpinionContext } from './opinion.ts';
 
 /** Dominion traits a dominion may hold (tax.ts reads the four tax ones; `markFate` is a locked marker, 11 section 9.4). */
 const DOMINION_TRAITS = ['highLocal', 'lowLocal', 'highTribute', 'lowTribute', 'markFate'] as const;
@@ -51,6 +51,8 @@ export interface DominionState {
   intrigues: IntrigueState;
   /** Gold each hamlet held at the last yearly pass, keyed by the hamlet's lowest parcel (tax.ts loot). */
   taxSeen: Map<number, number>;
+  /** Per-hamlet tax flows written by the latest yearly pass (tax.ts TaxFlow). Replaced each pass; empty before the first. */
+  taxFlows: TaxFlow[];
 }
 
 const states = new WeakMap<Sim, DominionState>();
@@ -70,6 +72,7 @@ export function dominionState(sim: Sim): DominionState {
       armies: [],
       intrigues: newIntrigueState(),
       taxSeen: new Map(),
+      taxFlows: [],
     };
     states.set(sim, s);
   }
@@ -84,6 +87,11 @@ export function dominionOwnerOf(sim: Sim): Uint8Array | undefined {
 /** Pact records of a sim, read only: empty when the dominion state was never created. */
 export function pactsOfSim(sim: Sim): readonly Pact[] {
   return states.get(sim)?.pacts.pacts ?? [];
+}
+
+/** Tax flows of the latest yearly pass, read only: empty when the dominion state was never created (tax.ts TaxFlow). */
+export function taxFlowsOfSim(sim: Sim): readonly TaxFlow[] {
+  return states.get(sim)?.taxFlows ?? [];
 }
 
 /** Dominions of a sim, read only: empty when the dominion state was never created. */
@@ -177,6 +185,8 @@ export interface DominionSnapshot {
   dominions: { id: number; parcels: number[]; strength: number; target: number; campaignSince: number; traits?: string[]; taxRaised?: number; ruler?: RulerRef; rulerWaitUntil?: number }[];
   /** Hamlet gold at the last yearly pass by the hamlet's lowest parcel (tax.ts loot). Optional: written only when present. */
   taxSeen?: [number, number][];
+  /** Per-hamlet tax flows of the latest yearly pass (tax.ts TaxFlow). Optional: written only when the pass taxed a hamlet. */
+  taxFlows?: TaxFlow[];
   /** Pairs whose relation is not the default peace: [a, b, relation]. */
   relations: [number, number, Relation][];
   borders: [number, number][];
@@ -235,6 +245,7 @@ export function snapshotDominions(sim: Sim): DominionSnapshot | null {
       ...(d.rulerWaitUntil !== undefined ? { rulerWaitUntil: d.rulerWaitUntil } : {}),
     })),
     ...(s.taxSeen.size > 0 ? { taxSeen: [...s.taxSeen] } : {}),
+    ...(s.taxFlows.length > 0 ? { taxFlows: s.taxFlows.map((f) => ({ ...f })) } : {}),
     relations,
     borders: s.borders.map(([a, b]) => [a, b]),
     owner: [...s.owner],
@@ -369,7 +380,17 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
     if (!isNum(p) || !Number.isInteger(p) || p < 0 || p >= parcelCount || !isNum(gold) || gold < 0) bad('tax seen');
     taxSeen.set(p, gold);
   }
-  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen });
+  // Tax flows (tax.ts TaxFlow): each share is a whole non-negative number, the shares add up to the leader's part, and the
+  // leader's part is at most the loot. The dominion must exist; the anchor must be a parcel of the realm.
+  const taxFlows: TaxFlow[] = [];
+  for (const f of snap.taxFlows ?? []) {
+    const whole = [f.anchor, f.dominion, f.tick, f.loot, f.toLeader, f.toRuler, f.hamletShare, f.leaderShare];
+    if (!whole.every((v) => isNum(v) && Number.isInteger(v) && v >= 0)) bad('tax flow');
+    if (f.anchor >= parcelCount || !dominions.some((d) => d.id === f.dominion)) bad(`tax flow of hamlet ${f.anchor}`);
+    if (f.toRuler + f.hamletShare + f.leaderShare !== f.toLeader || f.toLeader > f.loot) bad(`tax flow of hamlet ${f.anchor} shares`);
+    taxFlows.push({ ...f });
+  }
+  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen, taxFlows });
 }
 
 /** Majority owner of a hamlet's parcels (ties to the lower id), or UNOWNED. Draws no randomness. */
@@ -450,6 +471,7 @@ export function dominionsYearly(sim: Sim): void {
   const hamlets = new Map<number, number>();
   const folk = new Map<number, number>();
   const nextSeen = new Map<number, number>();
+  const flows: TaxFlow[] = [];
   for (const h of settlements) {
     // Tax (tax.ts): the gold a hamlet gained since the last pass is its loot. The hamlet's lowest parcel names it.
     let anchor = Infinity;
@@ -461,15 +483,17 @@ export function dominionsYearly(sim: Sim): void {
     if (best !== UNOWNED) {
       const ruler = s.dominions.find((d) => d.id === best);
       if (ruler && loot > 0) {
-        const rates = taxRatesOf(ruler.traits);
-        const split = taxSplit(loot, rates.local, rates.tribute);
-        if (split.toRuler > 0) ruler.taxRaised = (ruler.taxRaised ?? 0) + split.toRuler;
+        // The tax flow record (tax.ts taxFlowOf) is the one place the chain's shares are written; taxRaised takes the ruler's share.
+        const flow = taxFlowOf(anchor, best, loot, taxRatesOf(ruler.traits), sim.tick);
+        if (flow.toRuler > 0) ruler.taxRaised = (ruler.taxRaised ?? 0) + flow.toRuler;
+        flows.push(flow);
       }
       hamlets.set(best, (hamlets.get(best) ?? 0) + 1);
       folk.set(best, (folk.get(best) ?? 0) + h.folk);
     }
   }
   s.taxSeen = nextSeen;
+  s.taxFlows = flows;
   setCaptains(s.armies, hamlets);
   setSlots(s.armies, new Map([...folk].map(([id, f]) => [id, Math.floor(f / ARMY_DIVISOR)])));
   syncArmies(s.armies, s.dominions);
@@ -629,4 +653,98 @@ function rulerLookup(sim: Sim, dominions: readonly Dominion[]): (id: number) => 
     const d = dominions.find((x) => x.id === id);
     return d ? rulerStatsOf(sim.beings.store, d) : undefined;
   };
+}
+
+/**
+ * The opinion context of a sim's dominion state, read only: the terms the yearly pass reads (rulers, lens, hamlet counts),
+ * with the hamlet counts taken from the settlements as they stand now.
+ */
+function opinionContextOf(sim: Sim, s: DominionState): OpinionContext {
+  return {
+    dominions: s.dominions,
+    borders: s.borders,
+    relations: s.relations,
+    truce: s.truce,
+    pacts: s.pacts.pacts,
+    tick: sim.tick,
+    rulerOf: rulerLookup(sim, s.dominions),
+    lens: lensOf(sim, s),
+    hamlets: hamletCountsOf(hamletsOf(sim), s.owner),
+  };
+}
+
+/** One opinion value: dominion `a`'s opinion of dominion `b` (opinion.ts opinion()). */
+export interface OpinionEntry {
+  a: number;
+  b: number;
+  opinion: number;
+}
+
+/**
+ * Opinion of each dominion toward each dominion it borders, in both directions (Insight ties, 12 section 8.8). Only border
+ * pairs are listed: a pair with no border has no relation line to draw, and listing every pair would scale with the square
+ * of the dominion count. Read only: no state is written and no randomness is drawn.
+ */
+export function opinionsOfSim(sim: Sim): OpinionEntry[] {
+  const s = states.get(sim);
+  if (!s || s.dominions.length === 0) return [];
+  const ctx = opinionContextOf(sim, s);
+  const seen = new Set<string>();
+  const out: OpinionEntry[] = [];
+  for (const [x, y] of s.borders) {
+    if (x === y) continue;
+    for (const [a, b] of [
+      [x, y],
+      [y, x],
+    ] as const) {
+      const key = `${a}:${b}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ a, b, opinion: opinion(ctx, a, b) });
+    }
+  }
+  return out;
+}
+
+/** Pact candidates the intrigue gates allow now (intrigue.ts formPactOk, joinPactOk), for the Insight Accord Finder. */
+export interface AccordCandidates {
+  /** Bordering pairs [a, b] that a formPact could join now. */
+  formPact: [number, number][];
+  /** Pairs [dominion, pact id] where the dominion could join the pact now. */
+  joinPact: [number, number][];
+}
+
+/**
+ * Pact candidates the sim's own pact gates allow now (Insight Accord Finder, 12 section 8.8). Reads only. The gates are the
+ * ones the yearly intrigue pass uses, so the list is what would be proposed if the pass ran now; the renown and money costs
+ * are the sim's stand-ins (intrigue.ts) and are not shown here.
+ */
+export function accordCandidatesOf(sim: Sim): AccordCandidates {
+  const out: AccordCandidates = { formPact: [], joinPact: [] };
+  const s = states.get(sim);
+  if (!s || s.dominions.length === 0) return out;
+  const oc = opinionContextOf(sim, s);
+  const env: IntrigueEnv = {
+    dominions: s.dominions,
+    borders: s.borders,
+    relations: s.relations,
+    truce: s.truce,
+    pacts: s.pacts,
+    tick: sim.tick,
+    rulerOf: oc.rulerOf,
+    lens: oc.lens,
+    hamlets: oc.hamlets,
+  };
+  const seen = new Set<string>();
+  for (const [x, y] of s.borders) {
+    if (x === y) continue;
+    const key = pairKey(x, y);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (formPactOk(env, x, y)) out.formPact.push([Math.min(x, y), Math.max(x, y)]);
+  }
+  for (const d of s.dominions) {
+    for (const p of s.pacts.pacts) if (joinPactOk(env, d.id, p.id)) out.joinPact.push([d.id, p.id]);
+  }
+  return out;
 }

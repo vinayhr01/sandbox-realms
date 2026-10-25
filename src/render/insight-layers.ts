@@ -10,6 +10,8 @@
  * The hamlet picked by Hamlet Select is outlined.
  * Cursor arrows (A01..A07): from the Being under the cursor to its links in `snap.mapLinks`, one colour per kind. Drawn
  * only when the Settings master `ui.cursorArrows` is on, and only for the kinds whose Insight flag is on (`arrows`).
+ * Close 5: Money flow (O05, `ui.moneyFlow`) draws each taxed hamlet's ruler share from `snap.mapTaxFlows`; Ties and
+ * Accord Finder (view flags `ties`, `accord`) draw opinion lines and pact candidates from `snap.mapTies`.
  *
  * Reads the latest snapshot only (no sim memory). Redraws when the snapshot, the toggles or the camera change. It is
  * drawn over the beings at low alpha, so the tint shows on the terrain and the Beings alike.
@@ -17,7 +19,7 @@
 import type { Application } from 'pixi.js';
 import { Graphics } from 'pixi.js';
 import { decodeParcels } from '../shared/parcel-codec.ts';
-import type { MapGroup, MapKind, MapLink, MapTiles, Snapshot } from '../shared/protocol.ts';
+import type { MapGroup, MapKind, MapLink, MapTaxFlow, MapTies, MapTiles, Snapshot } from '../shared/protocol.ts';
 
 /** Layers keyed by each Being (its creed, family, clan or strain). The others key on the parcel's group. */
 const BEING_LAYERS: ReadonlySet<string> = new Set(['L03', 'L06', 'L07', 'L08']);
@@ -88,7 +90,24 @@ export interface InsightToggles {
   arrows: ReadonlySet<string>;
   /** Map point id of the Being under the cursor, or -1. Arrows start there. */
   hoverId: number;
+  /** `ui.moneyFlow` (O05): tax flows of the latest yearly pass, from each hamlet to its dominion's ruler. */
+  moneyFlow: boolean;
+  /** View flag `ties` (Insight Ties): opinion lines between bordering dominions. */
+  ties: boolean;
+  /** View flag `accord` (Insight Accord Finder): pact candidates the sim's gates allow now. */
+  accord: boolean;
 }
+
+/** Colours of the Ties, Accord and Money flow rows (12 section 8.8). Opinion is also marked by a square, not colour alone. */
+const OPINION_GOOD_COLOUR = 0x7be07b;
+const OPINION_BAD_COLOUR = 0xff6b6b;
+const OPINION_MARK_PX = 2;
+/** Opinion magnitude that draws a line at full strength (opinion.ts terms run to a few hundred). */
+const OPINION_FULL = 100;
+const ACCORD_COLOUR = 0xffd166;
+const ACCORD_RING_PX = 9;
+const TAX_COLOUR = 0xf4c542;
+const TAX_HAMLET_PX = 2;
 
 /** The camera state the layer needs. */
 export interface InsightView {
@@ -200,6 +219,11 @@ export class InsightLayer {
       [...t.arrows].join(','),
       t.hoverId,
       snap?.mapLinks?.length ?? 0,
+      t.moneyFlow,
+      t.ties,
+      t.accord,
+      snap?.mapTies?.opinions.length ?? 0,
+      snap?.mapTaxFlows?.length ?? 0,
       view.offX,
       view.offY,
       view.zoom,
@@ -211,7 +235,8 @@ export class InsightLayer {
     if (!snap) return;
     const layerOn = t.layer !== 'off';
     const arrowsOn = t.arrows.size > 0 && t.hoverId >= 0;
-    if (!layerOn && !t.happiness && !t.tasks && !t.armyLines && !t.talkBubbles && !arrowsOn && t.selectedHamlet < 0) return;
+    const dominionViews = t.ties || t.accord || t.moneyFlow;
+    if (!layerOn && !t.happiness && !t.tasks && !t.armyLines && !t.talkBubbles && !arrowsOn && !dominionViews && t.selectedHamlet < 0) return;
 
     const d = snap.mapTiles ? this.decodedOf(snap, snap.mapTiles) : null;
     if (layerOn && d) this.drawParcels(t, d, view);
@@ -250,6 +275,68 @@ export class InsightLayer {
     }
 
     if (arrowsOn) this.drawArrows(snap, t, view);
+    if (t.ties && snap.mapTies) this.drawTies(snap.mapTies, view);
+    if (t.accord && snap.mapTies) this.drawAccord(snap.mapTies, view);
+    if (t.moneyFlow && snap.mapTaxFlows) this.drawMoneyFlow(snap.mapTaxFlows, view);
+  }
+
+  /** Screen position of a tile, from the camera. */
+  private screenOf(x: number, y: number, view: InsightView): { sx: number; sy: number } {
+    return { sx: view.offX + (x + 0.5) * view.zoom, sy: view.offY + (y + 0.5) * view.zoom };
+  }
+
+  /**
+   * Ties (Insight): each dominion's opinion of a bordering dominion, drawn as a half line from the holder's centre to the
+   * midpoint of the pair, so a pair shows both views. Green is good (>= 0), red is bad; a square at the midpoint marks a
+   * bad view, so the sign does not rest on colour alone. Line strength follows the size of the opinion.
+   */
+  private drawTies(ties: MapTies, view: InsightView): void {
+    const centre = new Map<number, { sx: number; sy: number }>();
+    for (const [id, x, y] of ties.centres) centre.set(id, this.screenOf(x, y, view));
+    for (const [a, b, value] of ties.opinions) {
+      const from = centre.get(a);
+      const to = centre.get(b);
+      if (!from || !to) continue;
+      const mid = { sx: (from.sx + to.sx) / 2, sy: (from.sy + to.sy) / 2 };
+      const bad = value < 0;
+      const colour = bad ? OPINION_BAD_COLOUR : OPINION_GOOD_COLOUR;
+      const strength = Math.min(Math.abs(value), OPINION_FULL) / OPINION_FULL;
+      this.g.moveTo(from.sx, from.sy).lineTo(mid.sx, mid.sy).stroke({ width: 1 + strength * 2, color: colour, alpha: 0.35 + 0.6 * strength });
+      if (bad) this.g.rect(mid.sx - OPINION_MARK_PX / 2, mid.sy - OPINION_MARK_PX / 2, OPINION_MARK_PX, OPINION_MARK_PX).fill(colour);
+    }
+  }
+
+  /**
+   * Accord Finder (Insight): a gold line between two dominions a formPact could join now, and a gold ring round each
+   * dominion that some pact would take in (joinPact). Pact ids have no position, so the ring names the dominion only.
+   */
+  private drawAccord(ties: MapTies, view: InsightView): void {
+    const centre = new Map<number, { sx: number; sy: number }>();
+    for (const [id, x, y] of ties.centres) centre.set(id, this.screenOf(x, y, view));
+    for (const [a, b] of ties.formPact) {
+      const from = centre.get(a);
+      const to = centre.get(b);
+      if (from && to) this.g.moveTo(from.sx, from.sy).lineTo(to.sx, to.sy).stroke({ width: 2, color: ACCORD_COLOUR, alpha: 0.9 });
+    }
+    const joinable = new Set(ties.joinPact.map(([d]) => d));
+    for (const id of joinable) {
+      const c = centre.get(id);
+      if (c) this.g.circle(c.sx, c.sy, ACCORD_RING_PX).stroke({ width: 1.5, color: ACCORD_COLOUR, alpha: 0.9 });
+    }
+  }
+
+  /**
+   * Money flow (O05): each hamlet taxed in the latest yearly pass gets a ring (size follows its loot) and an arrow to its
+   * dominion's centre, whose width follows the ruler's share. The hamlet keeps the rest, so only the ruler's share is drawn
+   * as travelling.
+   */
+  private drawMoneyFlow(flows: MapTaxFlow[], view: InsightView): void {
+    for (const f of flows) {
+      const from = this.screenOf(f.x, f.y, view);
+      const to = this.screenOf(f.to[0], f.to[1], view);
+      this.g.circle(from.sx, from.sy, TAX_HAMLET_PX + Math.min(f.loot, 100) / 50).stroke({ width: 1, color: TAX_COLOUR, alpha: 0.8 });
+      if (f.toRuler > 0) this.arrow(from, to, TAX_COLOUR);
+    }
   }
 
   /**

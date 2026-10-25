@@ -9,6 +9,7 @@ import { refreshStats } from './beings/system.ts';
 import { restoreItems, saveItems, type ItemSave } from './items/system.ts';
 import { SPECIES } from '../content/beasts.ts';
 import { DECISION_ROWS } from '../content/decisions.ts';
+import { INVENTORY_KEYS, SYLLABLE_SLOTS } from '../content/dialect-phonology.ts';
 import { STATUSES } from './effects.ts';
 import { STRAIN_TRAIT_BY_ID } from '../content/traits.ts';
 import { CASTES, MORPHS, PALETTES } from '../content/variants.ts';
@@ -625,10 +626,29 @@ function checkCulture(raw: unknown): CulturePayload {
   // ids and a dialect may carry lexicon ids (culture.ts splitCreed, splitDialect). Absent fields are read as absent.
   const birthOk = (m: unknown): boolean =>
     isRecord(m) && (m.creator === undefined || isFiniteNumber(m.creator)) && (m.born === undefined || isFiniteNumber(m.born));
+  // Optional phonology (11 section 6.5, culture/phonology.ts): when present, the kept items of the seven inventories, a syllable
+  // count per slot and the word patterns with their weights. Absent while no dialect has been given one.
+  const phonologyOk = (p: unknown): boolean => {
+    if (p === undefined) return true;
+    if (!isRecord(p) || !isRecord(p.inventory) || !isRecord(p.syllables) || !Array.isArray(p.wordPatterns)) return false;
+    const inv = p.inventory;
+    const syl = p.syllables;
+    return (
+      INVENTORY_KEYS.every((k) => Array.isArray(inv[k]) && (inv[k] as unknown[]).every((s) => typeof s === 'string')) &&
+      SYLLABLE_SLOTS.every((s) => isFiniteNumber(syl[s])) &&
+      p.wordPatterns.every((w) => isRecord(w) && typeof w.pattern === 'string' && isFiniteNumber(w.weight))
+    );
+  };
   const dialectsOk =
     Array.isArray(raw.dialects) &&
     raw.dialects.every(
-      (d) => isRecord(d) && isFiniteNumber(d.group) && isFiniteNumber(d.word) && birthOk(d) && (d.lexicon === undefined || (Array.isArray(d.lexicon) && d.lexicon.every(isFiniteNumber))),
+      (d) =>
+        isRecord(d) &&
+        isFiniteNumber(d.group) &&
+        isFiniteNumber(d.word) &&
+        birthOk(d) &&
+        (d.lexicon === undefined || (Array.isArray(d.lexicon) && d.lexicon.every(isFiniteNumber))) &&
+        phonologyOk(d.phonology),
     );
   const creedSplitOk =
     Array.isArray(creeds) &&

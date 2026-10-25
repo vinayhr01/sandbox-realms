@@ -2585,3 +2585,33 @@ Scope: the items "Capture close 8" left open. Spec: `game\Spec`, read only, chec
 - Boats and `rulerLeft` on residents (10 section 2 joinAnother). No boats exist in this sim's capture path, and the one ruler case is covered by `fleeRuler`.
 
 **Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Needed with test access: a seeded capture that checks the mood values on the fall, the ruler flight and its wait, that newConquestTick equals the fall tick, that `captures` round-trips through save and load, that no soldier is recruited and no building is placed while a hamlet is captured, the ally hand-over with a pact, and that an old save without `captures` loads. Effects on other code: the capture moods and the ruler move change run results in any realm where a capture happens, so `GOLDEN_HASH` may drift once a golden run is allowed. The new save fields are written only when set. Existing tests are not changed.
+
+## Dialect phonology close 10
+
+Scope: dialect phonology (11 section 6.5), left unbuilt by the earlier rounds. Spec read at `game\Spec` before editing: 11 section 6.5 (lines 130 to 131), 11 section 2 (divergence copies traits; split preconditions), 11 section 6.6 (sound shift, still not built). Files: `src/content/dialect-phonology.ts` (new: inventory sizes, the consonant items, keep range 4 to 7, syllable counts 2 to 9, the three syllable shape pools with their weights, the diphthong chance, the word pattern pool and weight range), `src/sim/culture/phonology.ts` (new: `draftPhonology`, `foundPhonology`, `PHONOLOGY_KIND = 4`), `src/sim/culture/culture.ts` (`Dialect.phonology` optional; `foundDialect` and `splitDialect` take an optional `worldSeed` and draw the phonology when it is given; `replaceDialect` carries the winner's phonology with the meta), `src/sim/dominions/adapter.ts` (both calls pass `sim.realm.seed`), `src/sim/chronicle.ts` (`phonologyOk` checks the optional field inside `checkCulture`). The culture payload is passed through raw, so the field round-trips. `GOLDEN_HASH` is not edited.
+
+**Built.**
+- Phonology is drawn from its own stream, `createRng(nameSeed(worldSeed, PHONOLOGY_KIND, id, group))`. Names use kinds 1 to 3 (names.ts), so 4 is free. The sim's RNG streams are not touched.
+- Each of the seven inventories keeps 4 to 7 distinct items, drawn with repetition and never more than it holds. Order is fixed: INVENTORY_KEYS order, then the syllable counts for start, mid, end, then the word patterns.
+- Word patterns: 3 to 9 draws, uniform over the expanded pool, each with a weight from 0.05 to 1.
+- Founding and divergence each draw a new phonology (a creation, 6.5). Divergence copies the lexicon and the traits as before, not the phonology.
+- No inventory item is authored, so `draftPhonology` returns undefined for every dialect. No dialect gets `phonology` and the field stays absent. So sim output and the golden hash do not move.
+
+**Read as (the spec does not say it plainly).**
+- "x3", "x6", "x2", "x1" in the word pattern pool: copies in the pool, drawn uniformly over the expanded list. The 0.05 to 1 weights are separate.
+- S, M and E in the pattern letters: start, mid and end syllable slots.
+- "2-9 syllables for each of start/mid/end": a count per slot per dialect.
+- The diphthong rule (20%, "when the pattern has two vowel slots") cannot fire: none of the listed shapes (CV, CCV, CVC, V, VC) has two vowel slots. It is kept as data only.
+
+**Not built, and why.**
+- Items of six inventories: vowels (6), single onsets (20), onset clusters (24), single codas (7), coda clusters (14), diphthongs (9). The spec gives sizes and the words "original inventories" only. Authoring the items would invent rule data, as the sound-shift note (close 9) refused to do. `INVENTORY_ITEMS` keeps them empty, and `draftPhonology` reports nothing until they are supplied. The 18 consonant items are given and in place.
+- Syllable assembly. The spec does not say which shape letter reads which inventory, and the consonant list has no stated use: no shape uses a consonant directly unless C means a single onset. Left until the owner names the mapping.
+- The diphthong step, for the reason above.
+- makeWord (deterministic display words). It needs syllables, and no display caller exists (book titles and concept words are not built).
+- Affixes (11 section 6.5, per word type). They need syllables, and the separator weights ("weighted toward space") are not given.
+- The 37 concept slots: the spec gives only the count.
+- Sound shift (11 section 6.6): unchanged. The close 9 note still holds.
+
+**Note.** The lines in this file that say dialect phonology stays unbuilt (close 6 and close 9) are superseded by this section for the rules. The inventory items stay open.
+
+**Not verified.** Nothing was run (instruction: no tests, tsc, vitest, build or Playwright). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Needed with test access: `draftPhonology` returns undefined for the current data; a seeded check that a dialect founded with `worldSeed` set has no `phonology` and draws no sim RNG; and a save round trip once items are authored.

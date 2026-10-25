@@ -11,6 +11,7 @@ import { SYS_DISABLE_CYCLES, SYS_DISABLE_TICKS, SysIsolation, heartbeatDue, main
 import { snapshotDue } from './snapshot.ts';
 import { decodeChronicle, encodeChronicle, MAX_SIZE_STEP, MIN_SIZE_STEP } from './chronicle.ts';
 import { contentHash } from '../content/content-hash.ts';
+import { ReplayRing, replayValue, type ReplayEntry, type ReplayValue } from '../shared/replay-ring.ts';
 
 /** Sim time budget per pump in ms (17 section 3.1; 8 ms desktop, 6 ms phones TUNE). Desktop default. */
 const FRAME_BUDGET_MS = 8;
@@ -36,6 +37,11 @@ let pingHidden = false;
 let mainHangReported = false;
 /** System isolation (17 section 9): fault counts and switch-offs of the worker parts, for the current realm only. */
 let sysIso = new SysIsolation();
+/**
+ * Player commands queued in this realm, for the diagnostics bundle (17 section 7.3, 19 section 6). Kept here, beside the
+ * sim and not in it: the sim never reads it, so it is not in the Chronicle or the state hash. Cleared with each new realm.
+ */
+const replayRing = new ReplayRing();
 /** The fault gate of the sim's parts (sim.ts part): reads this realm's isolation and reports the faults to it. */
 const partGate: PartGate = {
   isOff: (part, tick) => sysIso.isOff(part, tick),
@@ -100,6 +106,7 @@ function finishJob(done: GenOutcome): void {
   job = null;
   sim = done.sim;
   sim.setPartGate(partGate);
+  replayRing.clear();
   accMs = 0;
   lastPublishedTick = -1;
   lastSnapshotTick = -1;
@@ -340,6 +347,7 @@ function handle(cmd: Command): void {
       try {
         sim = decodeChronicle(cmd.bytes);
         sim.setPartGate(partGate);
+        replayRing.clear();
         accMs = 0;
         lastPublishedTick = -1;
         lastSnapshotTick = -1;
@@ -375,7 +383,10 @@ function handle(cmd: Command): void {
     case Cmd.ItemRain:
     case Cmd.SetItemFavourite:
       // A switched-off command part takes no sim commands until its ticks run out (17 section 9).
-      if (sim && !sysIso.isOff('command', sim.tick)) sim.enqueue(cmd);
+      if (sim && !sysIso.isOff('command', sim.tick)) {
+        sim.enqueue(cmd);
+        replayRing.push(replayEntryOf(sim.tick, cmd));
+      }
       return;
     case Cmd.Query: {
       const info = sim?.tileInfo(cmd.tileX, cmd.tileY) ?? null;
@@ -399,7 +410,25 @@ function handle(cmd: Command): void {
       mainHangReported = false;
       post({ kind: Ev.Pong, reply: cmd.seq });
       return;
+    case Cmd.Replay: {
+      const ring = replayRing.read();
+      post({ kind: Ev.Replay, reply: cmd.seq, commands: ring.commands, dropped: ring.dropped });
+      return;
+    }
   }
+}
+
+/**
+ * Copies one queued player command into the replay ring, stamped with the worker tick it was queued at (17 section 2.2).
+ * `seq` is bookkeeping and `kind` becomes the entry's kind name. Every other field goes through replayValue, so free
+ * text is renamed (19 section 6).
+ */
+function replayEntryOf(tick: number, cmd: Command): ReplayEntry {
+  const fields: Record<string, ReplayValue> = {};
+  for (const [key, value] of Object.entries(cmd)) {
+    if (key !== 'kind' && key !== 'seq') fields[key] = replayValue(value);
+  }
+  return { tick, kind: Cmd[cmd.kind], fields };
 }
 
 /**

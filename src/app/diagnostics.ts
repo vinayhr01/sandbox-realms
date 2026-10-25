@@ -8,9 +8,10 @@
  * module never sends (19 section 9). Nothing here calls fetch, sendBeacon or any other network API. Every string goes
  * through scrubText (19 section 6) before it is written.
  *
- * Replay: 17 section 7.3 asks for the last command log and the last autosave. This build keeps no command log (the
- * Commands window says so), so the bundle has the realm's seed and side, which reproduce the start of a Realm, and
- * `commandLog: false` says that the commands are missing.
+ * Replay: 17 section 7.3 asks for the command log and the last autosave. The worker keeps a bounded ring of the player
+ * commands of the realm (replay-ring.ts), stamped with the worker tick, outside the sim. The bundle has that ring with
+ * the realm's seed and side, which reproduce the start of a Realm. `commandLog` is false when the worker did not answer
+ * in time, so the commands are then missing. Free text in a command is renamed (19 section 6) before it is stored.
  */
 import pkg from '../../package.json';
 import { contentHash } from '../content/content-hash.ts';
@@ -18,15 +19,19 @@ import { deviceClass, listCrashRecords, scrubText, type CrashExport, type CrashR
 import { DIAGNOSTIC_LOG_LINES, recentLogLines } from './log-ring.ts';
 import { perfSummary, type PerfSummary } from './perf-sample.ts';
 import { JOURNAL_MAX, recentJournal } from './recovery.ts';
+import { REPLAY_RING_MAX, type ReplayEntry } from '../shared/replay-ring.ts';
+import type { ReplayRead } from './sim-client.ts';
 
 const APP_VERSION: string = pkg.version;
 
-/** Schema of the bundle file. Bump when the fields change. */
-export const DIAGNOSTICS_SCHEMA = 1;
+/** Schema of the bundle file. Bump when the fields change. 2: replay.commands, replay.dropped, replay.ringMax. */
+export const DIAGNOSTICS_SCHEMA = 2;
 /** Longest GPU renderer string kept (the browser's own text, scrubbed). */
 const GPU_MAX = 120;
 /** Longest log line kept in the bundle (the same cap a crash record uses). */
 const LOG_LINE_MAX = 320;
+/** How long the export waits for the worker's replay ring. A worker that stopped answering must not hold the export. */
+const REPLAY_READ_MS = 1_500;
 
 /** What the page knows at export time and the bundle cannot read itself. */
 export interface DiagnosticsSource {
@@ -37,6 +42,8 @@ export interface DiagnosticsSource {
   /** The realm the page shows. Zero before a realm starts. */
   realmSeed: number;
   realmSide: number;
+  /** Reads the worker's replay ring (17 section 7.3). May never settle if the worker is stuck; the export waits REPLAY_READ_MS at most. */
+  readCommands: () => Promise<ReplayRead>;
 }
 
 export interface DiagnosticsBundle {
@@ -55,8 +62,19 @@ export interface DiagnosticsBundle {
   };
   /** The newest lines of the warn-and-up log, oldest first, scrubbed. */
   logs: string[];
-  /** Start condition of the realm (17 section 7.3). `commandLog` is false: no command log exists in this build. */
-  replay: { seed: number; side: number; commandLog: false };
+  /**
+   * Start condition of the realm and its player commands (17 section 7.3). `commands` is oldest first, each stamped with
+   * the worker tick it was queued at. `dropped` counts older commands that the ring pushed out. `commandLog` is false
+   * when the worker did not answer in time (then `commands` is empty).
+   */
+  replay: {
+    seed: number;
+    side: number;
+    commandLog: boolean;
+    commands: ReplayEntry[];
+    dropped: number;
+    ringMax: number;
+  };
   /** Frame and sim timings, or null when nothing was sampled yet. */
   perf: PerfSummary | null;
   /** The newest stored crash record, or null when there is none. */
@@ -81,10 +99,28 @@ export function gpuRenderer(): string | null {
   }
 }
 
+/** Resolves with the promise's value, or with null when it has not settled within `ms` or rejects. */
+function within<T>(pending: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    pending.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      () => {
+        clearTimeout(timer);
+        resolve(null);
+      },
+    );
+  });
+}
+
 /** Builds the bundle. Reads storage through the modules that already wrap it, so it does not throw on blocked storage. */
 export async function buildDiagnostics(source: DiagnosticsSource, nowMs: number = Date.now()): Promise<DiagnosticsBundle> {
   const records = await listCrashRecords();
   const degradeSteps = recentJournal(JOURNAL_MAX).filter((e) => e.code === 'DEGRADE');
+  const ring = await within(source.readCommands(), REPLAY_READ_MS);
   return {
     schema: DIAGNOSTICS_SCHEMA,
     exported: new Date(nowMs).toISOString(),
@@ -98,7 +134,14 @@ export async function buildDiagnostics(source: DiagnosticsSource, nowMs: number 
       history: degradeSteps.map((e) => ({ at: e.at, detail: scrubText(e.detail, 160) })),
     },
     logs: recentLogLines(DIAGNOSTIC_LOG_LINES).map((line) => scrubText(line, LOG_LINE_MAX)),
-    replay: { seed: source.realmSeed, side: source.realmSide, commandLog: false },
+    replay: {
+      seed: source.realmSeed,
+      side: source.realmSide,
+      commandLog: ring !== null,
+      commands: ring?.commands ?? [],
+      dropped: ring?.dropped ?? 0,
+      ringMax: REPLAY_RING_MAX,
+    },
     perf: perfSummary() ?? null,
     crash: records[0] ?? null,
   };

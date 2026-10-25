@@ -356,8 +356,9 @@ export function stepDominions(sim: Sim): void {
   // Armies first take attack orders (ready armies order the nearest enemy parcel and take it on contact), then march one
   // parcel a second toward their target (armies.ts). The strength exchange needs contact.
   // Parley off stops every campaign (10 section 3), so armies neither order attacks nor march.
+  // Attack orders move parcels, so they also need `border_creep` (09 section 3: border-taking needs the explicit flag).
   if (sim.rules.isOn('parley')) {
-    attackOrders(s.armies, s.dominions, s.relations, owner, perAxis);
+    if (sim.rules.isOn('border_creep')) attackOrders(s.armies, s.dominions, s.relations, owner, perAxis);
     marchArmies(s.armies, s.dominions, s.relations, perAxis);
   }
   const ctx: DominionContext = {

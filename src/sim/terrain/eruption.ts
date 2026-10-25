@@ -81,6 +81,15 @@ function erupt(sim: Sim, v: Vent): void {
   }
 }
 
+/**
+ * One acid drop from a fixed tile (18e 2.1 acid_font, 04 section 7.2 fall_acid): lands 2..15 tiles from `tile`
+ * by the acid vent rule. Used by the acid font's pulse; the drop draws from the 'eruption' stream.
+ */
+export function fallAcid(sim: Sim, tile: number): void {
+  const v: Vent = { tile, kind: 'acid', rMin: ACID_RADIUS.rMin, rMax: ACID_RADIUS.rMax, interval: 0, intervalMax: 0, burst: 1, next: 0 };
+  erupt(sim, v);
+}
+
 /** Next eruption tick after `now` for a vent: fixed, or a draw from [interval, intervalMax]. */
 function nextAfter(sim: Sim, v: Vent, now: number): number {
   if (v.intervalMax <= v.interval) return now + v.interval;

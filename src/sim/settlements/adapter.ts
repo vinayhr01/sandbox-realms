@@ -7,7 +7,10 @@ import { dominionState, UNOWNED } from '../dominions/adapter.ts';
 import { FOUND_FOLK } from '../dominions/founding.ts';
 import { buildable, createHamlet, goodFoundingParcel, hamletStep, PARCEL, type Hamlet, type HamletContext, type Placed } from './hamlet.ts';
 import { BUILDING_BY_ID } from './catalogue.ts';
-import { SUPPLY_PERIOD, tradeStep } from './trade.ts';
+import { bazaarStep, SUPPLY_PERIOD, tradeStep } from './trade.ts';
+import { desiresOf, structureStep, type Structure } from './landmarks.ts';
+import { CREEP_HUB_BY_ID, LANDMARK_BY_ID } from '../../content/creeps.ts';
+import { terrainState, type CreepHub } from '../terrain/state.ts';
 
 /** Hamlets placed per realm at worldgen (TUNE). Kept: 09 does not place hamlets at worldgen, but the worldgen placement stays as it was. */
 export const HAMLETS_WANTED = 3;
@@ -34,6 +37,8 @@ export interface SettlementHost {
 
 interface SettlementState {
   hamlets: Hamlet[];
+  /** Landmarks and beacon pillars placed in the realm (18e section 2). */
+  structures: Structure[];
 }
 
 /** Per-sim hamlet state, keyed by the host object (sim.ts has no field for it). */
@@ -48,12 +53,19 @@ export function hamletsOf(host: SettlementHost): readonly Hamlet[] {
 export interface HamletSnapshot {
   /** `gold` is absent in saves written before the hamlet purse; those load with 0 gold. */
   hamlets: { parcels: number[]; food: number; wood: number; stone: number; folk: number; buildings: { id: string; x: number; y: number }[]; growTimer: number; outcrops: number; steps: number; gold?: number }[];
+  /** Landmarks and beacon pillars (18e 2); absent in saves written before them. */
+  structures?: { id: string; tile: number; next: number }[];
+  /** Creep hubs (18e 1.1); a dead hub stores nextPulse 0. Absent in saves written before them. */
+  hubs?: { tile: number; def: string; tiles: number[]; nextPulse: number; alive: boolean }[];
+  /** Tile and the tick until which it may not re-spread creep (18e 1.5 acid guard); absent in older saves. */
+  creepGuard?: [number, number][];
 }
 
 /** Plain copy of a host's hamlet state, or null when the state was never created (no settlementsStep yet). */
 export function snapshotHamlets(host: SettlementHost): HamletSnapshot | null {
   const state = states.get(host);
   if (!state) return null;
+  const terrain = terrainState(host as unknown as Sim);
   return {
     hamlets: state.hamlets.map((h) => ({
       parcels: [...h.parcels],
@@ -67,6 +79,10 @@ export function snapshotHamlets(host: SettlementHost): HamletSnapshot | null {
       steps: h.steps,
       gold: h.gold,
     })),
+    structures: state.structures.map((s) => ({ id: s.id, tile: s.tile, next: s.next })),
+    // A dead hub's pulse is Infinity, which JSON cannot hold; it is stored as 0 and restored as Infinity.
+    hubs: terrain.hubs.map((h) => ({ tile: h.tile, def: h.def, tiles: [...h.tiles], nextPulse: h.alive ? h.nextPulse : 0, alive: h.alive })),
+    creepGuard: [...terrain.creepGuard.entries()],
   };
 }
 
@@ -94,7 +110,29 @@ export function restoreHamlets(host: SettlementHost, snap: HamletSnapshot): void
     });
     return { parcels: new Set(h.parcels), food: h.food, wood: h.wood, stone: h.stone, folk: h.folk, buildings, growTimer: h.growTimer, outcrops: h.outcrops, steps: h.steps, gold };
   });
-  states.set(host, { hamlets });
+  const cells = host.realm.side * host.realm.side;
+  const structures: Structure[] = (snap.structures ?? []).map((s) => {
+    if (typeof s.id !== 'string' || !LANDMARK_BY_ID.has(s.id) || !isNum(s.tile) || !isNum(s.next) || s.tile < 0 || s.tile >= cells) {
+      throw new Error('hamlet state: structure is not valid');
+    }
+    return { id: s.id, tile: s.tile, next: s.next };
+  });
+  const hubs: CreepHub[] = (snap.hubs ?? []).map((h) => {
+    if (typeof h.def !== 'string' || !CREEP_HUB_BY_ID.has(h.def) || !isNum(h.tile) || !isNum(h.nextPulse) || typeof h.alive !== 'boolean' || !Array.isArray(h.tiles)) {
+      throw new Error('hamlet state: creep hub is not valid');
+    }
+    if (!h.tiles.every((t) => isNum(t))) throw new Error('hamlet state: creep hub tiles are not valid');
+    return { tile: h.tile, def: h.def, tiles: new Set(h.tiles), nextPulse: h.alive ? h.nextPulse : Number.POSITIVE_INFINITY, alive: h.alive };
+  });
+  const guard = new Map<number, number>();
+  for (const pair of snap.creepGuard ?? []) {
+    if (!Array.isArray(pair) || pair.length !== 2 || !isNum(pair[0]) || !isNum(pair[1])) throw new Error('hamlet state: creep guard is not valid');
+    guard.set(pair[0], pair[1]);
+  }
+  const terrain = terrainState(host as unknown as Sim);
+  terrain.hubs = hubs;
+  terrain.creepGuard = guard;
+  states.set(host, { hamlets, structures });
 }
 
 /** Maps the host onto the hamlet step's structural context. */
@@ -195,7 +233,7 @@ function census(host: SettlementHost, h: Hamlet): number {
 export function settlementsStep(host: SettlementHost): void {
   let state = states.get(host);
   if (!state) {
-    state = { hamlets: [] };
+    state = { hamlets: [], structures: [] };
     states.set(host, state);
     placeHamlets(host, state);
   }
@@ -205,9 +243,17 @@ export function settlementsStep(host: SettlementHost): void {
   for (const h of state.hamlets) {
     h.folk = census(host, h);
     // Another hamlet owning a parcel blocks this hamlet from expanding into it.
-    const own: HamletContext = { ...ctx, claimed: (q) => state.hamlets.some((o) => o !== h && o.parcels.has(q)) };
+    const own: HamletContext = {
+      ...ctx,
+      claimed: (q) => state.hamlets.some((o) => o !== h && o.parcels.has(q)),
+      desires: desiresOf(state.structures, h, host.realm.side),
+    };
     hamletStep(own, h);
+    bazaarStep(h, host.tick);
   }
+  // Landmarks and beacon pillars (18e 2) pulse on their own timers. The effects act on the realm through the
+  // terrain modules, which take the Sim; the host is the Sim at runtime (sim.ts passes itself).
+  structureStep(host as unknown as Sim, state.structures);
   // Supply round (09 10.4). Dominion owner bytes are read only on a supply tick, and only once a hamlet
   // can found a dominion: dominionState creates the dominion state on first use.
   if (host.tick % SUPPLY_PERIOD === 0 && state.hamlets.some((h) => h.folk >= FOUND_FOLK)) {

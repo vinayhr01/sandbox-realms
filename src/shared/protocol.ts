@@ -124,6 +124,8 @@ export interface HamletRow {
   parcels: number;
   /** Hamlet mood -100..100 (09 section 9, hamlet level). Optional: absent from older snapshots. */
   mood?: number;
+  /** Size tier (09 section 2): `town` from 40 folk. Optional: absent from older snapshots. */
+  tier?: 'hamlet' | 'town';
 }
 
 /** One achievement: its current value against its target (achievements window). */

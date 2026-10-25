@@ -22,6 +22,30 @@ export const SUPPLY_BOUND_TAKE = 10;
 type Good = 'food' | 'wood' | 'stone' | 'gold';
 const GOODS: readonly Good[] = ['food', 'wood', 'stone', 'gold'];
 
+/** Ticks between bazaar conversions: 30 s (09 10.5 "per 30 s"; TUNE). */
+export const BAZAAR_PERIOD = 600;
+/** A bazaar converts this much surplus (a good above the bound) into gold, per period (09 10.5; TUNE). */
+export const BAZAAR_AMOUNT = 10;
+/** Gold a bazaar conversion yields (09 10.5 "4 gold"; TUNE). */
+export const BAZAAR_GOLD = 4;
+/** Surplus bound: a good must hold more than this to be converted (supplyBoundGive 30). */
+const BAZAAR_BOUND = 30;
+
+/**
+ * Bazaar conversion (09 10.5, the default design; TUNE): on each bazaar period a hamlet with a bazaar turns
+ * BAZAAR_AMOUNT of the first of food, wood or stone above BAZAAR_BOUND into BAZAAR_GOLD gold. One conversion
+ * per period. The leader's choice and the +50% boat income are not built (no leaders, no boats).
+ */
+export function bazaarStep(h: Hamlet, tick: number): void {
+  if (tick % BAZAAR_PERIOD !== 0 || !h.buildings.some((b) => b.def.id === 'bazaar')) return;
+  for (const good of ['food', 'wood', 'stone'] as const) {
+    if (h[good] <= BAZAAR_BOUND) continue;
+    h[good] -= BAZAAR_AMOUNT;
+    h.gold += BAZAAR_GOLD;
+    return;
+  }
+}
+
 /**
  * One supply round when `tick` is a multiple of SUPPLY_PERIOD. `dominionOf` gives each hamlet's dominion id,
  * or 0 for none; transfers stay inside one dominion. Hamlets are visited in array (placement) order and

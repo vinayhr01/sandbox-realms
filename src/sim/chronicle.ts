@@ -487,7 +487,7 @@ export function decodeChronicle(bytes: Uint8Array): Sim {
   if (pactBytes) restorePacts(sim, checkPacts(parseJson<unknown>(decoder, pactBytes, 'pacts')));
   const hamletBytes = sections.get(TAG.hamlets);
   if (hamletBytes) {
-    const snap = parseJson<HamletSnapshot | null>(decoder, hamletBytes, 'hamlets');
+    const snap = checkHamlets(parseJson<unknown>(decoder, hamletBytes, 'hamlets'));
     if (snap) restoreHamlets(sim, snap);
   }
   const clanBytes = sections.get(TAG.clans);
@@ -561,6 +561,37 @@ function checkDominions(raw: unknown): DominionSnapshot | null {
     throw new Error('chronicle: dominion section intrigues are not valid');
   }
   return raw as unknown as DominionSnapshot;
+}
+
+/**
+ * Checks the settlements (hamlet) section's shape before any of it is applied: null, or a snapshot whose hamlet
+ * list exists and whose optional landmark, creep hub and creep guard lists hold records of the right kinds.
+ * restoreHamlets checks the contents against the content tables.
+ */
+function checkHamlets(raw: unknown): HamletSnapshot | null {
+  if (raw === null) return null;
+  if (!isRecord(raw) || !Array.isArray(raw.hamlets)) throw new Error('chronicle: hamlet section is not valid');
+  const fail = new Error('chronicle: hamlet section is not valid');
+  if (raw.structures !== undefined) {
+    if (!Array.isArray(raw.structures)) throw fail;
+    for (const s of raw.structures) {
+      if (!isRecord(s) || typeof s.id !== 'string' || !isFiniteNumber(s.tile) || !isFiniteNumber(s.next)) throw fail;
+    }
+  }
+  if (raw.hubs !== undefined) {
+    if (!Array.isArray(raw.hubs)) throw fail;
+    for (const h of raw.hubs) {
+      if (!isRecord(h) || typeof h.def !== 'string' || !isFiniteNumber(h.tile) || !isFiniteNumber(h.nextPulse) || typeof h.alive !== 'boolean') throw fail;
+      if (!Array.isArray(h.tiles) || !h.tiles.every(isFiniteNumber)) throw fail;
+    }
+  }
+  if (raw.creepGuard !== undefined) {
+    if (!Array.isArray(raw.creepGuard)) throw fail;
+    for (const pair of raw.creepGuard) {
+      if (!Array.isArray(pair) || pair.length !== 2 || !isFiniteNumber(pair[0]) || !isFiniteNumber(pair[1])) throw fail;
+    }
+  }
+  return raw as unknown as HamletSnapshot;
 }
 
 /** Checks the pact section's shape; restorePacts checks the records. */

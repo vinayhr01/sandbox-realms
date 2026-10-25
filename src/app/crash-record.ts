@@ -3,10 +3,12 @@
  * stall. It stays on this device: the IndexedDB database `sr-crash` keeps the newest 20, and a
  * localStorage summary (`sr-crash-lite`) is the fallback when IndexedDB does not answer in time.
  *
- * Consent (brief item 2, 19 section 9): `privacy.errorReports` decides whether a record may be
- * exported. This build has no crash endpoint (OPEN-19-1 unset), so there is no network send at all.
- * "Send" is replaced by a JSON file download, and the download happens only on an explicit player
- * action. Nothing in this module calls fetch, sendBeacon or any other network API.
+ * Consent (19 section 9): `privacy.errorReports` picks `always` (on) or `ask` (off); Do Not Track or
+ * Global Privacy Control force `never`. Consent gates sending only. Export (19 section 8) is not gated:
+ * the file is downloaded on an explicit player action and stays on the device until the player shares it.
+ * This build has no crash endpoint (OPEN-19-1 unset), so nothing is sent. Records that would have been
+ * sent wait in the unsent queue (max 20). Nothing in this module calls fetch, sendBeacon or any other
+ * network API.
  *
  * Storage access can throw (private windows, blocked site data), so every access is wrapped.
  */
@@ -30,7 +32,8 @@ const WRITE_BUDGET_MS = 300;
 const LITE_KEY = 'sr-crash-lite';
 const LITE_MAX = 5;
 const RECORD_MAX_BYTES = 64 * 1024;
-const CRUMBS_MAX = 20;
+/** Breadcrumb ring size (19 section 3). */
+const CRUMBS_MAX = 50;
 const FRAMES_MAX = 30;
 const MSG_MAX = 300;
 /** The same fingerprint is not written twice inside this window (an error inside a frame loop would flood the ring). */
@@ -103,15 +106,47 @@ export function noteCrashRun(update: Partial<Omit<CrashRun, 'startedMs'>>): void
 // Consent
 // ---------------------------------------------------------------------------
 
-let consent = false;
+/**
+ * ask: a preview before anything leaves the device (the default).
+ * always: sends without asking (opt-in, the `privacy.errorReports` option).
+ * never: nothing is queued or sent. Forced by Do Not Track or Global Privacy Control.
+ */
+export type ConsentMode = 'ask' | 'always' | 'never';
+
+export interface ConsentInput {
+  optionOn: boolean;
+  dnt: boolean;
+  gpc: boolean;
+}
+
+/** Pure: DNT or GPC forces `never`; otherwise the option picks `always` (on) or `ask` (off). */
+export function resolveConsentMode(input: ConsentInput): ConsentMode {
+  if (input.dnt || input.gpc) return 'never';
+  return input.optionOn ? 'always' : 'ask';
+}
+
+let optionOn = false;
 
 /** Set from the `privacy.errorReports` option at boot and on every change. Off by default. */
 export function setCrashConsent(allowed: boolean): void {
-  consent = allowed;
+  optionOn = allowed;
 }
 
-export function crashConsent(): boolean {
-  return consent;
+/** The browser's privacy signals. Any access that throws counts as not set. */
+function privacySignals(): { dnt: boolean; gpc: boolean } {
+  try {
+    const nav = navigator as Navigator & { globalPrivacyControl?: boolean };
+    const values: unknown[] = [navigator.doNotTrack, (window as Window & { doNotTrack?: string }).doNotTrack];
+    return { dnt: values.some((v) => v === '1' || v === 'yes'), gpc: nav.globalPrivacyControl === true };
+  } catch {
+    return { dnt: false, gpc: false };
+  }
+}
+
+/** The consent mode in force now (19 section 9). */
+export function crashMode(): ConsentMode {
+  const signals = privacySignals();
+  return resolveConsentMode({ optionOn, dnt: signals.dnt, gpc: signals.gpc });
 }
 
 // ---------------------------------------------------------------------------
@@ -123,8 +158,9 @@ export function scrubText(input: string, max = MSG_MAX): string {
   return input
     .replace(/https?:\/\/\S+/gi, '<url>')
     .replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '<email>')
-    .replace(/[A-Za-z]:\\[^\s"']*/g, '<path>')
+    .replace(/[A-Za-z]:\\[^"'\r\n]*/g, '<path>')
     .replace(/(^|[\s(])\/[^\s"')]+\/[^\s"')]*/g, '$1<path>')
+    .replace(/\b(?:localhost|(?:\d{1,3}\.){3}\d{1,3})(?::\d+)?\b/gi, '<host>')
     .replace(/[A-Za-z0-9_-]{32,}/g, '<token>')
     .replace(/"[^"]*"/g, '""')
     .replace(/\d{5,}/g, 'N')
@@ -339,6 +375,7 @@ export async function recordCrash(input: CrashInput): Promise<CrashRecord | null
     lastWriteByFp.set(rec.fp, now);
     memory.push(rec);
     if (memory.length > RING_MAX) memory.splice(0, memory.length - RING_MAX);
+    if (crashMode() !== 'never') enqueueUnsent(rec);
     const stored = await withBudget(writeIdb(rec), WRITE_BUDGET_MS);
     if (!stored) writeLite(rec);
     return rec;
@@ -361,6 +398,121 @@ export async function listCrashRecords(): Promise<CrashRecord[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Unsent queue and rate limits (19 section 9)
+// ---------------------------------------------------------------------------
+
+/** Sends one record. Resolves true when the endpoint accepted it. No transport exists in this build. */
+export type SendTransport = (rec: CrashRecord) => Promise<boolean>;
+
+/** At most this many sends per session, and one per fingerprint per day (19 section 9). */
+export const SEND_PER_SESSION_MAX = 3;
+export const SEND_PER_FINGERPRINT_MS = 24 * 60 * 60_000;
+/** The unsent queue keeps the newest this many; the oldest are dropped. */
+export const UNSENT_MAX = 20;
+const UNSENT_KEY = 'sr-crash-unsent';
+
+interface UnsentEntry {
+  id: string;
+  fp: string;
+  at: number;
+}
+
+/** What has been sent in this session: the count and the last send time per fingerprint. */
+export interface SendLedger {
+  sent: number;
+  lastByFp: Map<string, number>;
+}
+
+const ledger: SendLedger = { sent: 0, lastByFp: new Map() };
+
+/** Pure: true when the session cap and the per-fingerprint daily limit both allow another send. */
+export function sendAllowed(fp: string, ledgerNow: SendLedger, nowMs: number): boolean {
+  if (ledgerNow.sent >= SEND_PER_SESSION_MAX) return false;
+  const last = ledgerNow.lastByFp.get(fp);
+  return last === undefined || nowMs - last >= SEND_PER_FINGERPRINT_MS;
+}
+
+function readUnsent(): UnsentEntry[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(UNSENT_KEY) ?? '[]');
+    return Array.isArray(parsed) ? (parsed as UnsentEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeUnsent(list: readonly UnsentEntry[]): void {
+  try {
+    localStorage.setItem(UNSENT_KEY, JSON.stringify(list.slice(-UNSENT_MAX)));
+  } catch {
+    // Storage blocked: the queue lasts only as long as the page does, and the records stay in memory.
+  }
+}
+
+/** Queues a record for sending. Only the id, fingerprint and time are kept, never the record itself. */
+export function enqueueUnsent(rec: CrashRecord): void {
+  writeUnsent([...readUnsent(), { id: rec.id, fp: rec.fp, at: rec.at }]);
+}
+
+export function unsentCount(): number {
+  return readUnsent().length;
+}
+
+/**
+ * Sends queued records, oldest first, that the limits allow. Returns how many were sent. A null
+ * transport sends nothing and keeps the queue (this build). Failed sends stay queued.
+ */
+export async function flushUnsent(transport: SendTransport | null, nowMs: number = Date.now()): Promise<number> {
+  if (transport === null) return 0;
+  const records = await listCrashRecords();
+  let sent = 0;
+  const kept: UnsentEntry[] = [];
+  for (const entry of readUnsent()) {
+    const rec = records.find((r) => r.id === entry.id);
+    if (rec === undefined || !sendAllowed(rec.fp, ledger, nowMs)) {
+      kept.push(entry);
+      continue;
+    }
+    const ok = await transport(rec).catch(() => false);
+    if (ok) {
+      ledger.sent++;
+      ledger.lastByFp.set(rec.fp, nowMs);
+      sent++;
+    } else {
+      kept.push(entry);
+    }
+  }
+  writeUnsent(kept);
+  return sent;
+}
+
+// ---------------------------------------------------------------------------
+// First-fatal explanation (19 section 9)
+// ---------------------------------------------------------------------------
+
+const EXPLAINED_KEY = 'sr-crash-explained';
+let explainedThisPage = false;
+
+const FIRST_FATAL_NOTE: Readonly<Record<ConsentMode, string>> = {
+  ask: 'Crash reports stay on this device. Nothing is sent. You can export this one from this dialog or from Help.',
+  always: 'Crash reports are set to send automatically under Privacy. This build has no report server, so nothing is sent and this one stays on this device.',
+  never: 'Crash reports stay on this device because Do Not Track or Global Privacy Control is on. Nothing is sent. You can export this one.',
+};
+
+/** The one-time explanation of the consent choice for the first fatal dialog. Null once it has been shown. */
+export function firstFatalNote(mode: ConsentMode = crashMode()): string | null {
+  if (explainedThisPage) return null;
+  explainedThisPage = true;
+  try {
+    if (localStorage.getItem(EXPLAINED_KEY) === '1') return null;
+    localStorage.setItem(EXPLAINED_KEY, '1');
+  } catch {
+    // Storage blocked: the note is shown once per page load instead.
+  }
+  return FIRST_FATAL_NOTE[mode];
+}
+
+// ---------------------------------------------------------------------------
 // Export (the send replacement)
 // ---------------------------------------------------------------------------
 
@@ -372,18 +524,19 @@ export interface CrashExport {
 }
 
 /**
- * Builds the JSON file for one record (the newest when no id is given). Refused unless
- * `privacy.errorReports` is on. The caller downloads the bytes; nothing is uploaded.
+ * Builds the JSON file for one record (the newest when no id is given). Not gated by consent
+ * (19 section 8): the file is only downloaded on the player's action and nothing is uploaded.
  */
 export async function exportCrashRecord(id?: string): Promise<CrashExport> {
-  if (!consent) {
-    return { ok: false, message: 'Crash records stay on this device. Turn on "Send error reports" in Privacy to export one.' };
-  }
   const records = await listCrashRecords();
   const chosen = id === undefined ? records.slice(0, 1) : records.filter((r) => r.id === id);
   if (chosen.length === 0) return { ok: false, message: 'No crash record is stored on this device.' };
   const exported = new Date().toISOString();
-  const body = JSON.stringify({ schema: CRASH_RECORD_SCHEMA, exported, network: NETWORK_SEND_AVAILABLE, records: chosen }, null, 2);
+  const body = JSON.stringify(
+    { schema: CRASH_RECORD_SCHEMA, exported, network: NETWORK_SEND_AVAILABLE, consentMode: crashMode(), records: chosen },
+    null,
+    2,
+  );
   const name = `sandbox-realms-crash-${exported.replace(/[:.]/g, '-')}.json`;
   return { ok: true, message: `Exported ${name}. Nothing was sent.`, name, bytes: new TextEncoder().encode(body) };
 }

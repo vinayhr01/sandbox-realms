@@ -51,12 +51,13 @@ import {
   DEGRADE_RENDER_SCALE,
   DEGRADE_RENDER_SCALE_LEVEL,
   DEGRADE_START,
+  mainHangGap,
   stepDegrade,
   workerStalled,
   type DegradeTrack,
 } from './recovery.ts';
 import { contentHash } from '../content/content-hash.ts';
-import { exportCrashRecord, noteCrashRun, recordCrash, setCrashConsent } from './crash-record.ts';
+import { exportCrashRecord, firstFatalNote, noteCrashRun, recordCrash, setCrashConsent } from './crash-record.ts';
 
 /** Brush radii in tiles for slider positions 0..10 (04 section 1.1 sizes, trimmed for M1). */
 const BRUSH_RADII = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16] as const;
@@ -168,11 +169,15 @@ function safeModeAction(primary: boolean): FatalAction {
   };
 }
 
-/** Writes the crash record and downloads it when the player asks. Nothing is sent (19 section 9). */
-async function exportCrashAndDownload(): Promise<void> {
+/** Writes the newest crash record and downloads it when the player asks. Nothing is sent (19 sections 8, 9). */
+async function exportCrashToFile(): Promise<ChronicleOutcome> {
   const out = await exportCrashRecord();
   if (out.ok && out.name !== undefined && out.bytes !== undefined) downloadFile(out.name, out.bytes);
-  setFatalDetail(out.message);
+  return { ok: out.ok, message: out.message };
+}
+
+async function exportCrashAndDownload(): Promise<void> {
+  setFatalDetail((await exportCrashToFile()).message);
 }
 
 /** Crash reporter for the recovery dialog. The ladder (19 section 7) decides which recovery buttons it offers. */
@@ -185,6 +190,9 @@ function reportCrash(kind: FaultKind, title: string, detail: string, stack?: str
     const decision = decideRecovery({ kind, nowMs: now, attempts: loadAttempts(), hasValidAutosave: hasSave });
     storeAttempt({ atMs: now, kind, level: decision.level ?? 'fatal_dialog' });
     void recordCrash({ kind, ctx, message: detail, stack, recovery: decision.level ?? 'none' });
+    // The first fatal dialog explains the consent choice once (19 section 9).
+    const note = firstFatalNote();
+    const text = note === null ? detail : `${detail} ${note}`;
     const actions: FatalAction[] = [restoreAction(hasSave, decision.level === 'restart_from_autosave')];
     if (kind === 'sim_fatal' && decision.level === 'reset_realm' && restartRealm) {
       const restart = restartRealm;
@@ -199,7 +207,7 @@ function reportCrash(kind: FaultKind, title: string, detail: string, stack?: str
     }
     actions.push({ label: 'Export crash record', run: exportCrashAndDownload });
     actions.push(safeModeAction(decision.enterSafeMode));
-    showFatal(title, detail, actions);
+    showFatal(title, text, actions);
   })();
 }
 
@@ -420,6 +428,11 @@ async function boot(): Promise<void> {
   // Runtime health (17 sections 3.4, 10). The watchdog reads heartbeats. The ladder lowers render settings
   // in memory only: the saved options and the sim are never written.
   let watchdogShown = false;
+  // Set when the page was hidden since the last frame, so a tab switch is not read as a freeze.
+  let hiddenSinceFrame = false;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) hiddenSinceFrame = true;
+  });
   let degrade: DegradeTrack = DEGRADE_START;
   let degradeLevel = 0;
   const degradedOff = new Set<string>();
@@ -479,6 +492,25 @@ async function boot(): Promise<void> {
       'Simulation not responding',
       'The simulation has not reported for six seconds. Reload to resume from the newest autosave, or wait a little longer.',
       [restart, wait],
+    );
+  };
+  /**
+   * The main thread was frozen for `gapMs` (19 section 2, main_hang). Shown when the thread wakes, since a
+   * frozen thread cannot draw anything. Journaled and recorded either way; the dialog waits when the
+   * worker dialog is already open.
+   */
+  const showMainHang = (gapMs: number): void => {
+    const seconds = Math.round(gapMs / 1000);
+    journal('MAIN_HANG', `main thread frozen for about ${seconds} s`);
+    void recordCrash({ kind: 'main_hang', ctx: 'main', message: `main thread frozen for about ${seconds} s`, recovery: 'none' });
+    if (watchdogShown) return;
+    showFatal(
+      'Not responding',
+      `Sandbox Realms was frozen for about ${seconds} seconds and is running again. Wait to continue, or reload the page.`,
+      [
+        { label: 'Wait', run: () => hideFatal() },
+        { label: 'Reload', primary: true, run: () => location.reload() },
+      ],
     );
   };
   /** Shows the not-responding dialog after a stall, and clears it when heartbeats return. */
@@ -887,6 +919,7 @@ async function boot(): Promise<void> {
     options: () => options,
     saves: () => saveController.list(),
     chronicle,
+    exportCrash: exportCrashToFile,
     setOption: (id, value) => changeOption(id, value),
     snapshot: () => simView.current,
     sendCommand: (command) => {
@@ -1104,9 +1137,13 @@ async function boot(): Promise<void> {
       case Ev.Fault:
         progressBar.hide();
         journal(event.code, event.detail);
-        if (event.severity === 'fatal')
+        if (event.severity === 'fatal') {
           reportCrash(event.code === 'WORKER_ERROR' ? 'worker_dead' : 'sim_fatal', 'The simulation stopped', event.detail, undefined, 'worker');
-        else notify(event.detail, CUE.error);
+        } else {
+          // Non-fatal worker faults get a crash record too (19 section 2 js_worker; section 1, principle 3).
+          if (event.severity === 'error') void recordCrash({ kind: 'js_worker', ctx: 'worker', message: event.detail, recovery: 'none' });
+          notify(event.detail, CUE.error);
+        }
         return;
       case Ev.Snapshot:
         noteCrashRun({ age: event.snap.age ?? null });
@@ -1309,7 +1346,11 @@ async function boot(): Promise<void> {
     }
     saveController.frame(ticker.deltaMS, state.paused || document.hidden, autosaveState());
     degradeFrame(ticker.deltaMS);
-    watchdogCheck(performance.now());
+    const hiddenGap = hiddenSinceFrame;
+    hiddenSinceFrame = false;
+    // On the frame the main thread wakes, the worker's heartbeats are queued behind it: judge the worker next frame.
+    if (mainHangGap(ticker.deltaMS, hiddenGap)) showMainHang(ticker.deltaMS);
+    else watchdogCheck(performance.now());
     flushStroke();
 
     // The music state is published about once a second (16 B8: never more often than that).

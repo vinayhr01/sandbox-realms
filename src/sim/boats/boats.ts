@@ -9,9 +9,9 @@ import { BOAT_TYPE_BY_KIND, SPEED_PER_TILE, type BoatKind } from './types.ts';
 /**
  * Boat entities (10 section 13): docks come from hamlet buildings that carry `boatTypes`, boats are built at a
  * dock on a fixed period, sail on ocean tiles of their pool, trade with other docks, fish near home and unload
- * at home, and trading boats fire on enemy boats in reach. Transport boats (passengers) are still not built: no
- * dock lists them yet, and their passengers are not modelled (DECISIONS.md "Boats build 3"). The sim runs
- * `boatsStep` once per sim-second; nothing calls it yet (no hook in sim.ts).
+ * at home, and trading boats fire on enemy boats in reach. A transport boat is built on the docks of a Hamlet with
+ * a slipway (iron 2 from the Hamlet's iron store); its passengers are not modelled (DECISIONS.md "Boats close 4").
+ * The sim runs `boatsStep` every 20 ticks (sim.ts), with the war predicate as its isEnemy argument.
  *
  * State lives beside the Sim (a WeakMap keyed by the host), like the settlements state, and is saved as
  * chronicle tag 21 only when a boat or a dock build timer exists.
@@ -19,6 +19,10 @@ import { BOAT_TYPE_BY_KIND, SPEED_PER_TILE, type BoatKind } from './types.ts';
 
 /** Ticks between dock build checks (10 section 13 produceBoat: every 200 ticks; TUNE). */
 export const BOAT_PERIOD = 200;
+/** Build check period in a Hamlet with a slipway (18e slipway: 200 -> 150 ticks). */
+export const BOAT_PERIOD_SLIPWAY = 150;
+/** An idle boat below this share of its max hp, off its berth, returns to its home dock (10 section 13 boatIdle: 80%). */
+export const IDLE_RETURN_FRACTION = 0.8;
 /** Ticks one boatsStep call stands for (one sim-second). */
 export const STEP_TICKS = 20;
 /** Gold a finished trade visit adds to the boat's cargo (10 section 13: +5). */
@@ -124,9 +128,12 @@ interface StepCtx {
 function docksOf(realm: Realm, hamlets: readonly Hamlet[]): Dock[] {
   const out: Dock[] = [];
   for (const h of hamlets) {
+    const slip = hasSlipway(h);
     for (const b of h.buildings) {
-      const kinds = b.def.boatTypes;
-      if (!kinds || kinds.length === 0) continue;
+      const base = b.def.boatTypes;
+      if (!base || base.length === 0) continue;
+      // A slipway in the Hamlet unlocks the transport boat on its docks (18e slipway; 10 section 13).
+      const kinds = slip && !base.includes('transport') ? [...base, 'transport' as const] : base;
       const pool = dockPool(realm, b.x, b.y, b.def.footprint, b.def.height ?? b.def.footprint);
       if (pool < 0) continue;
       out.push({ tile: b.y * realm.side + b.x, x: b.x, y: b.y, kinds, hamlet: h, pool });
@@ -362,7 +369,13 @@ function stepBoat(ctx: StepCtx, b: Boat): boolean {
 
   if (b.trip === 'idle') {
     if (!home) return true;
-    if (b.target < 0 && b.x === b.berth % ctx.realm.side && b.y === Math.floor(b.berth / ctx.realm.side)) {
+    const atBerth = b.x === b.berth % ctx.realm.side && b.y === Math.floor(b.berth / ctx.realm.side);
+    // Idle decision (10 section 13 boatIdle): an idle boat below 80% hp that lies off its berth returns to the home dock.
+    if (!atBerth && b.hp < def.hp * IDLE_RETURN_FRACTION) {
+      goHome(ctx, b, pool);
+      return true;
+    }
+    if (b.target < 0 && atBerth) {
       // Berthed: repair, then choose a trip. Fishing repeats while the store has room for food.
       b.hp = Math.min(def.hp, b.hp + REPAIR_PER_PASS);
       if (b.kind === 'fishing' && home.hamlet.food < foodCapacity(home.hamlet)) {
@@ -470,11 +483,12 @@ export function boatsStep(
   const rng = host.rng('boats');
   for (const tile of [...st.builds.keys()]) if (!docks.some((d) => d.tile === tile)) st.builds.delete(tile);
   for (const d of docks) {
+    const period = hasSlipway(d.hamlet) ? BOAT_PERIOD_SLIPWAY : BOAT_PERIOD;
     const due = st.builds.get(d.tile);
     if (due === undefined) {
-      st.builds.set(d.tile, host.tick + BOAT_PERIOD);
+      st.builds.set(d.tile, host.tick + period);
     } else if (host.tick >= due) {
-      st.builds.set(d.tile, host.tick + BOAT_PERIOD);
+      st.builds.set(d.tile, host.tick + period);
       produce(host, st, d, rng);
     }
   }
@@ -482,6 +496,11 @@ export function boatsStep(
   st.boats = st.boats.filter((b) => stepBoat(ctx, b));
   attackPass(ctx, st.boats);
   st.boats = st.boats.filter((b) => b.hp > 0);
+}
+
+/** True when the Hamlet holds a slipway (18e). Read only. */
+function hasSlipway(h: Hamlet): boolean {
+  return h.buildings.some((b) => b.def.id === 'slipway');
 }
 
 /** Plain copy of the boat state, or null when there is nothing to save (no boats and no dock timers). */

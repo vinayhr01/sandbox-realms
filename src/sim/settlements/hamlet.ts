@@ -215,7 +215,7 @@ export function buildable(ctx: HamletContext, x: number, y: number, h: Hamlet): 
  */
 export function placeBuilding(ctx: HamletContext, h: Hamlet, def: BuildingDef): boolean {
   if (h.site) return false;
-  if (h.wood < def.wood || h.stone < def.stone || h.gold < (def.gold ?? 0)) return false;
+  if (h.wood < def.wood || h.stone < def.stone || h.gold < (def.gold ?? 0) || h.iron < (def.iron ?? 0)) return false;
   const rules = ctx.rules ?? BASE_RULES;
   const side = ctx.realm.side;
   const ordered = [...h.parcels].sort((a, b) => a - b);
@@ -263,6 +263,7 @@ export function placeBuilding(ctx: HamletContext, h: Hamlet, def: BuildingDef): 
   h.wood -= def.wood;
   h.stone -= def.stone;
   h.gold -= def.gold ?? 0;
+  h.iron -= def.iron ?? 0;
   h.site = { def, x: pick.x, y: pick.y, progress: 0 };
   return true;
 }
@@ -380,6 +381,8 @@ const RULES: readonly BuildRule[] = [
   { id: 'great_hall_3', minFolk: 100, minBuildings: 20 },
   // 09 section 6 bazaar (pop 60, bldg 15).
   { id: 'bazaar', minFolk: 60, minBuildings: 15 },
+  // 18e section 3.1 build-order weight: limit 1 per Hamlet, minPop 40. Its harbor prerequisite gates it (no harbor is placed yet).
+  { id: 'slipway', minFolk: 40 },
 ];
 
 /**
@@ -423,7 +426,7 @@ export interface JobTargets {
   /** Herb plants (herbalist). */
   herbs: number[];
   /** Deposit nodes with a store (prospector). */
-  deposits: { tile: number; stone: number; gold: number }[];
+  deposits: { tile: number; stone: number; gold: number; iron: number }[];
   /** Tilled tiles with no flora on them (tiller plants here). */
   tilled: number[];
   /** Open land a tiller may till into a field (only while the hamlet holds fewer than FIELD_MAX fields). */
@@ -475,7 +478,7 @@ export function jobTargets(ctx: HamletContext, h: Hamlet): JobTargets {
         const def = FLORA[code - 1];
         const yielded = DEPOSIT_YIELD.get(def?.id ?? '');
         if (yielded) {
-          targets.deposits.push({ tile: i, stone: yielded.stone, gold: yielded.gold });
+          targets.deposits.push({ tile: i, stone: yielded.stone, gold: yielded.gold, iron: yielded.iron });
           continue;
         }
         if (!def) continue;
@@ -522,6 +525,7 @@ function runJobs(ctx: HamletContext, h: Hamlet, workers: ReadonlyMap<WorkerJob, 
         ctx.realm.setFlora(d.tile, 0, ctx.tick);
         h.stone += d.stone;
         h.gold += d.gold;
+        h.iron += d.iron;
       }
     } else if (job.id === 'honey_gatherer') {
       for (const i of targets.hives.splice(0, amount)) {

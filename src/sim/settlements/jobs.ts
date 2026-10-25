@@ -119,12 +119,14 @@ export const MANURE_CAP = 3;
 export const FIELD_MAX = 12;
 
 /**
- * What a broken surface deposit gives the hamlet store (09 section 8 prospector, 10.1; TUNE). Iron and gem
- * nodes have no store in the sim (the hamlet holds no iron or gems), so prospectors leave them alone.
+ * What a broken surface deposit gives the hamlet store (09 section 8 prospector, 10.1; TUNE). An iron deposit
+ * gives 2 iron (10.1 "deposits (2)", read as the per-deposit yield; TUNE) into the hamlet iron store. Gem nodes
+ * have no store in the sim, so prospectors leave them alone. Iron from mines is not built (no Mine Shaft).
  */
-export const DEPOSIT_YIELD: ReadonlyMap<string, { stone: number; gold: number }> = new Map([
-  ['stone_outcrop', { stone: 2, gold: 0 }],
-  ['gold_outcrop', { stone: 0, gold: 3 }],
+export const DEPOSIT_YIELD: ReadonlyMap<string, { stone: number; gold: number; iron: number }> = new Map([
+  ['stone_outcrop', { stone: 2, gold: 0, iron: 0 }],
+  ['gold_outcrop', { stone: 0, gold: 3, iron: 0 }],
+  ['iron_outcrop', { stone: 0, gold: 0, iron: 2 }],
 ]);
 
 /** Woodcutter cap: one while the hamlet has more than this much wood, else three (09 section 8 quota). */

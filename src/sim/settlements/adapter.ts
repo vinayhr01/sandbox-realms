@@ -511,3 +511,16 @@ function majorityOwner(owner: Uint8Array, h: Hamlet): number {
   }
   return best;
 }
+
+/**
+ * Enemy test for boats (boats.ts isEnemy): two hamlets are enemies when their majority-owner dominions are distinct
+ * and at war (dominion relations, 10 section 11). A hamlet with no owning dominion is never an enemy. Reads only.
+ */
+export function hamletsAtWar(host: Sim): (a: Hamlet, b: Hamlet) => boolean {
+  return (a, b) => {
+    const s = dominionState(host);
+    const x = majorityOwner(s.owner, a);
+    const y = majorityOwner(s.owner, b);
+    return x !== UNOWNED && y !== UNOWNED && x !== y && s.relations.get(x, y) === 'war';
+  };
+}

@@ -1836,3 +1836,26 @@ Scope: the open 18e creep effects, the vent and quake save, and a check of Titan
 - Vents with a centre tile outside the realm: `startVolcano` places the magma but does not check the centre, so a bad call could write a vent the load check refuses. The callers pass in-bounds tiles, so this is not reachable from the current powers. Left as is, since `eruption.ts` is outside the touch list.
 
 Not verified: none of the above has been run. The golden replay should be unaffected (no creep hubs or vents in that script, and the new draws only happen with creep), but that is an argument, not a run. The save round-trip for tag 22 needs a test that saves a realm mid-quake and with a vent, then compares the resumed state hash.
+
+## Boats close 4
+
+Scope: 10 section 13 (slipway transport, idle decision, boat firing), 18e slipway row and build-order weight, 09 10.1 iron deposits. Files: `src/sim/boats/boats.ts` (`docksOf` slipway kinds, `BOAT_PERIOD_SLIPWAY`, `IDLE_RETURN_FRACTION`, idle decision in `stepBoat`, `hasSlipway`), `src/sim/boats/types.ts` (comment only), `src/sim/settlements/catalogue.ts` (`iron` cost field, slipway row), `src/sim/settlements/hamlet.ts` (iron cost check and charge in `placeBuilding`, iron deposit targets and yield in `jobTargets` and `runJobs`, slipway build-order weight), `src/sim/settlements/jobs.ts` (`DEPOSIT_YIELD` iron), `src/sim/settlements/adapter.ts` (`hamletsAtWar`), `src/sim/sim.ts` (the `boatsStep` call arguments, plus `hamletsAtWar` added to the existing settlements import). `src/sim/chronicle.ts` is unchanged: the new behaviour adds no saved field, and the iron and boat kind checks already cover it. Development only: no tests, tsc, vitest, build or Playwright were run, so every change is unverified by machine. `GOLDEN_HASH` is not edited.
+
+**Slipway row (18e 3.1).** `slipway`: role trade, cost wood 14, stone 6, iron 2, gold 30, footprint 4 wide and 3 deep, hp 500, `needs: ['harbor']`. `BuildingDef` gets an optional `iron` cost, checked and paid in `placeBuilding` from `Hamlet.iron`. The build-order weight is added to `RULES` with minFolk 40 (18e: limit 1, minPop 40). No harbor is placed in play yet, so the slipway is still never built in play (see Remaining).
+
+**Transport through the slipway (10 13).** A dock in a Hamlet that holds a slipway lists `transport` in its kinds (`docksOf`). `produce` then pays wood 5, iron 2 and gold 20 for it, as before. The spec's "unlocks transport at this Hamlet" is read this way. The slipway's build interval is 150 ticks instead of 200 for the docks of its Hamlet (`BOAT_PERIOD_SLIPWAY`, used in both places of `boatsStep` that set a build due time). A transport boat sits at its berth: it repairs and takes no trip, since passengers are not built.
+
+**Iron income (09 10.1).** `iron_outcrop` is a `DEPOSIT_YIELD` entry: a broken iron deposit gives 2 iron to `Hamlet.iron`, through the prospector job as stone and gold already do. The spec row reads "iron | deposits (2), mines" and gives no yield, so 2 per deposit is read from "(2)" and is TUNE. Prospector slots are counted from `targets.deposits`, so a hamlet with iron nodes now staffs prospectors for them, as 09 8 item 4 already says. Mines (a Mine Shaft building) are not in the catalogue, so mine iron is not built.
+
+**Idle decision (10 13 boatIdle).** An idle boat below 80 percent hp (`IDLE_RETURN_FRACTION`) that lies off its berth returns to its home dock. A boat at its berth repairs as before.
+
+**Boat firing (10 13 boatTrading and boatDanger).** `hamletsAtWar(sim)` in `settlements/adapter.ts` builds the `isEnemy` predicate: two hamlets are enemies when their majority-owner dominions (the `majorityOwner` the trade and garrison code use) are distinct and `relations.get(x, y) === 'war'`. `sim.ts` passes it as the fourth argument of `boatsStep`, with `undefined` for `mayTrade` so the default applies. Only trading boats fire, as before.
+
+**Not done here, and why.**
+- Trade with enemies: `mayTrade` is still the default (always true), so trading boats may trade with a dominion at war. The spec's rule (10 13 Trade: not an enemy) is one more call argument, not done because the close list named firing only.
+- No dock is placed in play: the hamlet build order never picks `fishers_pier`, `harbor` or `slipway` (dock placement is not built). So no boat, transport or dock iron happens in a real run yet; these rules run only where a test or tool places the buildings.
+- Boat hp +20% for slipway-built boats (18e): not built. Max hp is per boat type, so a per-boat max field and a save change are needed first.
+- Slipway progress 300 and its 2 shipwright jobs: not modelled (one SITE_PROGRESS; no shipwright job).
+- The iron yield (2), the slipway's 150-tick interval and minPop 40 are TUNE or spec readings, not checked in a run.
+- The "Boats build 3" gap on connectivity settling after a load is untouched.
+- Golden: prospectors now take iron nodes, and slipway hamlets build transport boats and faster docks. Both change state on a golden run that reaches them. `GOLDEN_HASH` is not re-baselined and was not edited, so it will move on such a run.

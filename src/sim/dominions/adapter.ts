@@ -31,7 +31,7 @@ import { rankDominions, RANK_PERIOD_TICKS } from './rank.ts';
 import { hamletLoyalty, type HamletLoyaltyFacts } from './loyalty.ts';
 import { cultureYearly } from '../culture/adapter.ts';
 import { blockedWarMood, campaignMood, convertLineageUnits, lineageHas, rulerInstalled, traitsOfGroup, warBlocked as warBlockedBy } from '../culture/effects.ts';
-import { customOfGroup, foundCreed, foundDialect, splitCreed, splitCustom, splitDialect } from '../culture/culture.ts';
+import { customOfGroup, foundCreed, foundDialect, harmonyBonus, splitCreed, splitCustom, splitDialect } from '../culture/culture.ts';
 import { successionRuleOf, type FoundFacts, type SplitFacts } from '../culture/trait-rules.ts';
 import { MAX_BEINGS } from '../beings/store.ts';
 import { opinion, powerOf, type DominionLens, type OpinionContext } from './opinion.ts';
@@ -427,7 +427,7 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
 }
 
 /** Majority owner of a hamlet's parcels (ties to the lower id), or UNOWNED. Draws no randomness. */
-function ownerOfHamlet(parcels: ReadonlySet<number>, owner: Uint8Array): number {
+export function ownerOfHamlet(parcels: ReadonlySet<number>, owner: Uint8Array): number {
   const counts = new Map<number, number>();
   for (const p of parcels) {
     const o = owner[p] ?? UNOWNED;
@@ -697,11 +697,16 @@ function majorityStrains(sim: Sim, owner: Uint8Array): Map<number, number> {
   return out;
 }
 
-/** Ruler stats per dominion id for the opinion terms (rulers.ts). Reads the being store; draws no randomness. */
+/**
+ * Ruler stats per dominion id for the opinion terms (rulers.ts). Reads the being store; draws no randomness. The ruler is
+ * a follower of its dominion, so the dominion's creed harmony tenet adds to its rapport (11 section 4.2, creed effects).
+ */
 function rulerLookup(sim: Sim, dominions: readonly Dominion[]): (id: number) => RulerStats | undefined {
   return (id) => {
     const d = dominions.find((x) => x.id === id);
-    return d ? rulerStatsOf(sim.beings.store, d) : undefined;
+    const stats = d ? rulerStatsOf(sim.beings.store, d) : undefined;
+    if (!stats) return undefined;
+    return { ...stats, diplomacy: stats.diplomacy + harmonyBonus(sim.culture, id, 'diplomacy') };
   };
 }
 
@@ -889,8 +894,9 @@ function splitHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof
 
 /**
  * Culture hooks of the founding intrigues (11 section 3; intrigue.ts FoundHooks). The actor is the dominion's ruler, as in
- * splitHooksOf: its study level is the level, its wit the intelligence, and its lineage the speech and memory flags. A
- * founded dialect or creed is held by the dominion and its creator is the dominion. Draws only from the culture stream.
+ * splitHooksOf: its study level is the level, its wit (plus the dominion's creed harmony bonus) the intelligence, and its
+ * lineage the speech and memory flags. A founded dialect or creed is held by the dominion and its creator is the dominion.
+ * Draws only from the culture stream.
  */
 function foundHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof hamletsOf>): FoundHooks {
   const culture = sim.culture;
@@ -908,7 +914,7 @@ function foundHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof
         memory: lineageHas(sim, r.slot, 'memory_lobe'),
         members: folk.get(d) ?? 0,
         leaderLevel: culture.studies?.[String(r.gen * MAX_BEINGS + r.slot)]?.level ?? 0,
-        intelligence: sim.beings.store.attrs[r.slot * 4 + APT_WIT] ?? 0,
+        intelligence: (sim.beings.store.attrs[r.slot * 4 + APT_WIT] ?? 0) + harmonyBonus(culture, d, 'intelligence'),
       };
     },
     apply: (kind: FoundKind, d: number): boolean => {
@@ -926,7 +932,11 @@ function foundHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof
 function loyaltyYearly(sim: Sim, s: DominionState, settlements: ReturnType<typeof hamletsOf>, hamletCount: ReadonlyMap<number, number>): void {
   const store = sim.beings.store;
   const perAxis = parcelsPerAxis(sim);
-  const skill = (slot: number): number => (store.attrs[slot * 4 + APT_RAPPORT] ?? 0) + 2 * (store.attrs[slot * 4 + APT_HUSBANDRY] ?? 0);
+  // The ruler and the leader are followers of the dominion that holds the hamlet, so its creed harmony tenets add to both.
+  const skill = (slot: number, group: number): number =>
+    (store.attrs[slot * 4 + APT_RAPPORT] ?? 0) +
+    harmonyBonus(sim.culture, group, 'diplomacy') +
+    2 * ((store.attrs[slot * 4 + APT_HUSBANDRY] ?? 0) + harmonyBonus(sim.culture, group, 'stewardship'));
   const centre = (parcels: ReadonlySet<number>): [number, number] => {
     let x = 0;
     let y = 0;
@@ -953,7 +963,7 @@ function loyaltyYearly(sim: Sim, s: DominionState, settlements: ReturnType<typeo
       .filter((d) => d.id !== owned && s.relations.get(owned, d.id) !== 'peace')
       .reduce((sum, d) => sum + powerOf(d, hamletCount), 0);
     const facts: HamletLoyaltyFacts = {
-      ruler: ruler ? skill(ruler.slot) : 0,
+      ruler: ruler ? skill(ruler.slot, owned) : 0,
       folk: h.folk,
       parcels: h.parcels.size,
       capitalFolk: capital.folk,
@@ -965,7 +975,7 @@ function loyaltyYearly(sim: Sim, s: DominionState, settlements: ReturnType<typeo
       ownPower: powerOf(dom, hamletCount),
       rank: dom.rank,
       dominionCount: s.dominions.length,
-      ...(leaderSlot >= 0 ? { leader: skill(leaderSlot) } : {}),
+      ...(leaderSlot >= 0 ? { leader: skill(leaderSlot, owned) } : {}),
       ...(ruler ? { rulerAge: (sim.tick - (store.born[ruler.slot] ?? 0)) / YEAR_TICKS } : {}),
     };
     s.loyalty.set(Math.min(...h.parcels), hamletLoyalty(facts));

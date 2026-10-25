@@ -62,6 +62,7 @@ export const UI_HANDLERS: readonly string[] = [
   'cycle_option',
   'select_hamlet',
   'select_dominion',
+  'select_accord',
   'layer_toggle',
   'toggle_view',
 ];

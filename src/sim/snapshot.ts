@@ -449,11 +449,18 @@ function mapTiesOf(sim: Sim): MapTies {
     .slice(0, MAP_TIE_CAP)
     .map((e): [number, number, number] => [e.a, e.b, e.opinion]);
   const accord = accordCandidatesOf(sim);
+  // Members of the pacts a joinPact row names, so the Accord Finder can draw one dominion's candidates (12 section 8.8).
+  const joinIds = new Set(accord.joinPact.map(([, pactId]) => pactId));
+  const pactMembers: MapTies['pactMembers'] = pactsOfSim(sim)
+    .filter((p) => joinIds.has(p.id))
+    .slice(0, MAP_TIE_CAP)
+    .map((p): [number, number[]] => [p.id, [...p.memberIds]]);
   return {
     centres,
     opinions,
     formPact: accord.formPact.slice(0, MAP_TIE_CAP),
     joinPact: accord.joinPact.slice(0, MAP_TIE_CAP),
+    pactMembers,
   };
 }
 

@@ -1,6 +1,7 @@
 import type { Sim } from '../sim.ts';
-import { dominionsOfSim, dominionState, UNOWNED } from '../dominions/adapter.ts';
+import { dominionOwnerOf, dominionsOfSim, dominionState, ownerOfHamlet, UNOWNED } from '../dominions/adapter.ts';
 import { drawToGarrison, returnFromGarrison } from '../dominions/armies.ts';
+import { harmonyBonus } from '../culture/culture.ts';
 import { SS_TICKS } from '../clock.ts';
 import { PARCEL } from '../../shared/constants.ts';
 import type { Hamlet } from './hamlet.ts';
@@ -93,15 +94,19 @@ function adultsIn(sim: Sim, hamlet: Hamlet): number {
 
 /**
  * Leader warfare for the garrison terms (09 section 8: `leader.warfare` in the soldier timer and in `armyFactor`): the valor
- * attribute of the hamlet leader (the oldest adult Folk, set by the census in adapter.ts). LEADER_WARFARE when the hamlet has
- * no living leader. Reads only; draws no rng.
+ * attribute of the hamlet leader (the oldest adult Folk, set by the census in adapter.ts), plus the harmony warfare bonus of
+ * the creeds of the dominion that holds the hamlet (11 section 4.2). LEADER_WARFARE when the hamlet has no living leader.
+ * Reads only; draws no rng.
  */
 function leaderWarfare(sim: Sim, hamlet: Hamlet): number {
   const slot = hamlet.leader ?? -1;
   const s = sim.beings.store;
   if (slot < 0 || s.alive[slot] !== 1) return LEADER_WARFARE;
   // Attributes are stored four per slot in the order rapport, valor, husbandry, wit (beings/store.ts); valor is index 1.
-  return s.attrs[slot * 4 + 1] ?? LEADER_WARFARE;
+  const valor = s.attrs[slot * 4 + 1] ?? LEADER_WARFARE;
+  const owner = dominionOwnerOf(sim);
+  if (!owner || sim.culture.creeds.length === 0) return valor;
+  return valor + harmonyBonus(sim.culture, ownerOfHamlet(hamlet.parcels, owner), 'warfare');
 }
 
 /**

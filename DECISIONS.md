@@ -2260,3 +2260,37 @@ Scope: 11 sections 2 and 3 (founding of creeds and dialects; schism and divergen
 - `GOLDEN_HASH` will not match: the new intrigue kinds, the founding picks, the dialect and creed spread, the contact change, the unit conversion and the loyalty fields all change the run. It needs a re-baseline when a golden run is allowed.
 
 **Not verified.** Nothing was run. Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. The founding, spread and loyalty paths need a seeded run, and the save round-trip of the new state needs a test.
+
+## Accord close 7
+
+Scope: two items after "Culture founding close 6". (1) The Accord Finder select step (12 section 8.8, the accord row; 10 section 12 for the pact rules). (2) The tenet effects (11 sections 4.2 and 9.4, and the tenet table in `src/content/creeds.ts`): build the effects the sim can support, and record every tenet it cannot. Touch set: `src/content/powers.ts` (row), `src/ui/powerSupport.ts` (`UI_HANDLERS`), `src/app/main.ts` (select state, pick, clear, Escape, layer inputs), `src/render/insight-layers.ts` (`accordViewOf`, `drawAccord`), `src/shared/protocol.ts` (additive `MapTies.pactMembers`), `src/sim/snapshot.ts` (`mapTiesOf`), `src/sim/culture/culture.ts` (`harmonyBonus`), `src/sim/dominions/adapter.ts` (ruler and leader readers, `ownerOfHamlet` exported), `src/sim/settlements/garrison-adapter.ts` (`leaderWarfare`), `src/content/creeds.ts` (header). Development only: no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` is not edited.
+
+**1. Accord Finder select step (12 section 8.8).** The row `ins_accord` is now a click row with handler `select_accord`, not a view flag. It works as Ties does: the next tap on a tile picks the dominion owning it (`dominionAtTile`), a second press on the row clears it, and Escape cancels a pending pick. The state is `accordPending` and `accordDominion` in main.ts (UI only, not saved, reset with a new realm). The map layer is not changed: 8.8 says only "shows pact candidates for selected dominion", where Ties says the map switches.
+- The candidate function is kept: `accordCandidatesOf` (adapter.ts) still lists every formPact pair and joinPact entry the gates allow now. Only the draw is narrowed. `accordViewOf(ties, only)` (insight-layers.ts) reads the selected dominion's rows and draws: a gold line to each dominion it could form a pact with (formPact); a thin line to each member of each pact it could join, and a ring on it (joinPact rows naming it); a ring on, and a thin line to, each dominion that could join a pact it is in (joinPact rows naming a pact with it as a member).
+- Reading of "the dominions that could join or form a pact with it" (10 section 12): these three groups. The first two are the candidates the spec names; the third is the other side of a join.
+- Feed: `MapTies.pactMembers` is new (protocol.ts, additive). A pact id has no position and the ties feed carries no members, so `mapTiesOf` lists the members of each pact a joinPact row names (capped at `MAP_TIE_CAP`). `snap.pacts` was not used: its rows are capped at `SNAPSHOT_DETAIL_ROWS` (16), so a pact could be missing from it.
+- The gates (`formPactOk`, `joinPactOk`) and their stand-in strengths are unchanged (see "Dominions exports close 5"). The renown and money costs are still not shown.
+
+**2. Tenet effects (11 sections 4.2 and 9.4).** Built: the four harmony tenets (`harmony_intelligence`, `_warfare`, `_diplomacy`, `_stewardship`, uncommon, random). `harmonyBonus(state, group, stat)` (culture.ts) gives +10 (`HARMONY_BONUS`) when a creed the group holds carries the tenet, once per stat however many creeds. The mapping is the 05 attribute table: diplomacy = rapport, warfare = valor, stewardship = husbandry, intelligence = wit. The bonus is read where a dominion's ruler or leader stat is read:
+- opinion rapport (`rulerLookup`, the ruler's diplomacy term in 10 section 10);
+- the founding intelligence gate (`foundHooksOf`, the ruler's wit);
+- the loyalty ruler and leader skill (`loyaltyYearly`, rapport + 2 x husbandry, with each term's harmony bonus, 10 section 5);
+- the garrison leader warfare (`leaderWarfare`, valor, 09 section 8: soldier timer and slots). The owner is the dominion holding the hamlet (`ownerOfHamlet`, now exported).
+- Substitution: 11 says "followers", and the sim has no per-Being creed read. The four stats are read from the ruler or leader (the dominion layer's stand-in for a follower). The Being-level derived stats (`refreshStats`, assembly.ts) are not changed: that pass runs on spawn, birth, growing up and load, not on a conversion, so a bonus there would go stale when a Being changes dominion.
+- A harmony tenet on a dominion with no ruler or leader does nothing, as there is no stat to read.
+
+Not built, with the reason for each:
+- `bloodSecrecy` (uncommon): limits creed magic to clan members. The sim has no creed magic (no spell casting, see the spell tenets), so there is nothing to limit.
+- 18 spell tenets `spell_<id>` (uncommon): 08 section 9.2 spells are not in the sim. There is no spell action in combat, no spell chance, and no `skill_spell` use. `Creed.recalc` (the spells and rites a creed holds, from its tenets, 11 section 4.2) is not built either.
+- 15 rite tenets (rare): rites are intrigues (11 section 3). The intrigue engine has eight kinds (`IntrigueKind` in intrigue.ts) and none is a rite. A creed has no `rites` list. Each rite's world effect (quakes, meteors, summons, rites of status) is not built.
+- `fireWard` (rare, locked): hamlets of followers unburnable. Locked and not random (`randomSpawn` false, 9.4), so no founding draws it, and only a schism of a creed that already holds it copies it: unreachable in play. The sim's fire (terrain/fire.ts) also spreads over tiles and never burns a building, so "hamlet unburnable" has no target.
+- `insight` (locked): a marker in 9.4 and the spec gives it no effect, so there is nothing to build. Unreachable in play (locked, not random).
+- Transformation tenets `desert`, `shadow`, `void`, `infernal`, `ash` (locked): the effect is `worldTransform`, which only a rite runs (11 section 3), and rites are not built. Unreachable in play (locked, not random).
+- The death hook of the spell and rite tenets (the `slayer` trait): it depends on spells and rites. Not built.
+
+**Remains.**
+- The Accord rendering is not checked on screen, and the three line groups use first-choice colours and widths.
+- Tests that will need a run: `tests/unit/ui-powers.test.ts` (the Accord row is now a click row with handler `select_accord`, and `select_accord` is in `UI_HANDLERS`), the content hash (`src/content/content-hash.ts`: `powers.ts` and `creeds.ts` changed), and a unit test for `accordViewOf` and `harmonyBonus`.
+- `GOLDEN_HASH` is not edited. It will drift when a creed with a harmony tenet exists (the readers change outcomes), and the content hash moves with `creeds.ts` and `powers.ts`.
+
+**Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. `MapTies.pactMembers` is required, and its only producer is `mapTiesOf`; no other src or test file builds a `MapTies`.

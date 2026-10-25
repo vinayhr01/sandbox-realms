@@ -1,8 +1,9 @@
 /**
  * Creed tenets (11 section 9.4, with the spell table of 08 section 9.2 and the rite table of 11 section 3). A creed holds
  * tenet ids: a founding draws them from the random pool (culture.ts foundCreed), and a schism copies them (culture.ts
- * splitCreed). The tenets' effects are not built (see DECISIONS.md, "Culture founding close 6"); only the ids, kinds and
- * rarities are here. Rarity weights are customs.ts CUSTOM_RARITY_WEIGHT (TUNE, 11 section 9).
+ * splitCreed). Only the harmony tenets have an effect (culture.ts harmonyBonus, read by the ruler and leader stat readers).
+ * The other tenets' effects are not built, each with its reason in DECISIONS.md "Accord close 7". Rarity weights are
+ * customs.ts CUSTOM_RARITY_WEIGHT (TUNE, 11 section 9).
  *
  * Harmony tenet ids take the stat name of 9.4. Spell tenets are `spell_<spell id>` (11 section 4.2). Rite tenet ids are
  * the rite ids of 11 section 3 (the spec names the tenet "each unlocks one rite" but gives no id of its own).

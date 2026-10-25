@@ -399,11 +399,12 @@ export const POWERS: readonly PowerDef[] = [
   viewToggle('ins_tips_tiles', 'Tile tooltips', 'tip.tiles'),
   viewToggle('ins_tips_beings', 'Being tooltips', 'tip.beings'),
   // Close 5 (DECISIONS.md "Dominions exports close 5"): money flow (O05, the Settings option ui.moneyFlow), and the two
-  // dominion rows Ties and Accord Finder. Accord is drawn for every pair at once (a view flag, off by default). Ties is a
-  // select step (12 section 8.8): one tap picks the dominion, and its relations are drawn (DECISIONS.md "Remaining close 6").
+  // dominion rows Ties and Accord Finder. Ties is a select step (12 section 8.8): one tap picks the dominion, and its
+  // relations are drawn (DECISIONS.md "Remaining close 6"). Accord Finder is the same select step (DECISIONS.md
+  // "Accord close 7"): one tap picks the dominion, and its pact candidates are drawn.
   optionToggle('ins_overlay_money', 'Money flow', 'ui.moneyFlow'),
   click('ins_ties', 'insight', 'Ties', 'select_dominion'),
-  viewToggle('ins_accord', 'Accord Finder', 'accord'),
+  click('ins_accord', 'insight', 'Accord Finder', 'select_accord'),
 ];
 
 export const POWER_BY_ID = new Map(POWERS.map((p) => [p.id, p]));

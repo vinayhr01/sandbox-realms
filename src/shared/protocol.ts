@@ -122,6 +122,8 @@ export interface HamletRow {
   folk: number;
   buildings: number;
   parcels: number;
+  /** Hamlet mood -100..100 (09 section 9, hamlet level). Optional: absent from older snapshots. */
+  mood?: number;
 }
 
 /** One achievement: its current value against its target (achievements window). */

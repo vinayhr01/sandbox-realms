@@ -459,6 +459,9 @@ async function boot(): Promise<void> {
   /** Insight Follow: armed (the next tap picks a being) and the being followed, by its snapshot id. */
   let followPending = false;
   let followId: number | null = null;
+  /** Insight Possess (07 section 13): armed (the next tap picks a being), and the being held by its snapshot id or null. Not saved. */
+  let possessPending = false;
+  let possessedId: number | null = null;
   /** Insight Hamlet Select: armed (the next tap picks a tile) and the hamlet picked (hamletsOf index, or -1). */
   let hamletPending = false;
   let selectedHamlet = -1;
@@ -659,6 +662,9 @@ async function boot(): Promise<void> {
     stepAnchor = null;
     followPending = false;
     followId = null;
+    // A new or loaded realm has new Beings: the held one is not carried over (control is not saved, 07 section 14).
+    possessPending = false;
+    possessedId = null;
     hamletPending = false;
     selectedHamlet = -1;
     dominionPending = false;
@@ -747,6 +753,16 @@ async function boot(): Promise<void> {
   let powerTab: TabState = { active: TABS[0], tabs: TABS };
   const tabLabel = (tab: TabId): string => tab.charAt(0).toUpperCase() + tab.slice(1);
 
+  /** Releases the held Being (Cmd.Possess on=false) and clears the possession state. */
+  const releasePossession = (): void => {
+    const wasHeld = possessedId !== null;
+    if (possessedId !== null) client.possess(possessedId, false, 0, 0, false);
+    possessedId = null;
+    possessPending = false;
+    setStatus(wasHeld ? 'Possession released.' : 'Possess: off.');
+    updatePowerButtons();
+  };
+
   /** Carries out a power button press: UI actions run at once, sim powers arm or disarm. */
   const activatePower = (power: PowerDef): void => {
     const status = powerStatus(power);
@@ -778,6 +794,18 @@ async function boot(): Promise<void> {
         setArmed(null);
         followPending = true;
         setStatus('Tap a being to follow it. Esc releases.');
+        return;
+      case 'possess':
+        // Possess (07 section 13): a press while a Being is held releases it. Otherwise the next tap picks a being
+        // (onTap); later taps on the ground order it to move. Each order refreshes the control on the sim side.
+        setArmed(null);
+        if (possessedId !== null) {
+          releasePossession();
+          return;
+        }
+        possessPending = !possessPending;
+        setStatus(possessPending ? 'Tap a being to possess it. Esc releases.' : 'Possess: off.');
+        updatePowerButtons();
         return;
       case 'select_hamlet':
         // Hamlet Select waits for a tap on a tile (onTap), which picks the hamlet owning that tile.
@@ -880,6 +908,8 @@ async function boot(): Promise<void> {
             ? boolOption(options, String(power.params['option']))
             : power.handler === 'toggle_view'
               ? viewFlags.has(String(power.params['key']))
+            : power.handler === 'possess'
+              ? possessPending || possessedId !== null
             : power.handler === 'select_dominion'
               ? selectedDominion >= 0
             : power.handler === 'select_accord'
@@ -1149,7 +1179,7 @@ async function boot(): Promise<void> {
   });
 
   /** The being under a screen point in the latest snapshot: within 10 px, or 24 px on touch. Null when none. */
-  const pickBeing = (sx: number, sy: number): { id: number } | null => {
+  const pickBeing = (sx: number, sy: number): { id: number; x: number; y: number } | null => {
     const cam = camera;
     const points = simView.current?.mapPoints;
     if (!cam || !points) return null;
@@ -1295,6 +1325,25 @@ async function boot(): Promise<void> {
         } else {
           setStatus('No being there. Tap a being to follow it, or press Esc.');
         }
+        return;
+      }
+      if (possessPending) {
+        // The order tile of the first order is the picked Being's own tile, so it stands still until the next tap.
+        const hit = pickBeing(sx, sy);
+        if (hit) {
+          possessPending = false;
+          possessedId = hit.id;
+          client.possess(hit.id, true, hit.x, hit.y, false);
+          setStatus('Possessing that being. Tap the ground to move it. Esc releases.');
+          updatePowerButtons();
+        } else {
+          setStatus('No being there. Tap a being to possess it, or press Esc.');
+        }
+        return;
+      }
+      if (possessedId !== null) {
+        // Held Being: a tap on the ground is a move order (the attack flag and the six actions have no binding yet).
+        client.possess(possessedId, true, t.x, t.y, false);
         return;
       }
       // Inspect (default tap with nothing armed): a being near the tap opens its window when the
@@ -1543,6 +1592,7 @@ async function boot(): Promise<void> {
     } else if (e.code === 'Escape') {
       followPending = false;
       followId = null;
+      if (possessedId !== null || possessPending) releasePossession();
       hamletPending = false;
       dominionPending = false;
       accordPending = false;

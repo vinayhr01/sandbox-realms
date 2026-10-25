@@ -382,6 +382,7 @@ function handle(cmd: Command): void {
     case Cmd.SetItemRain:
     case Cmd.ItemRain:
     case Cmd.SetItemFavourite:
+    case Cmd.Possess:
       // A switched-off command part takes no sim commands until its ticks run out (17 section 9).
       if (sim && !sysIso.isOff('command', sim.tick)) {
         sim.enqueue(cmd);

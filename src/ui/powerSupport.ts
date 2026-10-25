@@ -61,6 +61,7 @@ export const UI_HANDLERS: readonly string[] = [
   'toggle_option',
   'cycle_option',
   'select_hamlet',
+  'possess',
   'select_dominion',
   'select_accord',
   'layer_toggle',
@@ -123,10 +124,6 @@ export function powerStatus(def: PowerDef): PowerStatus {
     // `window` is a full window id (win_* or list_*, 13 section 7.1), the same id the window host uses.
     const id = String(def.params['window'] ?? '');
     return WINDOW_IDS.has(id) ? ok() : off(def);
-  }
-  if (def.handler === 'possess') {
-    // Possession needs the beings command (not on main yet): the row stays visible and disabled until it lands.
-    return { enabled: false, note: `${def.name} waits on the beings possession command, which is not on main yet.` };
   }
   if (SIM_HANDLERS.includes(def.handler) || UI_HANDLERS.includes(def.handler)) return ok();
   return off(def);

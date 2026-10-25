@@ -12,6 +12,9 @@ import { desiresOf, structureStep, type Structure } from './landmarks.ts';
 import { decayRoads, PATH_DECAY_RANDOM_SS, PATH_DECAY_SS, planRoads, recordRoadBases, roadTerrainOpen } from './roads.ts';
 import { addMood } from '../beings/social.ts';
 import { customHas, customOfGroup, type Custom } from '../culture/culture.ts';
+import { childMayWork } from '../culture/trait-rules.ts';
+import { rulerLive, type RulerRef } from '../dominions/rulers.ts';
+import type { Workforce } from './jobs.ts';
 import { CREEP_HUB_BY_ID, LANDMARK_BY_ID } from '../../content/creeps.ts';
 import type { MoodEvent } from '../../content/moods.ts';
 import { ground } from '../../content/grounds.ts';
@@ -271,18 +274,38 @@ function foundHamlets(host: SettlementHost, state: SettlementState): void {
   }
 }
 
-/** Counts living beings standing in any parcel of the hamlet. Species is not distinguished. */
-function census(host: SettlementHost, h: Hamlet): number {
+/** The living ruler of the dominion holding most of the hamlet's parcels, or undefined. Reads only. */
+function rulerOfHamlet(host: SettlementHost, h: Hamlet): RulerRef | undefined {
+  const ds = dominionState(host as unknown as Sim);
+  const dom = majorityOwner(ds.owner, h);
+  if (dom === UNOWNED) return undefined;
+  const d = ds.dominions.find((o) => o.id === dom);
+  return d ? rulerLive(host.beings.store, d) : undefined;
+}
+
+/**
+ * Counts living beings standing in any parcel of the hamlet, split by the Being baby flag (09 section 8 canWork).
+ * Species is not distinguished. The ruler counts as a leader only while it is an adult Folk standing in the hamlet.
+ */
+function census(host: SettlementHost, h: Hamlet, ruler: RulerRef | undefined): { folk: number; work: Workforce } {
   const s = host.beings.store;
   const perAxis = host.realm.side / PARCEL;
-  let n = 0;
+  let adults = 0;
+  let children = 0;
+  let leaders = 0;
   for (let k = 0; k < s.size; k++) {
     const slot = s.at(k);
     const x = s.x[slot] ?? 0;
     const y = s.y[slot] ?? 0;
-    if (h.parcels.has(Math.floor(y / PARCEL) * perAxis + Math.floor(x / PARCEL))) n++;
+    if (!h.parcels.has(Math.floor(y / PARCEL) * perAxis + Math.floor(x / PARCEL))) continue;
+    if ((s.baby[slot] ?? 0) !== 0) {
+      children++;
+      continue;
+    }
+    adults++;
+    if (ruler && ruler.slot === slot && host.beings.species(s.species[slot] ?? 0).folk) leaders = 1;
   }
-  return n;
+  return { folk: adults + children, work: { adults, children, leaders, childLabour: false } };
 }
 
 /**
@@ -303,15 +326,17 @@ export function settlementsStep(host: SettlementHost): void {
   recordRoadBases(host.realm, state.hamlets.map((h) => h.road), state.roadBase);
   const ctx = contextOf(host);
   for (const h of state.hamlets) {
-    h.folk = census(host, h);
     // Another hamlet owning a parcel blocks this hamlet from expanding into it.
     const custom = customOf(host, h);
+    const counted = census(host, h, rulerOfHamlet(host, h));
+    h.folk = counted.folk;
     const own: HamletContext = {
       ...ctx,
       claimed: (q) => state.hamlets.some((o) => o !== h && o.parcels.has(q)),
       desires: desiresOf(state.structures, h, host.realm.side),
       rules: rulesOf(custom?.traits ?? [], host.realm.seed),
       garrisoned: garrisonSoldiersOf(host, state.hamlets.indexOf(h)),
+      workforce: { ...counted.work, childLabour: childMayWork(custom?.traits ?? []) },
     };
     const parcelsBefore = custom && customHas(custom, 'outwardGrowth') ? new Set(h.parcels) : null;
     const buildingsBefore = h.buildings.length;

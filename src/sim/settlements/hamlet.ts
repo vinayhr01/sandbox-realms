@@ -12,11 +12,12 @@ import {
   GRAIN_FOOD,
   HERB_FOOD,
   HONEY_FOOD,
-  JOBS,
+  jobOrder,
   MINER_COIN_STEPS,
   ROAD_COINS,
   workMultiplier,
   type JobTargetCounts,
+  type Workforce,
   type WorkerJob,
 } from './jobs.ts';
 import { FLORA, floraCode, cropRipe, fertiliseCrop, harvestCrop, hiveReady, makeRuin, pickManure, plantCrop, takeHoney, till, tillable } from '../flora.ts';
@@ -88,6 +89,8 @@ export interface HamletContext {
   rules?: CustomRules;
   /** Soldiers the garrison ledger holds for this hamlet (garrison-adapter.ts), read each second, never saved. */
   garrisoned?: number;
+  /** Adults, children, ruler and child-labour rule of the hamlet's folk (adapter census), read each second, never saved. Absent: all folk are adults. */
+  workforce?: Workforce;
 }
 
 /** Folk at which a hamlet is a town (09 section 2 size tier, TOWN_POP; TUNE). A label: build orders gate on pop directly. */
@@ -504,7 +507,7 @@ function runJobs(ctx: HamletContext, h: Hamlet, workers: ReadonlyMap<WorkerJob, 
   const feed = (units: number): void => {
     if (h.food < foodCap) h.food = Math.min(h.food + units, foodCap);
   };
-  for (const job of JOBS) {
+  for (const job of jobOrder(h.food)) {
     const n = workers.get(job.id) ?? 0;
     if (n === 0) continue;
     // At least one unit per worker: the mood multiplier can only trim a yield that is already a whole unit.
@@ -635,7 +638,8 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
     manure: targets.manure.length,
     soldiers: ctx.garrisoned ?? 0,
   };
-  runJobs(ctx, h, assignJobs(h, counts), workMultiplier(hamletMood(h)), cap, targets);
+  const work = ctx.workforce ?? { adults: h.folk, children: 0, leaders: 0, childLabour: false };
+  runJobs(ctx, h, assignJobs(h, counts, work), workMultiplier(hamletMood(h)), cap, targets);
   h.steps += 1;
   if (h.steps % OUTCROP_REGROW_STEPS === 0 && h.outcrops < OUTCROP_CAP) h.outcrops += 1;
 }

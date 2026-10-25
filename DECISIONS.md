@@ -1737,3 +1737,30 @@ Scope: the last open items of the garrison work: the 600-tick reset and release 
 - 18c gives the garrison the note "Raises army slots", and 18e gives the bastion "+10 army slots". 09 section 8 has no building term in the slot quota, so these are not built. Revisit with the slot rule of 18c.
 - Leader warfare and armyBonus: see above.
 - The golden run is not re-baselined. A garrison that is built in a golden run now draws soldiers only above 15 adults, which the golden path does not reach (no Folk), so the golden hash should not move from this change alone. Not verified.
+
+## Jobs close 4
+
+Scope: the job rules of 09 section 8 (priorities, ruler and leader eligibility, child labour) and the census split they need. Touch set: `src/sim/settlements/jobs.ts`, `hamlet.ts`, and the census in `adapter.ts`. `GOLDEN_HASH` is not edited. Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). Types were checked by reading.
+
+**Priorities (09 section 8 table, first-fit).** `JobDef` gains `priority`, `priorityNoFood`, `okForRuler` and `okForLeader` (0 means none for the priority fields). Builder priority 9. Forager, herbalist and honey gatherer `priorityNoFood` 10, so they fill first while the hamlet has no food, and have no priority while it has food. `jobOrder(food)` sorts by effective priority, then keeps the spec quota order (builder, food, tiller, prospector, woodcutter, miner, roadwright, cleaner, manure collector). `assignJobs` and `runJobs` both use it. The quota order changed: miner now follows woodcutter, and roadwright no longer comes last.
+- Tension: 09 section 8 text lists the builder (high priority) before the no-food jobs. The table gives the no-food jobs 10 against the builder's 9, so this code follows the numbers: with no food the food jobs go first. Section 8 text should be checked.
+- The brief named "section 5" for the table. Section 5 is population cap and housing; the table is in section 8 and the `JobDef` interface in section 1.
+
+**Eligibility (okForRuler, okForLeader).** tiller, miner and prospector are false for both. The sim has one leader-class Being, the ruler of the hamlet's dominion (`rulerLive`). The adapter counts the ruler as a leader when it is an adult folk standing in the hamlet (`Workforce.leaders`). A leader fills only the jobs both flags allow. The sim has no separate hamlet leader, so `okForLeader` gates the same Being and has no other effect. Jobs with a priority ignore the restriction, as the spec says (the priority jobs are all unrestricted anyway).
+
+**Child labour.** Census (adapter.ts) splits the beings in the hamlet's parcels by the Being `baby` flag into adults and children. Children work only when the custom has `childLabour` (`childMayWork`, trait-rules.ts; 09 section 8 `canWork`). Births and starvation in the same step count as children and adults after the census: `assignJobs` clamps adults to the current folk and takes the rest as children.
+- `Workforce` is passed through the optional `HamletContext.workforce`. With it absent (tests that call `hamletStep` directly), all folk are adults and there are no leaders, so the old counts hold.
+
+**Census scope.** The census still counts every species in the parcels, as before (the comment "species is not distinguished" holds). The spec's Folk-only census is not built; a wild beast counts as an adult or child for the job pass. The ruler check is the only species test (folk).
+
+**Not built, with reasons.**
+- A hamlet leader separate from the ruler (`leaderId`, `checkLeader`): the sim has no leader model. `okForLeader` is stored and checked, but has no separate Being to apply to.
+- Quota caps and the round-robin of 09 section 8 (`2 x adults + 1` rounds): the job pass stays first-fit, as the brief asked. Caps per job are unchanged.
+- Children in a child job (07 `nextJob`: Folk child -> species child job): not built. Children with `childLabour` join the common pool.
+- Snapshot or status fields: `HamletStatus` `adults` and `children` are not filled, and the snapshot is unchanged. Only the job pass reads the split.
+
+**Persisted state.** None. Workers are not saved; the census and `Workforce` are read each second, derived and never saved. No schema or snapshot change.
+
+**Determinism.** No new rng draw. The order change alters which tile a tiller or manure collector takes first, so a run with hamlets diverges from earlier runs and from `GOLDEN_HASH`, which is not edited.
+
+**Tests that will need updating (not run).** Any test that checks the old JOBS order or the quota yields will move. `tests/unit/settlements.test.ts` uses `hamletStep` without a workforce and should keep its counts, except where the order change alters which job fills first.

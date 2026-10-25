@@ -296,6 +296,9 @@ export const POWERS: readonly PowerDef[] = [
   click('havoc_timed', 'havoc', 'Timed powder', 'bomb', { device: 'timedpowder' }, 0),
   click('havoc_hidden', 'havoc', 'Hidden charge', 'bomb', { device: 'hidden_charge' }, 0),
   click('havoc_sparkler', 'havoc', 'Sparkler', 'bomb', { device: 'festive_glimmer' }, 0),
+  // Infection vector (12 powers catalogue, infection vectors: `kind brush`, fallChance 0.3): the beings on the tapped tile take `coughing`.
+  // The 0.04 per tick contagion to adjacent Beings is not modelled (DECISIONS.md "Combat close 4").
+  { ...brush('havoc_pestilence', 'Pestilence', 'favour_status', { status: 'coughing', fall: 0.3 }), tab: 'havoc' },
   ...CALAMITY_OMENS.map((id): PowerDef => ({
     id: `omen_${id}`,
     tab: 'havoc',

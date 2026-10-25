@@ -35,7 +35,7 @@ describe('dominions wiring', () => {
     expect(dominionState(sim).owner.every((id) => id === UNOWNED)).toBe(true);
   });
 
-  it('after a few sim years a campaign moves parcels between dominions in the running sim', () => {
+  it('after a few sim years a campaign wins the war in the running sim, and the defeat moves no parcel', () => {
     const sim = continent(31, [100, 40]);
     const before = ownerCounts(sim);
     const weak = dominionState(sim).dominions[1];
@@ -45,11 +45,13 @@ describe('dominions wiring', () => {
       sim.step();
       if (dominionState(sim).dominions.some((d) => d.target >= 0)) campaignSeen = true;
     }
+    // HAMLET_CAPTURE: a hamlet changes hands only by capture (capture.ts). This continent has no hamlets, so no capture
+    // runs and every parcel keeps its owner. The capture rule itself is asserted in dominions.test.ts.
     const after = ownerCounts(sim);
     expect(campaignSeen).toBe(true);
     expect(weak?.strength).toBe(0);
-    expect(after[1]).toBe((before[1] ?? 0) + 1);
-    expect(after[2]).toBe((before[2] ?? 0) - 1);
+    expect(after).toEqual(before);
+    expect(dominionState(sim).captures.size).toBe(0);
 
     // The owner bytes and the dominion parcel sets agree on every moved parcel.
     const state = dominionState(sim);

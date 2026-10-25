@@ -12,6 +12,7 @@ import { hamletsOf } from '../settlements/adapter.ts';
 import { PARCEL } from '../settlements/hamlet.ts';
 import {
   addCustom,
+  catalogueTraits,
   cultureStep,
   recordFamily,
   startIntrigue,
@@ -187,7 +188,7 @@ export function cultureFromPayload(p: CulturePayload): CultureState {
   if (!arrays.every(Array.isArray) || typeof p.nextId !== 'number') throw new Error('culture: payload is malformed');
   const creeds: Creed[] = p.creeds.map((c) => ({ id: c.id, holders: new Set(c.holders) }));
   return {
-    customs: p.customs,
+    customs: p.customs.map((c) => ({ ...c, traits: catalogueTraits(c.traits) })),
     creeds,
     dialects: p.dialects,
     intrigues: p.intrigues,

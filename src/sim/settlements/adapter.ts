@@ -5,11 +5,17 @@ import type { BeingStore } from '../beings/store.ts';
 import type { Sim } from '../sim.ts';
 import { dominionState, UNOWNED } from '../dominions/adapter.ts';
 import { FOUND_FOLK } from '../dominions/founding.ts';
-import { buildable, createHamlet, goodFoundingParcel, hamletStep, PARCEL, type Hamlet, type HamletContext, type Placed } from './hamlet.ts';
+import { buildable, civilTiles, createHamlet, goodFoundingParcel, hamletStep, PARCEL, type Hamlet, type HamletContext, type Placed } from './hamlet.ts';
 import { BUILDING_BY_ID } from './catalogue.ts';
 import { bazaarStep, SUPPLY_PERIOD, tradeStep } from './trade.ts';
 import { desiresOf, structureStep, type Structure } from './landmarks.ts';
+import { planRoads, roadTerrainOpen } from './roads.ts';
+import { addMood } from '../beings/social.ts';
+import { customHas, customOfGroup, type Custom } from '../culture/culture.ts';
 import { CREEP_HUB_BY_ID, LANDMARK_BY_ID } from '../../content/creeps.ts';
+import type { MoodEvent } from '../../content/moods.ts';
+import { ground } from '../../content/grounds.ts';
+import { MONTH_TICKS } from '../../shared/constants.ts';
 import { terrainState, type CreepHub } from '../terrain/state.ts';
 import { garrisonStep, garrisonsOf, restoreGarrisons } from './garrison-adapter.ts';
 import type { GarrisonRecord } from './garrison.ts';
@@ -24,6 +30,12 @@ export const MIN_BAND = 2;
 export const BAND_RANGE = 20;
 /** Ticks in one sim-second (hamlets step once per sim-second). */
 const SECOND = ssToTicks(1);
+/** Land a parcel needs before a claim takes it (the bar hamlet.ts expandTerritory uses). */
+const CLAIM_LAND = 32;
+/** Chebyshev tiles within which a Folk feels a creep hub (18e section 2). */
+const HUB_MOOD_RANGE = 6;
+/** Mood event per creep hub kind (18e section 2): gloom "blighted view" -3, gourd "festive sight" +2. */
+const HUB_MOOD: Readonly<Record<string, MoodEvent>> = { gloom_heart: 'blighted_view', gourd_heart: 'festive_sight' };
 
 /**
  * Structural view of a Sim: the settlements adapter needs only these members, so it never
@@ -250,6 +262,7 @@ export function settlementsStep(host: SettlementHost): void {
   }
   if (host.tick % SECOND !== 0) return;
   foundHamlets(host, state);
+  hubMood(host);
   const ctx = contextOf(host);
   for (const h of state.hamlets) {
     h.folk = census(host, h);
@@ -259,7 +272,12 @@ export function settlementsStep(host: SettlementHost): void {
       claimed: (q) => state.hamlets.some((o) => o !== h && o.parcels.has(q)),
       desires: desiresOf(state.structures, h, host.realm.side),
     };
+    const custom = customOf(host, h);
+    const parcelsBefore = custom && customHas(custom, 'outwardGrowth') ? new Set(h.parcels) : null;
+    const buildingsBefore = h.buildings.length;
     hamletStep(own, h);
+    if (parcelsBefore) outwardClaim(host, state, h, parcelsBefore);
+    if (custom && customHas(custom, 'roadworks') && h.buildings.length > buildingsBefore) layRoads(host, state, h);
     bazaarStep(h, host.tick);
   }
   // Garrisons (09 section 8, 10 section 8): soldiers are drawn from the owner's dominion strength. The owner is read only
@@ -273,6 +291,107 @@ export function settlementsStep(host: SettlementHost): void {
   if (host.tick % SUPPLY_PERIOD === 0 && state.hamlets.some((h) => h.folk >= FOUND_FOLK)) {
     const owner = dominionState(host as unknown as Sim).owner;
     tradeStep(state.hamlets, (h) => majorityOwner(owner, h), host.tick);
+  }
+}
+
+/**
+ * The custom of a hamlet (11 section 4.1): the custom of the dominion holding most of its parcels. Undefined when no
+ * custom exists yet or the hamlet is in no dominion. Reads the dominion state only when customs exist.
+ */
+function customOf(host: SettlementHost, h: Hamlet): Custom | undefined {
+  const sim = host as unknown as Sim;
+  if (sim.culture.customs.length === 0) return undefined;
+  const dom = majorityOwner(dominionState(sim).owner, h);
+  return dom === UNOWNED ? undefined : customOfGroup(sim.culture, dom);
+}
+
+/** Land tiles of a parcel. */
+function parcelLand(realm: Realm, q: number): number {
+  const side = realm.side;
+  const perAxis = side / PARCEL;
+  let land = 0;
+  for (let y = 0; y < PARCEL; y++) {
+    for (let x = 0; x < PARCEL; x++) {
+      const i = (Math.floor(q / perAxis) * PARCEL + y) * side + (q % perAxis) * PARCEL + x;
+      if (ground(realm.ground[i] ?? 0).layer === 'land') land++;
+    }
+  }
+  return land;
+}
+
+/** Region (land component) of a parcel's centre tile; 0 for water. */
+function parcelRegion(realm: Realm, q: number): number {
+  const side = realm.side;
+  const perAxis = side / PARCEL;
+  return realm.region[(Math.floor(q / perAxis) * PARCEL + PARCEL / 2) * side + (q % perAxis) * PARCEL + PARCEL / 2] ?? 0;
+}
+
+/**
+ * outwardGrowth (11 section 9.1, 09 section 3): a claim also takes the free neighbour parcels of the parcels it added,
+ * when they are on the same island and hold the land bar. Parcels another hamlet owns are never taken.
+ */
+function outwardClaim(host: SettlementHost, state: SettlementState, h: Hamlet, before: ReadonlySet<number>): void {
+  const perAxis = host.realm.side / PARCEL;
+  const fresh = [...h.parcels].filter((p) => !before.has(p));
+  for (const p of fresh) {
+    const px = p % perAxis;
+    const py = Math.floor(p / perAxis);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const nx = px + dx;
+      const ny = py + dy;
+      if (nx < 0 || ny < 0 || nx >= perAxis || ny >= perAxis) continue;
+      const q = ny * perAxis + nx;
+      if (h.parcels.has(q) || state.hamlets.some((o) => o !== h && o.parcels.has(q))) continue;
+      const sameIsland = parcelRegion(host.realm, q) !== 0 && parcelRegion(host.realm, q) === parcelRegion(host.realm, p);
+      if (sameIsland && parcelLand(host.realm, q) >= CLAIM_LAND) h.parcels.add(q);
+    }
+  }
+}
+
+/**
+ * roadworks (11 section 9.1, 09 section 11.3): a roadTo building the hamlet has just placed is joined to its nearest
+ * roadTo buildings by road (roads.ts). Roads avoid buildings of every hamlet and parcels other hamlets own.
+ */
+function layRoads(host: SettlementHost, state: SettlementState, h: Hamlet): void {
+  const newest = h.buildings[h.buildings.length - 1];
+  if (!newest) return;
+  const side = host.realm.side;
+  const perAxis = side / PARCEL;
+  const occupied = civilTiles(state.hamlets, side);
+  const open = (i: number): boolean => {
+    if (occupied.has(i) || !roadTerrainOpen(host.realm, i)) return false;
+    const p = Math.floor(Math.floor(i / side) / PARCEL) * perAxis + Math.floor((i % side) / PARCEL);
+    return !state.hamlets.some((o) => o !== h && o.parcels.has(p));
+  };
+  planRoads(host.realm, h.buildings, newest, open);
+}
+
+/**
+ * Creep hub mood (18e section 2, 09 section 9): a Folk within HUB_MOOD_RANGE tiles of a living gloom or gourd heart feels
+ * its event once per Month, one event per kind. Only Folk feel it. Runs on the Month tick, so each Folk gets one event
+ * per Month without a timer of its own.
+ */
+function hubMood(host: SettlementHost): void {
+  if (host.tick % MONTH_TICKS !== 0) return;
+  const sim = host as unknown as Sim;
+  const hubs = terrainState(sim).hubs.filter((h) => h.alive && HUB_MOOD[h.def] !== undefined);
+  if (hubs.length === 0) return;
+  const s = host.beings.store;
+  const side = host.realm.side;
+  for (let k = 0; k < s.size; k++) {
+    const slot = s.at(k);
+    if (!host.beings.species(s.species[slot] ?? 0).folk) continue;
+    const x = s.x[slot] ?? 0;
+    const y = s.y[slot] ?? 0;
+    const events = new Set<MoodEvent>();
+    for (const hub of hubs) {
+      const event = HUB_MOOD[hub.def];
+      if (event === undefined) continue;
+      const hx = hub.tile % side;
+      const hy = Math.floor(hub.tile / side);
+      if (Math.max(Math.abs(hx - x), Math.abs(hy - y)) <= HUB_MOOD_RANGE) events.add(event);
+    }
+    for (const event of events) addMood(sim, slot, event);
   }
 }
 

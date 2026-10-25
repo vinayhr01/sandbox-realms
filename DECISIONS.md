@@ -1159,3 +1159,47 @@ Scope: 09 docks (`fishers_pier`, `harbor`), 10 section 13 (docks, boat types, ho
 **Determinism.** Draws only from `host.rng('boats')` (a named stream, saved with the others). No `Math.random`. Connectivity is read from the derived layer, which is not saved. A load marks it dirty, and until the next settle (every 8 ticks) `landmassOf` returns -1, so a boat on a sea tile would be removed if `boatsStep` ran in that gap. The hook should step boats only once connectivity has settled, or this must be made to wait.
 
 **Known gaps.** A blocked boat with a home trip sits forever (no path search). Fishing grounds are random, not stock-based. The map feed is capped at 32 boats and drops first under the snapshot budget.
+
+## Customs and roads release
+
+Scope: 11 sections 4.1 and 9.1 (customs, their traits), 09 section 11.3 (roads), 09 section 9 and 18e section 2 (mood). The brief named "11 section 6" for customs; that section is procedural names (names are unchanged here). Nothing was run: tests, tsc, vitest, build and Playwright were out of scope, so every change below is unverified. `GOLDEN_HASH` is not edited and will not match: custom draws, roads and hub mood all change the sim state.
+
+**Custom catalogue (`src/content/customs.ts`, new).** The 53 rows of 11 section 9.1 as the table lists them (the spec's header says 47; the table has 53 ids once the plan families, lots and weapon traits are counted one by one). Opposites are symmetric. Rarity weights per 11 section 9: common 10, uncommon 5, rare 2, locked 0. No row is `locked`.
+
+**Custom birth (`src/sim/culture/culture.ts`).** `addCustom` keeps the draw count of 11 section 2 (1 or 2 draws, 3 to 5 with `chaotic_minds`), but each draw is a rarity-weighted pick from the catalogue (`drawCustomTrait`), and each pick goes through `addCustomTrait`, which ignores duplicates and removes the opposites first. Cut from the birth rule: the lineage default traits and the founder's biome list (customs here belong to a dominion and have no lineage or biome record), and the `randomSpawn` flag (every non-locked row spawns).
+
+**Save compatibility.** The old flavour trait names (`feasting`, `vigil`, ...) are not in the catalogue. `cultureFromPayload` runs each custom's trait list through `catalogueTraits`, so unknown ids are dropped on load and the rest keep their order. No new culture field is written, so the culture section keeps its shape. The chronicle culture check (`checkCulture`) now also checks that each custom has a numeric `group` and a list of string traits. Trait ids are not checked against the catalogue there; the load drops unknown ones.
+
+**Which custom a hamlet follows.** A hamlet has no custom id. Its custom is the custom of the dominion holding most of its parcels (`customOf` in `settlements/adapter.ts`, the same majority rule the supply round uses). No dominion, no custom.
+
+**Live effects (2 of 53 rows, `status live`).**
+- `roadworks`: a roadTo building the hamlet has just placed is joined to its two nearest other roadTo buildings on the same island (see roads below).
+- `outwardGrowth`: a parcel claimed by a hamlet also takes its free neighbour parcels, on the same island and with the land bar of 32 land tiles (the bar `expandTerritory` in `hamlet.ts` uses). Other hamlets' parcels are never taken. Implemented in `settlements/adapter.ts`, so `hamlet.ts` is untouched.
+
+**Data only (51 rows).** Listed, drawn and held, but no mechanic in this build reads them. Cut, with the reason:
+- House limits (`crowded`, `spacious`, `swarm`): `housesMax` needs the building `maxHouses` term, which the catalogue does not have. A cap on parcels alone would stall growth in every hamlet.
+- Tower and statue limits (`towerPride`, `statuePride`): the catalogue has no tower or statue building.
+- Plans (`ringPlan` ... `grovePlan`) and lots (`centeredLot`, `stairLot`, `wobbleLot`), and `scatteredBuild`: placement is first-fit in `hamlet.ts`, and the spec's zone rule would stall growth, because territory grows only after a placement. `grovePlan` also needs a noise function the sim does not export.
+- Talk and books (`childLabour`, `childShelter`, `elderRespect`, `beastFriends`, `mentorTrade`, `chatterCircle`, `gossipers`, `bookLovers`, `eagerReaders`, `swiftStudy`, `deepTraining`, `heritageLore`): no chat, reading or learning exists in the sim.
+- Levies (`maleLevy`, `femaleLevy`): the soldier gate in 09 section 8 is not built. The spec gives no opposite for the pair; none is set.
+- Campaigns and dominion politics (`warlikeJoy`, `peaceable`, `serenity`, `keepers`, `rooted`, `convertOrElse`, `insular`, `kinGuard`, `welcoming`, `patriarchy`, `matriarchy`, the four succession lines, `youngestFirst`, `shatteredCrown`, `unbrokenLine`): no campaigns, rulers, succession or opinion in the sim.
+- Crafting (`weaponLovers`, `smithMastery`, `craft`): no crafting.
+Changing a row's `status` to `live` is the way to wire one later, once its mechanic exists.
+
+**Roads (`src/sim/settlements/roads.ts`, new).**
+- `planRoads` runs from `settlements/adapter.ts` after `hamletStep` places a building (the step places at most one). It runs only for a `roadTo` building (`ROAD_TO_IDS`) in a hamlet with `roadworks`.
+- The two nearest other roadTo buildings of the same hamlet on the same island (land component `realm.region`, by Manhattan distance of the anchor tile) are joined. Each road is A* over 4-neighbour tiles with step cost 1, 0.01 on a road tile, and at most `ROAD_MAX_TILES` = 20 tiles. It stops at the target's edge or at an existing road.
+- A tile is open when it is land, has no damaging ground and no flora, is not a building tile of any hamlet (`civilTiles`), and is not a parcel another hamlet owns. Road tiles become `wayworn` (`G.wayworn`, walk x1.4).
+- TUNE, the spec gives no list: `roadTo` is set on great_hall_1/2/3, monument, waystop, garrison and bazaar. The spec's `BuildingDef.roadTo` field is replaced by this set, so `catalogue.ts` is untouched.
+- Cut: the roadwright job and the road queue (09 section 8 has no roadwright in this sim). Tiles are laid at once, so no queue is saved. The `pathDecay` rule of 02 (roads decay outside a custom's territory) is not built.
+- OPEN: `buildable` in `hamlet.ts` still accepts a road tile, so a later building can cover a road. Left as is: `hamlet.ts` is outside the mood brief.
+
+**Mood (`src/content/moods.ts`, `settlements/adapter.ts`).**
+- Two events are added to `MOOD_VALUE`: `blighted_view` -3 (living within 6 tiles of a living `gloom_heart`) and `festive_sight` +2 (within 6 tiles of a living `gourd_heart`), both from 18e section 2. Range is Chebyshev in tiles from the hub tile.
+- They are applied through `addMood` (the existing `changeMood`, which needs a strain with the `emotions` tag). Only Folk are checked. Each Folk in range gets each kind at most once, and the check runs on the Month tick (`MONTH_TICKS`, 100 ticks), so no per-Folk timer is saved.
+- Cut from 09 section 9: every other event there. Talk (`justTalked`, `gossipers`), books (`wroteBook`), rulers and leaders (`becameRuler`, `becameLeader` need the ruler and leader tasks), campaigns (`justWon`, `justLost`, `madePeace`), housing rest (`housingMood` on rest needs a per-Folk home), and the build coin event (+0, no mood effect). The per-Folk event list in `MOOD_VALUE` is otherwise unchanged. `hamlet.ts` (`hamletMood`) is unchanged, so hamlet mood does not yet read the per-Folk mood.
+- OPEN: the mood values are the 18e TUNE numbers as the spec gives them. Mood decays only through the existing beings rules.
+
+**Determinism.** Custom draws use the `culture` stream (`ctx.rng`). Roads and outward claims draw no rng (A* is deterministic, ties by tile index). Hub mood draws no rng. No new named stream.
+
+**Not verified.** Nothing above has run. Expect the golden test to fail (`GOLDEN_HASH` is not updated here, per the brief), and expect the culture unit tests to need a look: `addCustom` now draws by rarity, so the trait-count tests may need a new pin. Save compatibility with older saves is by design (see the save section), but not tested.

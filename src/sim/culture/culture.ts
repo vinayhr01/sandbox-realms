@@ -4,13 +4,14 @@
  * caller supplies rng, tick and a rule lookup, so this module never imports Sim.
  */
 import type { Rng } from '../../shared/rng.ts';
+import { CUSTOM_RARITY_WEIGHT, CUSTOM_TRAIT_BY_ID, CUSTOM_TRAITS, type CustomTraitDef } from '../../content/customs.ts';
 import { CUSTOM_RECIPE, FAMILY_RECIPE, generateName, NAME_KIND, nameSeed } from './names.ts';
 
-/** Trait pool a custom draws from (TUNE; flavour names only). */
-export const CUSTOM_TRAITS = ['feasting', 'vigil', 'pilgrimage', 'silence', 'tithe', 'games', 'fasting', 'hymns', 'veiling', 'oaths'] as const;
+export { CUSTOM_TRAITS };
 
 export interface Custom {
   group: number;
+  /** Custom trait ids from the catalogue (content/customs.ts). Unknown ids are dropped when a save loads. */
   traits: string[];
   /** Name from the name generator (names.ts). Optional: customs made before naming have none. */
   name?: string;
@@ -96,6 +97,60 @@ export interface CultureContext {
 }
 
 /**
+ * One weighted draw from the spawn pool (11 section 2): rarity weights from content/customs.ts, locked traits never.
+ * Uses one rng draw. Undefined only when the pool has no weight.
+ */
+export function drawCustomTrait(rng: Rng): CustomTraitDef | undefined {
+  let total = 0;
+  for (const t of CUSTOM_TRAITS) total += CUSTOM_RARITY_WEIGHT[t.rarity];
+  if (total <= 0) return undefined;
+  let r = rng.next() * total;
+  let last: CustomTraitDef | undefined;
+  for (const t of CUSTOM_TRAITS) {
+    const w = CUSTOM_RARITY_WEIGHT[t.rarity];
+    if (w <= 0) continue;
+    last = t;
+    r -= w;
+    if (r < 0) return t;
+  }
+  return last;
+}
+
+/**
+ * Adds a trait id to a custom's list (11 section 2): unknown ids and duplicates are no-ops, and the trait's opposites
+ * are removed first. Draws no rng.
+ */
+export function addCustomTrait(traits: string[], id: string): void {
+  const def = CUSTOM_TRAIT_BY_ID.get(id);
+  if (!def || traits.includes(id)) return;
+  for (const o of def.opposites) {
+    const k = traits.indexOf(o);
+    if (k >= 0) traits.splice(k, 1);
+  }
+  traits.push(id);
+}
+
+/**
+ * A trait list as the catalogue reads it: unknown ids are dropped, duplicates and opposites resolved in order. Saves
+ * written before the catalogue (flavour trait names) load with no traits from them.
+ */
+export function catalogueTraits(list: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const t of list) addCustomTrait(out, t);
+  return out;
+}
+
+/** Whether a custom holds a trait id. */
+export function customHas(custom: Custom | undefined, id: string): boolean {
+  return custom !== undefined && custom.traits.includes(id);
+}
+
+/** The custom of a group (a dominion id), or undefined when the group has none. */
+export function customOfGroup(state: CultureState, group: number): Custom | undefined {
+  return state.customs.find((c) => c.group === group);
+}
+
+/**
  * Adds a custom to a group; trait count 1-2, or 3-5 when `chaotic_minds` is on (11 section 2). The name is drawn from
  * the name generator when the context has a world seed; the draw uses the name's own seed, never the rng.
  */
@@ -103,8 +158,8 @@ export function addCustom(ctx: CultureContext, state: CultureState, group: numbe
   const count = ctx.isOn('chaotic_minds') ? 3 + ctx.rng.int(3) : 1 + ctx.rng.int(2);
   const traits: string[] = [];
   for (let k = 0; k < count; k++) {
-    const t = CUSTOM_TRAITS[ctx.rng.int(CUSTOM_TRAITS.length)];
-    if (t !== undefined && !traits.includes(t)) traits.push(t);
+    const def = drawCustomTrait(ctx.rng);
+    if (def) addCustomTrait(traits, def.id);
   }
   const custom: Custom = { group, traits };
   if (ctx.worldSeed !== undefined) custom.name = generateName(CUSTOM_RECIPE, nameSeed(ctx.worldSeed, NAME_KIND.custom, state.customs.length + 1, group));

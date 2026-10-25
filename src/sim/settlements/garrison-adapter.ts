@@ -5,7 +5,7 @@ import { SS_TICKS } from '../clock.ts';
 import { PARCEL } from '../../shared/constants.ts';
 import type { Hamlet } from './hamlet.ts';
 import type { LevySex } from './custom-rules.ts';
-import { GARRISON_COMPANY, LEADER_WARFARE, SOLDIER_GOLD_GATE, soldierTimer, type GarrisonRecord } from './garrison.ts';
+import { GARRISON_COMPANY, LEADER_WARFARE, RECRUIT_COST_GOLD, SOLDIER_GOLD_GATE, SOLDIER_WAGE_GOLD, WAGE_PERIOD, soldierTimer, type GarrisonRecord, type GarrisonSave } from './garrison.ts';
 
 /**
  * Garrison pass (09 section 8, 10 section 8): each hamlet with a built garrison recruits soldiers from its owner's dominion
@@ -67,6 +67,18 @@ function levyRoom(sim: Sim, hamlet: Hamlet, levy: LevySex): number {
   return n;
 }
 
+/**
+ * Wage day (TUNE, not in the spec): each garrisoned soldier costs SOLDIER_WAGE_GOLD from the hamlet purse. When the purse
+ * cannot cover the company, the soldiers it can pay keep their place and the rest desert. Deserters are not returned to
+ * the dominion: they were drawn out of its strength already, so they leave the game. Deterministic: no rng.
+ */
+function payWages(hamlet: Hamlet, rec: GarrisonRecord): void {
+  if (rec.soldiers <= 0) return;
+  const payable = Math.min(rec.soldiers, Math.floor(hamlet.gold / SOLDIER_WAGE_GOLD));
+  hamlet.gold -= payable * SOLDIER_WAGE_GOLD;
+  rec.soldiers = payable;
+}
+
 /** Returns a garrison's soldiers to the dominion they came from, when that dominion still exists. */
 function release(sim: Sim, rec: GarrisonRecord): void {
   if (rec.soldiers <= 0 || dominionsOfSim(sim).length === 0) {
@@ -112,12 +124,18 @@ export function garrisonStep(
     const owner = hasDominions ? ownerOf(hamlet) : UNOWNED;
     let rec = state.records.get(h);
     if (!rec) {
-      rec = { hamlet: h, dominion: owner, soldiers: 0, timer: soldierTimer(LEADER_WARFARE, true) };
+      rec = { hamlet: h, dominion: owner, soldiers: 0, timer: soldierTimer(LEADER_WARFARE, true), wage: WAGE_PERIOD };
       state.records.set(h, rec);
     }
     if (rec.dominion !== owner) {
       release(sim, rec);
       rec.dominion = owner;
+    }
+    // Wage day: the period counts down and resets on each payment (a wage day with no soldiers pays nothing).
+    rec.wage -= PASS_TICKS;
+    if (rec.wage <= 0) {
+      payWages(hamlet, rec);
+      rec.wage = WAGE_PERIOD;
     }
     // Clamped at 0: a full company or a refused draw holds the timer there, so it never falls without bound.
     rec.timer = Math.max(0, rec.timer - PASS_TICKS);
@@ -129,6 +147,7 @@ export function garrisonStep(
     if (levy !== undefined && levyRoom(sim, hamlet, levy) <= rec.soldiers) return;
     if (drawOne(sim, rec.dominion) > 0) {
       rec.soldiers += 1;
+      hamlet.gold -= RECRUIT_COST_GOLD;
       rec.timer = soldierTimer(LEADER_WARFARE, true);
     }
   });
@@ -138,7 +157,7 @@ export function garrisonStep(
  * Replaces the garrison records with a snapshot (Chronicle load). Checks the hamlet index against the hamlet count and
  * the soldier count against the company size first.
  */
-export function restoreGarrisons(host: object, list: readonly GarrisonRecord[], hamletCount: number): void {
+export function restoreGarrisons(host: object, list: readonly GarrisonSave[], hamletCount: number): void {
   const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
   const records = new Map<number, GarrisonRecord>();
   for (const r of list) {
@@ -146,7 +165,9 @@ export function restoreGarrisons(host: object, list: readonly GarrisonRecord[], 
     if (!isInt(r.dominion) || r.dominion < 0 || r.dominion > 255) throw new Error('hamlet state: garrison dominion is not valid');
     if (!isInt(r.soldiers) || r.soldiers < 0 || r.soldiers > GARRISON_COMPANY) throw new Error('hamlet state: garrison soldiers are not valid');
     if (typeof r.timer !== 'number' || !Number.isFinite(r.timer)) throw new Error('hamlet state: garrison timer is not valid');
-    records.set(r.hamlet, { hamlet: r.hamlet, dominion: r.dominion, soldiers: r.soldiers, timer: r.timer });
+    const wage = r.wage ?? WAGE_PERIOD;
+    if (typeof wage !== 'number' || !Number.isFinite(wage)) throw new Error('hamlet state: garrison wage is not valid');
+    records.set(r.hamlet, { hamlet: r.hamlet, dominion: r.dominion, soldiers: r.soldiers, timer: r.timer, wage });
   }
   states.set(host, { records });
 }

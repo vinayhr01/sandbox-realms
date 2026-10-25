@@ -1668,3 +1668,30 @@ Scope: `supremeOf` (10 section 2 power formula, `power = soldiers x 2 + hamlets 
 - `pactPower` and the other places that sum strength as "power" still use strength alone. The spec's per-dominion power formula is only applied to the ranking here, so the pact power total and the dissolve power ratio still use strength. Changing them is a separate step.
 - A `second` flag is not stored on `Dominion`. The `second` check lives in `dissolvePactOk` only.
 - Not verified: no tests, typecheck, build or Playwright were run (instruction). The `GOLDEN_HASH` is not edited, and this change alters the ranking, so the golden run will likely move. It needs a re-baseline when a golden run is allowed.
+
+## Settings close 4
+
+Scope: the 23 rows of `src/ui/panels/options.ts` that had `live` false (78 rows in all; 55 live before this round). Checked each against `src/render`, `src/ui` and `src/app`. Files: `src/ui/panels/options.ts` (3 rows flipped), `tests/unit/ui-live-options.test.ts` (live count 55 to 58), this log. No sim file, no protocol change, `src/app/main.ts` unchanged (it already reads these rows). No tests, tsc, vitest, build or Playwright were run (instruction). `GOLDEN_HASH` is not edited.
+
+**Wired (3), now live: 58 of 78.**
+- `ui.happinessIcons` (O03): `src/render/insight-layers.ts` draws the icon for folk with mood beyond +-40, and `src/app/main.ts` passes `happiness` from the option store.
+- `ui.taskIcons` (O04): `src/render/insight-layers.ts` draws a square on each Being with a running task; `src/app/main.ts` passes `tasks`.
+- `privacy.errorReports`: `src/app/crash-record.ts` gates the record on consent; `src/app/main.ts` sets it at boot and on every change. Nothing is uploaded; the player downloads the record.
+
+**Still non-live (20), with the reason for each:**
+- `map.nightLights`, `map.shadows`, `map.bloom`, `map.particles`, `map.treeWind`, `map.cursorLights`: no such effect in `src/render` (the terrain shader does relief shading and the brush outline only). `src/app/recovery.ts` lists `map.bloom`, `map.particles` and `map.shadows` in `DEGRADE_OFF`, but that only names them for the degrade ladder; nothing draws them.
+- `map.ageEffects` (Age overlay): no age overlay in `src/render`.
+- `ui.worldTooltips`: no world-space tooltip exists; the only tooltip scale is the CSS variable `--ui-scale-tooltips` for the existing DOM windows.
+- `ui.tips`: no tip-message system. The tutorial coach strip (`src/ui/panels/tutorial.ts`) is a different feature and shows whatever this option says; tying the option to it would change the tutorial, so it is not wired here.
+- `ui.talkBubbles`: no talk bubbles in `src/render` or `src/ui`.
+- `ui.moneyFlow`: no money-flow display.
+- `ui.cursorArrows`: no cursor arrows; the cursor is drawn only as the brush outline in `src/render/terrain-shader.ts`.
+- `ui.autoOpenContextTab` ("Open context tab on select"): there is no context tab. `index.html` has three tabs (Terrain, Realm, Powers), and a tap on a Being opens its window (`win_being`) from `src/app/main.ts`. Naming one of the three as "the context tab" would invent a behaviour, so it stays non-live.
+- `ui.quickStrip` (Pinned quick strip): no quick strip in `index.html` or `src/ui`.
+- `input.touchOrder` (Tap to order selected beings): no order-by-tap path. The tap handler in `src/app/main.ts` inspects, follows, paints or opens a window; it never orders a Being. An order needs a sim command, which this round does not add.
+- `perf.preloadWindows`: windows are built on open; nothing preloads them.
+- `perf.maxBeingsHint`, `perf.simBudgetMs`: these tune the sim (Being cap hint and per-tick budget). Nothing in `src/render`, `src/ui` or `src/app` reads them, and no sim feature is added for a row.
+- `lang` (Language): `src/ui/staticWindows.ts` lists English as the only language, and no string table or translation switch exists, so the value has nothing to change yet.
+- `privacy.telemetry` (Share anonymous usage data): no telemetry in v1 (`src/app/recovery.ts`: "Nothing leaves the device (no telemetry in v1)").
+
+Count check: 78 rows; 23 non-live before this round, 20 now (58 live). Tests: `tests/unit/ui-live-options.test.ts` now expects 58. `tests/unit/ui-options.test.ts` asserts only the total (78) and a `live` floor, so it needs no change.

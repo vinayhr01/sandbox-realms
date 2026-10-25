@@ -74,7 +74,11 @@ test('raise: dragging with the Raise tool changes terrain and the sim hash', asy
   await expect
     .poll(async () => (await call<{ elevation: number }>('query', 95, 90)).elevation, { timeout: 15000 })
     .toBeGreaterThan(before.elevation);
-  expect(await call<number>('hash')).not.toBe(hashBefore);
+  // The UI hash is a checkpoint refreshed every 20 ticks (worker.ts HASH_EVERY_TICKS), so it can lag the
+  // elevation change by up to a second. Poll for it instead of reading it once.
+  await expect
+    .poll(() => call<number>('hash'), { timeout: 15000 })
+    .not.toBe(hashBefore);
 });
 
 test('paused edits still apply and the clock stays put', async ({ page }) => {

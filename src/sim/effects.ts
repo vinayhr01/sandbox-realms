@@ -1,7 +1,7 @@
 /**
- * Timed statuses (08 section 5, roster ids of 18c section 5). This file implements the hooks of a
- * subset of 22 of the 56 roster statuses; the rest are listed in DECISIONS.md. Durations are in
- * ticks (18c seconds x 20); `UNTIL_CLEARED` marks statuses with no timer.
+ * Timed statuses (08 section 5, roster ids of 18c section 5). This file implements the hooks of 24
+ * roster statuses that the sim can run; each has an in-play source or is cut (DECISIONS.md "Combat
+ * release"). Durations are in ticks (18c seconds x 20); `UNTIL_CLEARED` marks statuses with no timer.
  */
 export const UNTIL_CLEARED = 0xffffffff;
 /** Effects a being can carry at once. */
@@ -31,6 +31,10 @@ export interface StatusDef {
   noBreed: boolean;
   /** Removed when the being is hit (dazed, dozing). */
   endsOnHit: boolean;
+  /** Periodic damage is Fire (scorched) rather than Poison. */
+  fire: boolean;
+  /** Periodic damage cannot take the being below 1 vitality (venomed, 08 5.3). */
+  cannotKill: boolean;
 }
 
 const base: Omit<StatusDef, 'id' | 'name' | 'ticks'> = {
@@ -44,6 +48,8 @@ const base: Omit<StatusDef, 'id' | 'name' | 'ticks'> = {
   wander: false,
   noBreed: false,
   endsOnHit: false,
+  fire: false,
+  cannotKill: false,
 };
 
 const S = (id: string, name: string, seconds: number, extra: Partial<StatusDef> = {}): StatusDef => ({
@@ -55,8 +61,8 @@ const S = (id: string, name: string, seconds: number, extra: Partial<StatusDef> 
 });
 
 export const STATUSES: readonly StatusDef[] = [
-  S('scorched', 'Scorched', 30, { every: 40, fraction: 0.1 }),
-  S('venomed', 'Venomed', 90, { every: 20, fraction: 0.01 }),
+  S('scorched', 'Scorched', 30, { every: 40, fraction: 0.1, fire: true }),
+  S('venomed', 'Venomed', 90, { every: 20, fraction: 0.01, cannotKill: true }),
   S('bleeding', 'Bleeding', 20, { every: 20, fraction: 0.02 }),
   S('rotting', 'Rotting', 120, { every: 20, fraction: 0.01 }),
   S('ash_sickness', 'Ash Sickness', 500, { every: 200, fraction: 0.01, speed: 0.9, taken: 1.1 }),
@@ -80,6 +86,19 @@ export const STATUSES: readonly StatusDef[] = [
   S('expecting', 'Expecting', 45, { speed: 0.8 }),
   S('sated', 'Sated', 200, {}),
 ];
+
+/**
+ * On-hit statuses of item modifiers (08 section 6.3, content/items.ts explicit mods). A weapon with
+ * the modifier applies the status to its victim with the chance given; the duration is the STATUSES
+ * entry's. `blaze` always burns on hit.
+ */
+export const ON_HIT_MODIFIERS: Readonly<Record<string, { status: string; chance: number }>> = {
+  blaze: { status: 'scorched', chance: 1 },
+  rime_touch: { status: 'rimebound', chance: 0.2 },
+  concussive: { status: 'dazed', chance: 0.2 },
+  sluggish: { status: 'sluggish', chance: 0.2 },
+  venomous: { status: 'venomed', chance: 0.3 },
+};
 
 export const STATUS_BY_ID = new Map(STATUSES.map((s, k) => [s.id, k + 1]));
 

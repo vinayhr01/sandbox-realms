@@ -7,13 +7,14 @@
 import type { Sim } from '../sim.ts';
 import { SPECIES, SPECIES_BY_ID } from '../../content/beasts.ts';
 import { ground, groundId } from '../../content/grounds.ts';
-import { POWER_BY_ID, type PowerDef } from '../../content/powers.ts';
+import { BOMB_PROFILE_BY_ID, POWER_BY_ID, type BombProfile, type PowerDef } from '../../content/powers.ts';
 import { applyStroke, brushOffsets, clampRadius } from '../brush.ts';
 import { CALAMITY_BY_ID, calamityRoll } from '../calamity.ts';
 import { spawnBeing, spawnFolk } from '../beings/system.ts';
 import { hamletsOf } from '../settlements/adapter.ts';
 import { explode } from '../explosions.ts';
-import { startFire } from '../terrain/fire.ts';
+import { applyDamage } from '../combat.ts';
+import { scarStage, startFire } from '../terrain/fire.ts';
 import { meteorImpact } from '../terrain/meteor.ts';
 import { startQuake } from '../terrain/quake.ts';
 import { creepHubAt, geyserAt, heatAt, igniteAt, plantFlora, quenchAt, rainOn, seedBiome, snowOn, volcanoAt } from './terrain-powers.ts';
@@ -68,6 +69,72 @@ function blastAt(sim: Sim, x: number, y: number, radius: number, damage: number,
   const before = sim.guard.level;
   explode(sim.explosionContext(), x, y, radius, damage, type, -1);
   return sim.guard.level > before;
+}
+
+/**
+ * Detonates a bomb profile at (x,y) (12 section 8.6, 04 section 8.2). Returns false when the guard
+ * refuses. Beings in the radius take the profile's damage once each, at full strength (no falloff),
+ * and are dazed when the profile forces. Terrain: cover and scar on every land or water-free tile,
+ * a sink for radius 2 and up, fire by the profile's rule, and the ground changes of the profile.
+ * Urchin shrapnel are detonated after the main blast on random tiles of its radius (stream `bombs`).
+ */
+function detonateBomb(sim: Sim, prof: BombProfile, x: number, y: number, withShrapnel: boolean): boolean {
+  if (!sim.guard.tryAcquire()) return false;
+  const realm = sim.realm;
+  const s = sim.beings.store;
+  const r = prof.radius;
+  const rng = sim.rng('bombs');
+
+  const hit: number[] = [];
+  for (let k = 0; k < s.size; k++) {
+    const slot = s.at(k);
+    if (Math.hypot((s.x[slot] ?? 0) - x, (s.y[slot] ?? 0) - y) <= r) hit.push(slot);
+  }
+  const ctx = sim.combatContext();
+  for (const slot of hit) {
+    if (prof.damage > 0) applyDamage(ctx, slot, prof.damage, prof.type, false);
+    if (prof.force && s.alive[slot] === 1) sim.effects.add(slot, 'dazed', sim.tick);
+  }
+
+  for (let yy = Math.floor(y - r); yy <= Math.ceil(y + r); yy++) {
+    for (let xx = Math.floor(x - r); xx <= Math.ceil(x + r); xx++) {
+      if (!realm.inBounds(xx, yy)) continue;
+      const d = Math.hypot(xx - x, yy - y);
+      if (d > r) continue;
+      const i = yy * realm.side + xx;
+      const falloff = 1 - d / (r + 1);
+      if (prof.voidCore > 0 && d <= prof.voidCore) {
+        realm.setGround(i, groundId('deepmere'));
+        realm.setCover(i, 0);
+        continue;
+      }
+      const kind = ground(realm.ground[i] ?? 0);
+      if (prof.tidal) {
+        if (kind.layer === 'land') realm.setGround(i, groundId('shoal'));
+        realm.setCover(i, 0);
+        continue;
+      }
+      if (kind.layer === 'water') continue;
+      realm.setCover(i, 0);
+      realm.setScar(i, scarStage(rng));
+      if (r >= 2) {
+        const sink = Math.floor((prof.damage / 10) * falloff);
+        if (sink > 0) realm.setElevation(i, (realm.elevation[i] ?? 0) - sink);
+      }
+      if (prof.fire === 'all') startFire(sim, i, true);
+      else if (prof.fire === 'random' && rng.next() < falloff * 0.5) startFire(sim, i, false);
+    }
+  }
+
+  const shard = BOMB_PROFILE_BY_ID.get('shrapnel');
+  if (withShrapnel && shard) {
+    for (let k = 0; k < prof.shrapnel; k++) {
+      const tx = x + rng.int(2 * r + 1) - r;
+      const ty = y + rng.int(2 * r + 1) - r;
+      if (realm.inBounds(tx, ty)) detonateBomb(sim, shard, tx, ty, false);
+    }
+  }
+  return true;
 }
 
 /** Meteor impact at (x,y). Returns true when the guard let it run (meteorImpact itself places mineral nodes). */
@@ -176,7 +243,8 @@ export function executePower(sim: Sim, def: PowerDef, x: number, y: number): boo
     case 'bomb':
     case 'bolt': {
       if (!inBounds) return false;
-      return blastAt(sim, x, y, Number(p.radius ?? 3), Number(p.damage ?? 30), def.handler === 'bolt' ? 'Other' : 'Explosion');
+      const prof = BOMB_PROFILE_BY_ID.get(String(p.profile));
+      return prof !== undefined && detonateBomb(sim, prof, x, y, true);
     }
     case 'seed_biome':
       return inBounds && seedBiome(sim, tileAt(sim, x, y), String(p.biome ?? ''));

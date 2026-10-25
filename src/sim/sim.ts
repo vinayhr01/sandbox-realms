@@ -25,7 +25,8 @@ import { creepStep } from './terrain/creep.ts';
 import { Beings } from './beings/system.ts';
 import { TUNING } from './beings/tuning.ts';
 import { EffectStore, MAX_EFFECTS, STATUSES, UNTIL_CLEARED } from './effects.ts';
-import { CombatState, applyDamage, stepProjectiles, type CombatContext, type Projectile } from './combat.ts';
+import { CombatState, applyDamage, stepProjectiles, tickAttackTimers, type CombatContext, type Projectile } from './combat.ts';
+import { landProjectile, shootStep } from './projectiles.ts';
 import { ExplosionGuard, type ExplosionContext } from './explosions.ts';
 import { createWeatherState, weatherStep, type WeatherContext, type WeatherState } from './weather.ts';
 import { rainDrop } from './terrain/water.ts';
@@ -216,7 +217,21 @@ export class Sim {
       might: (slot) => this.beings.species(this.beings.store.species[slot] ?? 0).might + this.items.mightOf(slot),
       equipPlating: (slot) => this.items.platingOf(slot),
       onWeaponHit: (attacker, victim) => wearOnHit(this, attacker, victim),
+      // Modifiers of the weapon in hand (08 section 6.3): the on-hit statuses of combat.applyOnHit.
+      weaponMods: (slot) => this.weaponModsOf(slot),
     };
+  }
+
+  /** Modifier ids of the weapon a Being wields (worn items of the weapon slot), in slot order. */
+  private weaponModsOf(slot: number): string[] {
+    const out: string[] = [];
+    for (const id of this.items.wornBy(slot)) {
+      if (id <= 0) continue;
+      const kind = this.items.kindOf(id);
+      const inst = this.items.get(id);
+      if (kind?.slot === 'weapon' && inst && inst.durability > 0) out.push(...inst.mods);
+    }
+    return out;
   }
 
   explosionContext(): ExplosionContext {
@@ -236,6 +251,7 @@ export class Sim {
   /** Status timers, periodic status damage, projectiles, blast guard and weather (02 section 4, 08). */
   private runCombatAndWeather(): void {
     const s = this.beings.store;
+    tickAttackTimers(this.combat, s);
     for (let k = s.size - 1; k >= 0; k--) {
       const slot = s.at(k);
       this.effects.expire(slot, this.tick);
@@ -243,13 +259,17 @@ export class Sim {
         const code = this.effects.code[slot * MAX_EFFECTS + e] ?? 0;
         const def = code > 0 ? STATUSES[code - 1] : undefined;
         if (!def || def.every <= 0 || this.tick % def.every !== 0) continue;
-        const amount = Math.max(1, Math.floor((s.maxVit[slot] ?? 0) * def.fraction));
-        applyDamage(this.combatContext(), slot, amount, 'Poison', false);
+        // venomed cannot kill (08 5.3): its tick stops at 1 vitality.
+        if (def.cannotKill && (s.vit[slot] ?? 0) <= 1) continue;
+        let amount = Math.max(1, Math.floor((s.maxVit[slot] ?? 0) * def.fraction));
+        if (def.cannotKill) amount = Math.min(amount, (s.vit[slot] ?? 0) - 1);
+        applyDamage(this.combatContext(), slot, amount, def.fire ? 'Fire' : 'Poison', false);
         if (s.alive[slot] !== 1) break;
       }
     }
+    shootStep(this);
     if (this.projectiles.length > 0) {
-      stepProjectiles(this.combatContext(), this.projectiles, (x, y) => this.beingAt(x, y));
+      stepProjectiles(this.combatContext(), this.projectiles, (x, y) => this.beingAt(x, y), (p) => landProjectile(this, p));
     }
     this.guard.decay();
     const weatherCtx: WeatherContext = {

@@ -13,6 +13,7 @@ import { addStrainTrait, mutateFrom, strainMutation, Strains } from './strains.t
 import { addMood, beginSleep, bondCheck, isAsleep, sleepCheck } from './social.ts';
 import { ROUND6, TUNING } from './tuning.ts';
 import { MONTH_TICKS, YEAR_TICKS } from '../../shared/constants.ts';
+import { predate } from '../combat.ts';
 
 export type { BeingStore };
 
@@ -700,15 +701,13 @@ const TASKS: Record<string, TaskFn> = {
       stepToward(sim, slot, s.x[prey] ?? 0, s.y[prey] ?? 0);
       return true;
     }
-    // Bite damage is floor(0.15 * victim max vitality) + 1, and fuel gains the damage dealt (06 section 2.2).
-    const bite = Math.floor(0.15 * (s.maxVit[prey] ?? 0)) + 1;
-    s.vit[prey] = (s.vit[prey] ?? 0) - bite;
-    if ((s.vit[prey] ?? 0) <= 0) {
-      killBeing(sim, prey, 'eaten');
+    // Strike through combat.predate: claw swing when ready, then the bite via applyDamage (06 section 2.2). Fuel gains the damage dealt.
+    const hit = predate(sim.combatContext(), slot, prey);
+    if (hit.killed) {
       s.fuel[slot] = 100;
       return false;
     }
-    s.fuel[slot] = Math.min(100, (s.fuel[slot] ?? 0) + bite);
+    s.fuel[slot] = Math.min(100, (s.fuel[slot] ?? 0) + hit.dealt);
     return true;
   },
   mate: (sim, slot) => {

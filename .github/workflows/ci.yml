@@ -3,9 +3,16 @@ on:
   push:
     branches: [main]
   pull_request:
+
+# A new push cancels the run still in progress for the same branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -21,6 +28,7 @@ jobs:
   determinism:
     # The sim determinism lint runs only here, in its own job, so a determinism break is visible at a glance.
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -32,11 +40,14 @@ jobs:
       - run: npx vitest run tests/unit/golden.test.ts
 
   playwright:
-    needs: build-and-test
+    # Runs in parallel with the other jobs. Each browser is split into four shards.
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
+        shard: [1, 2, 3, 4]
+        browser: [chromium, webkit]
         include:
           - browser: chromium
             projects: --project=desktop-chromium --project=phone-portrait --project=chromium-360x640 --project=chromium-1920x1080
@@ -50,10 +61,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps ${{ matrix.browser }}
-      - run: npx playwright test ${{ matrix.projects }}
+      - run: npx playwright test --shard=${{ matrix.shard }}/4 ${{ matrix.projects }}
       - uses: actions/upload-artifact@v5
         if: failure()
         with:
-          name: playwright-${{ matrix.browser }}
+          name: playwright-${{ matrix.browser }}-${{ matrix.shard }}
           path: test-results/
           retention-days: 7

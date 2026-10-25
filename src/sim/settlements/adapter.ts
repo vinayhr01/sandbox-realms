@@ -9,7 +9,7 @@ import { buildable, civilTiles, createHamlet, goodFoundingParcel, hamletStep, PA
 import { BUILDING_BY_ID } from './catalogue.ts';
 import { bazaarStep, SUPPLY_PERIOD, tradeStep } from './trade.ts';
 import { desiresOf, structureStep, type Structure } from './landmarks.ts';
-import { planRoads, roadTerrainOpen } from './roads.ts';
+import { decayRoads, PATH_DECAY_RANDOM_SS, PATH_DECAY_SS, planRoads, recordRoadBases, roadTerrainOpen } from './roads.ts';
 import { addMood } from '../beings/social.ts';
 import { customHas, customOfGroup, type Custom } from '../culture/culture.ts';
 import { CREEP_HUB_BY_ID, LANDMARK_BY_ID } from '../../content/creeps.ts';
@@ -54,6 +54,10 @@ interface SettlementState {
   hamlets: Hamlet[];
   /** Landmarks and beacon pillars placed in the realm (18e section 2). */
   structures: Structure[];
+  /** Base ground of road tiles (queued or laid), keyed by tile, for pathDecay (roads.ts). */
+  roadBase: Map<number, number>;
+  /** Tick of the next pathDecay run; null until a road record exists. */
+  roadDecayNext: number | null;
 }
 
 /** Per-sim hamlet state, keyed by the host object (sim.ts has no field for it). */
@@ -82,6 +86,8 @@ export interface HamletSnapshot {
   creepGuard?: [number, number][];
   /** Garrison records (garrison.ts): one per hamlet with a garrison, once one has been seen. Absent when none exists. */
   garrisons?: GarrisonSave[];
+  /** Road decay (roads.ts): the next run tick and the base ground of each road tile. Absent until a road record exists. */
+  roadDecay?: { next: number; bases: [number, number][] };
 }
 
 /** Plain copy of a host's hamlet state, or null when the state was never created (no settlementsStep yet). */
@@ -110,6 +116,7 @@ export function snapshotHamlets(host: SettlementHost): HamletSnapshot | null {
     hubs: terrain.hubs.map((h) => ({ tile: h.tile, def: h.def, tiles: [...h.tiles], nextPulse: h.alive ? h.nextPulse : 0, alive: h.alive })),
     creepGuard: [...terrain.creepGuard.entries()],
     ...(garrisonsOf(host).length > 0 ? { garrisons: garrisonsOf(host).map((r) => ({ ...r })) } : {}),
+    ...(state.roadDecayNext !== null ? { roadDecay: { next: state.roadDecayNext, bases: [...state.roadBase.entries()] } } : {}),
   };
 }
 
@@ -171,7 +178,20 @@ export function restoreHamlets(host: SettlementHost, snap: HamletSnapshot): void
   terrain.hubs = hubs;
   terrain.creepGuard = guard;
   restoreGarrisons(host, snap.garrisons ?? [], hamlets.length);
-  states.set(host, { hamlets, structures });
+  // Road decay (roads.ts): the base ground of each road tile is a tile in the realm and a ground id; absent in older saves.
+  const roadBase = new Map<number, number>();
+  let roadDecayNext: number | null = null;
+  if (snap.roadDecay !== undefined) {
+    const rd = snap.roadDecay;
+    if (!isNum(rd.next) || !Array.isArray(rd.bases)) throw new Error('hamlet state: road decay is not valid');
+    for (const pair of rd.bases) {
+      if (!Array.isArray(pair) || pair.length !== 2 || !Number.isInteger(pair[0]) || pair[0] < 0 || pair[0] >= cells) throw new Error('hamlet state: road decay is not valid');
+      if (!Number.isInteger(pair[1]) || pair[1] < 0 || pair[1] > 255) throw new Error('hamlet state: road decay is not valid');
+      roadBase.set(pair[0], pair[1]);
+    }
+    roadDecayNext = rd.next;
+  }
+  states.set(host, { hamlets, structures, roadBase, roadDecayNext });
 }
 
 /** Maps the host onto the hamlet step's structural context. */
@@ -272,13 +292,15 @@ function census(host: SettlementHost, h: Hamlet): number {
 export function settlementsStep(host: SettlementHost): void {
   let state = states.get(host);
   if (!state) {
-    state = { hamlets: [], structures: [] };
+    state = { hamlets: [], structures: [], roadBase: new Map(), roadDecayNext: null };
     states.set(host, state);
     placeHamlets(host, state);
   }
   if (host.tick % SECOND !== 0) return;
   foundHamlets(host, state);
   hubMood(host);
+  // Before the hamlet step lays queued roads, note each queued tile's base ground (roads.ts recordRoadBases).
+  recordRoadBases(host.realm, state.hamlets.map((h) => h.road), state.roadBase);
   const ctx = contextOf(host);
   for (const h of state.hamlets) {
     h.folk = census(host, h);
@@ -298,6 +320,7 @@ export function settlementsStep(host: SettlementHost): void {
     if (custom && customHas(custom, 'roadworks') && h.buildings.length > buildingsBefore) layRoads(host, state, h);
     bazaarStep(h, host.tick);
   }
+  roadDecayStep(host, state);
   // Garrisons (09 section 8, 10 section 8): soldiers are drawn from the owner's dominion strength. The owner is read only
   // once a dominion exists (dominionState creates the state on first use).
   garrisonStep(
@@ -389,6 +412,29 @@ function layRoads(host: SettlementHost, state: SettlementState, h: Hamlet): void
     return !state.hamlets.some((o) => o !== h && o.parcels.has(p));
   };
   h.road.push(...planRoads(host.realm, h.buildings, newest, open));
+}
+
+/**
+ * pathDecay (02 section 7): wayworn roads outside any Custom's hamlet territory revert to their base ground, one run per
+ * 1 + 0..1 sim-seconds. The timer runs only while road records exist, so a realm with no roads draws nothing from the
+ * 'roadDecay' stream. The run's jitter is drawn after the decay draws.
+ */
+function roadDecayStep(host: SettlementHost, state: SettlementState): void {
+  if (state.roadBase.size === 0) return;
+  if (state.roadDecayNext === null) state.roadDecayNext = host.tick + ssToTicks(PATH_DECAY_SS);
+  if (host.tick < state.roadDecayNext) return;
+  const side = host.realm.side;
+  const perAxis = side / PARCEL;
+  // Parcels of hamlets that hold a Custom are shielded (02 section 7: outside any Custom's hamlet territory).
+  const sheltered = new Set<number>();
+  for (const h of state.hamlets) {
+    if (customOf(host, h) === undefined) continue;
+    for (const p of h.parcels) sheltered.add(p);
+  }
+  const shielded = (i: number): boolean => sheltered.has(Math.floor(Math.floor(i / side) / PARCEL) * perAxis + Math.floor((i % side) / PARCEL));
+  const rng = host.rng('roadDecay');
+  decayRoads(host.realm, state.roadBase, shielded, rng);
+  state.roadDecayNext = host.tick + ssToTicks(PATH_DECAY_SS) + rng.int(ssToTicks(PATH_DECAY_RANDOM_SS) + 1);
 }
 
 /**

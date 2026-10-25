@@ -1,4 +1,5 @@
 import type { Dominion, DominionContext, RelationMatrix } from './types.ts';
+import { HAMLET_CAPTURE } from './capture.ts';
 
 /** Ticks between campaign decisions and strength exchanges (TUNE). */
 export const CAMPAIGN_INTERVAL = 20;
@@ -7,7 +8,7 @@ export const CASUALTY_RATE = 0.1;
 
 /**
  * One dominion step: declares campaigns against bordering enemies, resolves fights as strength
- * exchanges, and takes parcels from a defeated neighbour when `border_creep` is on.
+ * exchanges, and takes parcels from a defeated neighbour when `border_creep` is on (not with HAMLET_CAPTURE, see capture.ts).
  * `parley` off stops every campaign at once (10 section 3). `standing_armies` off raises no armies.
  */
 export function dominionStep(ctx: DominionContext, relations: RelationMatrix): void {
@@ -83,7 +84,7 @@ function inContact(ctx: DominionContext, a: number, b: number): boolean {
   return Math.max(dx, dy) <= 1;
 }
 
-/** Trades casualties; the weaker side loses more and a defeated side yields one parcel. */
+/** Trades casualties; the weaker side loses more. A defeated side yields one parcel only without HAMLET_CAPTURE (border_creep). */
 function exchange(ctx: DominionContext, a: Dominion, b: Dominion, relations: RelationMatrix): void {
   const loser = a.strength === b.strength ? (ctx.rng.next() < 0.5 ? a : b) : a.strength < b.strength ? a : b;
   const winner = loser === a ? b : a;
@@ -97,7 +98,8 @@ function exchange(ctx: DominionContext, a: Dominion, b: Dominion, relations: Rel
   }
   if (loser.strength === 0) {
     relations.set(a.id, b.id, 'peace');
-    if (ctx.isOn('border_creep')) takeParcel(ctx, winner, loser);
+    // With HAMLET_CAPTURE on, the defeat moves no parcel: the hamlets change hands by capture (capture.ts, 10 section 7).
+    if (ctx.isOn('border_creep') && !HAMLET_CAPTURE) takeParcel(ctx, winner, loser);
     ctx.onDefeat?.(winner.id);
     ctx.onCampaign?.('end', winner.id, loser.id);
   }

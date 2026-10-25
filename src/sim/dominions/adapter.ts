@@ -29,6 +29,7 @@ import { taxFlowOf, taxRatesOf, type TaxFlow } from './tax.ts';
 import { leadingHamlet, rulersStep, rulerLive, rulerStatsOf, type RulerRef, type RulerStats } from './rulers.ts';
 import { rankDominions, RANK_PERIOD_TICKS } from './rank.ts';
 import { hamletLoyalty, type HamletLoyaltyFacts } from './loyalty.ts';
+import { captureStep, CAPTURE_STEP_TICKS, HAMLET_CAPTURE, type Capture } from './capture.ts';
 import { cultureYearly } from '../culture/adapter.ts';
 import { blockedWarMood, campaignMood, convertLineageUnits, lineageHas, rulerInstalled, traitsOfGroup, warBlocked as warBlockedBy } from '../culture/effects.ts';
 import { customOfGroup, foundCreed, foundDialect, harmonyBonus, splitCreed, splitCustom, splitDialect } from '../culture/culture.ts';
@@ -78,6 +79,8 @@ export interface DominionState {
   taxFlows: TaxFlow[];
   /** Hamlet loyalty by the hamlet's lowest parcel, from the latest yearly pass (loyalty.ts). Derived, not saved. */
   loyalty: Map<number, number>;
+  /** Hamlet capture progress by the hamlet's lowest parcel (capture.ts). Not saved: a load starts every capture at 0. */
+  captures: Map<number, Capture>;
 }
 
 const states = new WeakMap<Sim, DominionState>();
@@ -99,6 +102,7 @@ export function dominionState(sim: Sim): DominionState {
       taxSeen: new Map(),
       taxFlows: [],
       loyalty: new Map(),
+      captures: new Map(),
     };
     states.set(sim, s);
   }
@@ -423,7 +427,7 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
     if (f.toRuler + f.hamletShare + f.leaderShare !== f.toLeader || f.toLeader > f.loot) bad(`tax flow of hamlet ${f.anchor} shares`);
     taxFlows.push({ ...f });
   }
-  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen, taxFlows });
+  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen, taxFlows, loyalty: new Map(), captures: new Map() });
 }
 
 /** Majority owner of a hamlet's parcels (ties to the lower id), or UNOWNED. Draws no randomness. */
@@ -564,9 +568,10 @@ export function stepDominions(sim: Sim): void {
   // Armies first take attack orders (ready armies order the nearest enemy parcel and take it on contact), then march one
   // parcel a second toward their target (armies.ts). The strength exchange needs contact.
   // Parley off stops every campaign (10 section 3), so armies neither order attacks nor march.
-  // Attack orders move parcels, so they also need `border_creep` (09 section 3: border-taking needs the explicit flag).
+  // Attack orders move parcels, so they need `border_creep` (09 section 3: border-taking needs the explicit flag). With
+  // HAMLET_CAPTURE on, a hamlet changes hands by capture (10 section 7) instead, so the orders do not take parcels.
   if (sim.rules.isOn('parley')) {
-    if (sim.rules.isOn('border_creep')) attackOrders(s.armies, s.dominions, s.relations, owner, perAxis);
+    if (sim.rules.isOn('border_creep') && !HAMLET_CAPTURE) attackOrders(s.armies, s.dominions, s.relations, owner, perAxis);
     marchArmies(s.armies, s.dominions, s.relations, perAxis);
     engageContacts(sim, s, perAxis);
   }
@@ -610,6 +615,28 @@ export function stepDominions(sim: Sim): void {
     },
     s.dominions,
   );
+}
+
+/**
+ * Hamlet capture (10 section 7, capture.ts), every CAPTURE_STEP_TICKS ticks and after the dominion step. Needs the
+ * HAMLET_CAPTURE switch and the `parley` rule (campaigns, as for the armies). Reads the settlements and the armies, and
+ * writes the owner bytes and the dominions' parcel sets when a hamlet falls. Draws no randomness.
+ */
+export function captureTick(sim: Sim): void {
+  if (!HAMLET_CAPTURE) return;
+  const s = states.get(sim);
+  if (!s || s.dominions.length === 0 || sim.tick % CAPTURE_STEP_TICKS !== 0) return;
+  if (!sim.rules.isOn('parley')) return;
+  captureStep({
+    perAxis: parcelsPerAxis(sim),
+    hamlets: hamletsOf(sim),
+    owner: s.owner,
+    dominions: s.dominions,
+    armies: s.armies,
+    relations: s.relations,
+    ownerOf: (parcels) => ownerOfHamlet(parcels, s.owner),
+    captures: s.captures,
+  });
 }
 
 /**

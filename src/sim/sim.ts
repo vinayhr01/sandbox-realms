@@ -36,7 +36,7 @@ import { stepBeings, killBeing } from './beings/system.ts';
 import { hamletsAtWar, hamletsOf, settlementsStep } from './settlements/adapter.ts';
 import { boatsStep } from './boats/boats.ts';
 import { hasTrait } from './beings/afflictions.ts';
-import { dominionsYearly, stepDominions } from './dominions/adapter.ts';
+import { captureTick, dominionsYearly, stepDominions } from './dominions/adapter.ts';
 import { cultureTick, createCultureState, type CultureState } from './culture/adapter.ts';
 import { rollAndRunCalamity, usePowerById } from './powers/handlers.ts';
 import { buildSnapshot } from './snapshot.ts';
@@ -247,6 +247,7 @@ export class Sim {
     this.part('hamletGear', () => hamletGearStep(this));
     this.part('combat', () => this.runCombatAndWeather());
     this.part('dominions', () => stepDominions(this));
+    this.part('capture', () => captureTick(this));
     this.part('dominionsYearly', () => dominionsYearly(this));
     this.part('achievements', () => {
       if (this.due('achievements', SS_TICKS)) unlockAchievements(this);

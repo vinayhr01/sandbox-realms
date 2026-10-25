@@ -105,7 +105,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // Its bolts (18c, 10 section 9) are not modelled: no building fires.
   { id: 'watchspire', name: 'Watchspire', role: 'defence', wood: 0, stone: 18, iron: 1, gold: 4, footprint: 2, hp: 2600, ...NONE, needs: ['hearth_fire', 'great_hall_1'] },
   // 18e bastion (4x4, cost 0/30/6/60, hp 4000; needs a great hall II and a garrison). +10 army slots (garrison.ts buildingSlotBonus).
-  // Not modelled: its 2 keeper soldiers (no keeper job), the 130 capture threshold (no capture threshold in the sim) and its 30 gear store.
+  // Its 130 capture threshold is read by dominions/capture.ts. Not modelled: its 2 keeper soldiers (no keeper job) and its 30 gear store.
   { id: 'bastion', name: 'Bastion', role: 'defence', wood: 0, stone: 30, iron: 6, gold: 60, footprint: 4, hp: 4000, ...NONE, needs: ['great_hall_2', 'garrison'] },
   // 18c bazaar (iron 2 cut). Its effect is the supply-side gold conversion in trade.ts (09 10.5 default design).
   { id: 'bazaar', name: 'Bazaar', role: 'trade', wood: 8, stone: 5, gold: 90, footprint: 4, height: 3, hp: 500, ...NONE, needs: [] },

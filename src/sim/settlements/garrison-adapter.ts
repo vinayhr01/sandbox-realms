@@ -177,48 +177,51 @@ export function garrisonStep(
     }
   }
   hamlets.forEach((hamlet, h) => {
-    if (!hamletHasGarrison(hamlet)) return;
-    const owner = hasDominions ? ownerOf(hamlet) : UNOWNED;
-    let rec = state.records.get(h);
-    if (!rec) {
-      rec = { hamlet: h, dominion: owner, soldiers: 0, timer: soldierTimer(leaderWarfare(sim, hamlet), true), wage: WAGE_PERIOD };
-      state.records.set(h, rec);
-    }
-    if (rec.dominion !== owner) {
-      release(sim, rec);
-      rec.dominion = owner;
-    }
-    // Wage day: the period counts down and resets on each payment (a wage day with no soldiers pays nothing).
-    rec.wage -= PASS_TICKS;
-    if (rec.wage <= 0) {
-      payWages(hamlet, rec);
-      rec.wage = WAGE_PERIOD;
-    }
-    // Clamped at 0: a full company or a refused draw holds the timer there, so it never falls without bound.
-    rec.timer = Math.max(0, rec.timer - PASS_TICKS);
-    if (rec.timer > 0) return;
-    // Soldier limit (09 section 8 gate): `soldiersNow > soldierSlots` releases the surplus to the dominion, then the timer
-    // is set to 600 (not halved). Slots are 0 without the `standing_armies` rule (10 section 8).
-    // The leader's warfare (leaderWarfare) and the building slot bonus (watchspire, bastion) both add to the slots.
-    const slots = hamletSoldierLimit(sim, hamlet);
-    if (rec.soldiers > slots) {
-      release(sim, rec, rec.soldiers - slots);
-      rec.timer = SOLDIER_OVER_LIMIT_TIMER;
-      return;
-    }
-    if (rec.soldiers >= slots || rec.dominion === UNOWNED) return;
-    // Soldier gate (09 section 9): no soldier is taken while the hamlet is being captured (capture.ts progress above 0).
-    if (hamletCaptured(sim, hamlet.parcels)) return;
-    if (hamlet.gold <= SOLDIER_GOLD_GATE) return;
-    // Levy (11 section 9.1, 09 section 8 soldier gate): only folk of the levied sex may serve, so a recruit needs one more
-    // such adult in the hamlet than the company holds.
-    const levy = levyOf?.(hamlet);
-    if (levy !== undefined && levyRoom(sim, hamlet, levy) <= rec.soldiers) return;
-    if (drawOne(sim, rec.dominion) > 0) {
-      rec.soldiers += 1;
-      hamlet.gold -= RECRUIT_COST_GOLD;
-      rec.timer = soldierTimer(leaderWarfare(sim, hamlet), true);
-    }
+    // Each hamlet is one unit (17 section 9, `hamlet:<index>`): a throw in one leaves the other garrisons their pass.
+    sim.unit('hamlet', h, () => {
+      if (!hamletHasGarrison(hamlet)) return;
+      const owner = hasDominions ? ownerOf(hamlet) : UNOWNED;
+      let rec = state.records.get(h);
+      if (!rec) {
+        rec = { hamlet: h, dominion: owner, soldiers: 0, timer: soldierTimer(leaderWarfare(sim, hamlet), true), wage: WAGE_PERIOD };
+        state.records.set(h, rec);
+      }
+      if (rec.dominion !== owner) {
+        release(sim, rec);
+        rec.dominion = owner;
+      }
+      // Wage day: the period counts down and resets on each payment (a wage day with no soldiers pays nothing).
+      rec.wage -= PASS_TICKS;
+      if (rec.wage <= 0) {
+        payWages(hamlet, rec);
+        rec.wage = WAGE_PERIOD;
+      }
+      // Clamped at 0: a full company or a refused draw holds the timer there, so it never falls without bound.
+      rec.timer = Math.max(0, rec.timer - PASS_TICKS);
+      if (rec.timer > 0) return;
+      // Soldier limit (09 section 8 gate): `soldiersNow > soldierSlots` releases the surplus to the dominion, then the timer
+      // is set to 600 (not halved). Slots are 0 without the `standing_armies` rule (10 section 8).
+      // The leader's warfare (leaderWarfare) and the building slot bonus (watchspire, bastion) both add to the slots.
+      const slots = hamletSoldierLimit(sim, hamlet);
+      if (rec.soldiers > slots) {
+        release(sim, rec, rec.soldiers - slots);
+        rec.timer = SOLDIER_OVER_LIMIT_TIMER;
+        return;
+      }
+      if (rec.soldiers >= slots || rec.dominion === UNOWNED) return;
+      // Soldier gate (09 section 9): no soldier is taken while the hamlet is being captured (capture.ts progress above 0).
+      if (hamletCaptured(sim, hamlet.parcels)) return;
+      if (hamlet.gold <= SOLDIER_GOLD_GATE) return;
+      // Levy (11 section 9.1, 09 section 8 soldier gate): only folk of the levied sex may serve, so a recruit needs one more
+      // such adult in the hamlet than the company holds.
+      const levy = levyOf?.(hamlet);
+      if (levy !== undefined && levyRoom(sim, hamlet, levy) <= rec.soldiers) return;
+      if (drawOne(sim, rec.dominion) > 0) {
+        rec.soldiers += 1;
+        hamlet.gold -= RECRUIT_COST_GOLD;
+        rec.timer = soldierTimer(leaderWarfare(sim, hamlet), true);
+      }
+    });
   });
 }
 

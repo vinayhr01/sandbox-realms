@@ -221,12 +221,12 @@ export class Sim {
   }
 
   /**
-   * Runs one unit of a part under the fault gate (17 section 9): one hamlet (`hamlet`), one dominion (`dominion`) or one
-   * being (`being`). The unit is counted under its own part name (`hamlet:3`, `dominion:4`, `being:12`), with the same
-   * thresholds as a part, so a throw in one unit does not take the rest of its slice for the tick. A switched-off unit is
-   * skipped. With no gate (tests, tools) a throw propagates, as in `part()`.
+   * Runs one unit of a part under the fault gate (17 section 9): one hamlet (`hamlet`), one dominion (`dominion`), one
+   * being (`being`) or one border pair (`border`, id `a-b`). The unit is counted under its own part name (`hamlet:3`,
+   * `dominion:4`, `being:12`, `border:4-7`), with the same thresholds as a part, so a throw in one unit does not take the
+   * rest of its slice for the tick. A switched-off unit is skipped. With no gate (tests, tools) a throw propagates, as in `part()`.
    */
-  unit(kind: 'hamlet' | 'dominion' | 'being', id: number, run: () => void): void {
+  unit(kind: 'hamlet' | 'dominion' | 'being' | 'border', id: number | string, run: () => void): void {
     const gate = this.gate;
     if (gate === null) {
       run();

@@ -1,4 +1,4 @@
-import type { Dominion, RelationMatrix } from './types.ts';
+import type { Dominion, RelationMatrix, UnitGuard } from './types.ts';
 
 /**
  * Hamlet capture (10 section 7, 18e section 3.1). One switch controls both the capture and the parcel take it replaces.
@@ -71,6 +71,8 @@ export interface CaptureContext {
   takerOf(captor: number, loser: number, anchor: number): number;
   /** True when the hamlet with this lowest parcel is the loser's capital (rulers.ts leadingHamlet). Read before the bytes change. */
   isCapital(loser: number, anchor: number): boolean;
+  /** Runs one hamlet's capture step (by its index in `hamlets`) under the fault gate (17 section 9, `hamlet:<index>`). Optional: without it a throw propagates. */
+  unit?: UnitGuard;
 }
 
 /** A hamlet that fell in one capture step: its lowest parcel, the dominion it left, the dominion that takes it, and whether it was the capital. */
@@ -111,48 +113,53 @@ function inReach(q: number, parcels: ReadonlySet<number>, perAxis: number): bool
 export function captureStep(ctx: CaptureContext): CaptureFall[] {
   const falls: CaptureFall[] = [];
   const live = new Set<number>();
-  for (const h of ctx.hamlets) {
-    if (h.parcels.size === 0) continue;
-    let anchor = Infinity;
-    for (const p of h.parcels) anchor = Math.min(anchor, p);
-    live.add(anchor);
-    const owner = ctx.ownerOf(h.parcels);
-    if (owner === 0) {
-      ctx.captures.delete(anchor);
-      continue;
-    }
-    let ownSoldiers = 0;
-    const attack = new Map<number, number>();
-    for (const a of ctx.armies) {
-      if (a.soldiers <= 0 || !inReach(a.parcel, h.parcels, ctx.perAxis)) continue;
-      if (a.dominionId === owner) ownSoldiers += a.soldiers;
-      else if (ctx.relations.get(a.dominionId, owner) === 'war') attack.set(a.dominionId, (attack.get(a.dominionId) ?? 0) + a.soldiers * SOLDIER_POINTS);
-    }
-    let capturer = 0;
-    let points = 0;
-    for (const [id, pts] of [...attack].sort((x, y) => x[0] - y[0])) {
-      if (pts > points) {
-        capturer = id;
-        points = pts;
+  // Each hamlet is one unit (17 section 9, `hamlet:<index>`) when the context has a guard: a throw in one leaves the others
+  // their step. A switched-off hamlet is not stepped, so its capture progress is dropped by the sweep below.
+  const guard: UnitGuard = ctx.unit ?? ((_, run) => run());
+  for (const [i, h] of ctx.hamlets.entries()) {
+    guard(i, () => {
+      if (h.parcels.size === 0) return;
+      let anchor = Infinity;
+      for (const p of h.parcels) anchor = Math.min(anchor, p);
+      live.add(anchor);
+      const owner = ctx.ownerOf(h.parcels);
+      if (owner === 0) {
+        ctx.captures.delete(anchor);
+        return;
       }
-    }
-    const towers = h.buildings.filter((b) => b.def.id === 'watchspire').length;
-    const defence = towers * DEF_PER_TOWER + ownSoldiers * SOLDIER_POINTS;
-    const defended = ownSoldiers > 0 || defence > points;
-    const leads = capturer !== 0 && points > defence;
-    const state: Capture = ctx.captures.get(anchor) ?? { ticks: 0, defenderTicks: 0 };
-    state.defenderTicks = defended ? state.defenderTicks + 1 : 0;
-    const blocked = defended && state.defenderTicks >= DEFENDER_TICKS;
-    if (leads && !blocked) state.ticks += CAPTURE_RISE;
-    else if (defended) state.ticks -= CAPTURE_FALL_DEFENDED;
-    else state.ticks -= CAPTURE_FALL_NOBODY;
-    state.ticks = Math.max(0, state.ticks);
-    ctx.captures.set(anchor, state);
-    const threshold = h.buildings.some((b) => b.def.id === 'bastion') ? BASTION_THRESHOLD : CAPTURE_THRESHOLD;
-    if (leads && state.ticks >= threshold) {
-      const fall = finishCapture(ctx, h.parcels, owner, capturer, anchor);
-      if (fall) falls.push(fall);
-    }
+      let ownSoldiers = 0;
+      const attack = new Map<number, number>();
+      for (const a of ctx.armies) {
+        if (a.soldiers <= 0 || !inReach(a.parcel, h.parcels, ctx.perAxis)) continue;
+        if (a.dominionId === owner) ownSoldiers += a.soldiers;
+        else if (ctx.relations.get(a.dominionId, owner) === 'war') attack.set(a.dominionId, (attack.get(a.dominionId) ?? 0) + a.soldiers * SOLDIER_POINTS);
+      }
+      let capturer = 0;
+      let points = 0;
+      for (const [id, pts] of [...attack].sort((x, y) => x[0] - y[0])) {
+        if (pts > points) {
+          capturer = id;
+          points = pts;
+        }
+      }
+      const towers = h.buildings.filter((b) => b.def.id === 'watchspire').length;
+      const defence = towers * DEF_PER_TOWER + ownSoldiers * SOLDIER_POINTS;
+      const defended = ownSoldiers > 0 || defence > points;
+      const leads = capturer !== 0 && points > defence;
+      const state: Capture = ctx.captures.get(anchor) ?? { ticks: 0, defenderTicks: 0 };
+      state.defenderTicks = defended ? state.defenderTicks + 1 : 0;
+      const blocked = defended && state.defenderTicks >= DEFENDER_TICKS;
+      if (leads && !blocked) state.ticks += CAPTURE_RISE;
+      else if (defended) state.ticks -= CAPTURE_FALL_DEFENDED;
+      else state.ticks -= CAPTURE_FALL_NOBODY;
+      state.ticks = Math.max(0, state.ticks);
+      ctx.captures.set(anchor, state);
+      const threshold = h.buildings.some((b) => b.def.id === 'bastion') ? BASTION_THRESHOLD : CAPTURE_THRESHOLD;
+      if (leads && state.ticks >= threshold) {
+        const fall = finishCapture(ctx, h.parcels, owner, capturer, anchor);
+        if (fall) falls.push(fall);
+      }
+    });
   }
   for (const key of [...ctx.captures.keys()]) if (!live.has(key)) ctx.captures.delete(key);
   return falls;

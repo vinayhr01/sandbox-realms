@@ -636,6 +636,8 @@ export function stepDominions(sim: Sim): void {
   // HAMLET_CAPTURE on, a hamlet changes hands by capture (10 section 7) instead, so the orders do not take parcels.
   // Each dominion's army is one unit of the fault gate (17 section 9, `dominion:<id>`).
   const unit: UnitGuard = (id, run) => sim.unit('dominion', id, run);
+  // Each border pair is one unit too (`border:a-b`), in dominionStep below.
+  const borderUnit: UnitGuard = (id, run) => sim.unit('border', id, run);
   if (sim.rules.isOn('parley')) {
     if (sim.rules.isOn('border_creep') && !HAMLET_CAPTURE) attackOrders(s.armies, s.dominions, s.relations, owner, perAxis, unit);
     marchArmies(s.armies, s.dominions, s.relations, perAxis, unit);
@@ -657,6 +659,7 @@ export function stepDominions(sim: Sim): void {
     },
     // Campaign mood (culture/effects.ts, warlikeJoy). The owner map is the live one, since parcels change hands mid-step.
     onCampaign: (kind, winnerId, loserId) => campaignMood(sim, kind, winnerId, loserId, (p) => owner.get(p) ?? UNOWNED),
+    borderUnit,
   };
   dominionStep(ctx, s.relations);
   syncArmies(s.armies, s.dominions);
@@ -707,6 +710,7 @@ export function captureTick(sim: Sim): void {
   const falls = captureStep({
     perAxis: parcelsPerAxis(sim),
     hamlets,
+    unit: (i, run) => sim.unit('hamlet', i, run),
     owner: s.owner,
     dominions: s.dominions,
     armies: s.armies,
@@ -842,15 +846,18 @@ function foundFromHamlets(sim: Sim, s: DominionState, settlements: ReturnType<ty
  * new positions. Draws no randomness.
  */
 function engageContacts(sim: Sim, s: DominionState, perAxis: number): void {
+  // Each border pair is one unit (17 section 9, `border:a-b`): a throw in one leaves the other pairs their contact.
   for (const [a, b] of s.borders) {
-    if (s.relations.get(a, b) !== 'war') continue;
-    const armyA = s.armies.find((x) => x.dominionId === a);
-    const armyB = s.armies.find((x) => x.dominionId === b);
-    if (!armyA || !armyB) continue;
-    const dx = Math.abs((armyA.parcel % perAxis) - (armyB.parcel % perAxis));
-    const dy = Math.abs(Math.floor(armyA.parcel / perAxis) - Math.floor(armyB.parcel / perAxis));
-    if (Math.max(dx, dy) > 1) continue;
-    engageArmies(sim, armyA, armyB, perAxis);
+    sim.unit('border', `${a}-${b}`, () => {
+      if (s.relations.get(a, b) !== 'war') return;
+      const armyA = s.armies.find((x) => x.dominionId === a);
+      const armyB = s.armies.find((x) => x.dominionId === b);
+      if (!armyA || !armyB) return;
+      const dx = Math.abs((armyA.parcel % perAxis) - (armyB.parcel % perAxis));
+      const dy = Math.abs(Math.floor(armyA.parcel / perAxis) - Math.floor(armyB.parcel / perAxis));
+      if (Math.max(dx, dy) > 1) return;
+      engageArmies(sim, armyA, armyB, perAxis);
+    });
   }
 }
 
@@ -1013,10 +1020,13 @@ export function accordCandidatesOf(sim: Sim): AccordCandidates {
 /** Rank step (rank.ts): ranks every dominion by power and stores the rank on it; a dominion that is neither keeps none. */
 function rankStep(sim: Sim, s: DominionState): void {
   const ranks = rankDominions(s.dominions, hamletCountsOf(hamletsOf(sim), s.owner));
+  // Each dominion is one unit (17 section 9, `dominion:<id>`): a throw in one leaves the other ranks stored.
   for (const d of s.dominions) {
-    const r = ranks.get(d.id);
-    if (r !== undefined) d.rank = r;
-    else delete d.rank;
+    sim.unit('dominion', d.id, () => {
+      const r = ranks.get(d.id);
+      if (r !== undefined) d.rank = r;
+      else delete d.rank;
+    });
   }
 }
 
@@ -1273,60 +1283,63 @@ function loyaltyStep(sim: Sim, s: DominionState): void {
   /** A live clan of a strain: one whose strain, or a strain it absorbed, is this one (clans.ts). */
   const clanOf = (strain: number): boolean => sim.clans.list.some((c) => c.mergedInto < 0 && c.extinctTick < 0 && (c.strain === strain || c.absorbed.includes(strain)));
   for (const [i, h] of settlements.entries()) {
-    const owned = ownerOfHamlet(h.parcels, s.owner);
-    const dom = s.dominions.find((d) => d.id === owned);
-    const capital = dom ? leadingHamlet(owned, settlements, s.owner) : undefined;
-    if (!dom || !capital) {
-      s.loyalty.delete(i);
-      continue;
-    }
-    if (!loyaltyDue(s.loyalty.get(i), sim.tick)) continue;
-    const ruler = rulerLive(store, dom);
-    const leaderSlot = h.leader ?? -1;
-    const isCapital = capital === h;
-    const [hx, hy] = centre(h.parcels);
-    const [cx, cy] = centre(capital.parcels);
-    const adjacent = !isCapital && [...h.parcels].some((p) => [...capital.parcels].some((q) => Math.abs((p % perAxis) - (q % perAxis)) <= 1 && Math.abs(Math.floor(p / perAxis) - Math.floor(q / perAxis)) <= 1));
-    const enemyPower = s.dominions
-      .filter((d) => d.id !== owned && s.relations.get(owned, d.id) !== 'peace')
-      .reduce((sum, d) => sum + powerOf(d, hamletCount), 0);
-    const hamletFolk: FolkMajority = folk.hamlets[i] ?? {};
-    const domainFolk: FolkMajority = folk.dominions.get(owned) ?? {};
-    const rule = successionRuleOf(traitsOfGroup(sim, owned));
-    const hold = s.hold.get(i);
-    // Clan (10 section 5): the leader and the ruler share a strain, and a live clan holds that strain. Skipped at the capital.
-    const leaderStrain = leaderSlot >= 0 ? (store.strain[leaderSlot] ?? 0) : 0;
-    const rulerStrain = ruler ? (store.strain[ruler.slot] ?? 0) : 0;
-    const sameStrain = !isCapital && ruler !== undefined && leaderStrain !== 0 && leaderStrain === rulerStrain;
-    const facts: HamletLoyaltyFacts = {
-      ruler: ruler ? skill(ruler.slot, owned) : 0,
-      hamletAge: h.foundedTick !== undefined ? wholeYears(sim.tick, h.foundedTick) : undefined,
-      dominionAge: dom.foundedTick !== undefined ? wholeYears(sim.tick, dom.foundedTick) : undefined,
-      tenureYears: ruler && dom.rulerSinceTick !== undefined ? wholeYears(sim.tick, dom.rulerSinceTick) : undefined,
-      conquestYears: dom.newConquestTick !== undefined ? wholeYears(sim.tick, dom.newConquestTick) : undefined,
-      belongYears: hold !== undefined && hold.dominion === owned ? wholeYears(sim.tick, hold.since) : undefined,
-      custom: matchOf(customOf, hamletFolk.group, owned),
-      dialect: matchOf(dialectOf, hamletFolk.group, owned),
-      creed: matchOf(creedOf, hamletFolk.group, owned),
-      customTraits: traitsOfGroup(sim, owned),
-      lineage: domainFolk.species !== undefined && hamletFolk.species !== undefined ? hamletFolk.species === domainFolk.species : undefined,
-      strain: domainFolk.strain !== undefined && hamletFolk.strain !== undefined ? hamletFolk.strain === domainFolk.strain : undefined,
-      clan: sameStrain ? clanOf(leaderStrain) : undefined,
-      rulerSexMismatch: ruler && rule.sex !== undefined ? (store.female[ruler.slot] ?? 0) !== rule.sex : undefined,
-      folk: h.folk,
-      parcels: h.parcels.size,
-      capitalFolk: capital.folk,
-      capitalParcels: capital.parcels.size,
-      isCapital,
-      adjacentToCapital: adjacent,
-      distance: isCapital ? 0 : Math.hypot(hx - cx, hy - cy),
-      enemyPower,
-      ownPower: powerOf(dom, hamletCount),
-      rank: dom.rank,
-      dominionCount: s.dominions.length,
-      ...(leaderSlot >= 0 ? { leader: skill(leaderSlot, owned) } : {}),
-      ...(ruler ? { rulerAge: (sim.tick - (store.born[ruler.slot] ?? 0)) / YEAR_TICKS } : {}),
-    };
-    s.loyalty.set(i, { value: hamletLoyalty(facts), tick: sim.tick });
+    // Each hamlet is one unit (17 section 9, `hamlet:<index>`): a throw in one leaves the other hamlets their loyalty.
+    sim.unit('hamlet', i, () => {
+      const owned = ownerOfHamlet(h.parcels, s.owner);
+      const dom = s.dominions.find((d) => d.id === owned);
+      const capital = dom ? leadingHamlet(owned, settlements, s.owner) : undefined;
+      if (!dom || !capital) {
+        s.loyalty.delete(i);
+        return;
+      }
+      if (!loyaltyDue(s.loyalty.get(i), sim.tick)) return;
+      const ruler = rulerLive(store, dom);
+      const leaderSlot = h.leader ?? -1;
+      const isCapital = capital === h;
+      const [hx, hy] = centre(h.parcels);
+      const [cx, cy] = centre(capital.parcels);
+      const adjacent = !isCapital && [...h.parcels].some((p) => [...capital.parcels].some((q) => Math.abs((p % perAxis) - (q % perAxis)) <= 1 && Math.abs(Math.floor(p / perAxis) - Math.floor(q / perAxis)) <= 1));
+      const enemyPower = s.dominions
+        .filter((d) => d.id !== owned && s.relations.get(owned, d.id) !== 'peace')
+        .reduce((sum, d) => sum + powerOf(d, hamletCount), 0);
+      const hamletFolk: FolkMajority = folk.hamlets[i] ?? {};
+      const domainFolk: FolkMajority = folk.dominions.get(owned) ?? {};
+      const rule = successionRuleOf(traitsOfGroup(sim, owned));
+      const hold = s.hold.get(i);
+      // Clan (10 section 5): the leader and the ruler share a strain, and a live clan holds that strain. Skipped at the capital.
+      const leaderStrain = leaderSlot >= 0 ? (store.strain[leaderSlot] ?? 0) : 0;
+      const rulerStrain = ruler ? (store.strain[ruler.slot] ?? 0) : 0;
+      const sameStrain = !isCapital && ruler !== undefined && leaderStrain !== 0 && leaderStrain === rulerStrain;
+      const facts: HamletLoyaltyFacts = {
+        ruler: ruler ? skill(ruler.slot, owned) : 0,
+        hamletAge: h.foundedTick !== undefined ? wholeYears(sim.tick, h.foundedTick) : undefined,
+        dominionAge: dom.foundedTick !== undefined ? wholeYears(sim.tick, dom.foundedTick) : undefined,
+        tenureYears: ruler && dom.rulerSinceTick !== undefined ? wholeYears(sim.tick, dom.rulerSinceTick) : undefined,
+        conquestYears: dom.newConquestTick !== undefined ? wholeYears(sim.tick, dom.newConquestTick) : undefined,
+        belongYears: hold !== undefined && hold.dominion === owned ? wholeYears(sim.tick, hold.since) : undefined,
+        custom: matchOf(customOf, hamletFolk.group, owned),
+        dialect: matchOf(dialectOf, hamletFolk.group, owned),
+        creed: matchOf(creedOf, hamletFolk.group, owned),
+        customTraits: traitsOfGroup(sim, owned),
+        lineage: domainFolk.species !== undefined && hamletFolk.species !== undefined ? hamletFolk.species === domainFolk.species : undefined,
+        strain: domainFolk.strain !== undefined && hamletFolk.strain !== undefined ? hamletFolk.strain === domainFolk.strain : undefined,
+        clan: sameStrain ? clanOf(leaderStrain) : undefined,
+        rulerSexMismatch: ruler && rule.sex !== undefined ? (store.female[ruler.slot] ?? 0) !== rule.sex : undefined,
+        folk: h.folk,
+        parcels: h.parcels.size,
+        capitalFolk: capital.folk,
+        capitalParcels: capital.parcels.size,
+        isCapital,
+        adjacentToCapital: adjacent,
+        distance: isCapital ? 0 : Math.hypot(hx - cx, hy - cy),
+        enemyPower,
+        ownPower: powerOf(dom, hamletCount),
+        rank: dom.rank,
+        dominionCount: s.dominions.length,
+        ...(leaderSlot >= 0 ? { leader: skill(leaderSlot, owned) } : {}),
+        ...(ruler ? { rulerAge: (sim.tick - (store.born[ruler.slot] ?? 0)) / YEAR_TICKS } : {}),
+      };
+      s.loyalty.set(i, { value: hamletLoyalty(facts), tick: sim.tick });
+    });
   }
 }

@@ -652,7 +652,7 @@ function checkCulture(raw: unknown): CulturePayload {
     );
   const creedSplitOk =
     Array.isArray(creeds) &&
-    creeds.every((c) => birthOk(c) && (c.tenets === undefined || (Array.isArray(c.tenets) && c.tenets.every((t) => typeof t === 'string'))));
+    creeds.every((c) => birthOk(c) && (c.tenets === undefined || (Array.isArray(c.tenets) && c.tenets.every((t: unknown) => typeof t === 'string'))));
   const customSplitOk = Array.isArray(raw.customs) && raw.customs.every(birthOk);
   if (!dialectsOk || !creedSplitOk || !customSplitOk) throw new Error('chronicle: culture split records are not valid');
   // Optional family records (11 section 7): when present, each has an id, two founders, a member list and a banner.

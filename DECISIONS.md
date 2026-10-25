@@ -2737,3 +2737,9 @@ Scope: two failing tests in `tests/unit/beings-seeding.test.ts` and `tests/unit/
 - Fix (test): the test builds two dominions (1 and 2) split down the middle, at peace, sharing a border, and seeds the creed in dominion 1. A comment names the change. The other culture tests still seed region ids; they check determinism and save round-trip only, still pass, and were left unchanged.
 
 **Not changed.** The talk form itself stays unbuilt (see "Culture founding close 6", Substitutions).
+
+## CI fixes close 13
+
+- **Typecheck (CI build-and-test):** `chronicle.ts` tenet predicate now types its parameter (`t: unknown`), matching the other shape checks. `weather-explosions.test.ts` fixture adds `ashDrop` as a no-op; `ashDrop` stays required (sim.ts supplies it).
+- **GOLDEN_HASH re-baselined:** 3940167734 to 1357125849. Causes are the sim changes from close 5 to close 12 that alter the checkpoint: new decision rows, statuses, capture, loyalty, isolation wrappers, possess wiring, and the dialect draw. `check:determinism` passes and the golden run is self-consistent. The earlier value is kept in the test comment.
+- **Still failing until the type-fix branch lands:** two dominion tests expecting the old parcel take. Their fix is on `worktree-agent-af8fc7de46edbf5ac` (commit 9589b3e), not yet merged, so CI's `npm test` will fail until it is.

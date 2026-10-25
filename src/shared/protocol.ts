@@ -208,6 +208,30 @@ export interface Snapshot {
   mapBoats?: MapBoat[];
   /** Parcel owners and dominion attributes for the Insight layers (src/render/insight-layers.ts). Optional; dropped first over budget. */
   mapTiles?: MapTiles;
+  /** Relation links of the sampled Beings for the cursor arrows (src/render/insight-layers.ts). Optional; dropped first over budget. */
+  mapLinks?: MapLink[];
+}
+
+/**
+ * Links of one sampled Being (Insight A01..A07). Ids are map point ids; positions are tile coordinates. Only Beings with at
+ * least one link are listed, and each list field is absent when empty.
+ */
+export interface MapLink {
+  id: number;
+  /** A02 home: the centre tile of the hamlet on the Being's parcel. */
+  home?: [number, number];
+  /** A01 destination: the possession order tile while an Architect order runs. */
+  dest?: [number, number];
+  /** A03 partner: the bond partner, else the lover, when living. */
+  partner?: number;
+  /** A05 parents: the parent, when living (at most one). */
+  parents?: number[];
+  /** A06 children: sampled Beings whose parent is this one. */
+  children?: number[];
+  /** A04 family: sampled members of the Being's family record, other than itself. */
+  family?: number[];
+  /** A07 attack target: living attackers the Being holds a grudge against. */
+  foes?: number[];
 }
 
 /** Most boats in one snapshot's map feed. */

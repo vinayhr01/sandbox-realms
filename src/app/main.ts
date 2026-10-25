@@ -14,7 +14,9 @@ import { setCalendar, setDebug, setStatus, toast } from '../ui/hud.ts';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
 import { currentStep, parseTutorial, skipTutorial, TUTORIAL_TEXT, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
-import { cooldownSecondsLeft, hamletAtTile, linePoints, nearestMapPoint, nextOptionValue, powerStatus, strokeOp } from '../ui/powerSupport.ts';
+import { cooldownSecondsLeft, hamletAtTile, linePoints, masterOfViewFlag, nearestMapPoint, nextOptionValue, powerStatus, strokeOp, toggleViewFlag, viewFlagsDefault } from '../ui/powerSupport.ts';
+import { HistoryTicker, TickerView } from '../ui/historyTicker.ts';
+import { WorldTip, beingTipLines, tileTipLines } from '../ui/worldTip.ts';
 import { WindowHost } from '../ui/windowHost.ts';
 import { windowFor, type ChronicleActions, type ChronicleOutcome, type WindowDeps, type WindowParams } from '../ui/windowContent.ts';
 import { SimView } from '../ui/sim-view.ts';
@@ -408,6 +410,12 @@ async function boot(): Promise<void> {
   /** Insight Hamlet Select: armed (the next tap picks a tile) and the hamlet picked (hamletsOf index, or -1). */
   let hamletPending = false;
   let selectedHamlet = -1;
+  /** Insight view flags (UI only, not saved): arrow kinds, tip kinds and the O07 ticker (src/ui/powerSupport.ts). */
+  const viewFlags = viewFlagsDefault();
+  /** O07 history feed, in memory and rebuilt from snapshots; its strip on the map; the cursor tooltip. */
+  const historyFeed = new HistoryTicker();
+  const tickerView = new TickerView(document.body);
+  const worldTip = new WorldTip(document.body);
   let cursorScreen: { x: number; y: number } | null = null;
   const canHover = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
   let pressed = false;
@@ -580,6 +588,7 @@ async function boot(): Promise<void> {
     followId = null;
     hamletPending = false;
     selectedHamlet = -1;
+    historyFeed.clear();
     $('realm-name').textContent = `Realm ${seed.toString(36).toUpperCase().slice(-6)}`;
   };
 
@@ -699,6 +708,19 @@ async function boot(): Promise<void> {
         setStatus(`${power.name}: ${next}.`);
         return;
       }
+      case 'toggle_view': {
+        // Insight view flags (arrow kinds, tip kinds, the O07 ticker). Their Settings master may be off: say so.
+        const key = String(power.params['key'] ?? '');
+        const on = toggleViewFlag(viewFlags, key);
+        const master = masterOfViewFlag(key);
+        const note =
+          master !== null && on && !boolOption(options, master)
+            ? ` Turn on ${master === 'ui.cursorArrows' ? 'Cursor arrows' : 'World tooltips'} in Settings to see it.`
+            : '';
+        setStatus(`${power.name}: ${on ? 'on' : 'off'}.${note}`);
+        updatePowerButtons();
+        return;
+      }
       default:
         setArmed(state.armed?.id === power.id ? null : power);
     }
@@ -714,6 +736,8 @@ async function boot(): Promise<void> {
           ? rules.isOn(String(power.params['rule']))
           : power.handler === 'toggle_option'
             ? boolOption(options, String(power.params['option']))
+            : power.handler === 'toggle_view'
+              ? viewFlags.has(String(power.params['key']))
             : power.handler === 'layer_toggle'
               ? stringOption(options, 'map.layer') === String(power.params['layer'])
               : state.armed?.id === power.id;
@@ -968,7 +992,11 @@ async function boot(): Promise<void> {
     degradeLevel: 0,
   });
   $('window-close').addEventListener('click', () => windowHost.close());
-  simView.subscribe(() => windowHost.feed());
+  simView.subscribe(() => {
+    // The O07 feed reads each snapshot once as it arrives (in memory only, src/ui/historyTicker.ts).
+    if (simView.current) historyFeed.push(simView.current);
+    windowHost.feed();
+  });
 
   /** The being under a screen point in the latest snapshot: within 10 px, or 24 px on touch. Null when none. */
   const pickBeing = (sx: number, sy: number): { id: number } | null => {
@@ -1391,6 +1419,11 @@ async function boot(): Promise<void> {
         },
         { offX: cam.offX, offY: cam.offY, zoom: cam.zoom, viewW: renderer.app.screen.width, viewH: renderer.app.screen.height },
       );
+      // Insight hover (desktop only): the Being under the pointer, where the cursor arrows start.
+      const hoverPoint =
+        simView.current && cursorScreen && canHover && !pressed
+          ? nearestMapPoint(simView.current.mapPoints ?? [], cam, cursorScreen.x, cursorScreen.y, 10)
+          : null;
       insight.update(
         simView.current,
         {
@@ -1400,9 +1433,32 @@ async function boot(): Promise<void> {
           tasks: boolOption(options, 'ui.taskIcons'),
           armyLines: boolOption(options, 'marks.armyLines'),
           selectedHamlet,
+          talkBubbles: boolOption(options, 'ui.talkBubbles'),
+          // The arrow kinds only when the Settings master is on, and never on touch.
+          arrows: boolOption(options, 'ui.cursorArrows') && canHover ? new Set([...viewFlags].filter((k) => k.startsWith('arrow.'))) : new Set<string>(),
+          hoverId: hoverPoint?.id ?? -1,
         },
         { offX: cam.offX, offY: cam.offY, zoom: cam.zoom },
       );
+      // Cursor tooltip: the Being under the pointer (tip.beings), else the tile (tip.tiles). Settings master ui.worldTooltips.
+      const snapNow = simView.current;
+      let tip: string[] | null = null;
+      if (snapNow && cursorScreen && canHover && !pressed && boolOption(options, 'ui.worldTooltips')) {
+        if (hoverPoint) {
+          if (viewFlags.has('tip.beings')) tip = beingTipLines(hoverPoint, snapNow.mapKinds?.find((k) => k.id === hoverPoint.id));
+        } else if (viewFlags.has('tip.tiles')) {
+          const at = tileAt(cursorScreen.x, cursorScreen.y);
+          tip = tileTipLines(snapNow, at.x, at.y);
+        }
+      }
+      if (tip && cursorScreen) {
+        const rect = host.getBoundingClientRect();
+        worldTip.show(tip, rect.left + cursorScreen.x, rect.top + cursorScreen.y);
+      } else {
+        worldTip.hide();
+      }
+      // O07 history ticker: the newest three changes, while the flag is on.
+      tickerView.show(viewFlags.has('ticker') ? historyFeed.recent(3) : null);
       renderer.setView({ offX: cam.offX, offY: cam.offY, zoom: cam.zoom, dpr: renderer.app.renderer.resolution }, cursor);
     }
     // The minimap repaints about four times a second; it is skipped while hidden.

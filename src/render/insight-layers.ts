@@ -6,7 +6,10 @@
  *  - being: each Being takes the colour of its group (group layers) or its own key (being layers).
  *  - parent: parcels and Beings take the colour of the dominion that owns the parcel.
  * Overlays: O03 happiness icons (folk with mood beyond +-40), O04 task icons (a square on each Being with a running
- * task) and O08 army target lines (`marks.armyLines`). The hamlet picked by Hamlet Select is outlined.
+ * task), O06 talk bubbles (a bubble over each Being whose task is `chat`) and O08 army target lines (`marks.armyLines`).
+ * The hamlet picked by Hamlet Select is outlined.
+ * Cursor arrows (A01..A07): from the Being under the cursor to its links in `snap.mapLinks`, one colour per kind. Drawn
+ * only when the Settings master `ui.cursorArrows` is on, and only for the kinds whose Insight flag is on (`arrows`).
  *
  * Reads the latest snapshot only (no sim memory). Redraws when the snapshot, the toggles or the camera change. It is
  * drawn over the beings at low alpha, so the tint shows on the terrain and the Beings alike.
@@ -14,7 +17,7 @@
 import type { Application } from 'pixi.js';
 import { Graphics } from 'pixi.js';
 import { decodeParcels } from '../shared/parcel-codec.ts';
-import type { MapGroup, MapKind, MapTiles, Snapshot } from '../shared/protocol.ts';
+import type { MapGroup, MapKind, MapLink, MapTiles, Snapshot } from '../shared/protocol.ts';
 
 /** Layers keyed by each Being (its creed, family, clan or strain). The others key on the parcel's group. */
 const BEING_LAYERS: ReadonlySet<string> = new Set(['L03', 'L06', 'L07', 'L08']);
@@ -34,6 +37,36 @@ const ICON_PX = 2.5;
 const ICON_LIFT_PX = 9;
 const TASK_PX = 3;
 const TASK_OFFSET_PX = 6;
+/** Talk bubble: a small white box above and to the right of the Being, with three dots. */
+const BUBBLE_COLOUR = 0xffffff;
+const BUBBLE_DOT_COLOUR = 0x333333;
+const BUBBLE_W_PX = 12;
+const BUBBLE_H_PX = 7;
+const BUBBLE_DOT_PX = 1.2;
+const BUBBLE_LIFT_PX = 15;
+const BUBBLE_SHIFT_PX = 4;
+/** Arrow colour per kind (A01..A07), keyed by the flag name in src/ui/powerSupport.ts VIEW_FLAGS_ON_BY_DEFAULT. */
+const ARROW_COLOUR: Readonly<Record<string, number>> = {
+  'arrow.destination': 0xffd166,
+  'arrow.home': 0x8ecae6,
+  'arrow.partner': 0xff77a9,
+  'arrow.family': 0xb5e48c,
+  'arrow.parents': 0x90dbf4,
+  'arrow.children': 0xcdb4db,
+  'arrow.attack': 0xff4d4d,
+};
+const ARROW_WIDTH = 1.5;
+const ARROW_HEAD_PX = 5;
+/** A kind's links are drawn from the hovered Being to these targets. */
+const ARROW_KINDS: ReadonlyArray<readonly [string, keyof MapLink]> = [
+  ['arrow.destination', 'dest'],
+  ['arrow.home', 'home'],
+  ['arrow.partner', 'partner'],
+  ['arrow.family', 'family'],
+  ['arrow.parents', 'parents'],
+  ['arrow.children', 'children'],
+  ['arrow.attack', 'foes'],
+];
 
 /** The toggles this layer reads (from the option store, every frame). */
 export interface InsightToggles {
@@ -49,6 +82,12 @@ export interface InsightToggles {
   armyLines: boolean;
   /** Hamlet index (hamletsOf order) outlined by Hamlet Select, or -1. */
   selectedHamlet: number;
+  /** `ui.talkBubbles` (O06). */
+  talkBubbles: boolean;
+  /** Arrow flags on (`arrow.*` keys), already empty when the `ui.cursorArrows` master is off. */
+  arrows: ReadonlySet<string>;
+  /** Map point id of the Being under the cursor, or -1. Arrows start there. */
+  hoverId: number;
 }
 
 /** The camera state the layer needs. */
@@ -157,6 +196,10 @@ export class InsightLayer {
       t.tasks,
       t.armyLines,
       t.selectedHamlet,
+      t.talkBubbles,
+      [...t.arrows].join(','),
+      t.hoverId,
+      snap?.mapLinks?.length ?? 0,
       view.offX,
       view.offY,
       view.zoom,
@@ -167,7 +210,8 @@ export class InsightLayer {
     g.clear();
     if (!snap) return;
     const layerOn = t.layer !== 'off';
-    if (!layerOn && !t.happiness && !t.tasks && !t.armyLines && t.selectedHamlet < 0) return;
+    const arrowsOn = t.arrows.size > 0 && t.hoverId >= 0;
+    if (!layerOn && !t.happiness && !t.tasks && !t.armyLines && !t.talkBubbles && !arrowsOn && t.selectedHamlet < 0) return;
 
     const d = snap.mapTiles ? this.decodedOf(snap, snap.mapTiles) : null;
     if (layerOn && d) this.drawParcels(t, d, view);
@@ -188,6 +232,13 @@ export class InsightLayer {
         g.circle(sx, sy - ICON_LIFT_PX, ICON_PX).fill(mood > 0 ? HAPPY_COLOUR : UNHAPPY_COLOUR);
       }
       if (t.tasks && kind?.task) g.rect(sx + TASK_OFFSET_PX, sy - TASK_OFFSET_PX, TASK_PX, TASK_PX).fill(keyColour(hashKey(kind.task)));
+      if (t.talkBubbles && kind?.task === 'chat') {
+        // Talk bubble: the Being's task is `chat` (the snapshot has no record of what was said).
+        const bx = sx + BUBBLE_SHIFT_PX;
+        const by = sy - BUBBLE_LIFT_PX;
+        g.rect(bx, by, BUBBLE_W_PX, BUBBLE_H_PX).fill({ color: BUBBLE_COLOUR, alpha: 0.9 });
+        for (let i = 0; i < 3; i++) g.circle(bx + 3 + i * 3, by + BUBBLE_H_PX / 2, BUBBLE_DOT_PX).fill(BUBBLE_DOT_COLOUR);
+      }
     }
 
     if (t.armyLines && snap.mapMarks?.armyLines) {
@@ -197,6 +248,62 @@ export class InsightLayer {
       }
       g.stroke({ width: 1, color: ARMY_LINE_COLOUR, alpha: 0.8 });
     }
+
+    if (arrowsOn) this.drawArrows(snap, t, view);
+  }
+
+  /**
+   * Cursor arrows: from the Being under the cursor to each of its links, one colour per kind. A link to a Being outside
+   * the sample has no position and is skipped. Home and destination are tile positions, drawn as given.
+   */
+  private drawArrows(snap: Snapshot, t: InsightToggles, view: InsightView): void {
+    const link = snap.mapLinks?.find((l) => l.id === t.hoverId);
+    if (!link) return;
+    const screenOf = new Map<number, { sx: number; sy: number }>();
+    for (const p of snap.mapPoints ?? []) {
+      screenOf.set(p.id, { sx: view.offX + (p.x + 0.5) * view.zoom, sy: view.offY + (p.y + 0.5) * view.zoom });
+    }
+    const from = screenOf.get(t.hoverId);
+    if (!from) return;
+    for (const [flag, field] of ARROW_KINDS) {
+      if (!t.arrows.has(flag)) continue;
+      const colour = ARROW_COLOUR[flag] ?? 0xffffff;
+      const v = link[field];
+      const targets: Array<{ sx: number; sy: number }> = [];
+      if ((field === 'home' || field === 'dest') && Array.isArray(v)) {
+        const [x, y] = v as [number, number];
+        targets.push({ sx: view.offX + (x + 0.5) * view.zoom, sy: view.offY + (y + 0.5) * view.zoom });
+      } else if (typeof v === 'number') {
+        const p = screenOf.get(v);
+        if (p) targets.push(p);
+      } else if (Array.isArray(v)) {
+        for (const id of v as number[]) {
+          const p = screenOf.get(id);
+          if (p) targets.push(p);
+        }
+      }
+      for (const to of targets) this.arrow(from, to, colour);
+    }
+  }
+
+  /** One arrow: a line from `from` to `to` with a head at `to`. */
+  private arrow(from: { sx: number; sy: number }, to: { sx: number; sy: number }, colour: number): void {
+    const g = this.g;
+    g.moveTo(from.sx, from.sy).lineTo(to.sx, to.sy).stroke({ width: ARROW_WIDTH, color: colour, alpha: 0.85 });
+    const dx = to.sx - from.sx;
+    const dy = to.sy - from.sy;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) return;
+    const ux = dx / len;
+    const uy = dy / len;
+    const bx = to.sx - ux * ARROW_HEAD_PX;
+    const by = to.sy - uy * ARROW_HEAD_PX;
+    const half = ARROW_HEAD_PX * 0.5;
+    g.moveTo(to.sx, to.sy)
+      .lineTo(bx - uy * half, by + ux * half)
+      .lineTo(bx + uy * half, by - ux * half)
+      .closePath()
+      .fill({ color: colour, alpha: 0.85 });
   }
 
   private decodedOf(snap: Snapshot, tiles: MapTiles): Decoded {

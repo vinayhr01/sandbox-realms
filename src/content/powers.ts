@@ -136,6 +136,33 @@ const layerToggle = (layer: string, name: string): PowerDef => ({
   requires: [],
 });
 
+/**
+ * An Insight view flag: `toggle_view` flips one UI-only flag (src/ui/powerSupport.ts VIEW_FLAGS_ON_BY_DEFAULT), held for
+ * the session and not saved. The arrow and tip flags sit under the Settings masters (ui.cursorArrows, ui.worldTooltips).
+ */
+const viewToggle = (id: string, name: string, key: string): PowerDef => ({
+  id,
+  tab: 'insight',
+  kind: 'toggle',
+  name,
+  repeatMs: 0,
+  handler: 'toggle_view',
+  params: { key },
+  cooldownMs: 0,
+  requires: [],
+});
+
+/** Cursor arrows A01..A07 (12 section 8.8): one flag per kind, as [id suffix, label, flag key]. */
+const ARROW_ROWS: ReadonlyArray<readonly [string, string, string]> = [
+  ['a01', 'Destination arrow', 'arrow.destination'],
+  ['a02', 'Home arrow', 'arrow.home'],
+  ['a03', 'Partner arrow', 'arrow.partner'],
+  ['a04', 'Family arrows', 'arrow.family'],
+  ['a05', 'Parent arrows', 'arrow.parents'],
+  ['a06', 'Children arrows', 'arrow.children'],
+  ['a07', 'Attack target arrow', 'arrow.attack'],
+];
+
 const CALAMITY_OMENS = [
   'whirlwind',
   'heat_spell',
@@ -359,6 +386,15 @@ export const POWERS: readonly PowerDef[] = [
   optionToggle('ins_overlay_happiness', 'Happiness icons', 'ui.happinessIcons'),
   optionToggle('ins_overlay_tasks', 'Task icons', 'ui.taskIcons'),
   optionToggle('ins_overlay_army_lines', 'Army lines', 'marks.armyLines'),
+  // Close 4 (DECISIONS.md "Insight close 4"): boats (M07), talk bubbles (O06), history ticker (O07), cursor arrows
+  // (A01..A07) and cursor tooltips (two rows). The Settings masters ui.cursorArrows and ui.worldTooltips gate the arrows
+  // and the tips; the rows choose which kinds show.
+  optionToggle('ins_mark_boats', 'Boats', 'marks.boats'),
+  optionToggle('ins_overlay_talk_bubbles', 'Talk bubbles', 'ui.talkBubbles'),
+  viewToggle('ins_overlay_ticker', 'History ticker', 'ticker'),
+  ...ARROW_ROWS.map(([suffix, name, key]): PowerDef => viewToggle(`ins_arrow_${suffix}`, name, key)),
+  viewToggle('ins_tips_tiles', 'Tile tooltips', 'tip.tiles'),
+  viewToggle('ins_tips_beings', 'Being tooltips', 'tip.beings'),
 ];
 
 export const POWER_BY_ID = new Map(POWERS.map((p) => [p.id, p]));

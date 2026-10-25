@@ -599,6 +599,29 @@ function checkCulture(raw: unknown): CulturePayload {
       );
     if (!recordsOk) throw new Error('chronicle: culture family records are not valid');
   }
+  // Optional study records (11 section 9.1 study traits): keys are being keys (digits), each with an xp and a level.
+  if (raw.studies !== undefined) {
+    const studies = raw.studies;
+    const studiesOk =
+      isRecord(studies) &&
+      Object.entries(studies).every(
+        ([k, v]) => /^\d+$/.test(k) && isRecord(v) && isFiniteNumber(v.xp) && isFiniteNumber(v.level) && v.xp >= 0 && v.level >= 0,
+      );
+    if (!studiesOk) throw new Error('chronicle: culture study records are not valid');
+  }
+  // Optional defections (convertOrElse): being key (digits) -> dominion group id.
+  if (raw.allegiance !== undefined) {
+    const allegiance = raw.allegiance;
+    const allegianceOk = isRecord(allegiance) && Object.entries(allegiance).every(([k, v]) => /^\d+$/.test(k) && isFiniteNumber(v));
+    if (!allegianceOk) throw new Error('chronicle: culture allegiance records are not valid');
+  }
+  // Optional books (11 section 5): each has an id, the group that wrote it, its mood and its xp.
+  if (raw.books !== undefined) {
+    const books = raw.books;
+    const booksOk =
+      Array.isArray(books) && books.every((b) => isRecord(b) && [b.id, b.group, b.mood, b.xp].every(isFiniteNumber));
+    if (!booksOk) throw new Error('chronicle: culture book records are not valid');
+  }
   return raw as unknown as CulturePayload;
 }
 

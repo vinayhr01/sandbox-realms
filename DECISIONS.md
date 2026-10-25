@@ -1432,3 +1432,28 @@ Scope: 10 section 13 (transport cost, boat danger and attack, path search for bl
 **Not wired.** `sim.ts` calls `boatsStep(this, hamletsOf(this))` every 20 ticks with the default callbacks, so no boat fires yet. Passing a dominion-based `isEnemy` (war between the two dominions) is a one-line change in `sim.ts`, outside this release's touch set.
 
 **Remaining.** The spec's idle decision (return to dock below 80 percent hp) is not built. Transport passengers, loading and unloading remain cut (see "Boats release"). The path search allocates one grid per call and runs each second for a boat that stays blocked with no route; the cost is not measured. The saved state format gains optional `hit` and `path` fields; older boat saves load unchanged.
+
+## Customs build 3
+
+Scope: the 10 custom traits that the Customs close-out left as data (towerPride, childLabour, swiftStudy, mentorTrade, deepTraining, bookLovers, eagerReaders, convertOrElse, rooted, keepers; 11 section 9.1). Built 5 live, left 5 as data (list below). Nothing was run: tests, tsc, vitest, build and Playwright were out of scope, so every change is unverified by machine. `GOLDEN_HASH` is not edited.
+
+**Where the state lives.** Only in the culture payload (`CultureState`, `culture/culture.ts`), as optional fields written only when present: `studies` (being key -> `{xp, level}`), `allegiance` (being key -> dominion group, for defectors) and `books` (`{id, group, mood, xp}`). Being keys are `generation * MAX_BEINGS + slot`, the same key the family records use. No beings store array, no typed array and no binary chronicle section was added, so the save format and the chronicle schema version are unchanged. `stateHash` does not read culture, so the new state does not move the hash.
+
+**Pure rules** (`culture/trait-rules.ts`): `xpGain` (swiftStudy x2), `levelsPerLevelUp` (deepTraining: 2), `readingMood` (bookLovers flips a negative mood), `readingXp` (eagerReaders x3), `blocksSplit` (keepers), `blocksConversion` (rooted), `towerLimitBonus` (towerPride +4), `childMayWork` (childLabour). Constants: `XP_PER_LEVEL = 100` (TUNE; level L+1 costs 100 x (L+1)), `MENTOR_XP = 10`, `CONVERT_HP_RATIO = 0.3`, `CONVERT_CHANCE = 0.3`.
+
+**Implemented (live).**
+- `swiftStudy`, `deepTraining`, `mentorTrade`: `addXp` (culture.ts) applies the holder's custom traits. `talkOutcome` (culture/effects.ts) gives each talker +10 xp when either custom holds `mentorTrade`, on a good talk only. Hook: `beings/system.ts` chat passes `event === 'talked_well'`. Substitution: the spec's "successful chat spread" is a meta conversion, which is not built, so the good 70% talk stands in for it. Study xp has no decision that reads it: it is state only until a level-based effect is built.
+- `convertOrElse` and `rooted`: `convertByFight` (culture/effects.ts) runs in `beings/system.ts` `strike`, after a blow that did not kill and after `addAggro`. A Folk attacker whose custom holds the trait and whose vitality is below 30% converts a non-Folk victim below 30% vitality with 30%: the victim's allegiance becomes the attacker's dominion group. A victim whose current custom holds `rooted` is never converted. "Weak non-mind target" is read as not-Folk plus vitality below 30%; the spec does not give a numeric weak threshold. The 30% draw uses the `culture` stream and only runs when every condition holds. `traitsOfSlot` and `groupOfSlot` now read the allegiance first, so a defector takes its new dominion's custom at once.
+
+**Built, not reachable (data).**
+- `bookLovers`, `eagerReaders`: `writeBook`, `bookCount` and `readBookEffects` (culture.ts) and `readBook` (effects.ts) are built, but no decision writes or reads books (11 section 5 is not built). Status stays `data`.
+- `keepers`: `splitCustom` (culture.ts) copies the parent's traits into a new custom and refuses when the parent holds `keepers`. No divide, schism or divergence decision calls it, and the spec's population and age preconditions, name clone and sound shift are not built. Status stays `data`.
+- `towerPride`, `childLabour`: pure rules only. No tower building exists (`beacon_tower` cut), and jobs take the whole census with no child exclusion to lift. Status stays `data`.
+
+**Pruning.** `pruneBeingState` (culture.ts) drops study and allegiance keys of dead beings. `cultureTick` runs it every 10 sim-seconds through `sim.due('beingState', ...)`, which is a clock check and draws nothing.
+
+**Chronicle.** `checkCulture` (chronicle.ts) checks each new optional field: study and allegiance keys are digit strings with finite numbers (xp and level not negative), books have finite id, group, mood and xp. `culturePayload` and `cultureFromPayload` (culture/adapter.ts) carry the fields when present.
+
+**Determinism.** New RNG draws: one on the `culture` stream, in `convertByFight`, reached only when the attacker is a Folk with `convertOrElse` below 30% and the victim is a weak non-Folk. Nothing else draws.
+
+**Not verified.** Everything above. The golden run seeds beasts and no Folk, so `convertByFight` should not fire there and `talkOutcome` only touches culture state; I expect `GOLDEN_HASH` to still match, but a run is needed to confirm it. Also unverified: the `strike` hook order and the narrowing in the new chronicle checks.

@@ -6,8 +6,23 @@
 import type { Rng } from '../../shared/rng.ts';
 import { CUSTOM_RARITY_WEIGHT, CUSTOM_TRAIT_BY_ID, CUSTOM_TRAITS, type CustomTraitDef } from '../../content/customs.ts';
 import { CUSTOM_RECIPE, FAMILY_RECIPE, generateName, NAME_KIND, nameSeed } from './names.ts';
+import { blocksSplit, levelsPerLevelUp, readingMood, readingXp, XP_PER_LEVEL, xpGain } from './trait-rules.ts';
 
 export { CUSTOM_TRAITS };
+
+/** Xp and level of one being (11 section 9.1: the study traits). Keyed in CultureState.studies by being key. */
+export interface Study {
+  xp: number;
+  level: number;
+}
+
+/** A book written by a group (11 section 5). Keeps only what a reader takes from it: mood and xp. */
+export interface Book {
+  id: number;
+  group: number;
+  mood: number;
+  xp: number;
+}
 
 export interface Custom {
   group: number;
@@ -75,6 +90,12 @@ export interface CultureState {
   families: { child: number; parentA: number; parentB: number }[];
   /** Family records (11 section 7). Optional: absent in saves written before they existed, and while none exist. */
   familyRecords?: FamilyRecord[];
+  /** Study records (xp and level) keyed by being key (generation * MAX_BEINGS + slot). Optional: written when present. */
+  studies?: Record<string, Study>;
+  /** Defectors (convertOrElse): being key -> the dominion group it now follows. Optional: written when present. */
+  allegiance?: Record<string, number>;
+  /** Books written (11 section 5). Optional: written when present; a group's book count is its entries here. */
+  books?: Book[];
   nextId: number;
 }
 
@@ -219,6 +240,70 @@ function pruneFamilies(ctx: CultureContext, state: CultureState): void {
   if (!records || !ctx.alive) return;
   for (const f of records) f.members = f.members.filter((m) => ctx.alive?.(m) ?? true);
   state.familyRecords = records.filter((f) => f.members.length > 1);
+}
+
+/**
+ * Adds xp to a being's study record (11 section 9.1). The gain is `xpGain` of the being's custom traits (swiftStudy x2).
+ * Each level costs XP_PER_LEVEL x (level + 1) xp; a level-up adds `levelsPerLevelUp` (deepTraining: 2). Draws no rng.
+ */
+export function addXp(state: CultureState, key: number, traits: readonly string[], amount: number): Study {
+  const studies: Record<string, Study> = state.studies ?? {};
+  state.studies = studies;
+  const rec: Study = studies[String(key)] ?? { xp: 0, level: 0 };
+  rec.xp += xpGain(traits, amount);
+  while (rec.xp >= XP_PER_LEVEL * (rec.level + 1)) {
+    rec.xp -= XP_PER_LEVEL * (rec.level + 1);
+    rec.level += levelsPerLevelUp(traits);
+  }
+  studies[String(key)] = rec;
+  return rec;
+}
+
+/**
+ * Reading a book (11 section 5): the reader's study record gains `readingXp` (eagerReaders x3) of the book, through
+ * addXp. Returns the mood the reading gives (bookLovers flips a negative mood); the caller applies that mood. Draws no rng.
+ */
+export function readBookEffects(state: CultureState, key: number, traits: readonly string[], book: Book): number {
+  addXp(state, key, traits, readingXp(traits, book.xp));
+  return readingMood(traits, book.mood);
+}
+
+/** Writes a book for a group (11 section 5): a new entry in `books` with the book's mood and xp. Draws no rng. */
+export function writeBook(state: CultureState, group: number, mood: number, xp: number): Book {
+  const book: Book = { id: state.nextId++, group, mood, xp };
+  const books: Book[] = state.books ?? [];
+  books.push(book);
+  state.books = books;
+  return book;
+}
+
+/** Number of books a group has written (its entries in `books`). */
+export function bookCount(state: CultureState, group: number): number {
+  return (state.books ?? []).filter((b) => b.group === group).length;
+}
+
+/**
+ * Divide or schism of a custom (11 sections 2 and 9.1): a new custom for `newGroup` with the parent's traits copied, no
+ * random draw. Refused (null) when the parent has no custom, `newGroup` already has one, or the parent holds `keepers`.
+ * Not built: the population and age preconditions, the name recipe clone and the sound shift.
+ */
+export function splitCustom(state: CultureState, parentGroup: number, newGroup: number): Custom | null {
+  const parent = customOfGroup(state, parentGroup);
+  if (!parent || blocksSplit(parent.traits) || customOfGroup(state, newGroup)) return null;
+  const child: Custom = { group: newGroup, traits: [...parent.traits] };
+  state.customs.push(child);
+  return child;
+}
+
+/**
+ * Drops study and defection records of Beings that are gone (keys carry the generation, so a reused slot never
+ * inherits them). Draws no rng.
+ */
+export function pruneBeingState(ctx: CultureContext, state: CultureState): void {
+  if (!ctx.alive) return;
+  const alive = ctx.alive;
+  if (state.studies) for (const k of Object.keys(state.studies)) if (!alive(Number(k))) delete state.studies[k];
+  if (state.allegiance) for (const k of Object.keys(state.allegiance)) if (!alive(Number(k))) delete state.allegiance[k];
 }
 
 /** Starts an intrigue unless `rituals` is off; rebellions also need `uprisings` on. */

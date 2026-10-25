@@ -8,6 +8,7 @@ import { CUSTOM_RARITY_WEIGHT, CUSTOM_TRAIT_BY_ID, CUSTOM_TRAITS, type CustomTra
 import { CREED_TENETS, type CreedTenetDef } from '../../content/creeds.ts';
 import { CUSTOM_RECIPE, FAMILY_RECIPE, generateName, NAME_KIND, nameSeed } from './names.ts';
 import { blocksSplit, levelsPerLevelUp, readingMood, readingXp, XP_PER_LEVEL, xpGain } from './trait-rules.ts';
+import { foundPhonology, type DialectPhonology } from './phonology.ts';
 
 export { CUSTOM_TRAITS };
 
@@ -104,8 +105,10 @@ export interface Dialect extends MetaBirth {
   group: number;
   /** Lexicon drift counter; groups with equal values speak the same dialect. */
   word: number;
-  /** Lexicon ids copied by a divergence (11 section 6.5 phonology is not built). Optional: a dialect made without one has none. */
+  /** Lexicon ids copied by a divergence. Optional: a dialect made without one has none. */
   lexicon?: number[];
+  /** Phonology drawn at founding or divergence (11 section 6.5, phonology.ts). Optional: absent while the inventories are not authored. */
+  phonology?: DialectPhonology;
 }
 
 export interface CultureState {
@@ -376,13 +379,18 @@ export function harmonyBonus(state: CultureState, group: number, stat: HarmonySt
 }
 
 /**
- * Founds a dialect for `group` (11 sections 2 and 3, newDialect). The phonology and the birth traits are not built (11
- * section 6.5 and the dialect trait lists), so the lexicon starts empty. The creator is the group and the birth is `tick`.
- * Refused (null) when the group already has a dialect. The gate is foundAllowed (trait-rules.ts). Draws no rng.
+ * Founds a dialect for `group` (11 sections 2 and 3, newDialect). The lexicon starts empty and the birth traits are not
+ * built (the dialect trait lists). The phonology is drawn when `worldSeed` is given (11 section 6.5, phonology.ts), and is
+ * left unset while the inventories are not authored. The creator is the group and the birth is `tick`. Refused (null) when
+ * the group already has a dialect. The gate is foundAllowed (trait-rules.ts). Draws no rng.
  */
-export function foundDialect(state: CultureState, group: number, tick: number): Dialect | null {
+export function foundDialect(state: CultureState, group: number, tick: number, worldSeed?: number): Dialect | null {
   if (state.dialects.some((d) => d.group === group)) return null;
   const dialect: Dialect = { group, word: 0, lexicon: [], creator: group, born: tick };
+  if (worldSeed !== undefined) {
+    const phonology = foundPhonology(worldSeed, state.dialects.length + 1, group);
+    if (phonology) dialect.phonology = phonology;
+  }
   state.dialects.push(dialect);
   return dialect;
 }
@@ -401,6 +409,8 @@ export function replaceDialect(loser: Dialect, winner: Dialect): boolean {
   if (sameMeta(loser, winner)) return false;
   loser.word = winner.word;
   loser.lexicon = [...(winner.lexicon ?? [])];
+  if (winner.phonology !== undefined) loser.phonology = winner.phonology;
+  else delete loser.phonology;
   if (winner.creator !== undefined) loser.creator = winner.creator;
   else delete loser.creator;
   if (winner.born !== undefined) loser.born = winner.born;
@@ -423,13 +433,18 @@ export function splitCreed(state: CultureState, parentId: number, newGroup: numb
 
 /**
  * Divergence of a dialect (11 sections 2 and 6.5): a new dialect for `newGroup` with the parent's lexicon word and lexicon
- * copied. The new dialect's creator is the parent's group and its birth is `tick`. Refused (null) when the parent group has
- * no dialect or `newGroup` already has one. Draws no rng.
+ * copied. Its phonology is a new draw (a creation, 6.5), made when `worldSeed` is given, not a copy of the parent's. The
+ * new dialect's creator is the parent's group and its birth is `tick`. Refused (null) when the parent group has no dialect
+ * or `newGroup` already has one. Draws no sim rng.
  */
-export function splitDialect(state: CultureState, parentGroup: number, newGroup: number, tick: number): Dialect | null {
+export function splitDialect(state: CultureState, parentGroup: number, newGroup: number, tick: number, worldSeed?: number): Dialect | null {
   const parent = state.dialects.find((d) => d.group === parentGroup);
   if (!parent || state.dialects.some((d) => d.group === newGroup)) return null;
   const child: Dialect = { group: newGroup, word: parent.word, lexicon: [...(parent.lexicon ?? [])], creator: parentGroup, born: tick };
+  if (worldSeed !== undefined) {
+    const phonology = foundPhonology(worldSeed, state.dialects.length + 1, newGroup);
+    if (phonology) child.phonology = phonology;
+  }
   state.dialects.push(child);
   return child;
 }

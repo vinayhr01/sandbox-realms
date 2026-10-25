@@ -1084,7 +1084,7 @@ function splitHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof
       else if (kind === 'schismCreed') {
         const creed = culture.creeds.find((c) => c.holders.has(d));
         made = creed !== undefined && splitCreed(culture, creed.id, newGroup, d, sim.tick) !== null;
-      } else made = splitDialect(culture, d, newGroup, sim.tick) !== null;
+      } else made = splitDialect(culture, d, newGroup, sim.tick, sim.realm.seed) !== null;
       if (made) {
         const dom = s.dominions.find((x) => x.id === d);
         const actor = dom ? rulerLive(sim.beings.store, dom) : undefined;
@@ -1121,7 +1121,7 @@ function foundHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof
       };
     },
     apply: (kind: FoundKind, d: number): boolean => {
-      if (kind === 'newDialect') return foundDialect(culture, d, sim.tick) !== null;
+      if (kind === 'newDialect') return foundDialect(culture, d, sim.tick, sim.realm.seed) !== null;
       return foundCreed(culture, d, sim.tick, sim.rng('culture'), sim.rules.isOn('chaotic_minds')) !== null;
     },
   };

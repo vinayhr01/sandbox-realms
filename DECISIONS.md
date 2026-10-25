@@ -1649,3 +1649,19 @@ Scope: 02 section 7 `pathDecay` (`wayworn` roads outside any Custom's hamlet ter
 - OPEN: a road tile with no record never decays. Such tiles come from a painted `wayworn` (power `shape_wayworn`), whose base is unknown. The spec does not say what base such a tile has.
 - OPEN: `heat` turning a road into `strand` drops the record on the next sim-second (the tile is no longer road). That is the existing ground rule, not a new one.
 - Not run: the golden hash is not re-baselined. It moves only in a golden run that lays a road and reaches a decay run.
+
+## Release close 4
+
+Scope: documentation and metadata to close the release set for version 0.1.0. Development-only instruction: no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` is not edited. Nothing was merged.
+
+**1. CHANGELOG.md (new, repo root).** Version history taken from the `DECISIONS.md` section headings, grouped by round. The project kept no version numbers or dates, so the entries are not release-dated. Each entry carries its DECISIONS line number.
+
+**2. RELEASE-CHECKLIST.md (new, repo root).** The gates from `docs/release-checklist.md` (status at main `2fc292c`) and the items of `../Spec/LEGAL-CHECKLIST.md`, each with a status (DONE recorded, PARTIAL, NOT DONE, NOT RUN, LEFT TO OWNER). The legal review is left to the project owner and is not written.
+
+**3. package.json version 0.1.0.** The version field was 1.0.0. It is now 0.1.0, as instructed. This is a lower number than before; the owner should confirm that is intended. No dependency changes. `package-lock.json` root version fields still read 1.0.0 and were not edited; the next `npm install` will rewrite them.
+
+**4. ASSET-LICENSES.md.** Completed from the installed packages' `package.json` licence fields. The 6 direct dependencies and the 48 other installed packages are recorded as "Field read"; licence texts were not opened. The 44 lockfile entries not installed on this machine (platform binaries) are marked UNVERIFIED.
+
+**5. docs/QA-LOG.md.** New entry "Release close 4" with every test type marked not run. The earlier "Not yet run" entry is kept.
+
+**6. Open after this close.** Golden hash re-baseline (since Beings build 3 and later sections). All test types. Legal review (owner). Trademark, name audit, look-and-feel review, store and age-rating review. Project licence choice. Firefox and device checks.

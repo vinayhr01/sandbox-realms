@@ -1,6 +1,6 @@
 {
   "name": "sandbox-realms",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Sandbox Realms - browser god-game sandbox",
   "scripts": {
     "dev": "vite",

@@ -64,6 +64,7 @@ export class SimClient {
   private seq = 1;
   private readonly replies = new Map<number, Pending>();
   private listener: ((event: Event) => void) | null = null;
+  private resumedListener: ((event: Event) => void) | null = null;
   private respawnListener: (() => void) | null = null;
   private readonly sent: number[] = [];
   private realm: RealmArgs | null = null;
@@ -80,6 +81,14 @@ export class SimClient {
 
   onEvent(listener: (event: Event) => void): void {
     this.listener = listener;
+  }
+
+  /**
+   * Listener for a Ready with reply 0: a generation job resumed after a reload finished (03 section 10). No request
+   * is waiting on it, so it is kept away from onEvent, whose Ready means a realm the page asked for.
+   */
+  onResumed(listener: (event: Event) => void): void {
+    this.resumedListener = listener;
   }
 
   /** Called after a respawn, once the new worker is initialised and the last realm is started again. */
@@ -250,6 +259,10 @@ export class SimClient {
   private dispatch(event: Event): void {
     if (event.kind === Ev.Heartbeat) {
       this.heartbeatAt = performance.now();
+      return;
+    }
+    if (event.kind === Ev.Ready && event.reply === 0) {
+      this.resumedListener?.(event);
       return;
     }
     if (event.kind === Ev.Ready || event.kind === Ev.QueryResult || event.kind === Ev.Saved || event.kind === Ev.Loaded) {

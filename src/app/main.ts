@@ -92,6 +92,42 @@ const $ = <T extends HTMLElement>(id: string): T => {
   return el as T;
 };
 
+/**
+ * Worldgen progress bar (03 section 10): a determinate bar with the stage name, shown while a generation job runs.
+ * Built here rather than in index.html, so the page markup is unchanged. Hidden until the first progress event.
+ */
+function worldgenBar(): { show(stage: string, progress: number): void; hide(): void } {
+  const box = document.createElement('div');
+  box.id = 'worldgen-progress';
+  box.hidden = true;
+  box.style.cssText =
+    'position:fixed;left:16px;right:16px;bottom:16px;z-index:60;max-width:420px;margin:0 auto;padding:10px 12px;border-radius:8px;background:rgba(16,16,24,0.92);color:#f2f2f2;font:14px/1.3 system-ui,sans-serif;';
+  const label = document.createElement('div');
+  const track = document.createElement('div');
+  track.setAttribute('role', 'progressbar');
+  track.setAttribute('aria-label', 'World generation');
+  track.setAttribute('aria-valuemin', '0');
+  track.setAttribute('aria-valuemax', '100');
+  track.style.cssText = 'height:6px;margin-top:6px;border-radius:3px;background:#3a3a48;overflow:hidden;';
+  const fill = document.createElement('div');
+  fill.style.cssText = 'height:100%;width:0%;background:#7fb069;';
+  track.append(fill);
+  box.append(label, track);
+  document.body.append(box);
+  return {
+    show(stage, progress) {
+      const pct = Math.max(0, Math.min(100, Math.floor(progress * 100)));
+      label.textContent = `${stage} ${pct}%`;
+      track.setAttribute('aria-valuenow', String(pct));
+      fill.style.width = `${pct}%`;
+      box.hidden = false;
+    },
+    hide() {
+      box.hidden = true;
+    },
+  };
+}
+
 /** Starts a new Realm from the crash dialog. Set once the sim client exists. */
 let restartRealm: (() => void) | null = null;
 
@@ -273,6 +309,7 @@ async function boot(): Promise<void> {
   // Map marks and beings: added after the terrain so they draw on top of it.
   const marks = new MarkLayer(renderer.app);
   const client = new SimClient();
+  const progressBar = worldgenBar();
   // Audio feed: the Age, biome shares and mood from each snapshot (16 B8). Read by the music state below.
   const musicFeed = new MusicFeed();
   // A respawned worker has lost its realm: resume from the newest autosave when there is one.
@@ -989,10 +1026,22 @@ async function boot(): Promise<void> {
     },
   });
 
+  // A job resumed after a reload finished (Ready, reply 0). No request asked for it and the page's own NewRealm
+  // (sent at start) is the realm the page shows, so this only clears the bar and is logged; it starts no realm.
+  client.onResumed(() => {
+    progressBar.hide();
+    journal('WORLDGEN_RESUMED', 'a generation job resumed after reload finished; the page keeps its own realm');
+  });
+
   client.onEvent((event: SimEvent) => {
     switch (event.kind) {
       case Ev.Ready:
+        // Resumed jobs go to onResumed, so this is a reply to a request, or the NewRealm a respawn sends for the last realm.
+        progressBar.hide();
         if (event.side > 0) setRealmSide(event.side, event.seed);
+        return;
+      case Ev.WorldgenProgress:
+        progressBar.show(event.resumed ? `Resuming: ${event.name}` : event.name, event.progress);
         return;
       case Ev.Frame:
         if (event.rows) {
@@ -1009,6 +1058,7 @@ async function boot(): Promise<void> {
         setCalendar(calendarText);
         return;
       case Ev.Fault:
+        progressBar.hide();
         journal(event.code, event.detail);
         if (event.severity === 'fatal')
           reportCrash(event.code === 'WORKER_ERROR' ? 'worker_dead' : 'sim_fatal', 'The simulation stopped', event.detail, undefined, 'worker');

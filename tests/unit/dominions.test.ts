@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../../src/shared/rng.ts';
 import { dominionStep, signPeace, RelationMatrix, type Dominion, type DominionContext } from '../../src/sim/dominions/index.ts';
+import { captureStep, CAPTURE_THRESHOLD, type CaptureContext, type CaptureFall } from '../../src/sim/dominions/capture.ts';
+import { ownerOfHamlet } from '../../src/sim/dominions/adapter.ts';
 
 function world(rules: Record<string, boolean>, strengths: [number, number]): { ctx: DominionContext; rel: RelationMatrix; a: Dominion; b: Dominion } {
   const a: Dominion = { id: 1, parcels: new Set([10, 11]), strength: strengths[0], target: -1, campaignSince: -1 };
@@ -67,11 +69,46 @@ describe('dominions', () => {
     expect(a.parcels.size).toBe(2);
   });
 
-  it('with border_creep on, the victor takes a parcel from the defeated dominion', () => {
+  it('with border_creep on, the defeat moves no parcel; the victor captures the hamlet once the capture threshold is reached', () => {
     const { ctx, rel, a, b } = world({ border_creep: true }, [100, 40]);
     run(ctx, rel, 2000);
     expect(b.strength).toBe(0);
-    expect(a.parcels.size).toBe(3);
-    expect(b.parcels.size).toBe(1);
+    // HAMLET_CAPTURE on: the strength exchange takes no parcel (step.ts exchange).
+    expect(a.parcels.size).toBe(2);
+    expect(b.parcels.size).toBe(2);
+
+    // Capture (10 section 7, capture.ts): the hamlet on dominion 2's parcels (20, 21) falls to dominion 1 when its
+    // capture ticks reach CAPTURE_THRESHOLD. The war is set again here: the defeat above set peace (step.ts exchange).
+    const perAxis = 8;
+    const owner = new Uint8Array(perAxis * perAxis);
+    for (const p of [10, 11]) owner[p] = 1;
+    for (const p of [20, 21]) owner[p] = 2;
+    const war = new RelationMatrix();
+    war.set(1, 2, 'war');
+    const hamlet = { parcels: new Set([20, 21]), buildings: [] };
+    const cap: CaptureContext = {
+      perAxis,
+      hamlets: [hamlet],
+      owner,
+      dominions: [a, b],
+      armies: [{ dominionId: 1, parcel: 11, soldiers: 100 }],
+      relations: war,
+      ownerOf: (parcels) => ownerOfHamlet(parcels, owner),
+      captures: new Map(),
+      takerOf: (captor) => captor,
+      isCapital: () => false,
+    };
+    let steps = 0;
+    let falls: CaptureFall[] = [];
+    while (falls.length === 0 && steps < 3 * CAPTURE_THRESHOLD) {
+      steps++;
+      falls = captureStep(cap);
+    }
+    expect(steps).toBe(CAPTURE_THRESHOLD);
+    expect(falls).toEqual([{ anchor: 20, loser: 2, winner: 1, capital: false }]);
+    expect(owner[20]).toBe(1);
+    expect(owner[21]).toBe(1);
+    expect(a.parcels.size).toBe(4);
+    expect(b.parcels.size).toBe(0);
   });
 });

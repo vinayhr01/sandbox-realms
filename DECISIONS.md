@@ -2714,3 +2714,15 @@ Scope: closes the slices that "Isolation granularity close 10" left as whole sys
 - Fatal invariant violations (17 section 9) are still not detected. Deviation 2 of "Pump isolation close 7" (the ping part) is unchanged.
 
 **Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`: `UnitGuard` now takes `number | string` (armies and rulers callers pass numbers, unchanged), and `borderUnit` and `CaptureContext.unit` are optional. Needed with test access: a unit test where one border pair throws and the other pairs still exchange, counted as `border:a-b`; a hamlet fault seen by two of the hamlet systems, counted together under `hamlet:<i>`; a check that three faults on one unit switch only that unit off for 600 ticks; and a no-fault hash check with and without a gate, which should match `GOLDEN_HASH` as before.
+
+## Type and capture test fixes close 12
+
+Scope: three fixes after the tsc and test failures left by "Capture close 8". Files: `src/sim/chronicle.ts` (the `creedSplitOk` tenet check, line 655), `tests/unit/weather-explosions.test.ts` (the `WeatherContext` fixture), `tests/unit/dominions.test.ts` and `tests/unit/dominions-wiring.test.ts` (the parcel-take tests). Production behaviour is unchanged. `HAMLET_CAPTURE` is not changed. `GOLDEN_HASH` is not edited.
+
+- **Chronicle tenet check (TS7006).** The `every` callback over `c.tenets` now types its parameter as `unknown`, matching the other shape checks in the same function (`birthOk`, `phonologyOk`). The check is the same: each tenet must be a string.
+- **Weather fixture (TS2741).** The test's `WeatherContext` gains `ashDrop: (_tile) => {}`, a no-op with the signature of `weather.ts` (`ashDrop(tile: number): void`). `ashDrop` stays required in `WeatherContext`: no note in this file says it is optional, and `sim.ts` supplies it in production.
+- **Parcel-take tests.** The defeat takes no parcel with `HAMLET_CAPTURE` on, so both tests now assert the capture rule instead.
+  - `dominions.test.ts`: the defeat leaves both parcel sets at two. Then `captureStep` (capture.ts) runs on the hamlet of dominion 2's parcels (20, 21), with dominion 1's army of 100 soldiers in reach. The hamlet falls on exactly `CAPTURE_THRESHOLD` steps, to dominion 1, and its parcels move in the owner bytes and the parcel sets. The war is set again on a fresh `RelationMatrix` for this part, because the defeat set peace (step.ts `exchange`).
+  - `dominions-wiring.test.ts`: the running sim still has a campaign that defeats dominion 2, and the owner counts stay as they were. The bare continent has no hamlets (probed: `hamletsOf` is empty after three years), so no capture can run there. The test asserts no parcel moves by defeat and no capture is in progress. Capture in the running sim needs a settlement fixture, which this test does not build.
+
+**Not verified.** Only the three test files above were run, not the full `npx vitest run` suite. The running-sim test no longer shows a capture; that gap is open.

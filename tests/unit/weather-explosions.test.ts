@@ -47,6 +47,7 @@ function world(seed: number, rules: Record<string, boolean> = {}) {
     cloudIntervalSs: 15,
     rainDrop: (tile) => rainDrop(sim, tile),
     freeze: (tile) => freeze(sim, tile),
+    ashDrop: (_tile) => {},
     startFire: (tile, force) => startFire(sim, tile, force),
     blast,
   };

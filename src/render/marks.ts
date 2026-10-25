@@ -4,12 +4,11 @@
  * coordinates from the snapshot; the layer converts them with the camera (CSS px per tile, offset of
  * tile (0,0)). It redraws only when the snapshot, the toggles or the camera change.
  *
- * Not drawn here: intrigues (the group is a plain id that can be a dominion or a hamlet, and no intrigue
- * is started in play, so no position is carried) and boats (the sim has no boat entity). Both rows stay
- * non-live in the Settings table.
+ * Intrigues are drawn at the tile of the dominion or hamlet they target, for running intrigues only. Not drawn
+ * here: boats (the sim has no boat entity; spec 10 section 13 is unbuilt), so `marks.boats` stays non-live.
  */
 import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
-import type { MapKind, MapMarks, Snapshot } from '../shared/protocol.ts';
+import type { MapIntrigue, MapKind, MapMarks, Snapshot } from '../shared/protocol.ts';
 import { buildingKindOf, SpriteFactory, type SpriteTex } from './sprites.ts';
 
 const ITEM_COLOUR = 0xffb020;
@@ -19,15 +18,21 @@ const CAMPAIGN_COLOUR = 0xff3b3b;
 const BATTLE_COLOUR = 0xffffff;
 const LINK_COLOUR = 0x9fb6ff;
 const HAMLET_COLOUR = 0xffe9a8;
+const REBELLION_COLOUR = 0xff4d6d;
+const SCHEME_COLOUR = 0xb388ff;
 /** Sprites this far outside the viewport (CSS px) are not placed: keeps a sprite whose anchor is off screen. */
 const SPRITE_MARGIN_PX = 16;
 const ITEM_RADIUS_PX = 4;
 const ARMY_HALF_PX = 3;
 const CAMPAIGN_RADIUS_PX = 6;
 const BATTLE_HALF_PX = 4;
+const INTRIGUE_HALF_PX = 5;
 const HAMLET_DOT_PX = 2.5;
 const LABEL_OFFSET_PX = 5;
-const LABEL_FONT_PX = 11;
+/** Nameplate font size at `ui.scaleNames` 100 percent (CSS px). The spec default of 70 gives 11.2 px, about today's size. */
+const LABEL_BASE_PX = 16;
+const NAME_SCALE_MIN = 30;
+const NAME_SCALE_MAX = 160;
 
 /** The `marks.*` and `map.*` toggles this layer reads. */
 export interface MarkToggles {
@@ -36,10 +41,32 @@ export interface MarkToggles {
   armies: boolean;
   campaigns: boolean;
   battles: boolean;
+  /** `marks.intrigues`: running intrigues at their target. */
+  intrigues: boolean;
   /** `map.names`: full draws the name, banner draws only the dot, off draws nothing. */
   names: 'full' | 'banner' | 'off';
   /** `map.favouritesOnlyNames`: only favourites get a name. No hamlet is a favourite, so hamlet names are hidden. */
   favouritesOnlyNames: boolean;
+  /** `ui.scaleNames`: nameplate text size in percent (30 to 160). */
+  nameScale: number;
+}
+
+/** Axis-aligned box in screen px, for the nameplate overlap test. */
+interface Box {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+function boxesOverlap(a: Box, b: Box): boolean {
+  return a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+}
+
+/** Nameplate font size (CSS px) for a `ui.scaleNames` percentage, clamped to its range. */
+export function nameFontPx(percent: number): number {
+  const p = Math.min(NAME_SCALE_MAX, Math.max(NAME_SCALE_MIN, percent));
+  return (LABEL_BASE_PX * p) / 100;
 }
 
 /** The camera state the layer needs. */
@@ -90,8 +117,10 @@ export class MarkLayer {
       toggles.armies,
       toggles.campaigns,
       toggles.battles,
+      toggles.intrigues,
       toggles.names,
       toggles.favouritesOnlyNames,
+      toggles.nameScale,
       view.offX,
       view.offY,
       view.zoom,
@@ -122,6 +151,8 @@ export class MarkLayer {
       const colour = toggles.favourites && item.favourite ? FAVOURITE_COLOUR : ITEM_COLOUR;
       g.circle(at.sx, at.sy, ITEM_RADIUS_PX).stroke({ width: 1.5, color: colour });
     }
+
+    if (toggles.intrigues && snap.mapIntrigues) this.drawIntrigues(snap.mapIntrigues, view);
 
     const marks = snap.mapMarks;
     if (marks) this.drawMarks(marks, toggles, view);
@@ -209,15 +240,41 @@ export class MarkLayer {
     // Hamlet names. Hamlets carry no favourite flag, so favourites-only names show none.
     if (toggles.names === 'off' || toggles.favouritesOnlyNames) return;
     const showText = toggles.names === 'full';
+    const fontPx = nameFontPx(toggles.nameScale);
+    // Names are placed in order and a name that would overlap one already placed is hidden (its dot stays).
+    const placed: Box[] = [];
     let used = 0;
     for (const h of marks.hamlets) {
       const { sx, sy } = toScreenAt(h.x, h.y);
       g.circle(sx, sy, HAMLET_DOT_PX).fill(HAMLET_COLOUR);
       if (!showText) continue;
-      const label = this.labelAt(used++);
+      const label = this.labelAt(used);
       label.text = h.name;
-      label.position.set(sx + LABEL_OFFSET_PX, sy - LABEL_OFFSET_PX);
+      if (label.style.fontSize !== fontPx) label.style.fontSize = fontPx;
+      const x0 = sx + LABEL_OFFSET_PX;
+      const y0 = sy - LABEL_OFFSET_PX;
+      const box: Box = { x0, y0, x1: x0 + label.width, y1: y0 + label.height };
+      if (placed.some((other) => boxesOverlap(box, other))) continue;
+      placed.push(box);
+      label.position.set(x0, y0);
       label.visible = true;
+      used++;
+    }
+  }
+
+  /** Running intrigues at their target tile (x, y of -1 is unplaced and skipped). Rebellions are drawn as squares, schemes as diamonds. */
+  private drawIntrigues(intrigues: readonly MapIntrigue[], view: MarkView): void {
+    const g = this.graphics;
+    for (const it of intrigues) {
+      if (!it.active || it.x < 0 || it.y < 0) continue;
+      const { sx, sy } = toScreen(view, it.x, it.y);
+      const colour = it.kind === 'rebellion' ? REBELLION_COLOUR : SCHEME_COLOUR;
+      const r = INTRIGUE_HALF_PX;
+      if (it.kind === 'rebellion') {
+        g.rect(sx - r, sy - r, r * 2, r * 2).stroke({ width: 1.5, color: colour });
+      } else {
+        g.moveTo(sx, sy - r).lineTo(sx + r, sy).lineTo(sx, sy + r).lineTo(sx - r, sy).closePath().stroke({ width: 1.5, color: colour });
+      }
     }
   }
 
@@ -227,7 +284,7 @@ export class MarkLayer {
     if (!label) {
       label = new Text({
         text: '',
-        style: { fontFamily: 'system-ui, sans-serif', fontSize: LABEL_FONT_PX, fill: HAMLET_COLOUR, stroke: { color: 0x000000, width: 3 } },
+        style: { fontFamily: 'system-ui, sans-serif', fontSize: nameFontPx(70), fill: HAMLET_COLOUR, stroke: { color: 0x000000, width: 3 } },
       });
       this.labelPool.push(label);
       this.labels.addChild(label);

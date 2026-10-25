@@ -1115,8 +1115,10 @@ async function boot(): Promise<void> {
           armies: boolOption(options, 'marks.armies'),
           campaigns: boolOption(options, 'marks.campaigns'),
           battles: boolOption(options, 'marks.battles'),
+          intrigues: boolOption(options, 'marks.intrigues'),
           names: stringOption(options, 'map.names') as 'full' | 'banner' | 'off',
           favouritesOnlyNames: boolOption(options, 'map.favouritesOnlyNames'),
+          nameScale: numberOption(options, 'ui.scaleNames'),
         },
         { offX: cam.offX, offY: cam.offY, zoom: cam.zoom, viewW: renderer.app.screen.width, viewH: renderer.app.screen.height },
       );

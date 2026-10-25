@@ -6,7 +6,7 @@
 const SENTINEL_KEY = 'sr.session';
 const JOURNAL_KEY = 'sr.journal';
 /** Breadcrumb ring: the last 50 entries (19 section 3). */
-const JOURNAL_MAX = 50;
+export const JOURNAL_MAX = 50;
 
 export interface JournalEntry {
   at: string;

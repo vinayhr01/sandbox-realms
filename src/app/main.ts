@@ -61,6 +61,7 @@ import {
 } from './recovery.ts';
 import { contentHash } from '../content/content-hash.ts';
 import { consentFromOption, exportCrashRecord, firstFatalNote, noteCrashRun, recordCrash, setCrashConsent } from './crash-record.ts';
+import { exportDiagnostics, type DiagnosticsSource } from './diagnostics.ts';
 import { logLine } from './log-ring.ts';
 import { noteFrameMs, noteSimMs, startLongTaskWatch } from './perf-sample.ts';
 
@@ -148,6 +149,9 @@ let autosaveRecovery: AutosaveRecovery | null = null;
 /** The emergency save for fatal paths (19 section 7 step 3b). Resolves to a step name. Set once the save controller exists. */
 let emergencySave: (() => Promise<string>) | null = null;
 
+/** The page state the diagnostics bundle reads at export time (17 section 9). Set in boot once the quality ladder exists. */
+let diagnosticsSource: () => DiagnosticsSource = () => ({ degradeLevel: 0, degradedOff: [], renderScale: 100, safeMode: false, realmSeed: 0, realmSide: 0 });
+
 /** Settings that change the picture's cost. A change to one is a QUALITY breadcrumb (19 section 3). */
 const QUALITY_OPTIONS: ReadonlySet<string> = new Set(['ui.fpsCap', 'perf.renderScale', 'map.shadows', 'map.bloom', 'map.particles', 'map.treeWind']);
 
@@ -197,8 +201,15 @@ async function exportCrashToFile(): Promise<ChronicleOutcome> {
   return { ok: out.ok, message: out.message };
 }
 
-async function exportCrashAndDownload(): Promise<void> {
-  setFatalDetail((await exportCrashToFile()).message);
+/** Writes the diagnostics bundle (17 section 9) and downloads it when the player asks. Nothing is sent (19 section 9). */
+async function exportDiagnosticsToFile(): Promise<ChronicleOutcome> {
+  const out = await exportDiagnostics(diagnosticsSource());
+  if (out.ok && out.name !== undefined && out.bytes !== undefined) downloadFile(out.name, out.bytes);
+  return { ok: out.ok, message: out.message };
+}
+
+async function exportDiagnosticsAndDownload(): Promise<void> {
+  setFatalDetail((await exportDiagnosticsToFile()).message);
 }
 
 /**
@@ -225,7 +236,7 @@ function reportCrash(kind: FaultKind, title: string, detail: string, stack?: str
     // js_main leaves the sim running, so it has no Continue button here.
     const actions: FatalAction[] = [restoreAction(hasSave, decision.level === 'restart_from_autosave')];
     if (kind !== 'js_main') actions.push(CONTINUE_OFF);
-    actions.push({ label: 'Export diagnostics', run: exportCrashAndDownload });
+    actions.push({ label: 'Export diagnostics', run: exportDiagnosticsAndDownload });
     if (kind === 'sim_fatal' && decision.level === 'reset_realm' && restartRealm) {
       const restart = restartRealm;
       actions.push({
@@ -517,6 +528,14 @@ async function boot(): Promise<void> {
     degradeWindowFrameMs = 0;
     degradeWindowFrames = 0;
   };
+  diagnosticsSource = () => ({
+    degradeLevel,
+    degradedOff: [...degradedOff],
+    renderScale: effectiveRenderScale(),
+    safeMode,
+    realmSeed,
+    realmSide,
+  });
   const showNotResponding = (): void => {
     const wait: FatalAction = {
       label: 'Wait',
@@ -678,7 +697,7 @@ async function boot(): Promise<void> {
             applySpeed();
           },
         },
-        { label: 'Export diagnostics', run: exportCrashAndDownload },
+        { label: 'Export diagnostics', run: exportDiagnosticsAndDownload },
       ],
     );
   };

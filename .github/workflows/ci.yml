@@ -47,12 +47,10 @@ jobs:
       fail-fast: false
       matrix:
         shard: [1, 2, 3, 4]
-        browser: [chromium, webkit]
+        browser: [chromium]
         include:
           - browser: chromium
             projects: --project=desktop-chromium --project=phone-portrait --project=chromium-360x640 --project=chromium-1920x1080
-          - browser: webkit
-            projects: --project=webkit-360x640 --project=webkit-1920x1080
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5

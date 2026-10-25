@@ -1,6 +1,8 @@
 import type { Rng } from '../shared/rng.ts';
-import { ON_HIT_MODIFIERS, type EffectStore } from './effects.ts';
+import { BITE_STATUSES, CLAW_BLEED_CHANCE, ON_HIT_MODIFIERS, ROT_TOUCHED_TRAIT, type EffectStore } from './effects.ts';
 import type { BeingStore } from './beings/store.ts';
+import { SPECIES } from '../content/beasts.ts';
+import { BEING_TRAIT_INDEX } from '../content/traits.ts';
 
 /** Damage types of 08 section 1 that this milestone uses. */
 export type DamageType = 'Weapon' | 'Other' | 'Explosion' | 'Fire' | 'Acid' | 'Poison' | 'Starvation' | 'Age' | 'Eaten' | 'Divine';
@@ -151,12 +153,31 @@ export function predate(ctx: CombatContext, predator: number, prey: number): { d
       ctx.effects.add(predator, 'sated', ctx.tick);
       return { dealt, killed: true };
     }
+    // Slashes (18c source of bleeding): a landed claw swing may open a wound.
+    if (swing.dealt > 0 && ctx.rng.next() < CLAW_BLEED_CHANCE) ctx.effects.add(prey, 'bleeding', ctx.tick);
   }
   const bite = Math.floor(0.15 * (ctx.beings.store.maxVit[prey] ?? 0)) + 1;
   const hit = applyDamage(ctx, prey, bite, 'Eaten', false, 'eaten');
   dealt += hit.dealt;
-  if (hit.killed) ctx.effects.add(predator, 'sated', ctx.tick);
+  if (hit.killed) {
+    ctx.effects.add(predator, 'sated', ctx.tick);
+  } else if (hit.dealt > 0) {
+    applyBiteStatuses(ctx, predator, prey);
+  }
   return { dealt, killed: hit.killed };
+}
+
+/**
+ * The statuses a landed bite applies (18c section 5 sources): the predator's species rule in BITE_STATUSES, and
+ * rotting for any predator carrying the `rot_touched` trait. The species rule rolls nothing (chance 1).
+ */
+function applyBiteStatuses(ctx: CombatContext, predator: number, prey: number): void {
+  const s = ctx.beings.store;
+  const species = SPECIES[s.species[predator] ?? -1];
+  const rule = species ? BITE_STATUSES[species.id] : undefined;
+  if (rule && rule.chance >= 1) ctx.effects.add(prey, rule.status, ctx.tick);
+  const rot = BEING_TRAIT_INDEX.get(ROT_TOUCHED_TRAIT);
+  if (rot !== undefined && s.hasMark(predator, rot)) ctx.effects.add(prey, 'rotting', ctx.tick);
 }
 
 /** Flying projectile (08 section 3.1, reduced): flies to a tile at a speed and hits what is there. */

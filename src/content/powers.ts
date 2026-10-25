@@ -254,8 +254,8 @@ export const POWERS: readonly PowerDef[] = [
     requires: [],
   })),
   // Havoc tab: bombs and calamity omens (sections 8.6, 10).
-  // Bombs (12 section 8.6). The spec id of the first is havoc_charge; it keeps the id havoc_bomb. Device
-  // grounds (powder, timed, hidden, sparkler) are cut, see DECISIONS.md "Combat release".
+  // Bombs (12 section 8.6). The spec id of the first is havoc_charge; it keeps the id havoc_bomb.
+  // Device bombs (params `device`) place a device ground that triggers later (04 section 8.4, devices.ts).
   click('havoc_bomb', 'havoc', 'Charge', 'bomb', { profile: 'blast' }, 0),
   click('havoc_handcharge', 'havoc', 'Hand charge', 'bomb', { profile: 'spark' }, 0),
   click('havoc_pitchfire', 'havoc', 'Pitch fire', 'bomb', { profile: 'pitchfire' }, 0),
@@ -265,6 +265,10 @@ export const POWERS: readonly PowerDef[] = [
   click('havoc_urchin', 'havoc', 'Urchin', 'bomb', { profile: 'urchin' }, 0),
   click('havoc_tidal', 'havoc', 'Tidal burst', 'bomb', { profile: 'tidal' }, 0),
   click('havoc_bolt', 'havoc', 'Bolt', 'bolt', { profile: 'bolt_medium' }, 3000),
+  click('havoc_powder', 'havoc', 'Powder', 'bomb', { device: 'thunderpowder' }, 0),
+  click('havoc_timed', 'havoc', 'Timed powder', 'bomb', { device: 'timedpowder' }, 0),
+  click('havoc_hidden', 'havoc', 'Hidden charge', 'bomb', { device: 'hidden_charge' }, 0),
+  click('havoc_sparkler', 'havoc', 'Sparkler', 'bomb', { device: 'festive_glimmer' }, 0),
   ...CALAMITY_OMENS.map((id): PowerDef => ({
     id: `omen_${id}`,
     tab: 'havoc',

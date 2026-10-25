@@ -1,4 +1,8 @@
 import type { Dominion, RelationMatrix } from './types.ts';
+import type { Sim } from '../sim.ts';
+import { addAggro } from '../beings/aggro.ts';
+import { ground } from '../../content/grounds.ts';
+import { PARCEL } from '../../shared/constants.ts';
 
 /** Renown an army gains when its dominion defeats another dominion in a strength exchange, or takes a parcel (TUNE). */
 export const ARMY_RENOWN_PER_DEFEAT = 1;
@@ -233,4 +237,67 @@ export function drawToGarrison(d: Dominion, army: Army | undefined, n: number): 
 export function returnFromGarrison(d: Dominion, army: Army | undefined, n: number): void {
   d.strength += Math.max(0, Math.floor(n));
   if (army) army.soldiers = d.strength;
+}
+
+/** Folk pairs one army contact engages (TUNE). */
+export const CONTACT_MAX = 4;
+
+/** The Folk Beings standing on a parcel's tiles, by slot. Beings carry no dominion, so the parcel is their side here. */
+function folkOn(sim: Sim, parcel: number, perAxis: number): number[] {
+  const s = sim.beings.store;
+  const x0 = (parcel % perAxis) * PARCEL;
+  const y0 = Math.floor(parcel / perAxis) * PARCEL;
+  const out: number[] = [];
+  for (let k = 0; k < s.size; k++) {
+    const slot = s.at(k);
+    if (s.alive[slot] !== 1 || !sim.beings.species(s.species[slot] ?? 0).folk) continue;
+    const x = s.x[slot] ?? 0;
+    const y = s.y[slot] ?? 0;
+    if (x >= x0 && x < x0 + PARCEL && y >= y0 && y < y0 + PARCEL) out.push(slot);
+  }
+  return out.sort((p, q) => p - q);
+}
+
+/** A free land tile beside (x, y) (8 neighbours), or null. */
+function freeBeside(sim: Sim, x: number, y: number): [number, number] | null {
+  const realm = sim.realm;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if ((dx === 0 && dy === 0) || !realm.inBounds(nx, ny)) continue;
+      if (ground(realm.ground[ny * realm.side + nx] ?? 0).layer !== 'land') continue;
+      if (sim.beingAt(nx, ny) < 0) return [nx, ny];
+    }
+  }
+  return null;
+}
+
+/**
+ * Army contact (10 section 8, Folk layer): when two armies in contact trade strength, their Folk fight too. The Folk
+ * on each army's parcel are its members here. Up to CONTACT_MAX pairs are taken in slot order: each member of `b`
+ * steps onto a free land tile beside its partner of `a`, and the two grudge each other (addAggro), so the fight and
+ * brawl code of the Beings runs from their next decision. Returns the number of pairs engaged. Draws no randomness;
+ * does nothing when perAxis is 0.
+ * Not called yet: the strength exchange (dominions/step.ts) is run from the adapter, which is outside this change.
+ */
+export function engageArmies(sim: Sim, a: Army, b: Army, perAxis: number): number {
+  if (perAxis <= 0) return 0;
+  const sideA = folkOn(sim, a.parcel, perAxis);
+  const sideB = folkOn(sim, b.parcel, perAxis);
+  const s = sim.beings.store;
+  let engaged = 0;
+  for (let k = 0; k < Math.min(CONTACT_MAX, sideA.length, sideB.length); k++) {
+    const pa = sideA[k] ?? -1;
+    const pb = sideB[k] ?? -1;
+    const spot = freeBeside(sim, s.x[pa] ?? 0, s.y[pa] ?? 0);
+    if (!spot) continue;
+    s.x[pb] = spot[0];
+    s.y[pb] = spot[1];
+    addAggro(sim, pa, pb);
+    addAggro(sim, pb, pa);
+    engaged++;
+  }
+  if (engaged > 0) sim.beings.rebuildBuckets();
+  return engaged;
 }

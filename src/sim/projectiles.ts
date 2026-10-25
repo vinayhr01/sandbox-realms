@@ -1,16 +1,24 @@
 /**
- * Projectile kinds, creature blast profiles and launches (08 sections 2.1, 3 and 4). The 16 kinds of
+ * Projectile kinds, creature blast profiles and launches (08 sections 2.1, 2.4, 3 and 4). The 16 kinds of
  * 08 section 3.3 are data here; flight and landing are in combat.ts (stepProjectiles) and this file
- * supplies the launch from worn ranged weapons, the landing blast and the impact ignite.
+ * supplies the launches (worn ranged weapons and the thrower skills), the landing blast, the impact ignite
+ * and the device triggers of 04 section 8.4 (devices.ts, polled from the launch step).
+ *
+ * Owners in this build: `scatter_shot` (scatter gun), `powder_flask` (powderhurler) and `pitch_torch`
+ * (torchhurler) are launched; the other seven have no owner yet (see DECISIONS.md, Combat build 3).
  *
  * Not modelled (the flags of 08 section 3 with no mechanic yet): `blockable` (no block pool),
  * `stayOnGround` fade, `hitFreeze`, `hitShake`, `lookAtTarget`, the 3D arc and the in-flight collision
  * with other Beings (a projectile hits what stands on its target tile when it arrives).
  */
 import type { Sim } from './sim.ts';
-import { ATTACK_TICKS, type DamageType, type Projectile } from './combat.ts';
+import { ATTACK_TICKS, type CombatContext, type DamageType, type Projectile } from './combat.ts';
 import { explode } from './explosions.ts';
 import { startFire } from './terrain/fire.ts';
+import { BEING_TRAIT_INDEX } from '../content/traits.ts';
+import type { BombProfile } from '../content/powers.ts';
+import { detonateBomb } from './powers/handlers.ts';
+import { deviceStruck, devicesStep } from './devices.ts';
 
 /** Ticks per second (17: 20 ticks/s); spec speeds are tiles per second. */
 const TICKS_PER_SECOND = 20;
@@ -177,20 +185,77 @@ function isPrey(sim: Sim, slot: number, other: number): boolean {
   return !!rt && rt.prey.includes(s.species[other] ?? -1);
 }
 
+/** Thrower skills (08 section 2.4 `lob_pot`, `lob_brand`): the trait that grants each, and the projectile it throws. */
+const LOB_TRAITS: readonly { trait: string; projectile: string }[] = [
+  { trait: 'powderhurler', projectile: 'powder_flask' },
+  { trait: 'torchhurler', projectile: 'pitch_torch' },
+];
+/** Lob target range in tiles (08 2.4: 6..50). */
+const LOB_MIN = 6;
+const LOB_MAX = 50;
+/** Ticks between lobs (08 2.4 cooldown 160). */
+const LOB_TICKS = 160;
+/** Chance a ready thrower lobs this tick (08 2.4 base chance 0.2, before skill). */
+const LOB_CHANCE = 0.2;
+
+/** The projectile a Being's thrower trait throws, or null. */
+function lobProjectileOf(sim: Sim, slot: number): string | null {
+  const s = sim.beings.store;
+  for (const t of LOB_TRAITS) {
+    const k = BEING_TRAIT_INDEX.get(t.trait);
+    if (k !== undefined && s.hasMark(slot, k)) return t.projectile;
+  }
+  return null;
+}
+
+/**
+ * Thrower action of a Being with no ranged weapon: at the nearest prey 6 to 50 tiles away it throws its
+ * flask or torch. A ready thrower that does not lob waits one basic-attack interval, not the lob cooldown.
+ */
+function lobStep(sim: Sim, ctx: CombatContext, slot: number): void {
+  const projectile = lobProjectileOf(sim, slot);
+  if (!projectile) return;
+  const s = sim.beings.store;
+  const prey = sim.beings.nearest(slot, (o) => isPrey(sim, slot, o), LOB_MAX);
+  if (prey < 0) return;
+  const sx = s.x[slot] ?? 0;
+  const sy = s.y[slot] ?? 0;
+  const tx = s.x[prey] ?? 0;
+  const ty = s.y[prey] ?? 0;
+  if (Math.hypot(tx - sx, ty - sy) < LOB_MIN) return;
+  if (sim.rng('projectiles').next() >= LOB_CHANCE) {
+    sim.combat.attackTimer[slot] = ATTACK_TICKS;
+    return;
+  }
+  sim.combat.attackTimer[slot] = LOB_TICKS;
+  const raw = Math.floor(ctx.might(slot) * (0.5 + ctx.rng.next() * 0.5) * ctx.effects.multiplier(slot, 'damage'));
+  launchProjectile(sim, projectile, sx, sy, tx, ty, slot, raw, []);
+}
+
+/** Runs one bomb profile for a device (devices.ts); the guard may refuse it, which returns false. */
+function detonateDevice(sim: Sim, prof: BombProfile, x: number, y: number): boolean {
+  return detonateBomb(sim, prof, x, y, false);
+}
+
 /**
  * Launch step (08 section 2.1, ranged basic attack): each Being with a ready attack timer and a
- * ranged weapon shoots a volley at the nearest prey within the weapon's reach. Runs once per tick
- * before the projectiles move.
+ * ranged weapon shoots a volley at the nearest prey within the weapon's reach; a thrower without a
+ * weapon lobs instead (lobStep). Runs once per tick before the projectiles move. The device triggers
+ * of 04 section 8.4 run first, since this is the per-tick step that always runs.
  */
 export function shootStep(sim: Sim): void {
   const s = sim.beings.store;
   const ctx = sim.combatContext();
+  devicesStep(sim, detonateDevice);
   for (let k = 0; k < s.size; k++) {
     if (sim.projectiles.length >= MAX_PROJECTILES) return;
     const slot = s.at(k);
     if ((sim.combat.attackTimer[slot] ?? 0) > 0) continue;
     const weapon = rangedWeaponOf(sim, slot);
-    if (!weapon) continue;
+    if (!weapon) {
+      lobStep(sim, ctx, slot);
+      continue;
+    }
     const prey = sim.beings.nearest(slot, (o) => isPrey(sim, slot, o), weapon.reach);
     if (prey < 0) continue;
     sim.combat.attackTimer[slot] = ATTACK_TICKS;
@@ -216,4 +281,6 @@ export function landProjectile(sim: Sim, p: Projectile): void {
   if (!sim.realm.inBounds(x, y)) return;
   if (p.ignite) startFire(sim, y * sim.realm.side + x, true);
   if (p.blast) creatureBlast(sim, p.blast, x, y, p.shooter ?? -1);
+  // A hidden charge is hit by any projectile that lands on it (18e section 5).
+  deviceStruck(sim, y * sim.realm.side + x, detonateDevice);
 }

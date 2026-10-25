@@ -100,6 +100,24 @@ export const ON_HIT_MODIFIERS: Readonly<Record<string, { status: string; chance:
   venomous: { status: 'venomed', chance: 0.3 },
 };
 
+/**
+ * Statuses a predator's bite applies to its prey, keyed by the predator's species id (18c section 5 `source`
+ * column: stingtail for numbed, gnatveil for itchy, inkreaver for blinded, rotstride for rotting). Used by
+ * combat.predate only; the Folk strike and brawl paths are not wired to these. Chance 1 is always.
+ */
+export const BITE_STATUSES: Readonly<Record<string, { status: string; chance: number }>> = {
+  stingtail: { status: 'numbed', chance: 1 },
+  gnatveil: { status: 'itchy', chance: 1 },
+  inkreaver: { status: 'blinded', chance: 1 },
+  rotstride: { status: 'rotting', chance: 1 },
+};
+
+/** Trait (18b `rot_touched`, ACQ) that makes any bite of its carrier apply rotting (18c source "rotstride bite"). */
+export const ROT_TOUCHED_TRAIT = 'rot_touched';
+
+/** Chance that a claw swing which lands leaves its victim bleeding (18c source "slashes"; TUNE, not in 08). */
+export const CLAW_BLEED_CHANCE = 0.2;
+
 export const STATUS_BY_ID = new Map(STATUSES.map((s, k) => [s.id, k + 1]));
 
 /** Status code (1-based, 0 = empty) for an id. */

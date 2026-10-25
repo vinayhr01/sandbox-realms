@@ -1,7 +1,7 @@
 import { G, ground } from '../content/grounds.ts';
 import { BIOMES, biomeOfCover } from '../content/biomes.ts';
 import { FLORA_18D } from '../content/flora-18d.ts';
-import { FLAG } from './realm.ts';
+import { FLAG, type Realm } from './realm.ts';
 import { n8 } from './grid.ts';
 import type { Sim } from './sim.ts';
 import type { Rng } from '../shared/rng.ts';
@@ -131,6 +131,24 @@ export function wildSeeding(sim: Sim, attempts: number): void {
     const cy = rng.int(realm.side);
     for (let p = 0; p < 5; p++) seedTile(sim, rng, cx + rng.int(5) - 2, cy + rng.int(5) - 2, dense);
   }
+  seedHives(sim, rng);
+}
+
+/** Hive draws per wild seeding call, and the chance each draw places one (TUNE; the spec gives no hive density). */
+const HIVE_ATTEMPTS = 4;
+const HIVE_CHANCE = 0.05;
+
+/** Places wild hives on free tiles of the hive biomes (flora-18d HIVE). Draws only from the 'wild' stream. */
+function seedHives(sim: Sim, rng: Rng): void {
+  const k = FLORA_BY_ID.get('hive');
+  const def = k === undefined ? undefined : FLORA[k];
+  if (k === undefined || !def) return;
+  const realm = sim.realm;
+  for (let a = 0; a < HIVE_ATTEMPTS; a++) {
+    const i = rng.int(realm.tileCount);
+    if (rng.next() >= HIVE_CHANCE) continue;
+    if (canPlant(sim, i, def)) realm.setFlora(i, k + 1, sim.tick);
+  }
 }
 
 /** Wild-seeding categories (03 section 8.1): 0 tree, 1 plant (fungi included), 2 bush. */
@@ -210,7 +228,8 @@ export function floraPass(sim: Sim, budget: number): void {
     if (!def || def.kind === 'mineral') continue;
     const age = sim.tick - (realm.floraSince[i] ?? 0);
     if (def.kind === 'object') {
-      if (age >= def.matureTicks && sim.rng('flora').next() < MANURE_PLANT_CHANCE && convertManure(sim, i)) continue;
+      // Only manure piles turn into plants; hives and ruins never do.
+      if (def.id === 'manure_pile' && age >= def.matureTicks && sim.rng('flora').next() < MANURE_PLANT_CHANCE && convertManure(sim, i)) continue;
       if (age >= def.lifespanTicks) realm.setFlora(i, 0, 0);
       continue;
     }
@@ -422,7 +441,7 @@ function parcelManure(sim: Sim, i: number): number {
   let count = 0;
   for (let y = y0; y < y0 + 8; y++) {
     for (let x = x0; x < x0 + 8; x++) {
-      if (floraAt(realm.flora[y * realm.side + x] ?? 0)?.kind === 'object') count++;
+      if (floraAt(realm.flora[y * realm.side + x] ?? 0)?.id === 'manure_pile') count++;
     }
   }
   return count;
@@ -474,30 +493,90 @@ export function cropFor(biomeId: string): string {
   return variety?.id ?? 'emmer';
 }
 
+/** Ticks of growth a fertilised crop gains at once: a third of its ripening time (09 section 11, TUNE). */
+const FERTILISE_SHIFT = (def: FloraDef): number => Math.floor(def.matureTicks / 3);
+
 /**
- * Plants a crop on a tilled tile (18d 3.4). Tillers (09) are the only callers in the design; the
- * sim does not till ground itself. Returns true when planted.
+ * Plants a crop on a tilled tile (18d 3.4). Called by tillers (09 section 8, work loop in hamlet.ts). Takes the realm and
+ * the tick so the hamlet step needs no Sim. Returns true when planted.
  */
-export function plantCrop(sim: Sim, i: number): boolean {
-  const realm = sim.realm;
+export function plantCrop(realm: Realm, tick: number, i: number): boolean {
   if (realm.flora[i] !== 0 || realm.hasFlag(i, FLAG.burning)) return false;
-  if ((realm.floraBlockedUntil[i] ?? 0) > sim.tick) return false;
+  if ((realm.floraBlockedUntil[i] ?? 0) > tick) return false;
   if (realm.ground[i] !== G.tilled) return false;
   const biome = biomeOfCover(realm.cover[i] ?? 0);
   const biomeId = biome < 0 ? '' : BIOMES[biome]?.id ?? '';
-  realm.setFlora(i, floraCode(cropFor(biomeId)), sim.tick);
+  realm.setFlora(i, floraCode(cropFor(biomeId)), tick);
   return true;
 }
 
-/** Harvests a ripe crop on tile i: returns the grain (1) and clears the tile, or 0 if not ripe. */
-export function harvestCrop(sim: Sim, i: number): number {
-  const realm = sim.realm;
+/** True when tile i holds a crop that is ripe (stage 2, 18d 5.1). */
+export function cropRipe(realm: Realm, tick: number, i: number): boolean {
   const def = floraAt(realm.flora[i] ?? 0);
-  if (!def || def.kind !== 'crop') return 0;
-  const age = sim.tick - (realm.floraSince[i] ?? 0);
-  if (floraStage(def, age) !== 2) return 0;
-  realm.setFlora(i, 0, 0);
+  if (!def || def.kind !== 'crop') return false;
+  return floraStage(def, tick - (realm.floraSince[i] ?? 0)) === 2;
+}
+
+/** Harvests a ripe crop on tile i: returns the grain (1) and clears the tile, or 0 if not ripe. */
+export function harvestCrop(realm: Realm, tick: number, i: number): number {
+  if (!cropRipe(realm, tick, i)) return 0;
+  realm.setFlora(i, 0, tick);
   return 1;
+}
+
+/**
+ * Fertilises an unripe crop with a manure pile (09 section 11 fertilise, TUNE): the crop's age is moved on by a third of
+ * its ripening time at once. Returns true when a crop was fertilised.
+ */
+export function fertiliseCrop(realm: Realm, tick: number, i: number): boolean {
+  const def = floraAt(realm.flora[i] ?? 0);
+  if (!def || def.kind !== 'crop') return false;
+  if (floraStage(def, tick - (realm.floraSince[i] ?? 0)) >= 2) return false;
+  realm.floraSince[i] = Math.max(0, (realm.floraSince[i] ?? 0) - FERTILISE_SHIFT(def));
+  return true;
+}
+
+/** True when tile i can be tilled into a field: free land that is not strand, road, field or burning (18d 3.4, 09 section 11). */
+export function tillable(realm: Realm, i: number): boolean {
+  if (realm.flora[i] !== 0 || realm.hasFlag(i, FLAG.burning)) return false;
+  const g = realm.ground[i] ?? 0;
+  if (g === G.strand || g === G.tilled || g === G.wayworn) return false;
+  return ground(g).layer === 'land';
+}
+
+/** Tills tile i into a field (09 section 11 makeField). Returns true when the ground changed. */
+export function till(realm: Realm, i: number): boolean {
+  if (!tillable(realm, i)) return false;
+  realm.setGround(i, G.tilled);
+  return true;
+}
+
+/** Hamlet honey: a hive takes this many ticks to build honey again after it was taken (TUNE; the spec gives no rate). */
+export const HONEY_TICKS = MONTH_TICKS * 3;
+
+/** True when tile i holds a hive with honey built up (age since last taken, 18c hive honey). */
+export function hiveReady(realm: Realm, tick: number, i: number): boolean {
+  if (realm.flora[i] !== floraCode('hive')) return false;
+  return tick - (realm.floraSince[i] ?? 0) >= HONEY_TICKS;
+}
+
+/** Takes the honey from a ready hive: the honey goes to zero and the hive ages from now. Returns 1 when taken, else 0. */
+export function takeHoney(realm: Realm, tick: number, i: number): number {
+  if (!hiveReady(realm, tick, i)) return 0;
+  realm.setFlora(i, floraCode('hive'), tick);
+  return 1;
+}
+
+/** Takes a manure pile off tile i (manure collector, 09 section 8). Returns true when a pile was taken. */
+export function pickManure(realm: Realm, i: number): boolean {
+  if (realm.flora[i] !== floraCode('manure_pile')) return false;
+  realm.setFlora(i, 0, 0);
+  return true;
+}
+
+/** Turns civil ground into a ruin (09 section 6 damage/ruin): `dwelling` picks ruined_dwelling, else ruined_hall. */
+export function makeRuin(realm: Realm, tick: number, i: number, dwelling: boolean): void {
+  realm.setFlora(i, floraCode(dwelling ? 'ruined_dwelling' : 'ruined_hall'), tick);
 }
 
 /**

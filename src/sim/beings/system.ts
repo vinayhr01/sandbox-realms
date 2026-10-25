@@ -1,7 +1,9 @@
 import { SIZE_RANK, SPECIES, speciesIndex, type SpeciesDef } from '../../content/beasts.ts';
 import { ground } from '../../content/grounds.ts';
 import { BEING_TRAITS, BEING_TRAIT_INDEX, BIRTH_POT as BIRTH_POT_IDS } from '../../content/traits.ts';
-import { FLORA, FLORA_BY_ID, grazeFlora } from '../flora.ts';
+import { dropManure, FLORA, FLORA_BY_ID, grazeFlora } from '../flora.ts';
+import { hamletsOf } from '../settlements/adapter.ts';
+import { foodCapacity, PARCEL } from '../settlements/hamlet.ts';
 import type { Realm } from '../realm.ts';
 import type { Sim } from '../sim.ts';
 import { recordStat } from '../stats-hooks.ts';
@@ -51,6 +53,17 @@ export type { BeingStore };
 const DECISIONS = DECISION_ROWS.length;
 /** Ticks between bond checks (round 6, ROUND6.bondCheck). */
 const BOND_CHECK = ROUND6.bondCheck;
+/** Chance a grazing being drops a manure pile on the tile it ate from (09 section 8 manure collector; TUNE). */
+const GRAZE_MANURE_CHANCE = 0.1;
+/** Ticks between hunter checks, and the hunter's reach in tiles (09 section 8 hunter, patch radius 3). */
+const HUNT_PERIOD = 100;
+const HUNT_RADIUS = 3;
+/** Prey must be at least this many years old for a hunter to take it (09 section 8 hunter, age 3 or more). */
+const HUNT_MIN_YEARS = 3;
+/** Meat a hunter's kill adds to the hamlet store (09 section 10.1 meat food; TUNE). */
+const MEAT_FOOD = 2;
+/** Folk a hamlet needs before it keeps a hunter (09 section 8 hunter, TUNE). */
+const HUNT_MIN_FOLK = 4;
 
 /** Ticks between fuel passes (06 section 2.1: 100 passes fill a 100-point bar at metabolism 1). */
 const FUEL_PASS = 300;
@@ -919,7 +932,11 @@ function forage(sim: Sim, slot: number, diet: SpeciesDef['diet']): boolean {
   const food = foodAt(sim, here, diet);
   if (food > 0) {
     s.fuel[slot] = Math.min(100, (s.fuel[slot] ?? 0) + food);
-    if (diet === 'grass' || diet === 'omni') grazeFlora(sim, here);
+    if (diet === 'grass' || diet === 'omni') {
+      grazeFlora(sim, here);
+      // Grazers leave dung behind for the manure collector (flora.ts dropManure; placed on the grazed tile or the nearest free one).
+      if (sim.rng('manure').next() < GRAZE_MANURE_CHANCE) dropManure(sim, s.x[slot] ?? 0, s.y[slot] ?? 0);
+    }
     setNext(sim, slot, 4);
     return false;
   }
@@ -1375,6 +1392,42 @@ function birthday(sim: Sim, slot: number): boolean {
  * pregnancies, movement budget, and decisions when due. Round 8 adds the trait life hooks (mending, stumbling,
  * pregnancy stasis, the venerable caste) before the death roll.
  */
+/**
+ * Hunter kill rule (09 section 8 hunter; beings hook only). A hamlet with a larder and at least HUNT_MIN_FOLK folk keeps one
+ * hunter: the first adult folk of its parcels in store order. The hunter strikes the first non-kin being, not folk and
+ * at least HUNT_MIN_YEARS old, within HUNT_RADIUS, through combat.predate. A kill adds meat to the hamlet store (up to its cap).
+ * Runs every HUNT_PERIOD ticks and draws no randomness.
+ */
+function hunterStep(sim: Sim): void {
+  if (sim.tick % HUNT_PERIOD !== 0) return;
+  const s = sim.beings.store;
+  const perAxis = sim.realm.side / PARCEL;
+  const parcelOf = (slot: number): number => Math.floor((s.y[slot] ?? 0) / PARCEL) * perAxis + Math.floor((s.x[slot] ?? 0) / PARCEL);
+  for (const h of hamletsOf(sim)) {
+    if (h.folk < HUNT_MIN_FOLK || !h.buildings.some((bl) => bl.def.id === 'larder')) continue;
+    let hunter = -1;
+    for (let k = 0; k < s.size && hunter < 0; k++) {
+      const slot = s.at(k);
+      if (s.alive[slot] === 1 && s.baby[slot] === 0 && h.parcels.has(parcelOf(slot)) && sim.beings.species(s.species[slot] ?? 0).folk) hunter = slot;
+    }
+    if (hunter < 0) continue;
+    const hx = s.x[hunter] ?? 0;
+    const hy = s.y[hunter] ?? 0;
+    let prey = -1;
+    for (let k = 0; k < s.size && prey < 0; k++) {
+      const o = s.at(k);
+      if (o === hunter || s.alive[o] !== 1 || s.species[o] === s.species[hunter]) continue;
+      if (sim.beings.species(s.species[o] ?? 0).folk) continue;
+      if (sim.tick - (s.born[o] ?? 0) < HUNT_MIN_YEARS * YEAR_TICKS) continue;
+      if (Math.max(Math.abs((s.x[o] ?? 0) - hx), Math.abs((s.y[o] ?? 0) - hy)) <= HUNT_RADIUS) prey = o;
+    }
+    if (prey < 0) continue;
+    const hit = predate(sim.combatContext(), hunter, prey);
+    const cap = foodCapacity(h);
+    if (hit.killed && h.food < cap) h.food = Math.min(h.food + MEAT_FOOD, cap);
+  }
+}
+
 export function stepBeings(sim: Sim): void {
   const b = sim.beings;
   const s = b.store;
@@ -1387,6 +1440,7 @@ export function stepBeings(sim: Sim): void {
   const rng = sim.rng('beings');
   b.rebuildBuckets();
   b.countStrains();
+  hunterStep(sim);
 
   for (let k = s.size - 1; k >= 0; k--) {
     const slot = s.at(k);

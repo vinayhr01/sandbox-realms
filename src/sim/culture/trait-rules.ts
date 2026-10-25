@@ -88,7 +88,7 @@ export const EAGER_READER_MULT = 3;
 export const CONVERT_HP_RATIO = 0.3;
 /** Chance a defeated weak non-mind target defects under `convertOrElse` (11 section 9.1: 30%). */
 export const CONVERT_CHANCE = 0.3;
-/** Extra tower limit of `towerPride` (11 section 9.1: +4). The tower building is cut, so nothing reads it yet. */
+/** Extra tower limit of `towerPride` (11 section 9.1: +4). Read by the watchspire limit (settlements/custom-rules.ts). */
 export const TOWER_PRIDE_BONUS = 4;
 
 /** Xp after the holder's study traits (swiftStudy doubles it). */
@@ -141,7 +141,7 @@ export interface SplitFacts {
 
 /**
  * Whether a meta may divide, schism or diverge (11 section 2): keepers blocks it, and so does any failed precondition.
- * Pure: the intrigue that would call it is not built (DECISIONS.md, "Customs close 4"). Draws no rng.
+ * Pure: the split intrigues call it through intrigue.ts splitOk (DECISIONS.md, "Dominions close 5"). Draws no rng.
  */
 export function splitAllowed(f: SplitFacts): boolean {
   if (blocksSplit(f.traits)) return false;

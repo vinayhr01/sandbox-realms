@@ -38,14 +38,31 @@ export function soldierTimer(warfare: number, garrison: boolean): number {
   return garrison ? Math.floor(base / 2) : base;
 }
 
+/** Army slots a built garrison adds to its hamlet (18c garrison row "Raises army slots"; the number is not in the spec, TUNE). */
+export const GARRISON_SLOT_BONUS = 2;
+/** Army slots a built bastion adds to its hamlet (18e bastion row: +10 army slots). Spec value. */
+export const BASTION_SLOT_BONUS = 10;
+
+/**
+ * Army slots that the buildings of a hamlet add (18c garrison, 18e bastion). Both are one per hamlet, so presence is the test.
+ * `buildingIds` are the ids of the hamlet's finished buildings.
+ */
+export function buildingSlotBonus(buildingIds: readonly string[]): number {
+  let bonus = 0;
+  if (buildingIds.includes('garrison')) bonus += GARRISON_SLOT_BONUS;
+  if (buildingIds.includes('bastion')) bonus += BASTION_SLOT_BONUS;
+  return bonus;
+}
+
 /**
  * Soldier slots of a hamlet (09 section 8 quota, acceptance 6): `floor(adults x armyFactor)` with
- * `armyFactor = ARMY_BASE + leader.armyBonus + leader.warfare x 0.02`, and 0 while adults <= ARMY_ADULTS_MIN.
- * The rule `standing_armies` is checked by the caller. Pure: no sim, no RNG.
+ * `armyFactor = ARMY_BASE + leader.armyBonus + leader.warfare x 0.02`, plus `buildingSlots` (buildingSlotBonus), and 0 while
+ * adults <= ARMY_ADULTS_MIN (the spec's "0 slots" rule covers the building bonuses too). The rule `standing_armies` is
+ * checked by the caller. Pure: no sim, no RNG.
  */
-export function soldierSlots(adults: number, warfare: number, armyBonus: number): number {
+export function soldierSlots(adults: number, warfare: number, armyBonus: number, buildingSlots = 0): number {
   if (adults <= ARMY_ADULTS_MIN) return 0;
-  return Math.floor(adults * (ARMY_BASE + armyBonus + warfare * 0.02));
+  return Math.floor(adults * (ARMY_BASE + armyBonus + warfare * 0.02)) + buildingSlots;
 }
 
 /** One hamlet's garrison: its owner when it last drew, the soldiers it holds, and the ticks until the next recruit. */

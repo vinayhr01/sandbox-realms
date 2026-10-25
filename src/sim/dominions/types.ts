@@ -3,6 +3,9 @@ import type { Rng } from '../../shared/rng.ts';
 /** Diplomatic state between two dominions (10 section 2, reduced to three levels). */
 export type Relation = 'peace' | 'tension' | 'war';
 
+/** Rank of a dominion by power (10 section 4, rank.ts): the highest is supreme, the second is second. */
+export type Rank = 'supreme' | 'second';
+
 /** A dominion: parcels it holds, its army strength and its campaign target (plain ids). */
 export interface Dominion {
   id: number;
@@ -22,6 +25,8 @@ export interface Dominion {
   ruler?: { slot: number; gen: number };
   /** Tick before which no successor is sought after a ruler's death (rulers.ts). Optional: absent when no wait runs. */
   rulerWaitUntil?: number;
+  /** Rank by power, set every RANK_PERIOD_TICKS (rank.ts). Optional: absent for a dominion that is neither supreme nor second. */
+  rank?: Rank;
 }
 
 /** Structural context for dominionStep (no Sim import). */

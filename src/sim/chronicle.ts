@@ -602,6 +602,20 @@ function checkCulture(raw: unknown): CulturePayload {
     Array.isArray(raw.customs) &&
     raw.customs.every((c) => isRecord(c) && isFiniteNumber(c.group) && Array.isArray(c.traits) && c.traits.every((t) => typeof t === 'string'));
   if (!listsOk || !creedsOk || !customsOk) throw new Error('chronicle: culture payload is not valid');
+  // Optional split records (11 section 2): every meta may carry a creator group and a birth tick; a creed may carry tenet
+  // ids and a dialect may carry lexicon ids (culture.ts splitCreed, splitDialect). Absent fields are read as absent.
+  const birthOk = (m: unknown): boolean =>
+    isRecord(m) && (m.creator === undefined || isFiniteNumber(m.creator)) && (m.born === undefined || isFiniteNumber(m.born));
+  const dialectsOk =
+    Array.isArray(raw.dialects) &&
+    raw.dialects.every(
+      (d) => isRecord(d) && isFiniteNumber(d.group) && isFiniteNumber(d.word) && birthOk(d) && (d.lexicon === undefined || (Array.isArray(d.lexicon) && d.lexicon.every(isFiniteNumber))),
+    );
+  const creedSplitOk =
+    Array.isArray(creeds) &&
+    creeds.every((c) => birthOk(c) && (c.tenets === undefined || (Array.isArray(c.tenets) && c.tenets.every((t) => typeof t === 'string'))));
+  const customSplitOk = Array.isArray(raw.customs) && raw.customs.every(birthOk);
+  if (!dialectsOk || !creedSplitOk || !customSplitOk) throw new Error('chronicle: culture split records are not valid');
   // Optional family records (11 section 7): when present, each has an id, two founders, a member list and a banner.
   if (raw.familyRecords !== undefined) {
     const records = raw.familyRecords;
@@ -666,7 +680,9 @@ function checkDominions(raw: unknown): DominionSnapshot | null {
   }
   // Optional ruler (rulers.ts): a record whose slot and generation are numbers, and a finite succession-wait tick. restoreDominions checks the ranges.
   const rulerShape = (r: unknown): boolean => isRecord(r) && isFiniteNumber(r.slot) && isFiniteNumber(r.gen);
-  if (!raw.dominions.every((d) => isRecord(d) && (d.traits === undefined || Array.isArray(d.traits)) && (d.taxRaised === undefined || isFiniteNumber(d.taxRaised)) && (d.ruler === undefined || rulerShape(d.ruler)) && (d.rulerWaitUntil === undefined || isFiniteNumber(d.rulerWaitUntil)))) {
+  // Optional rank (rank.ts): absent, or 'supreme' or 'second'.
+  const rankOk = (r: unknown): boolean => r === undefined || r === 'supreme' || r === 'second';
+  if (!raw.dominions.every((d) => isRecord(d) && (d.traits === undefined || Array.isArray(d.traits)) && (d.taxRaised === undefined || isFiniteNumber(d.taxRaised)) && (d.ruler === undefined || rulerShape(d.ruler)) && (d.rulerWaitUntil === undefined || isFiniteNumber(d.rulerWaitUntil)) && rankOk(d.rank))) {
     throw new Error('chronicle: dominion section records are not valid');
   }
   return raw as unknown as DominionSnapshot;

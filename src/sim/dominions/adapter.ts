@@ -7,9 +7,16 @@ import { dominionStep } from './step.ts';
 import { ground } from '../../content/grounds.ts';
 import { ARMY_DIVISOR, FOUND_FOLK, foundingYear, type FoundingEnv, type Truce } from './founding.ts';
 import { pairKey, RelationMatrix, type Dominion, type DominionContext, type Relation } from './types.ts';
-import { addPactRenown, makePact, newPactState, pactOf, pactYear, PACT_RENOWN_PER_DEFEAT, type Pact, type PactState } from './pacts.ts';
+import { addPactRenown, forcePact as forcePactRecord, makePact, newPactState, pactOf, pactYear, PACT_RENOWN_PER_DEFEAT, type Pact, type PactState } from './pacts.ts';
 import { armyWon, attackOrders, centroidParcel, marchArmies, raiseArmies, setCaptains, setSlots, syncArmies, type Army } from './armies.ts';
 import { newIntrigueState, proposeIntrigues, resolveIntrigues, type Intrigue, type IntrigueEnv, type IntrigueState } from './intrigue.ts';
+import { taxRatesOf, taxSplit } from './tax.ts';
+import { cultureYearly } from '../culture/adapter.ts';
+
+/** Dominion traits a dominion may hold (tax.ts reads the four tax ones; `markFate` is a locked marker, 11 section 9.4). */
+const DOMINION_TRAITS = ['highLocal', 'lowLocal', 'highTribute', 'lowTribute', 'markFate'] as const;
+/** Opposite pairs of dominion traits: adding one removes the other (11 section 11). */
+const DOMINION_OPPOSITES: Readonly<Record<string, string>> = { highLocal: 'lowLocal', lowLocal: 'highLocal', highTribute: 'lowTribute', lowTribute: 'highTribute' };
 
 /**
  * Sim adapter for the dominions slice. The dominion state is kept beside the Sim (not on it) and
@@ -37,6 +44,8 @@ export interface DominionState {
   armies: Army[];
   /** Pact intrigue records (intrigue.ts). */
   intrigues: IntrigueState;
+  /** Gold each hamlet held at the last yearly pass, keyed by the hamlet's lowest parcel (tax.ts loot). */
+  taxSeen: Map<number, number>;
 }
 
 const states = new WeakMap<Sim, DominionState>();
@@ -55,6 +64,7 @@ export function dominionState(sim: Sim): DominionState {
       pacts: newPactState(),
       armies: [],
       intrigues: newIntrigueState(),
+      taxSeen: new Map(),
     };
     states.set(sim, s);
   }
@@ -82,6 +92,37 @@ export function addPact(sim: Sim, a: number, b: number): Pact {
     if (pactOf(s.pacts.pacts, id)) throw new Error(`dominion ${id} is already in a pact`);
   }
   return makePact(s.pacts, a, b, sim.tick);
+}
+
+/**
+ * God-tool forced pact between two dominions (10 section 12; see forcePact in pacts.ts). Throws when a dominion is missing,
+ * when the pair is the same dominion, or when either is already in a pact. There is no command path: sim.ts does not route
+ * it, so it is called from tests and tools only (DECISIONS.md, Dominions and culture release).
+ */
+export function forcePact(sim: Sim, a: number, b: number): Pact {
+  const s = dominionState(sim);
+  for (const id of [a, b]) {
+    if (!s.dominions.some((d) => d.id === id)) throw new Error(`no dominion ${id}`);
+  }
+  return forcePactRecord(s.pacts, a, b, sim.tick);
+}
+
+/**
+ * Sets a dominion's traits (11 section 11): unknown names throw; adding a trait removes its opposite first. Traits set tax
+ * rates (tax.ts). Like forcePact, there is no command path; lineage defaults do not exist here, so this is the only source.
+ */
+export function setDominionTraits(sim: Sim, id: number, traits: readonly string[]): void {
+  const s = dominionState(sim);
+  const d = s.dominions.find((x) => x.id === id);
+  if (!d) throw new Error(`no dominion ${id}`);
+  let list: string[] = [...(d.traits ?? [])];
+  for (const t of traits) {
+    if (!(DOMINION_TRAITS as readonly string[]).includes(t)) throw new RangeError(`unknown dominion trait ${t}`);
+    const opposite = DOMINION_OPPOSITES[t];
+    list = list.filter((x) => x !== opposite && x !== t);
+    list.push(t);
+  }
+  d.traits = list;
 }
 
 /** Number of parcels along one side of the realm. */
@@ -121,7 +162,10 @@ export function addBorder(sim: Sim, a: number, b: number, relation: Relation = '
 
 /** Plain-data form of the dominion state, JSON-safe (Chronicle section 15). */
 export interface DominionSnapshot {
-  dominions: { id: number; parcels: number[]; strength: number; target: number; campaignSince: number }[];
+  /** `traits` and `taxRaised` are optional: written only when set, so older saves and untaxed dominions keep their shape. */
+  dominions: { id: number; parcels: number[]; strength: number; target: number; campaignSince: number; traits?: string[]; taxRaised?: number }[];
+  /** Hamlet gold at the last yearly pass by the hamlet's lowest parcel (tax.ts loot). Optional: written only when present. */
+  taxSeen?: [number, number][];
   /** Pairs whose relation is not the default peace: [a, b, relation]. */
   relations: [number, number, Relation][];
   borders: [number, number][];
@@ -168,7 +212,16 @@ export function snapshotDominions(sim: Sim): DominionSnapshot | null {
     if (r !== 'peace') relations.push([a, b, r]);
   }
   return {
-    dominions: s.dominions.map((d) => ({ id: d.id, parcels: [...d.parcels], strength: d.strength, target: d.target, campaignSince: d.campaignSince })),
+    dominions: s.dominions.map((d) => ({
+      id: d.id,
+      parcels: [...d.parcels],
+      strength: d.strength,
+      target: d.target,
+      campaignSince: d.campaignSince,
+      ...(d.traits !== undefined && d.traits.length > 0 ? { traits: [...d.traits] } : {}),
+      ...(d.taxRaised !== undefined && d.taxRaised > 0 ? { taxRaised: d.taxRaised } : {}),
+    })),
+    ...(s.taxSeen.size > 0 ? { taxSeen: [...s.taxSeen] } : {}),
     relations,
     borders: s.borders.map(([a, b]) => [a, b]),
     owner: [...s.owner],
@@ -238,7 +291,17 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
       if (claimed.has(p) || snap.owner[p] !== d.id) bad(`dominion ${d.id} parcel ${p} ownership`);
       claimed.set(p, d.id);
     }
-    dominions.push({ id: d.id, parcels: new Set(d.parcels), strength: d.strength, target: d.target, campaignSince: d.campaignSince });
+    if (d.traits !== undefined && (!Array.isArray(d.traits) || !d.traits.every((t) => (DOMINION_TRAITS as readonly string[]).includes(t)))) bad(`dominion ${d.id} traits`);
+    if (d.taxRaised !== undefined && (!isNum(d.taxRaised) || d.taxRaised < 0)) bad(`dominion ${d.id} tax receipts`);
+    dominions.push({
+      id: d.id,
+      parcels: new Set(d.parcels),
+      strength: d.strength,
+      target: d.target,
+      campaignSince: d.campaignSince,
+      ...(d.traits !== undefined ? { traits: [...d.traits] } : {}),
+      ...(d.taxRaised !== undefined ? { taxRaised: d.taxRaised } : {}),
+    });
   }
   snap.owner.forEach((id, p) => {
     if (id !== UNOWNED && claimed.get(p) !== id) bad(`owner of parcel ${p}`);
@@ -280,7 +343,14 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
     intrigues.nextId = ig.nextId;
     intrigues.cooldowns = ig.cooldowns.map((c) => ({ dominionId: c.dominionId, until: c.until }));
   }
-  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues });
+  const taxSeen = new Map<number, number>();
+  for (const pair of snap.taxSeen ?? []) {
+    if (!Array.isArray(pair) || pair.length !== 2) bad('tax seen');
+    const [p, gold] = pair;
+    if (!isNum(p) || !Number.isInteger(p) || p < 0 || p >= parcelCount || !isNum(gold) || gold < 0) bad('tax seen');
+    taxSeen.set(p, gold);
+  }
+  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen });
 }
 
 /**
@@ -309,13 +379,22 @@ export function dominionsYearly(sim: Sim): void {
   const ienv: IntrigueEnv = { dominions: s.dominions, borders: s.borders, relations: s.relations, truce: s.truce, pacts: s.pacts, tick: sim.tick };
   resolveIntrigues(ienv, s.intrigues);
   proposeIntrigues(ienv, s.intrigues);
+  // Culture (11 sections 2 and 3): each dominion gets a custom once, and a scheme while none runs (culture/adapter.ts).
+  cultureYearly(sim, s.dominions.map((d) => d.id));
   // Standing armies off raises no armies (09 section 8); existing armies still sync below.
   if (sim.rules.isOn('standing_armies')) raiseArmies(s.armies, s.dominions, perAxis);
   // Captains and slots: one captain per hamlet, and the hamlet's folk, both counted by the hamlet's majority owner
   // (no hamlet data leaves one captain and no slots).
   const hamlets = new Map<number, number>();
   const folk = new Map<number, number>();
+  const nextSeen = new Map<number, number>();
   for (const h of settlements) {
+    // Tax (tax.ts): the gold a hamlet gained since the last pass is its loot. The hamlet's lowest parcel names it.
+    let anchor = Infinity;
+    for (const p of h.parcels) anchor = Math.min(anchor, p);
+    const seen = s.taxSeen.get(anchor);
+    const loot = seen === undefined ? 0 : Math.max(0, h.gold - seen);
+    nextSeen.set(anchor, h.gold);
     const counts = new Map<number, number>();
     for (const p of h.parcels) {
       const o = s.owner[p] ?? UNOWNED;
@@ -330,10 +409,17 @@ export function dominionsYearly(sim: Sim): void {
       }
     }
     if (best !== UNOWNED) {
+      const ruler = s.dominions.find((d) => d.id === best);
+      if (ruler && loot > 0) {
+        const rates = taxRatesOf(ruler.traits);
+        const split = taxSplit(loot, rates.local, rates.tribute);
+        if (split.toRuler > 0) ruler.taxRaised = (ruler.taxRaised ?? 0) + split.toRuler;
+      }
       hamlets.set(best, (hamlets.get(best) ?? 0) + 1);
       folk.set(best, (folk.get(best) ?? 0) + h.folk);
     }
   }
+  s.taxSeen = nextSeen;
   setCaptains(s.armies, hamlets);
   setSlots(s.armies, new Map([...folk].map(([id, f]) => [id, Math.floor(f / ARMY_DIVISOR)])));
   syncArmies(s.armies, s.dominions);

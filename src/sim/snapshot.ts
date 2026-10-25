@@ -277,6 +277,8 @@ function clansOf(sim: Sim): ClanBlock {
     chief: c.chief,
     chiefAgeYears: c.chief >= 0 ? yearsSince(sim.tick, c.chiefBorn) : -1,
     extinct: c.extinctTick >= 0,
+    renown: c.renown,
+    mergedInto: c.mergedInto,
   }));
   return { count: list.length, living: list.filter((c) => c.extinctTick < 0).length, rows };
 }
@@ -458,6 +460,7 @@ function dominionsOf(sim: Sim): { dominions: DominionRow[]; dominionCount: numbe
       war,
       atWar: war > 0,
       campaignTarget: d.target,
+      ...(d.taxRaised !== undefined ? { taxRaised: d.taxRaised } : {}),
     };
   });
   return { dominions: rows, dominionCount: rows.length };

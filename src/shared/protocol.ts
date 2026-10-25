@@ -113,6 +113,8 @@ export interface DominionRow {
   atWar: boolean;
   /** Dominion id of the current campaign target, or -1. */
   campaignTarget: number;
+  /** Cumulative tax receipts from the ruler's share (dominions/tax.ts). Optional: absent until a hamlet pays. */
+  taxRaised?: number;
 }
 
 /** One hamlet (hamlets window). */
@@ -273,6 +275,10 @@ export interface ClanRow {
   chief: number;
   chiefAgeYears: number;
   extinct: boolean;
+  /** Renown: 1 per year its chief leads. Optional: absent from older snapshots. */
+  renown?: number;
+  /** Id of the clan this one merged into, or -1 (optional: absent from older snapshots). */
+  mergedInto?: number;
 }
 
 /** Clans: `count` is every clan on record, `living` the ones with a member; `rows` is capped at SNAPSHOT_DETAIL_ROWS. */

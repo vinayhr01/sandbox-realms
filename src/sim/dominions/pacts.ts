@@ -18,7 +18,7 @@ export interface Pact {
   founders: [number, number];
   renown: number;
   formedTick: number;
-  /** Every pact this build forms is 'normal'; 'forced' belongs to the god tool, which is not built. */
+  /** 'normal' from the yearly pass and intrigues; 'forced' from forcePact (the god tool, immune to dissolvePact). */
   kind: 'normal' | 'forced';
   /** Tick a member first held a negative opinion of a fellow member, or undefined while none does. Optional: older saves lack it. */
   unhappySince?: number;
@@ -68,6 +68,21 @@ export function makePact(state: PactState, a: number, b: number, tick: number): 
   };
   state.nextId++;
   state.pacts.push(pact);
+  return pact;
+}
+
+/**
+ * God-tool pact of kind `forced` (10 section 12): joins two dominions that are in no pact, skipping the formation timeout,
+ * the opinion gate and the peace gate, and does not start the timeout. A forced pact is immune to the dissolvePact intrigue
+ * (intrigue.ts). It is still dissolved by the yearly clean-up when its members fight each other or its members hold a
+ * lasting negative opinion of each other (pactYear), since the spec only exempts it from the intrigue. Throws on a missing
+ * pair, a pair of one dominion, or a dominion already in a pact (the spec keeps one pact per dominion here).
+ */
+export function forcePact(state: PactState, a: number, b: number, tick: number): Pact {
+  if (a === b) throw new RangeError('a forced pact needs two dominions');
+  if (pactOf(state.pacts, a) || pactOf(state.pacts, b)) throw new Error('a dominion is already in a pact');
+  const pact = makePact(state, a, b, tick);
+  pact.kind = 'forced';
   return pact;
 }
 

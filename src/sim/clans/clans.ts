@@ -3,19 +3,23 @@
  *
  * Rule (chosen for this build, see DECISIONS.md): a clan is the living members of one strain. A strain
  * with at least CLAN_FOUND_MIN living members and no clan yet founds one, once per strain. The chief is
- * the oldest living member (birth tick, then slot). The clan's member count is the strain's living
- * count; a clan whose strain has no living member left is extinct for good (births need a living
- * parent, so the strain cannot come back). Families are not stored by the beings system (culture.families
- * is only written by tests), so clans are founded from strains; the spec's "group of families" is
+ * the oldest living member (birth tick, then slot). The clan's member count is the living count of its strain
+ * (plus the strains merged into it, see mergeClans); a clan whose strains have no living member left is extinct
+ * for good (births need a living parent, so a strain cannot come back). Families are not stored by the beings system
+ * (culture.families is only written by tests), so clans are founded from strains; the spec's "group of families" is
  * the open part of this rule.
  *
+ * Renown (11 section 7): a clan gains 1 renown per year that it has a living chief. Merges (mergeClans) are a god-tool
+ * operation: 11 section 2 says objects never merge on their own. Splits are not in the spec for clans (11 section 2:
+ * "a clan never splits").
+ *
  * Structural only: the module reads the beings store and the strain registry and writes its own state
- * (`sim.clans`). It never writes beings, strains or realm data, so the state hash is unchanged. Names
- * come from the sim's `clans` RNG stream, drawn only when a clan forms.
+ * (`sim.clans`). It never writes beings, strains or realm data, so the state hash is unchanged. Names come from the
+ * name generator (culture/names.ts) with its own seed, so naming draws no sim RNG.
  */
 import { SPECIES } from '../../content/beasts.ts';
 import { MONTH_TICKS, YEAR_TICKS } from '../../shared/constants.ts';
-import type { Rng } from '../../shared/rng.ts';
+import { CLAN_RECIPE, generateName, NAME_KIND, nameSeed } from '../culture/names.ts';
 import { MAX_BEINGS } from '../beings/store.ts';
 import type { Sim } from '../sim.ts';
 
@@ -23,7 +27,7 @@ import type { Sim } from '../sim.ts';
 export const CLAN_SCAN_TICKS = MONTH_TICKS;
 /** Living members a strain needs before it founds a clan (OPEN, design default). */
 export const CLAN_FOUND_MIN = 4;
-/** Member limit recorded on each clan (11 section 7: CLAN_DEFAULT_LIMIT, OPEN). Advisory: births are not refused. */
+/** Member limit recorded on each clan (11 section 7: CLAN_DEFAULT_LIMIT, OPEN). Enforced for merges; births are not refused (see DECISIONS.md). */
 export const CLAN_DEFAULT_LIMIT = 50;
 
 export interface Clan {
@@ -40,9 +44,17 @@ export interface Clan {
   chief: number;
   /** Birth tick of the chief (for its age). */
   chiefBorn: number;
-  /** Tick the clan was found to have no living member; -1 while it has members. */
+  /** Tick the clan was found to have no living member; -1 while it has members. A merged-away clan is stamped with its merge tick. */
   extinctTick: number;
   limit: number;
+  /** Renown: 1 per year its chief leads (11 section 7). */
+  renown: number;
+  /** Tick the renown was counted up to. */
+  renownTick: number;
+  /** The clan this one was merged into, or -1. A merged-away clan counts no members of its own. */
+  mergedInto: number;
+  /** Strains merged into this clan: their living members count toward it. */
+  absorbed: number[];
 }
 
 /** Saved and live clan records. `next` is the next id to hand out (ids start at 1). */
@@ -55,14 +67,11 @@ export function createClanState(): ClanState {
   return { next: 1, list: [] };
 }
 
-const PREFIXES = ['Ash', 'Briar', 'Cinder', 'Dun', 'Ember', 'Fen', 'Gale', 'Heath', 'Iron', 'Kestrel', 'Lark', 'Marrow', 'Nettle', 'Oak', 'Pell', 'Quill', 'Reed', 'Stone', 'Thorn', 'Vale', 'Wren', 'Yew'] as const;
-const SUFFIXES = ['hold', 'fell', 'mere', 'wick', 'brand', 'stair', 'moor', 'kin', 'reach', 'ford'] as const;
-
-/** A clan name from the prefix and suffix lists; a taken name is redrawn a few times, then numbered. */
-function clanName(rng: Rng, taken: ReadonlySet<string>, id: number): string {
-  for (let tries = 0; tries < 8; tries++) {
-    const name = `${PREFIXES[rng.int(PREFIXES.length)] ?? 'Ash'}${SUFFIXES[rng.int(SUFFIXES.length)] ?? 'hold'}`;
-    if (!taken.has(name)) return name;
+/** A clan name from the name generator; a taken name is redrawn with another salt a few times, then numbered. */
+function clanName(worldSeed: number, id: number, taken: ReadonlySet<string>): string {
+  for (let salt = 0; salt < 8; salt++) {
+    const name = generateName(CLAN_RECIPE, nameSeed(worldSeed, NAME_KIND.clan, id, salt));
+    if (name !== 'Nameless' && !taken.has(name)) return name;
   }
   return `Clan ${id}`;
 }
@@ -96,9 +105,29 @@ function census(sim: Sim): Map<number, Census> {
   return out;
 }
 
+/** Living members of a clan: its own strain plus the strains merged into it, with the oldest member as chief. */
+function combined(clan: Clan, counts: ReadonlyMap<number, Census>): Census | undefined {
+  let out: Census | undefined;
+  for (const strain of [clan.strain, ...clan.absorbed]) {
+    const c = counts.get(strain);
+    if (!c) continue;
+    if (!out) {
+      out = { count: c.count, chief: c.chief, born: c.born };
+    } else {
+      out.count += c.count;
+      if (c.born < out.born || (c.born === out.born && c.chief < out.chief)) {
+        out.chief = c.chief;
+        out.born = c.born;
+      }
+    }
+  }
+  return out;
+}
+
 /**
- * One clan scan (every CLAN_SCAN_TICKS). Refreshes each clan's members and chief, marks clans whose
- * strain has no living member as extinct, and founds clans for strains that qualify, in strain id order.
+ * One clan scan (every CLAN_SCAN_TICKS). Refreshes each clan's members and chief, counts renown for the years its chief
+ * has led, marks clans whose strains have no living member as extinct, and founds clans for strains that qualify, in
+ * strain id order. A merged-away clan is skipped: its strains are counted by the clan it merged into.
  */
 export function clansStep(sim: Sim): void {
   if (!sim.due('clans', CLAN_SCAN_TICKS)) return;
@@ -107,7 +136,8 @@ export function clansStep(sim: Sim): void {
   const s = sim.beings.store;
 
   for (const clan of state.list) {
-    const c = counts.get(clan.strain);
+    if (clan.mergedInto >= 0) continue;
+    const c = combined(clan, counts);
     if (!c) {
       clan.members = 0;
       clan.chief = -1;
@@ -118,16 +148,26 @@ export function clansStep(sim: Sim): void {
     clan.members = c.count;
     clan.chief = (s.generation[c.chief] ?? 0) * MAX_BEINGS + c.chief;
     clan.chiefBorn = c.born;
+    const years = Math.floor((sim.tick - clan.renownTick) / YEAR_TICKS);
+    if (years > 0) {
+      clan.renown += years;
+      clan.renownTick += years * YEAR_TICKS;
+    }
   }
 
-  const founded = new Set(state.list.map((c) => c.strain));
+  // Every strain that belongs to a clan on record (own or merged in) cannot found another clan.
+  const founded = new Set<number>();
+  for (const clan of state.list) {
+    founded.add(clan.strain);
+    for (const a of clan.absorbed) founded.add(a);
+  }
   const taken = new Set(state.list.map((c) => c.name));
   const strains = sim.beings.strains.snapshot().list;
   for (const strain of strains) {
     const c = counts.get(strain.id);
     if (founded.has(strain.id) || !c || c.count < CLAN_FOUND_MIN) continue;
     const id = state.next++;
-    const name = clanName(sim.rng('clans'), taken, id);
+    const name = clanName(sim.realm.seed, id, taken);
     taken.add(name);
     state.list.push({
       id,
@@ -140,8 +180,41 @@ export function clansStep(sim: Sim): void {
       chiefBorn: c.born,
       extinctTick: -1,
       limit: CLAN_DEFAULT_LIMIT,
+      renown: 0,
+      renownTick: sim.tick,
+      mergedInto: -1,
+      absorbed: [],
     });
   }
+}
+
+/** Result of mergeClans: ok, or the reason it was refused. */
+export type MergeResult = { ok: true } | { ok: false; reason: string };
+
+/**
+ * Merges clan `fromId` into clan `intoId` (god tool; 11 section 2, objects never merge on their own). The strains of `from`
+ * count toward `into` from the next scan on. Refused when a clan is missing, when they are the same, when either is merged
+ * away or extinct, or when the combined living members would exceed `into`'s member limit (the 50-member enforcement).
+ * Renown stays with `into`. Draws no rng.
+ */
+export function mergeClans(state: ClanState, intoId: number, fromId: number, tick: number): MergeResult {
+  if (intoId === fromId) return { ok: false, reason: 'a clan cannot merge into itself' };
+  const into = state.list.find((c) => c.id === intoId);
+  const from = state.list.find((c) => c.id === fromId);
+  if (!into || !from) return { ok: false, reason: 'no such clan' };
+  if (into.mergedInto >= 0 || from.mergedInto >= 0 || into.extinctTick >= 0 || from.extinctTick >= 0) {
+    return { ok: false, reason: 'a clan that is merged away or extinct cannot merge' };
+  }
+  if (into.members + from.members > into.limit) return { ok: false, reason: `the merged clan would have more than ${into.limit} members` };
+  into.absorbed = [...into.absorbed, from.strain, ...from.absorbed];
+  into.members += from.members;
+  from.mergedInto = into.id;
+  from.absorbed = [];
+  from.members = 0;
+  from.chief = -1;
+  from.chiefBorn = 0;
+  from.extinctTick = tick;
+  return { ok: true };
 }
 
 /** Species name of a clan, or '' when the index is unknown. */
@@ -156,7 +229,8 @@ export function yearsSince(tick: number, born: number): number {
 
 /**
  * Replaces the clan records with a saved form. Throws when the shape is wrong, so a bad save never
- * yields partial clans. Unknown extra fields are dropped by copying only the known ones.
+ * yields partial clans. Unknown extra fields are dropped by copying only the known ones. The renown, merge and
+ * absorbed fields are optional (saves written before them load with 0, -1 and none).
  */
 export function restoreClans(state: ClanState, data: unknown): void {
   if (typeof data !== 'object' || data === null) throw new Error('chronicle: clans section is not valid');
@@ -168,6 +242,10 @@ export function restoreClans(state: ClanState, data: unknown): void {
   for (const item of d.list as Partial<Record<keyof Clan, unknown>>[]) {
     const id = item.id;
     const species = item.species;
+    const renown = item.renown ?? 0;
+    const renownTick = item.renownTick ?? item.foundedTick;
+    const mergedInto = item.mergedInto ?? -1;
+    const absorbed = item.absorbed ?? [];
     const valid =
       Number.isInteger(id) &&
       (id as number) >= 1 &&
@@ -183,7 +261,14 @@ export function restoreClans(state: ClanState, data: unknown): void {
       Number.isInteger(item.chief) &&
       Number.isInteger(item.chiefBorn) &&
       Number.isInteger(item.extinctTick) &&
-      Number.isInteger(item.limit);
+      Number.isInteger(item.limit) &&
+      Number.isInteger(renown) &&
+      (renown as number) >= 0 &&
+      Number.isInteger(renownTick) &&
+      Number.isInteger(mergedInto) &&
+      (mergedInto as number) >= -1 &&
+      Array.isArray(absorbed) &&
+      absorbed.every((a) => Number.isInteger(a));
     if (!valid) throw new Error('chronicle: clan record is not valid');
     ids.add(id as number);
     list.push({
@@ -197,6 +282,10 @@ export function restoreClans(state: ClanState, data: unknown): void {
       chiefBorn: item.chiefBorn as number,
       extinctTick: item.extinctTick as number,
       limit: item.limit as number,
+      renown: renown as number,
+      renownTick: renownTick as number,
+      mergedInto: mergedInto as number,
+      absorbed: [...(absorbed as number[])],
     });
   }
   state.next = next;

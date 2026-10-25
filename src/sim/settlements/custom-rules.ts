@@ -70,8 +70,10 @@ export function rulesOf(traits: readonly string[], worldSeed = 0): CustomRules {
     scattered: traits.includes('scatteredBuild'),
     worldSeed,
   };
-  if (zoneId !== undefined) rules.zone = ZONE_OF[zoneId];
-  if (lotId !== undefined) rules.lot = LOT_OF[lotId];
+  const zone = zoneId === undefined ? undefined : ZONE_OF[zoneId];
+  if (zone !== undefined) rules.zone = zone;
+  const lot = lotId === undefined ? undefined : LOT_OF[lotId];
+  if (lot !== undefined) rules.lot = lot;
   if (male !== female) rules.levy = male ? 'male' : 'female';
   return rules;
 }

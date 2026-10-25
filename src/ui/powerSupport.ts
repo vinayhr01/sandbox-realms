@@ -26,6 +26,7 @@ export const SIM_HANDLERS: readonly string[] = [
   'start_volcano',
   'start_geyser',
   'place_creep_hub',
+  'place_structure',
   'bless',
   'lore',
   'favour_status',

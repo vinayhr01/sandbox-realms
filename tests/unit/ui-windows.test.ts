@@ -43,7 +43,7 @@ describe('window catalogue', () => {
     for (const id of ['realm_rules', 'realm_ages']) {
       const def = POWER_BY_ID.get(id);
       expect(def?.handler).toBe('open_window');
-      expect(WINDOW_IDS.has(`win_${String(def?.params['window'])}`)).toBe(true);
+      expect(WINDOW_IDS.has(String(def?.params['window']))).toBe(true);
     }
   });
 

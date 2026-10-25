@@ -3,7 +3,7 @@ import type { Rng } from '../../shared/rng.ts';
 import type { BeingStore } from '../beings/store.ts';
 import type { Hamlet } from '../settlements/hamlet.ts';
 import type { SuccessionRule } from '../culture/trait-rules.ts';
-import type { Dominion } from './types.ts';
+import type { Dominion, UnitGuard } from './types.ts';
 
 /**
  * Rulers (10 section 4, reduced; see DECISIONS.md, Rulers release). A ruler is a living folk Being that stands in the
@@ -47,6 +47,8 @@ export interface RulerEnv {
   ruleOf?(dominionId: number): SuccessionRule | undefined;
   /** Called when a successor takes the crown; `capital` is the leading hamlet it was found in. Optional. */
   onInstall?(dominionId: number, slot: number, capital: Hamlet): void;
+  /** Runs one dominion's check under the fault gate (17 section 9, Sim.unit). Optional: without it a throw propagates. */
+  unit?: UnitGuard;
 }
 
 /** Index of rapport in the being store's four aptitudes (rapport, valor, husbandry, wit). */
@@ -166,30 +168,38 @@ export function rulersStep(env: RulerEnv, dominions: readonly Dominion[]): void 
     const r = rulerLive(s, d);
     if (r) taken.add(r.slot);
   }
+  // Each dominion is one unit (17 section 9): a throw in one is counted as `dominion:<id>` and the others still check.
   for (const d of dominions) {
-    if (rulerLive(s, d)) continue;
-    if (d.ruler) {
-      delete d.ruler;
-      d.rulerWaitUntil = env.tick + RULER_WAIT_MIN + env.rng().int(RULER_WAIT_SPAN);
-      continue;
-    }
-    if (env.tick < (d.rulerWaitUntil ?? 0)) continue;
-    const hamlet = leadingHamlet(d.id, env.hamlets, env.owner);
-    if (!hamlet) continue;
-    const rule = env.ruleOf?.(d.id);
-    let next = successorIn(env, hamlet, taken, rule);
-    if (!next && rule?.unbroken) {
-      for (const h of env.hamlets) {
-        if (h === hamlet || hamletOwner(h, env.owner) !== d.id) continue;
-        next = successorIn(env, h, taken, rule);
-        if (next) break;
-      }
-    }
-    if (!next) continue;
-    d.ruler = next;
-    d.rulerSinceTick = env.tick;
-    taken.add(next.slot);
-    delete d.rulerWaitUntil;
-    env.onInstall?.(d.id, next.slot, hamlet);
+    if (env.unit) env.unit(d.id, () => checkRuler(env, d, taken));
+    else checkRuler(env, d, taken);
   }
+}
+
+/** The ruler check of one dominion (rulersStep). Called once per dominion, in array order. */
+function checkRuler(env: RulerEnv, d: Dominion, taken: Set<number>): void {
+  const s = env.beings.store;
+  if (rulerLive(s, d)) return;
+  if (d.ruler) {
+    delete d.ruler;
+    d.rulerWaitUntil = env.tick + RULER_WAIT_MIN + env.rng().int(RULER_WAIT_SPAN);
+    return;
+  }
+  if (env.tick < (d.rulerWaitUntil ?? 0)) return;
+  const hamlet = leadingHamlet(d.id, env.hamlets, env.owner);
+  if (!hamlet) return;
+  const rule = env.ruleOf?.(d.id);
+  let next = successorIn(env, hamlet, taken, rule);
+  if (!next && rule?.unbroken) {
+    for (const h of env.hamlets) {
+      if (h === hamlet || hamletOwner(h, env.owner) !== d.id) continue;
+      next = successorIn(env, h, taken, rule);
+      if (next) break;
+    }
+  }
+  if (!next) return;
+  d.ruler = next;
+  d.rulerSinceTick = env.tick;
+  taken.add(next.slot);
+  delete d.rulerWaitUntil;
+  env.onInstall?.(d.id, next.slot, hamlet);
 }

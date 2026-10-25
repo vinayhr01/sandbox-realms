@@ -332,27 +332,30 @@ export function settlementsStep(host: SettlementHost): void {
   // Before the hamlet step lays queued roads, note each queued tile's base ground (roads.ts recordRoadBases).
   recordRoadBases(host.realm, state.hamlets.map((h) => h.road), state.roadBase);
   const ctx = contextOf(host);
-  for (const h of state.hamlets) {
-    // Another hamlet owning a parcel blocks this hamlet from expanding into it.
-    const custom = customOf(host, h);
-    const counted = census(host, h);
-    h.folk = counted.folk;
-    h.leader = counted.leader;
-    const own: HamletContext = {
-      ...ctx,
-      claimed: (q) => state.hamlets.some((o) => o !== h && o.parcels.has(q)),
-      desires: desiresOf(state.structures, h, host.realm.side),
-      rules: rulesOf(custom?.traits ?? [], host.realm.seed),
-      soldierLimit: () => hamletSoldierLimit(host as unknown as Sim, h),
-      captured: () => hamletCaptured(host as unknown as Sim, h.parcels),
-      workforce: { ...counted.work, childLabour: childMayWork(custom?.traits ?? []) },
-    };
-    const parcelsBefore = custom && customHas(custom, 'outwardGrowth') ? new Set(h.parcels) : null;
-    const buildingsBefore = h.buildings.length;
-    hamletStep(own, h);
-    if (parcelsBefore) outwardClaim(host, state, h, parcelsBefore);
-    if (custom && customHas(custom, 'roadworks') && h.buildings.length > buildingsBefore) layRoads(host, state, h);
-    bazaarStep(h, host.tick);
+  // Each hamlet is one unit (17 section 9): a throw in one is counted as `hamlet:<index>` and the other hamlets still step.
+  for (const [i, h] of state.hamlets.entries()) {
+    (host as unknown as Sim).unit('hamlet', i, () => {
+      // Another hamlet owning a parcel blocks this hamlet from expanding into it.
+      const custom = customOf(host, h);
+      const counted = census(host, h);
+      h.folk = counted.folk;
+      h.leader = counted.leader;
+      const own: HamletContext = {
+        ...ctx,
+        claimed: (q) => state.hamlets.some((o) => o !== h && o.parcels.has(q)),
+        desires: desiresOf(state.structures, h, host.realm.side),
+        rules: rulesOf(custom?.traits ?? [], host.realm.seed),
+        soldierLimit: () => hamletSoldierLimit(host as unknown as Sim, h),
+        captured: () => hamletCaptured(host as unknown as Sim, h.parcels),
+        workforce: { ...counted.work, childLabour: childMayWork(custom?.traits ?? []) },
+      };
+      const parcelsBefore = custom && customHas(custom, 'outwardGrowth') ? new Set(h.parcels) : null;
+      const buildingsBefore = h.buildings.length;
+      hamletStep(own, h);
+      if (parcelsBefore) outwardClaim(host, state, h, parcelsBefore);
+      if (custom && customHas(custom, 'roadworks') && h.buildings.length > buildingsBefore) layRoads(host, state, h);
+      bazaarStep(h, host.tick);
+    });
   }
   roadDecayStep(host, state);
   // Garrisons (09 section 8, 10 section 8): soldiers are drawn from the owner's dominion strength. The owner is read only

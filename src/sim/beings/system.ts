@@ -2054,114 +2054,116 @@ export function stepBeings(sim: Sim): void {
   for (let k = s.size - 1; k >= 0; k--) {
     const slot = s.at(k);
     if (s.alive[slot] !== 1) continue;
-    const rt = b.runtime[s.species[slot] ?? 0];
-    if (!rt) continue;
-    const def = rt.def;
-    const feeds = needsFood(def);
-    // Egg stage (06 section 3.2, beings build 3): shelled, immovable and frozen until it hatches.
-    if ((s.shelledUntil[slot] ?? 0) > 0) {
-      if (tick >= (s.shelledUntil[slot] ?? 0)) hatch(sim, slot);
-      continue;
-    }
-    s.moveAcc[slot] = Math.min(2, (s.moveAcc[slot] ?? 0) + ((s.paceA[slot] ?? def.pace) * 0.2 * sim.effects.multiplier(slot, 'speed') * tileMult(sim, slot)) / 20);
+    sim.unit('being', slot, () => {
+      const rt = b.runtime[s.species[slot] ?? 0];
+      if (!rt) return;
+      const def = rt.def;
+      const feeds = needsFood(def);
+      // Egg stage (06 section 3.2, beings build 3): shelled, immovable and frozen until it hatches.
+      if ((s.shelledUntil[slot] ?? 0) > 0) {
+        if (tick >= (s.shelledUntil[slot] ?? 0)) hatch(sim, slot);
+        return;
+      }
+      s.moveAcc[slot] = Math.min(2, (s.moveAcc[slot] ?? 0) + ((s.paceA[slot] ?? def.pace) * 0.2 * sim.effects.multiplier(slot, 'speed') * tileMult(sim, slot)) / 20);
 
-    if (regen && s.baby[slot] === 1 && (tick - (s.born[slot] ?? 0)) / YEAR >= (s.adultA[slot] ?? 1)) {
-      // Growing up: the stats are recomputed as an adult (06 section 3.2 GrewUp).
-      refreshStats(sim, slot);
-      addMood(sim, slot, 'grew_up');
-    }
+      if (regen && s.baby[slot] === 1 && (tick - (s.born[slot] ?? 0)) / YEAR >= (s.adultA[slot] ?? 1)) {
+        // Growing up: the stats are recomputed as an adult (06 section 3.2 GrewUp).
+        refreshStats(sim, slot);
+        addMood(sim, slot, 'grew_up');
+      }
 
-    // Trait life hooks (18b). `mendflesh` heals a share every ten seconds, unless the Being is hungry.
-    if (tick % ROUND8.mendTicks === 0 && mends(sim, slot) && (!feeds || (s.fuel[slot] ?? 0) >= HUNGRY_AT) && rng.next() < ROUND8.mendChance) {
-      const heal = Math.max(1, Math.floor((s.maxVit[slot] ?? 0) * ROUND8.mendFraction));
-      s.vit[slot] = Math.min(s.maxVit[slot] ?? 0, (s.vit[slot] ?? 0) + heal);
-    }
-    // `jittery` stumbles once a Month with a small chance (18b FLW; the stun is the `dazed` status).
-    if (tick % MONTH_TICKS === 0 && jittery(sim, slot) && rng.next() < ROUND8.jitterChance) sim.effects.add(slot, 'dazed', tick);
-    // `gestation_stasis` holds a pregnancy still while the bearer is hungry (18b GST).
-    if (s.expecting[slot] && pregnancyPausesWhenHungry(sim, slot) && (s.fuel[slot] ?? 0) <= HUNGRY_AT) {
-      s.expectUntil[slot] = (s.expectUntil[slot] ?? 0) + 1;
-    }
-    // Venerable caste (18a 3.3): an aged adult may be venerable on a birthday, once.
-    if (s.baby[slot] !== 1 && (s.spanA[slot] ?? 0) > 0 && birthday(sim, slot)) {
-      const age = (tick - (s.born[slot] ?? 0)) / YEAR;
-      if (age > 0.7 * (s.spanA[slot] ?? 0) && rollVenerable(sim, slot)) refreshStats(sim, slot);
-    }
+      // Trait life hooks (18b). `mendflesh` heals a share every ten seconds, unless the Being is hungry.
+      if (tick % ROUND8.mendTicks === 0 && mends(sim, slot) && (!feeds || (s.fuel[slot] ?? 0) >= HUNGRY_AT) && rng.next() < ROUND8.mendChance) {
+        const heal = Math.max(1, Math.floor((s.maxVit[slot] ?? 0) * ROUND8.mendFraction));
+        s.vit[slot] = Math.min(s.maxVit[slot] ?? 0, (s.vit[slot] ?? 0) + heal);
+      }
+      // `jittery` stumbles once a Month with a small chance (18b FLW; the stun is the `dazed` status).
+      if (tick % MONTH_TICKS === 0 && jittery(sim, slot) && rng.next() < ROUND8.jitterChance) sim.effects.add(slot, 'dazed', tick);
+      // `gestation_stasis` holds a pregnancy still while the bearer is hungry (18b GST).
+      if (s.expecting[slot] && pregnancyPausesWhenHungry(sim, slot) && (s.fuel[slot] ?? 0) <= HUNGRY_AT) {
+        s.expectUntil[slot] = (s.expectUntil[slot] ?? 0) + 1;
+      }
+      // Venerable caste (18a 3.3): an aged adult may be venerable on a birthday, once.
+      if (s.baby[slot] !== 1 && (s.spanA[slot] ?? 0) > 0 && birthday(sim, slot)) {
+        const age = (tick - (s.born[slot] ?? 0)) / YEAR;
+        if (age > 0.7 * (s.spanA[slot] ?? 0) && rollVenerable(sim, slot)) refreshStats(sim, slot);
+      }
 
-    // Fuel pass (06 section 2.1): metabolism is taken first; at 0 the hunger rule starves the Being by 5% of
-    // max vitality, otherwise endurance regains 1. A sleeping `energy_saver` Being is skipped.
-    if (fuelPass && feeds && !(isAsleep(sim, slot) && strainHas(sim, slot, 'energy_saver'))) {
-      s.fuel[slot] = Math.max(0, (s.fuel[slot] ?? 0) - (s.metabolismA[slot] ?? 1));
-      if ((s.fuel[slot] ?? 0) === 0) {
-        if (hungerRule) {
-          s.vit[slot] = (s.vit[slot] ?? 0) - Math.max(1, Math.floor((s.maxVit[slot] ?? 0) * 0.05));
-          addMood(sim, slot, 'starving');
-          if ((s.vit[slot] ?? 0) <= 0) {
-            killBeing(sim, slot, 'starved');
-            continue;
+      // Fuel pass (06 section 2.1): metabolism is taken first; at 0 the hunger rule starves the Being by 5% of
+      // max vitality, otherwise endurance regains 1. A sleeping `energy_saver` Being is skipped.
+      if (fuelPass && feeds && !(isAsleep(sim, slot) && strainHas(sim, slot, 'energy_saver'))) {
+        s.fuel[slot] = Math.max(0, (s.fuel[slot] ?? 0) - (s.metabolismA[slot] ?? 1));
+        if ((s.fuel[slot] ?? 0) === 0) {
+          if (hungerRule) {
+            s.vit[slot] = (s.vit[slot] ?? 0) - Math.max(1, Math.floor((s.maxVit[slot] ?? 0) * 0.05));
+            addMood(sim, slot, 'starving');
+            if ((s.vit[slot] ?? 0) <= 0) {
+              killBeing(sim, slot, 'starved');
+              return;
+            }
+          }
+        } else {
+          s.endurance[slot] = Math.min(def.endurance, (s.endurance[slot] ?? 0) + 1);
+        }
+      }
+      if (regen && (!feeds || (s.fuel[slot] ?? 0) >= HUNGRY_AT) && (s.vit[slot] ?? 0) < (s.maxVit[slot] ?? 0)) {
+        s.vit[slot] = (s.vit[slot] ?? 0) + 1;
+      }
+
+      // Gasping (08 5.3, beings close 5): a Being in liquid with no endurance starts to drown. The roster has no swimmer flag,
+      // so every Being is a non-swimmer here.
+      if ((s.endurance[slot] ?? 0) === 0 && inLiquid(sim, slot)) sim.effects.add(slot, 'gasping', tick);
+      // Span 0 never dies of age (05 section 1, 06 section 3.5). `evergreen` is not rolled (18b VIT).
+      const span = s.spanA[slot] ?? 0;
+      if (deathRoll && agingRule && span > 0 && !evergreen(sim, slot)) {
+        const age = (tick - (s.born[slot] ?? 0)) / YEAR;
+        if (age > span) {
+          const x = (age - span) / span;
+          const p = Math.min(0.9, 1 / (1 + Math.exp(-5 * (x - 0.5))));
+          if (rng.next() < p) {
+            killBeing(sim, slot, 'age');
+            return;
           }
         }
-      } else {
-        s.endurance[slot] = Math.min(def.endurance, (s.endurance[slot] ?? 0) + 1);
       }
-    }
-    if (regen && (!feeds || (s.fuel[slot] ?? 0) >= HUNGRY_AT) && (s.vit[slot] ?? 0) < (s.maxVit[slot] ?? 0)) {
-      s.vit[slot] = (s.vit[slot] ?? 0) + 1;
-    }
 
-    // Gasping (08 5.3, beings close 5): a Being in liquid with no endurance starts to drown. The roster has no swimmer flag,
-    // so every Being is a non-swimmer here.
-    if ((s.endurance[slot] ?? 0) === 0 && inLiquid(sim, slot)) sim.effects.add(slot, 'gasping', tick);
-    // Span 0 never dies of age (05 section 1, 06 section 3.5). `evergreen` is not rolled (18b VIT).
-    const span = s.spanA[slot] ?? 0;
-    if (deathRoll && agingRule && span > 0 && !evergreen(sim, slot)) {
-      const age = (tick - (s.born[slot] ?? 0)) / YEAR;
-      if (age > span) {
-        const x = (age - span) / span;
-        const p = Math.min(0.9, 1 / (1 + Math.exp(-5 * (x - 0.5))));
-        if (rng.next() < p) {
-          killBeing(sim, slot, 'age');
-          continue;
+      // `unnerved` roll (08 section 5.3): every 100 ticks, 20% cancel the behaviour for a 60-tick flight.
+      if (tick % UNNERVE_TICKS === 0 && sim.effects.has(slot, 'unnerved') && unnervedSource(sim, slot) >= 0 && rng.next() < UNNERVE_CHANCE) {
+        s.unnervedUntil[slot] = tick + UNNERVE_FLEE;
+        b.task[slot] = -1;
+      }
+
+      if (s.expecting[slot] && tick >= (s.expectUntil[slot] ?? 0)) {
+        s.expecting[slot] = 0;
+        sim.effects.remove(slot, 'expecting');
+        // A rooted bearer's young is a sprout: immovable for its own spell (06 section 6.3, beings build 3).
+        const sprout = (s.rooted[slot] ?? 0) === 1;
+        s.rooted[slot] = 0;
+        sim.effects.remove(slot, 'taking_root');
+        const brood = Math.max(1, s.brood[slot] ?? 1);
+        let born = 0;
+        for (let n = 0; n < brood && b.store.size < WORLD_CAP; n++) {
+          const child = spawnBeing(sim, s.species[slot] ?? 0, (s.x[slot] ?? 0) + rng.int(5) - 2, (s.y[slot] ?? 0) + rng.int(5) - 2, false, slot);
+          if (child >= 0) {
+            born++;
+            if (sprout) sim.effects.add(child, 'sprouting', tick);
+            sim.effects.add(child, 'sheltered', tick, SHELTER_BIRTH);
+          }
         }
+        if (born > 0) addMood(sim, slot, 'child_born');
       }
-    }
 
-    // `unnerved` roll (08 section 5.3): every 100 ticks, 20% cancel the behaviour for a 60-tick flight.
-    if (tick % UNNERVE_TICKS === 0 && sim.effects.has(slot, 'unnerved') && unnervedSource(sim, slot) >= 0 && rng.next() < UNNERVE_CHANCE) {
-      s.unnervedUntil[slot] = tick + UNNERVE_FLEE;
-      b.task[slot] = -1;
-    }
-
-    if (s.expecting[slot] && tick >= (s.expectUntil[slot] ?? 0)) {
-      s.expecting[slot] = 0;
-      sim.effects.remove(slot, 'expecting');
-      // A rooted bearer's young is a sprout: immovable for its own spell (06 section 6.3, beings build 3).
-      const sprout = (s.rooted[slot] ?? 0) === 1;
-      s.rooted[slot] = 0;
-      sim.effects.remove(slot, 'taking_root');
-      const brood = Math.max(1, s.brood[slot] ?? 1);
-      let born = 0;
-      for (let n = 0; n < brood && b.store.size < WORLD_CAP; n++) {
-        const child = spawnBeing(sim, s.species[slot] ?? 0, (s.x[slot] ?? 0) + rng.int(5) - 2, (s.y[slot] ?? 0) + rng.int(5) - 2, false, slot);
-        if (child >= 0) {
-          born++;
-          if (sprout) sim.effects.add(child, 'sprouting', tick);
-          sim.effects.add(child, 'sheltered', tick, SHELTER_BIRTH);
-        }
+      // Architect possession (07 section 13): the orders replace the AI and the sleep for the control's length.
+      if (isPossessed(sim, slot)) {
+        possessedStep(sim, slot);
+        return;
       }
-      if (born > 0) addMood(sim, slot, 'child_born');
-    }
-
-    // Architect possession (07 section 13): the orders replace the AI and the sleep for the control's length.
-    if (isPossessed(sim, slot)) {
-      possessedStep(sim, slot);
-      continue;
-    }
-    if (tick % ROUND9.tumorTicks === 0) creepContact(sim, slot, rng);
-    if (tick % LOVE_CHECK === 0) loveCheck(sim, slot);
-    if (tick % BOND_CHECK === 0) bondCheck(sim, slot);
-    if (sleepCheck(sim, slot)) continue;
-    if (tick >= (s.nextDecision[slot] ?? 0)) decide(sim, slot);
+      if (tick % ROUND9.tumorTicks === 0) creepContact(sim, slot, rng);
+      if (tick % LOVE_CHECK === 0) loveCheck(sim, slot);
+      if (tick % BOND_CHECK === 0) bondCheck(sim, slot);
+      if (sleepCheck(sim, slot)) return;
+      if (tick >= (s.nextDecision[slot] ?? 0)) decide(sim, slot);
+    });
   }
 }
 

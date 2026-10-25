@@ -2635,3 +2635,28 @@ Scope: dialect phonology (11 section 6.5), left unbuilt by the earlier rounds. S
 - Spec folder is read-only; nothing was edited there.
 
 **Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. No test was added. Needed with test access: a seeded run whose `stateHash` and GOLDEN_HASH stay unchanged with the ring present; a stroke sequence whose `tick` values match the sim tick at queue time; a ring overflow test with `dropped`; a worker that stops answering, which must give `commandLog: false` within 1.5 s; and a bundle schema check, since `DIAGNOSTICS_SCHEMA` is now 2 (no existing test reads it, by grep).
+## Isolation granularity close 10
+
+Scope: the decision "A part is a system call of `step`" in "Pump isolation close 7" left a fault inside a slice taking the whole slice for the tick. This closes it for the three largest slices: settlements (hamlets), beings and dominions (armies and rulers). Spec: `Spec/systems/17-engine-runtime-performance.md`, section 9, "System isolation" (verified at `game/Spec`). Files: `src/sim/sim.ts` (`unit()`), `src/sim/beings/system.ts` (`stepBeings`), `src/sim/settlements/adapter.ts` (`settlementsStep`), `src/sim/dominions/types.ts` (`UnitGuard`), `src/sim/dominions/rulers.ts` (`rulersStep`, `checkRuler`), `src/sim/dominions/armies.ts` (`attackOrders`, `marchArmies`), `src/sim/dominions/adapter.ts` (`stepDominions`). Development only: no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` is not edited.
+
+**Closed.**
+- Per-unit guard. `Sim.unit(kind, id, run)` runs one unit under the same gate as `part()`, with the same `SysIsolation` thresholds (3 faults in 10 s, off for 600 ticks, 3 switch-offs stop the sim; 17 section 9). The part name is `kind:id`: `hamlet:<index>`, `dominion:<dominion id>`, `being:<slot>`. A caught throw is posted with that name as `sys`.
+- Settlements: each hamlet step in `settlementsStep` is a unit. Hamlets are only appended (`state.hamlets.push`), so the index is stable.
+- Beings: each being body in `stepBeings` is a unit. The body is unchanged except that `continue` became `return` inside the unit's closure. The loop order is unchanged.
+- Dominions: each army's attack order (`attackOrders`) and march (`marchArmies`) is a unit keyed by `army.dominionId`. Each dominion's ruler check in `rulersStep` is a unit (`checkRuler`, extracted from the loop body). The guard is an optional `unit` argument or `RulerEnv.unit`; without it the body runs directly.
+- No fault: the same calls run in the same order, so an unfaulted run is unchanged. With no gate (tests, tools) `unit()` calls `run()` directly and a throw propagates as before.
+
+**Decisions.**
+- Unit names carry the id, not only the kind. A kind-wide name would switch off every being after three faults, against "the rest of the slice still runs".
+- Cost: with a gate set, each unit builds its name string and checks `isOff` once per tick (for beings, once per being per tick, on the hot path of 17 section 3.3). Not measured, because nothing was run.
+- `being:<slot>` names a slot, not a Being. A switch-off on a slot skips whichever Being occupies it for 600 ticks. Deterministic, and it does not change an unfaulted run.
+- Stop counts are per unit. Three switch-offs of one unit stop the sim even if other units run fine. This follows the brief's thresholds, but a single unit that keeps faulting can stop a realm. Worth a look before release.
+- The main thread's `noteSysFault` (crash-record.ts) keys on `sys`, so each unit has its own count there too, as before.
+- Armies are keyed by dominion id because `engageContacts` already finds one army per dominion by `dominionId`.
+
+**Remaining.**
+- Not isolated, so a throw in one of them still takes its whole part for the tick: the per-hamlet loyalty loop (`loyaltyStep`), `garrisonStep` and `structureStep`, the per-border-pair loops in `dominionStep` and `engageContacts`, `rankStep`, `captureTick`'s per-hamlet loop, and the per-system bodies of `runTerrain` and `runBehaviours`.
+- Fatal invariant violations (17 section 9) are still not detected.
+- Deviation 2 of "Pump isolation close 7" (the ping part) is unchanged.
+
+**Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Needed with test access: a unit test where one hamlet, being or dominion throws and the others still run and the fault is counted as `hamlet:<i>`, `being:<slot>` or `dominion:<id>`; a check that three faults on one unit switch only that unit off for 600 ticks; and a no-fault hash check with and without a gate, which should match `GOLDEN_HASH` as before.

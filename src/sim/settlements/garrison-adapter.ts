@@ -1,5 +1,5 @@
 import type { Sim } from '../sim.ts';
-import { dominionOwnerOf, dominionsOfSim, dominionState, ownerOfHamlet, UNOWNED } from '../dominions/adapter.ts';
+import { dominionOwnerOf, dominionsOfSim, dominionState, hamletCaptured, ownerOfHamlet, UNOWNED } from '../dominions/adapter.ts';
 import { drawToGarrison, returnFromGarrison } from '../dominions/armies.ts';
 import { harmonyBonus } from '../culture/culture.ts';
 import { SS_TICKS } from '../clock.ts';
@@ -207,6 +207,8 @@ export function garrisonStep(
       return;
     }
     if (rec.soldiers >= slots || rec.dominion === UNOWNED) return;
+    // Soldier gate (09 section 9): no soldier is taken while the hamlet is being captured (capture.ts progress above 0).
+    if (hamletCaptured(sim, hamlet.parcels)) return;
     if (hamlet.gold <= SOLDIER_GOLD_GATE) return;
     // Levy (11 section 9.1, 09 section 8 soldier gate): only folk of the levied sex may serve, so a recruit needs one more
     // such adult in the hamlet than the company holds.

@@ -26,12 +26,13 @@ import {
   type SplitKind,
 } from './intrigue.ts';
 import { taxFlowOf, taxRatesOf, type TaxFlow } from './tax.ts';
-import { leadingHamlet, rulersStep, rulerLive, rulerStatsOf, type RulerRef, type RulerStats } from './rulers.ts';
+import { leadingHamlet, rulersStep, rulerLive, rulerStatsOf, RULER_WAIT_MIN, RULER_WAIT_SPAN, type RulerRef, type RulerStats } from './rulers.ts';
 import { rankDominions, RANK_PERIOD_TICKS } from './rank.ts';
 import { hamletLoyalty, type HamletLoyaltyFacts } from './loyalty.ts';
-import { captureStep, CAPTURE_STEP_TICKS, HAMLET_CAPTURE, type Capture } from './capture.ts';
+import { captureStep, CAPTURE_STEP_TICKS, HAMLET_CAPTURE, type Capture, type CaptureFall } from './capture.ts';
 import { cultureYearly } from '../culture/adapter.ts';
-import { blockedWarMood, campaignMood, convertLineageUnits, groupOfSlot, lineageHas, rulerInstalled, traitsOfGroup, warBlocked as warBlockedBy } from '../culture/effects.ts';
+import { blockedWarMood, campaignMood, captureMood, convertLineageUnits, groupOfSlot, lineageHas, rulerInstalled, traitsOfGroup, warBlocked as warBlockedBy } from '../culture/effects.ts';
+import { addMood } from '../beings/social.ts';
 import { customOfGroup, foundCreed, foundDialect, harmonyBonus, sameMeta, splitCreed, splitCustom, splitDialect, type MetaBirth } from '../culture/culture.ts';
 import { successionRuleOf, type FoundFacts, type SplitFacts } from '../culture/trait-rules.ts';
 import { MAX_BEINGS } from '../beings/store.ts';
@@ -79,13 +80,20 @@ export interface DominionState {
   taxFlows: TaxFlow[];
   /** Hamlet loyalty by the hamlet's lowest parcel, from the latest yearly pass (loyalty.ts). Derived, not saved. */
   loyalty: Map<number, number>;
-  /** Hamlet capture progress by the hamlet's lowest parcel (capture.ts). Not saved: a load starts every capture at 0. */
+  /** Hamlet capture progress by the hamlet's lowest parcel (capture.ts). Saved as `captures`. */
   captures: Map<number, Capture>;
   /**
    * Dominion each hamlet was last seen with, and the tick it was first seen with it, keyed by the hamlet's index in
    * hamletsOf order (the sim never removes a hamlet). Saved as `hamletHolds`; read by the belonging term (10 section 5).
    */
   hold: Map<number, { dominion: number; since: number }>;
+  /**
+   * Tick each conquered unit was stamped wasConquered (effects.ts captureMood), keyed as a culture key (generation times
+   * MAX_BEINGS plus slot). Not saved: a load clears the window (DECISIONS.md, Capture follow-ups close 9).
+   */
+  conqueredAt: Map<number, number>;
+  /** Hamlets this state has taken from another dominion by capture (10 section 2 counter hamletsConquered). Saved as `hamletsConquered`. */
+  hamletsConquered: number;
 }
 
 const states = new WeakMap<Sim, DominionState>();
@@ -109,6 +117,8 @@ export function dominionState(sim: Sim): DominionState {
       loyalty: new Map(),
       captures: new Map(),
       hold: new Map(),
+      conqueredAt: new Map(),
+      hamletsConquered: 0,
     };
     states.set(sim, s);
   }
@@ -227,6 +237,10 @@ export interface DominionSnapshot {
   dominions: { id: number; parcels: number[]; strength: number; target: number; campaignSince: number; traits?: string[]; taxRaised?: number; ruler?: RulerRef; rulerWaitUntil?: number; rank?: Rank; foundedTick?: number; rulerSinceTick?: number; newConquestTick?: number }[];
   /** Hamlet holdings (`DominionState.hold`): [hamlet index, dominion id, tick first seen]. Optional: written only while one exists. */
   hamletHolds?: [number, number, number][];
+  /** Hamlet capture progress (capture.ts) by the hamlet's lowest parcel. Optional: written only while a capture runs. */
+  captures?: { anchor: number; ticks: number; defenderTicks: number }[];
+  /** Hamlets taken by capture (DominionState.hamletsConquered). Optional: written only when above 0. */
+  hamletsConquered?: number;
   /** Hamlet gold at the last yearly pass by the hamlet's lowest parcel (tax.ts loot). Optional: written only when present. */
   taxSeen?: [number, number][];
   /** Per-hamlet tax flows of the latest yearly pass (tax.ts TaxFlow). Optional: written only when the pass taxed a hamlet. */
@@ -293,6 +307,8 @@ export function snapshotDominions(sim: Sim): DominionSnapshot | null {
       ...(d.newConquestTick !== undefined ? { newConquestTick: d.newConquestTick } : {}),
     })),
     ...(s.hold.size > 0 ? { hamletHolds: [...s.hold].map(([i, h]): [number, number, number] => [i, h.dominion, h.since]) } : {}),
+    ...(s.captures.size > 0 ? { captures: [...s.captures].map(([anchor, c]) => ({ anchor, ticks: c.ticks, defenderTicks: c.defenderTicks })) } : {}),
+    ...(s.hamletsConquered > 0 ? { hamletsConquered: s.hamletsConquered } : {}),
     ...(s.taxSeen.size > 0 ? { taxSeen: [...s.taxSeen] } : {}),
     ...(s.taxFlows.length > 0 ? { taxFlows: s.taxFlows.map((f) => ({ ...f })) } : {}),
     relations,
@@ -452,7 +468,17 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
     if (!isNum(i) || !Number.isInteger(i) || i < 0 || !isNum(dom) || !dominions.some((d) => d.id === dom) || !isNum(since) || !Number.isInteger(since) || since < 0) bad('hamlet hold');
     hold.set(i, { dominion: dom, since });
   }
-  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen, taxFlows, loyalty: new Map(), captures: new Map(), hold });
+  // Capture progress (capture.ts): each anchor is a parcel of the realm and appears once. The counts are non-negative; the
+  // rise and fall are whole or half ticks. A save without the list loads with no capture running.
+  const captures = new Map<number, Capture>();
+  for (const c of snap.captures ?? []) {
+    if (!isNum(c.anchor) || !Number.isInteger(c.anchor) || c.anchor < 0 || c.anchor >= parcelCount || captures.has(c.anchor)) bad(`capture of hamlet ${c.anchor}`);
+    if (!isNum(c.ticks) || c.ticks < 0 || !isNum(c.defenderTicks) || !Number.isInteger(c.defenderTicks) || c.defenderTicks < 0) bad(`capture of hamlet ${c.anchor} counts`);
+    captures.set(c.anchor, { ticks: c.ticks, defenderTicks: c.defenderTicks });
+  }
+  const hamletsConquered = snap.hamletsConquered ?? 0;
+  if (!isNum(hamletsConquered) || !Number.isInteger(hamletsConquered) || hamletsConquered < 0) bad('hamlets conquered');
+  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues, taxSeen, taxFlows, loyalty: new Map(), captures, hold, conqueredAt: new Map(), hamletsConquered });
 }
 
 /** Majority owner of a hamlet's parcels (ties to the lower id), or UNOWNED. Draws no randomness. */
@@ -652,16 +678,119 @@ export function captureTick(sim: Sim): void {
   const s = states.get(sim);
   if (!s || s.dominions.length === 0 || sim.tick % CAPTURE_STEP_TICKS !== 0) return;
   if (!sim.rules.isOn('parley')) return;
-  captureStep({
+  const hamlets = hamletsOf(sim);
+  const falls = captureStep({
     perAxis: parcelsPerAxis(sim),
-    hamlets: hamletsOf(sim),
+    hamlets,
     owner: s.owner,
     dominions: s.dominions,
     armies: s.armies,
     relations: s.relations,
     ownerOf: (parcels) => ownerOfHamlet(parcels, s.owner),
     captures: s.captures,
+    takerOf: (captor, loser, anchor) => takerOfCapture(sim, s, captor, loser, anchor, hamlets),
+    isCapital: (loser, anchor) => {
+      const lh = leadingHamlet(loser, hamlets, s.owner);
+      return lh !== undefined && anchorOf(lh.parcels) === anchor;
+    },
   });
+  for (const f of falls) applyFall(sim, s, f, hamlets);
+}
+
+/** Lowest parcel of a hamlet: its key in the capture progress, the hold records and the tax loot (tax.ts). */
+function anchorOf(parcels: ReadonlySet<number>): number {
+  let anchor = Infinity;
+  for (const p of parcels) anchor = Math.min(anchor, p);
+  return anchor;
+}
+
+/**
+ * Whether a hamlet is being captured: its capture progress is above 0 (capture.ts). The settlements gates read it (09
+ * section 6 build tick, 09 section 9 soldier gate). Read only; draws no randomness.
+ */
+export function hamletCaptured(sim: Sim, parcels: ReadonlySet<number>): boolean {
+  if (parcels.size === 0) return false;
+  return (states.get(sim)?.captures.get(anchorOf(parcels))?.ticks ?? 0) > 0;
+}
+
+/**
+ * Majority species of the living Folk standing on the parcels that `inScope` picks (ties to the lower species). undefined
+ * when none stands there. Used as the lineage of a hamlet or a dominion (10 section 7). Draws no randomness.
+ */
+function folkSpeciesWhere(sim: Sim, inScope: (parcel: number) => boolean): number | undefined {
+  const st = sim.beings.store;
+  const perAxis = parcelsPerAxis(sim);
+  const counts = new Map<number, number>();
+  for (let k = 0; k < st.size; k++) {
+    const slot = st.at(k);
+    const species = st.species[slot] ?? 0;
+    if (!sim.beings.species(species).folk) continue;
+    const p = Math.floor((st.y[slot] ?? 0) / PARCEL) * perAxis + Math.floor((st.x[slot] ?? 0) / PARCEL);
+    if (!inScope(p)) continue;
+    counts.set(species, (counts.get(species) ?? 0) + 1);
+  }
+  return majorityOf(counts);
+}
+
+/**
+ * The dominion that takes a hamlet its captor took (10 section 7, findDominionAfterCapture). In an allied campaign a captor
+ * from an ally may hand the hamlet to the campaign's main party. This build reads the campaign as the captor's pact: the
+ * main party is the pact's first founder, and it must be at war with the loser. The hamlet goes to it only when its lineage
+ * (the species of the Folk on the hamlet) is the main party's (the species of the Folk on its parcels). Otherwise the captor
+ * takes it. Reads the owner bytes before they change. Draws no randomness.
+ */
+function takerOfCapture(sim: Sim, s: DominionState, captor: number, loser: number, anchor: number, hamlets: ReturnType<typeof hamletsOf>): number {
+  const pact = pactOf(s.pacts.pacts, captor);
+  const main = pact?.founders[0];
+  if (pact === undefined || main === undefined || main === captor || main === loser) return captor;
+  if (s.relations.get(main, loser) !== 'war') return captor;
+  const h = hamlets.find((x) => anchorOf(x.parcels) === anchor);
+  if (!h) return captor;
+  const lineage = folkSpeciesWhere(sim, (p) => h.parcels.has(p));
+  return lineage !== undefined && lineage === folkSpeciesWhere(sim, (p) => s.owner[p] === main) ? main : captor;
+}
+
+/**
+ * The side effects of a hamlet falling (10 sections 5, 7 and 10 section 2 joinAnother), after the owner bytes pass it on:
+ * the holdings (belonging restarts at the fall), the taker's newConquestTick, the hamletsConquered counter, the captured
+ * Folk's and the loser's moods (captureMood), and the ruler who was in the hamlet (fleeRuler). Draws only from the `rulers`
+ * stream, and only when a ruler flees.
+ */
+function applyFall(sim: Sim, s: DominionState, f: CaptureFall, hamlets: ReturnType<typeof hamletsOf>): void {
+  const i = hamlets.findIndex((h) => anchorOf(h.parcels) === f.anchor);
+  const hamlet = hamlets[i];
+  const taker = s.dominions.find((d) => d.id === f.winner);
+  if (hamlet === undefined || taker === undefined) return;
+  s.hold.set(i, { dominion: f.winner, since: sim.tick });
+  taker.newConquestTick = sim.tick;
+  s.hamletsConquered += 1;
+  captureMood(sim, f.winner, f.loser, f.capital, hamlet.parcels, (p) => s.owner[p] ?? UNOWNED, s.conqueredAt, sim.tick);
+  const loser = s.dominions.find((d) => d.id === f.loser);
+  if (loser !== undefined) fleeRuler(sim, s, loser, hamlet, hamlets);
+}
+
+/**
+ * The ruler of the loser flees a captured hamlet (10 section 14, 10 section 7 finishCapture). Only a ruler standing in the
+ * hamlet flees. The crown is cleared, the succession wait of rulers.ts starts (randomInt(100, 400), 10 section 4), and the
+ * ruler moves to the loser's leading hamlet after the fall (rulers.ts leadingHamlet), or stays when it holds none. The ruler
+ * feels crown_lost (-60).
+ */
+function fleeRuler(sim: Sim, s: DominionState, loser: Dominion, hamlet: ReturnType<typeof hamletsOf>[number], hamlets: ReturnType<typeof hamletsOf>): void {
+  const store = sim.beings.store;
+  const r = rulerLive(store, loser);
+  if (r === undefined) return;
+  const perAxis = parcelsPerAxis(sim);
+  const at = Math.floor((store.y[r.slot] ?? 0) / PARCEL) * perAxis + Math.floor((store.x[r.slot] ?? 0) / PARCEL);
+  if (!hamlet.parcels.has(at)) return;
+  delete loser.ruler;
+  loser.rulerWaitUntil = sim.tick + RULER_WAIT_MIN + sim.rng('rulers').int(RULER_WAIT_SPAN);
+  const to = leadingHamlet(loser.id, hamlets, s.owner);
+  if (to !== undefined) {
+    const q = anchorOf(to.parcels);
+    store.x[r.slot] = (q % perAxis) * PARCEL + PARCEL / 2;
+    store.y[r.slot] = Math.floor(q / perAxis) * PARCEL + PARCEL / 2;
+  }
+  addMood(sim, r.slot, 'crown_lost');
 }
 
 /**

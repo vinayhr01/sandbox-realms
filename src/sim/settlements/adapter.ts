@@ -3,7 +3,7 @@ import { ssToTicks } from '../clock.ts';
 import type { Realm } from '../realm.ts';
 import type { BeingStore } from '../beings/store.ts';
 import type { Sim } from '../sim.ts';
-import { dominionState, UNOWNED } from '../dominions/adapter.ts';
+import { dominionState, hamletCaptured, UNOWNED } from '../dominions/adapter.ts';
 import { FOUND_FOLK } from '../dominions/founding.ts';
 import { buildable, civilTiles, createHamlet, goodFoundingParcel, hamletStep, PARCEL, SITE_PROGRESS, type BuildSite, type Hamlet, type HamletContext, type Placed } from './hamlet.ts';
 import { BUILDING_BY_ID } from './catalogue.ts';
@@ -344,6 +344,7 @@ export function settlementsStep(host: SettlementHost): void {
       desires: desiresOf(state.structures, h, host.realm.side),
       rules: rulesOf(custom?.traits ?? [], host.realm.seed),
       soldierLimit: () => hamletSoldierLimit(host as unknown as Sim, h),
+      captured: () => hamletCaptured(host as unknown as Sim, h.parcels),
       workforce: { ...counted.work, childLabour: childMayWork(custom?.traits ?? []) },
     };
     const parcelsBefore = custom && customHas(custom, 'outwardGrowth') ? new Set(h.parcels) : null;

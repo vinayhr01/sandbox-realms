@@ -97,6 +97,8 @@ export interface HamletContext {
   rules?: CustomRules;
   /** Soldier slots the garrison rule allows (garrison-adapter.ts hamletSoldierLimit), read when the round is built, never saved. */
   soldierLimit?: () => number;
+  /** True while the hamlet is being captured (dominions/adapter.ts hamletCaptured). The build tick places nothing then (09 section 6). Absent: not captured. */
+  captured?: () => boolean;
   /** Adults, children, ruler and child-labour rule of the hamlet's folk (adapter census), read each second, never saved. Absent: all folk are adults. */
   workforce?: Workforce;
 }
@@ -749,7 +751,8 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
   if (ctx.isOn('folk_births') && h.food > h.folk * 2 && h.folk < housing && h.folk < 100) h.folk += 1;
   // One site at a time (09 section 6 step 2): a new building is placed only when no site is open. Territory grows only after
   // a building is actually placed; the site is finished by builders in the jobs below (its coins follow the finish).
-  if (!h.site) {
+  // The build tick is skipped while the hamlet is being captured (09 section 6 build tick).
+  if (!h.site && !ctx.captured?.()) {
     for (const def of buildChoices(h, ctx.desires ?? [], ctx.rules ?? BASE_RULES)) {
       if (placeBuilding(ctx, h, def)) {
         expandTerritory(ctx, h);

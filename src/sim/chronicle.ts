@@ -716,6 +716,14 @@ function checkDominions(raw: unknown): DominionSnapshot | null {
   if (raw.hamletHolds !== undefined && (!Array.isArray(raw.hamletHolds) || !raw.hamletHolds.every((t) => Array.isArray(t) && t.length === 3 && t.every(isFiniteNumber)))) {
     throw new Error('chronicle: dominion section hamlet holdings are not valid');
   }
+  // Optional capture progress (dominions/adapter.ts, capture.ts): records with an anchor and two counts, and a conquest count.
+  // restoreDominions checks the ranges. Saves written before captures were saved have neither and load with none running.
+  if (raw.captures !== undefined && (!Array.isArray(raw.captures) || !raw.captures.every((c) => isRecord(c) && isFiniteNumber(c.anchor) && isFiniteNumber(c.ticks) && isFiniteNumber(c.defenderTicks)))) {
+    throw new Error('chronicle: dominion section captures are not valid');
+  }
+  if (raw.hamletsConquered !== undefined && !isFiniteNumber(raw.hamletsConquered)) {
+    throw new Error('chronicle: dominion section hamlets conquered is not valid');
+  }
   return raw as unknown as DominionSnapshot;
 }
 

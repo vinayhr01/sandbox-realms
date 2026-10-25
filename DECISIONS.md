@@ -1023,3 +1023,33 @@ Deviations (OPEN defaults): a birth inherits the bearer's morph; castes are not 
 **Ecology risk (not measured).** Hungry predators now fight any grazer in sight (H when hungry, 07 9.4), and monsters (group G, wild in the roster) are hostile to every kind. Monsters are seeded by `seedStartingBeasts` as before, so the world now has fighting that the sim did not have. Expect the strict soak (`STRICT=1 npm run soak`) to move. Not run.
 
 **Not verified.** Nothing above has run. Expect failures in the golden test, and check the test suite for pins on the schema number, decision count and the beast ecology. The tests cannot be edited under this brief's touch set.
+
+## Jobs release 2
+
+Scope: 09 section 8 citizen jobs, the ten jobs the earlier rounds cut (builder, prospector, honey gatherer, herbalist, tiller, roadwright, cleaner, manure collector, hunter, soldier). Code: `src/sim/settlements/jobs.ts`, `src/sim/settlements/hamlet.ts`. `catalogue.ts`, `adapter.ts` and `src/content/` are unchanged (outside the touch set; `JobId` stays the building job type in `catalogue.ts`, and the wider `WorkerJob` type lives in `jobs.ts`). Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). Types were checked by reading.
+
+**Built (2 of 10).**
+- *Herbalist* (09 section 8, herb patch). The herb plant (`herb`, 18d/flora.ts) is the target. Quota: herb plants in the hamlet's parcels, shared with the forager food cap (`foragerCap`). Work: each worker picks `perWorker` (2) herbs per growth step; a picked herb is removed from the realm (`setFlora(i, 0, tick)`, the spec's "patch destroyed") and adds `HERB_FOOD` (1) food to the store, clamped at the store cap. TUNE: a herb is half a grain's nutrition, so a herbalist matches a forager's 2 food per step.
+- *Prospector* (09 section 8, surface deposit). The target is a mineral node with a store: `stone_outcrop` (2 stone) and `gold_outcrop` (3 gold) (`DEPOSIT_YIELD`, TUNE). Quota: such nodes in the hamlet's parcels (the spec's "up to deposit count"). Work: each worker breaks one node per growth step and the node leaves the realm. Iron and gem nodes are not taken: the hamlet has no iron or gem store, so their output would be lost. The spec's 7-hit deposit timer and the miner trait roll are not built.
+- Targets are scanned from the realm each growth step (`jobTargets`), in parcel order and row-major inside each parcel, so the same realm gives the same targets. No randomness is drawn: no new rng stream.
+- Work loop: unchanged shape. Folk fill job slots in `JOBS` order (forager, herbalist, miner, prospector, woodcutter) once per growth step (100 steps, the existing `growTimer`). The output is paid into the hamlet store in the same step. Herbalists take the front of the scan list, so a herb plant is picked at most once per step.
+- `runJobs` now gives at least one unit per worker (`Math.max(1, ...)`). For the existing jobs this changes nothing: their `perWorker` times the lowest mood multiplier (0.9) already gives at least one unit.
+- `HamletContext.realm` gains `setFlora`, which the real `Realm` already has. No other context or adapter change.
+
+**Cut, with reasons.**
+- *Builder.* Construction is instant in this sim (`placeBuilding` pays and places in one call), so there is never a site to work. Cut as before.
+- *Honey gatherer.* No hive fixture exists in the flora registry or the realm (`hive_hanging` is a 18c map fixture that the sim does not place). No input, so cut.
+- *Tiller.* Needs a mill (`mill_a`, `mill_b` cut in round 4) and tilled fields (`farmstead` cut). The crop code (`plantCrop`, `harvestCrop`) has no caller in the play path. Cut.
+- *Roadwright.* Needs the custom trait `roadworks`, and customs are not built. Cut.
+- *Cleaner.* Removes a ruin. No ruin is created in play (`ruined_*` are not in the registry, and no building becomes a ruin). Cut.
+- *Manure collector.* Picks manure piles. `dropManure` (flora.ts) has no caller, so no pile is ever made. Cut.
+- *Hunter.* Kills non-kin prey within patch radius 3. The kill rule sits in `beings/` (per-being combat and prey), outside the touch set, and the hamlet step has no beings access. Cut.
+- *Soldier.* Soldiers are armies in `dominions/` (09 section 8 gate writes armies and the army factor reads leader stats). Outside the touch set; the soldier gate waits for a dominions round, as round 4 recorded.
+
+**Persisted state: none.** Workers and targets are derived each growth step. The realm's flora change (a picked herb or a broken node) is part of the realm, and the existing flora save already holds it. `Hamlet` gained no field, and `snapshotHamlets`/`restoreHamlets` are unchanged. `SCHEMA_VERSION` and `FORMAT_VERSION` are unchanged.
+
+**Determinism.** The herb and deposit scans are read-only and ordered. The new jobs draw nothing. The stream use is unchanged (`settlements` is passed in as before).
+
+**GOLDEN_HASH.** Not edited. These jobs change the sim whenever a hamlet has herb plants or stone and gold outcrops in its parcels: the herbalist and prospector take folk from the shared pool, and they remove flora and add food, stone and gold. The golden replay may therefore move. It must be re-baselined on a run, as a separate step, and that is not done here.
+
+**Open items.** The 09 spec's job priorities (builder 9, the no-food jobs 10), `okForRuler`/`okForLeader` and the child-labour rule are not built. Prospector and herbalist use the same growth-step timer as the other jobs, not per-worker timers. The herb and deposit quotas do not check the spec's `needs storage`, since the sim has no stock cap. Nothing above has run.

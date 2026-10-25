@@ -2758,3 +2758,40 @@ Scope: three fixes after the tsc and test failures left by "Capture close 8". Fi
 ## WebKit removed (owner decision, close 13)
 
 The owner asked for a Chromium-only build. WebKit projects are removed from `playwright.config.ts`, the platform smoke comment, and the release docs. The Playwright list drops from 280 to 276 tests. The WebKit-specific code paths stay: the `webkitAudioContext` fallback in `src/audio/engine.ts` and the `-webkit-` CSS prefixes are runtime support for Safari users, not test matrix entries. Revisit if a WebKit user reports a problem.
+
+## Possession controls close 14
+
+Scope: the owner's choices for the held Being. (1) Default keys for attack and the six abilities, wired in the key handling of `src/app/main.ts`. (2) Touch controls for the same actions, shown only while a Being is held. (3) This record. Spec: 13 section 10 (keys), 07 section 13 (the seven controls: move, attack, kick, jump, talk, dash, steal, swear), 12 section 8.8 (`ins_possess`: "dual-stick on touch, keys on desktop"; Esc releases). Touch set: `src/app/main.ts`, `src/app/sim-client.ts` (optional ability flags on `possess`), `src/ui/panels/possessControls.ts` (new: key table, labels, pad), `src/ui/styles.css`. The sim and the protocol are unchanged: the six flags and `attack` already exist (beings close 5, possess wiring close 11). Development only: no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` is not edited.
+
+**Spec check.** 13 section 10 binds only F (follow) and G (possess). It gives no key for attack or the six abilities, so every key below is an owner choice (TUNE), not a spec value.
+
+**Key table (desktop, held Being only).**
+
+| Control | Key | Behaviour |
+|---|---|---|
+| Attack | J | Hold. The attack flag is on while the key is down: the sim strikes the nearest Being within 1 tile each fight beat (07 section 13). |
+| Kick | K | One shot (stun and push, 07 section 13). |
+| Jump | L | One shot. |
+| Dash | U | One shot. |
+| Talk | T | One shot (`tagalong`, custom imposed). |
+| Steal | Y | One shot (within 2 tiles). |
+| Swear | N | One shot (mood within 3 tiles). |
+| Release | Esc | Unchanged (13 section 10, 12 section 8.8). |
+
+Choice: J, K, L, U, T, Y and N are free in 13 section 10 and in the app (the app binds P, H, `[`, `]`, Esc, Space, arrows and WASD). They sit off the WASD and Q/E/Z/X/C/F/G clusters and off the number row. Keys are read by `KeyboardEvent.code`, so the layout does not matter. Ctrl, Alt and Meta chords and key repeat do not fire. Text fields already suppress all keys (existing guard in the keydown handler).
+
+**Touch layout.** A pad in the map, bottom right, above the bottom bar, in the same overlay layer as the coach strip. Four columns of touch-size buttons (`--tap`, 44 px at scale 1): row 1 Attack, Kick, Jump, Dash; row 2 Talk, Steal, Swear, Release. It is shown only while a Being is held, on every device, so desktop users see it too. Attack is held: pointer down captures the pointer, and pointer up, cancel or lost capture ends the hold. The other five fire on pointer down. Release fires on click.
+
+**Decisions.**
+- There was no possession panel in `src/ui/`. Possession was the power button plus map taps. The pad is a map overlay, built like the coach strip, in `src/ui/panels/possessControls.ts` (it mounts into `#map`, and `updatePowerButtons` shows or hides it).
+- Ability presses carry the held attack state. `possessCommand` sets `orderAttack` from every order, so an order without the flag would clear a held attack. Tap orders carry it too, so moving does not drop an attack.
+- Attack is a hold, not a toggle, so one release stops it. A blur also releases it, because the key-up can be lost when focus leaves the page.
+- Abilities act on the held Being's last order tile (the tile of the last tap, or its own tile at the first pick). Jump and dash go toward that tile, so they do nothing until a tap has set a different tile (`orderDirection` in `beings/abilities.ts`).
+- Moves stay tap-to-order (unchanged from possess wiring close 11). The dual-stick move of 12 section 8.8 is not built; the pad covers the action half only.
+- Release is also on the pad, because touch has no Esc. The power bar Possess button still toggles as before.
+
+**Remaining and why.**
+- Move by keys while held (WASD or arrows): no spec binding. WASD still pans the camera.
+- Attack aim at the cursor (07 section 13): the sim strikes the nearest Being within 1 tile. The aim input is not wired.
+- Expiry display and the `iron_will` yell (07 section 13): not built (carried from possess wiring close 11).
+- Touch layout is not checked on a device. Keys and the pad were checked only by reading the code against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`.

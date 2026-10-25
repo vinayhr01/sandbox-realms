@@ -567,6 +567,32 @@ body {
   pointer-events: auto;
 }
 
+/* Possession pad (13 section 10 keys; touch buttons for the same controls). Shown only while a Being is held (possessControls.ts). */
+.possess-pad {
+  position: absolute;
+  right: var(--gap);
+  bottom: var(--gap);
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(4, var(--tap));
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+}
+
+.possess-pad[hidden] {
+  display: none;
+}
+
+.possess-btn {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: 0 4px;
+  touch-action: none;
+  user-select: none;
+}
+
 /* Window buttons: one scrolling row, so the Powers panel keeps its height as windows are added (13 section 3). */
 .power-actions {
   display: flex;

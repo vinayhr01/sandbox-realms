@@ -2321,3 +2321,56 @@ Not built, with the reason for each:
 - `GOLDEN_HASH` is not edited. It will drift when a creed with a harmony tenet exists (the readers change outcomes), and the content hash moves with `creeds.ts` and `powers.ts`.
 
 **Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. `MapTies.pactMembers` is required, and its only producer is `mapTiesOf`; no other src or test file builds a `MapTies`.
+## Close 6 tests
+
+Scope: unit tests for the close-6 features, one file per area under `tests/unit/`. Written and not run (development instruction: no vitest, tsc, build or Playwright). `GOLDEN_HASH` and `src/` are not touched. Conventions follow the existing tests: `generateRealm` with `startingBeasts: false`, `spawnFolk`/`spawnBeing` for Beings, `createHamlet` for hamlet fixtures, `BUILDING_BY_ID` for defs.
+
+**`sys-isolation.test.ts`** (17 section 9, 19 section 5).
+- The spec constants (3 faults, 10 000 ms, 600 ticks, 3 cycles).
+- Two faults keep a part on. The third switches it off for 600 ticks (off at tick 699, on at 700).
+- A fault exactly 10 s old is outside the window (window is strict `< 10 000`).
+- Parts are counted apart. The third switch-off returns `stop`; the first two return `disable`.
+- `buildRecord` gives `sys.disabled` true when `sysOff` is set, false when it is false or absent, and no `sys` block when the fault names no part.
+- Assumption: `buildRecord` reads `location`, `window` and `navigator`, which the node environment lacks. The test stubs them with `vi.stubGlobal`. Records are built more than 10 s apart, so the main-thread `errorCount` is 1 in each.
+- Not covered: the worker wiring (command drop, `SYS_STOP` auto-pause). That needs the worker runtime.
+
+**`soldier-line.test.ts`** (09 section 8 quota step 7; 10 section 8 limit).
+- The soldier sits after `iron_miner` and before `roadwright` in `QUOTA_ORDER`. `SOLDIER_PER_ROUND` is 2.
+- A limit of 5 or 6 gives exactly that many soldier slots. A zero limit gives no `soldier` entry.
+- Soldier slots take no folk: builder 3 and roadwright 1 are the same with and without a limit of 6. Soldiers are also posted with zero folk.
+- `hamletSoldierLimit`: 0 with `standing_armies` off; 0 at 15 adults; 5 at 16 (floor of 5.6); 7 at 16 with a garrison (+2); only folk in the hamlet parcels count (other beings do not).
+- Assumptions: `spawnFolk` makes adults (the baby flag is clear), as `settlements-founding.test.ts` also assumes. `boneshambler` is wild. Counts are chosen away from float boundaries (no `20 * 0.35` or `40 * 0.35`).
+- Not covered: the garrison pass release and recruit, and the worker-map `soldier` entry beyond the limit.
+
+**`ties-pick.test.ts`** (12 section 8.8).
+- `dominionAtTile` on a 4 x 4 parcel map: owned tiles give the dominion id, unowned tiles and tiles off the realm give -1, and no tiles give -1.
+- The `ins_ties` row arms `select_dominion`, and `select_dominion` is a UI handler.
+- Not testable here: the pick and clear state (`main.ts`: closures over DOM, status and `changeOption`) and `drawTies` (`insight-layers.ts`: private, pixi `Graphics`). Recorded as not testable without a DOM.
+
+**`watchspire-bolts.test.ts`** (10 section 9; `shootStep` is exported).
+- The first scan is at tick 20, so the first volley is on the 21st call and is five `flint_dart` bolts.
+- The next scan waits 60 to 120 ticks. No bolt lands on calls 22 to 81, and the count is exactly 10 by call 142 (the third volley cannot land before call 143).
+- With no hostile Being in its patches, a watchspire fires nothing.
+- Assumptions: `Rng.int(n)` returns 0 to n-1. Only the test's watchspire exists (the hamlet is seeded as in `items-gear.test.ts`; other beings are moved off the map). The target is a boneshambler (undead, hostile to Folk).
+
+**`outburst-reflect.test.ts`** (06 section 4.2; 08 section 5.4).
+- A feeling Being at mood -90 starts an outburst within 3000 ticks. Assumption, not verified by reading: the reflect decision (tier 2, weight 2.5) is picked in that window.
+- At mood -60 the Being never starts one. A stalwartheart Being never starts one, even at -90. These negatives hold whatever is picked.
+- An outburst added for 5 ticks ends, and the Being's mood is then `MOOD_VALUE.outburst_done` (25). Assumption: mood is zeroed before the expiring tick and no other mood event lands on it.
+- The feeling is given by pushing `EMOTIONS_TRAIT` (`fear_organ`) into the strain's traits. This is a test-only mutation.
+
+**`founding-gates-tenets.test.ts`** (11 sections 2, 3, 9.4).
+- `foundAllowed`: each newDialect term and each newCreed term (one fails at a time) and the thresholds 50, 5, 8, 1, 3.
+- `proposeIntrigues` proposes newDialect on the dominion at cost 0, and newCreed at cost 25 when the dominion holds a dialect. It does not propose a creed with 10 strength, or when the gate fails.
+- `resolveIntrigues` rechecks the gate: members drop to 49 and nothing is applied. With the gate still met, `newCreed` is applied.
+- `foundCreed` draws 1 or 2 random tenets. A group holds one creed and one dialect. A founded dialect has an empty lexicon. The random pool never gives a locked tenet.
+- The tenet table has 45 unique tenets (4 harmony, 5 transform, 18 spell, 15 rite, and one each of bloodSecrecy, fireWard, insight). 38 are random; the 7 locked are fireWard, insight and five transformation.
+- Not covered: the sim-level founding path (`culture/adapter.ts`, the dominion ruler stand-in). The tests use the test's own facts hook.
+
+**`book-impose-custom.test.ts`** (11 section 5; 11 section 9.1).
+- `imposeCustom` converts a Folk listener to the speaker's dominion. It does nothing when the speaker's dominion has no custom, when the listener's custom is `rooted`, when the listener is not Folk, or when the speaker follows no dominion.
+- `readBook`: over 200 readers of another dominion, the conversion count must fall in 60 to 140 (the 50% lottery; the band is about 6 standard deviations). A reader already in the book group is unchanged. A rooted reader is never converted. With no custom on the book side there is no conversion.
+- Assumption: readers are unspawned slots 0 to 199 (generation 0), so their culture keys are the slot numbers. The book rule reads only keys and customs.
+- Not covered: the exact outcome of one seeded roll. The rule draws from the `culture` stream, which cannot be predicted without a run, so the test checks the rate.
+
+**Not verified.** Nothing was run. Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. The outburst start test depends on the decision layer picking reflect, and the watchspire timer test on the `projectiles` stream's draws. Both need a run to confirm.

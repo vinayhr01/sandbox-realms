@@ -820,10 +820,15 @@ function decodeBeings(sim: Sim, r: Reader): void {
     for (const link of [rec.fields['bondWith'] ?? -1, rec.fields['closeWith'] ?? -1]) {
       if (link !== -1 && !seen.has(link)) throw new Error(`chronicle: being ${rec.slot} names a missing bond partner`);
     }
-    // Aggro entries name a Being in this save, or are empty (schema 5).
+    // Aggro entries are empty (-1) or name an attacker slot. An entry whose attacker is no longer current (the slot
+    // was reused, or the attacker died and its generation moved on) counts for nothing and is kept as saved; only an
+    // entry whose attacker is still current (generation matches) must name a Being in this save (aggro.ts `live`).
     for (let k = 0; k < AGGRO_SLOTS; k++) {
       const id = rec.fields[`agId${k}`] ?? -1;
-      if (id !== -1 && !seen.has(id)) throw new Error(`chronicle: being ${rec.slot} names a missing aggro attacker`);
+      if (id === -1) continue;
+      if (id < 0 || id >= capacity) throw new Error(`chronicle: being ${rec.slot} names a missing aggro attacker`);
+      const current = generation[id] === (rec.fields[`agGen${k}`] ?? 0);
+      if (current && !seen.has(id)) throw new Error(`chronicle: being ${rec.slot} names a missing aggro attacker`);
     }
   }
 

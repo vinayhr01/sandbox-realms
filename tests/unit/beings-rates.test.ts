@@ -25,11 +25,13 @@ describe('beast movement rate (07 section 7.1)', () => {
     expect(slot).toBeGreaterThanOrEqual(0);
     sim.beings.store.moveAcc[slot] = 0;
     stepBeings(sim);
-    // pace * 0.2 / 20 units per tick: pace 15 is 0.15 tiles per tick (3 tiles per second).
+    // pace * 0.2 / 20 units per tick: pace 15 is 0.15 tiles per tick (3 tiles per second). The pace is the Being's
+    // assembled pace (05 section 3, with its morph's spd, 18a 3.5), not the raw species row: a thicket morph is x1.05.
     const i = (sim.beings.store.y[slot] ?? 0) * sim.realm.side + (sim.beings.store.x[slot] ?? 0);
     const tree = (sim.realm.flora[i] ?? 0) > 0 && FLORA[(sim.realm.flora[i] ?? 0) - 1]?.kind === "tree" && sim.rules.isOn("tangle_roots") ? 0.8 : 1;
     const walk = ground(sim.realm.ground[i] ?? 0).walk * tree;
-    expect(sim.beings.store.moveAcc[slot]).toBeCloseTo(SPECIES[idx]!.pace * 0.2 / 20 * walk, 5);
+    const pace = sim.beings.store.paceA[slot] ?? 0;
+    expect(sim.beings.store.moveAcc[slot]).toBeCloseTo(pace * 0.2 / 20 * walk, 5);
     expect(SPECIES[idx]!.pace * 0.2 / 20 * 100).toBeCloseTo(SPECIES[idx]!.pace, 5);
   });
 });

@@ -528,6 +528,10 @@ function checkDominions(raw: unknown): DominionSnapshot | null {
   if (!isRecord(raw) || !Array.isArray(raw.dominions) || !Array.isArray(raw.relations) || !Array.isArray(raw.borders) || !Array.isArray(raw.owner)) {
     throw new Error('chronicle: dominion section is not valid');
   }
+  // Optional intrigue records (intrigue.ts): when present, the item and cooldown lists must be arrays.
+  if (raw.intrigues !== undefined && (!isRecord(raw.intrigues) || !Array.isArray(raw.intrigues.items) || !Array.isArray(raw.intrigues.cooldowns))) {
+    throw new Error('chronicle: dominion section intrigues are not valid');
+  }
   return raw as unknown as DominionSnapshot;
 }
 

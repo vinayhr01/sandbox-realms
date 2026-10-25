@@ -5,10 +5,11 @@ import { SS_TICKS } from '../clock.ts';
 import { YEAR_TICKS } from '../../shared/constants.ts';
 import { dominionStep } from './step.ts';
 import { ground } from '../../content/grounds.ts';
-import { FOUND_FOLK, foundingYear, type FoundingEnv, type Truce } from './founding.ts';
+import { ARMY_DIVISOR, FOUND_FOLK, foundingYear, type FoundingEnv, type Truce } from './founding.ts';
 import { pairKey, RelationMatrix, type Dominion, type DominionContext, type Relation } from './types.ts';
 import { addPactRenown, makePact, newPactState, pactOf, pactYear, PACT_RENOWN_PER_DEFEAT, type Pact, type PactState } from './pacts.ts';
-import { armyWon, centroidParcel, marchArmies, raiseArmies, setCaptains, syncArmies, type Army } from './armies.ts';
+import { armyWon, attackOrders, centroidParcel, marchArmies, raiseArmies, setCaptains, setSlots, syncArmies, type Army } from './armies.ts';
+import { newIntrigueState, proposeIntrigues, resolveIntrigues, type Intrigue, type IntrigueEnv, type IntrigueState } from './intrigue.ts';
 
 /**
  * Sim adapter for the dominions slice. The dominion state is kept beside the Sim (not on it) and
@@ -34,6 +35,8 @@ export interface DominionState {
   pacts: PactState;
   /** One army per dominion (armies.ts). */
   armies: Army[];
+  /** Pact intrigue records (intrigue.ts). */
+  intrigues: IntrigueState;
 }
 
 const states = new WeakMap<Sim, DominionState>();
@@ -51,6 +54,7 @@ export function dominionState(sim: Sim): DominionState {
       truce: new Map(),
       pacts: newPactState(),
       armies: [],
+      intrigues: newIntrigueState(),
     };
     states.set(sim, s);
   }
@@ -125,8 +129,17 @@ export interface DominionSnapshot {
   owner: number[];
   /** Truces (founding.ts). Optional: saves written before the yearly pass have none. */
   truce?: { a: number; b: number; until: number; declared: boolean }[];
-  /** Armies (armies.ts). Optional: saves written before armies have none. */
-  armies?: { id: number; name: string; dominionId: number; soldiers: number; renown: number; captains?: number; parcel?: number }[];
+  /** Armies (armies.ts). Optional: saves written before armies have none. `slots` and `order` are optional for older saves. */
+  armies?: { id: number; name: string; dominionId: number; soldiers: number; renown: number; captains?: number; parcel?: number; slots?: number; order?: number }[];
+  /** Pact intrigues (intrigue.ts). Optional: written only when one is pending or a cooldown runs, so older saves load with none. */
+  intrigues?: IntrigueSnapshot;
+}
+
+/** Plain-data form of the pact intrigue records (intrigue.ts). */
+export interface IntrigueSnapshot {
+  items: Intrigue[];
+  nextId: number;
+  cooldowns: { dominionId: number; until: number }[];
 }
 
 /** Plain-data form of the pact records (chronicle tag 20, pacts.ts). */
@@ -160,7 +173,10 @@ export function snapshotDominions(sim: Sim): DominionSnapshot | null {
     borders: s.borders.map(([a, b]) => [a, b]),
     owner: [...s.owner],
     truce: [...s.truce.values()].map((t) => ({ a: t.a, b: t.b, until: t.until, declared: t.declared })),
-    armies: s.armies.map((a) => ({ id: a.id, name: a.name, dominionId: a.dominionId, soldiers: a.soldiers, renown: a.renown, captains: a.captains, parcel: a.parcel })),
+    armies: s.armies.map((a) => ({ id: a.id, name: a.name, dominionId: a.dominionId, soldiers: a.soldiers, renown: a.renown, captains: a.captains, parcel: a.parcel, slots: a.slots, order: a.order })),
+    ...(s.intrigues.items.length > 0 || s.intrigues.cooldowns.length > 0 || s.intrigues.nextId > 1
+      ? { intrigues: { items: s.intrigues.items.map((i) => ({ ...i })), nextId: s.intrigues.nextId, cooldowns: s.intrigues.cooldowns.map((c) => ({ ...c })) } }
+      : {}),
   };
 }
 
@@ -247,10 +263,24 @@ export function restoreDominions(sim: Sim, snap: DominionSnapshot): void {
     if (!isNum(a.id) || !isNum(a.dominionId) || !dominions.some((d) => d.id === a.dominionId) || !isNum(a.soldiers) || !isNum(a.renown) || typeof a.name !== 'string') {
       bad(`army ${a.id}`);
     }
+    if ((a.slots !== undefined && (!isNum(a.slots) || a.slots < 0)) || (a.order !== undefined && !isNum(a.order))) bad(`army ${a.id} slots or order`);
     const parcel = a.parcel ?? centroidParcel(dominions.find((d) => d.id === a.dominionId)?.parcels ?? new Set(), perAxis);
-    armies.push({ id: a.id, name: a.name, dominionId: a.dominionId, soldiers: a.soldiers, renown: a.renown, captains: a.captains ?? 1, parcel });
+    armies.push({ id: a.id, name: a.name, dominionId: a.dominionId, soldiers: a.soldiers, renown: a.renown, captains: a.captains ?? 1, parcel, slots: a.slots ?? 0, order: a.order ?? -1 });
   }
-  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies });
+  const intrigues = newIntrigueState();
+  if (snap.intrigues !== undefined) {
+    const ig = snap.intrigues;
+    if (!isNum(ig.nextId) || !Array.isArray(ig.items) || !Array.isArray(ig.cooldowns)) bad('intrigues');
+    for (const i of ig.items) {
+      const kinds = ['formPact', 'joinPact', 'dissolvePact'];
+      if (!isNum(i.id) || !isNum(i.dominionId) || !isNum(i.targetId) || !isNum(i.startedTick) || !kinds.includes(i.kind) || !dominions.some((d) => d.id === i.dominionId)) bad(`intrigue ${i.id}`);
+    }
+    for (const c of ig.cooldowns) if (!isNum(c.dominionId) || !isNum(c.until)) bad('intrigue cooldown');
+    intrigues.items = ig.items.map((i) => ({ ...i }));
+    intrigues.nextId = ig.nextId;
+    intrigues.cooldowns = ig.cooldowns.map((c) => ({ dominionId: c.dominionId, until: c.until }));
+  }
+  states.set(sim, { dominions, relations, borders, owner: Uint8Array.from(snap.owner), truce, pacts: newPactState(), armies, intrigues });
 }
 
 /**
@@ -275,9 +305,15 @@ export function dominionsYearly(sim: Sim): void {
   };
   foundingYear(s, settlements, env);
   pactYear(s.pacts, s.dominions, s.borders, s.relations, sim.tick, s.truce);
+  // Pact intrigues (intrigue.ts): last year's intrigues resolve through the pact functions, then new ones are proposed.
+  const ienv: IntrigueEnv = { dominions: s.dominions, borders: s.borders, relations: s.relations, truce: s.truce, pacts: s.pacts, tick: sim.tick };
+  resolveIntrigues(ienv, s.intrigues);
+  proposeIntrigues(ienv, s.intrigues);
   raiseArmies(s.armies, s.dominions, perAxis);
-  // Captains: one per hamlet, counted by the hamlet's majority owner (no hamlet data leaves one captain).
+  // Captains and slots: one captain per hamlet, and the hamlet's folk, both counted by the hamlet's majority owner
+  // (no hamlet data leaves one captain and no slots).
   const hamlets = new Map<number, number>();
+  const folk = new Map<number, number>();
   for (const h of settlements) {
     const counts = new Map<number, number>();
     for (const p of h.parcels) {
@@ -292,9 +328,13 @@ export function dominionsYearly(sim: Sim): void {
         bestN = n;
       }
     }
-    if (best !== UNOWNED) hamlets.set(best, (hamlets.get(best) ?? 0) + 1);
+    if (best !== UNOWNED) {
+      hamlets.set(best, (hamlets.get(best) ?? 0) + 1);
+      folk.set(best, (folk.get(best) ?? 0) + h.folk);
+    }
   }
   setCaptains(s.armies, hamlets);
+  setSlots(s.armies, new Map([...folk].map(([id, f]) => [id, Math.floor(f / ARMY_DIVISOR)])));
   syncArmies(s.armies, s.dominions);
 }
 
@@ -313,7 +353,9 @@ export function stepDominions(sim: Sim): void {
     if (id !== UNOWNED) owner.set(p, id);
   }
   const perAxis = parcelsPerAxis(sim);
-  // Armies march one parcel a second toward their enemy (armies.ts); the strength exchange needs contact.
+  // Armies first take attack orders (ready armies order the nearest enemy parcel and take it on contact), then march one
+  // parcel a second toward their target (armies.ts). The strength exchange needs contact.
+  attackOrders(s.armies, s.dominions, s.relations, owner, perAxis);
   marchArmies(s.armies, s.dominions, s.relations, perAxis);
   const ctx: DominionContext = {
     rng: sim.rng('dominions'),

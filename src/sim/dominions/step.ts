@@ -45,10 +45,11 @@ function byId(ctx: DominionContext, id: number): Dominion | undefined {
 }
 
 /**
- * Campaign joining (10 section 11-12, simplified): for each war border pair, the other members of the
- * attacker's pact join against the defender, and the other members of the defender's pact join against the
- * attacker. A member at peace with the foe leaves its pact instead of joining (the spec's "leave"). Pacts are
- * disjoint in this build, so a member that joins the enemy side always leaves the pact it had. Draws no randomness.
+ * Campaign joining and leaving for pact-level wars (10 section 12), over the war border pairs of this build.
+ * For each war pair, every other member of the attacker's pact joins against the defender, and every other
+ * member of the defender's pact joins against the attacker (a pact joins that side as a whole). A member that is
+ * already on the opposite side (at war with its own pact's leader) leaves its pact instead of joining (the spec's
+ * "leave"). Joining sets the member's relation to the foe to war. Draws no randomness.
  */
 function joinCampaigns(ctx: DominionContext, relations: RelationMatrix): void {
   if (!ctx.pacts) return;
@@ -64,7 +65,7 @@ function joinSide(ctx: DominionContext, relations: RelationMatrix, leader: numbe
   if (!own) return;
   for (const m of [...own.memberIds]) {
     if (m === leader || m === foe) continue;
-    if (relations.get(m, foe) === 'peace') {
+    if (relations.get(m, leader) === 'war') {
       own.memberIds = own.memberIds.filter((x) => x !== m);
       continue;
     }

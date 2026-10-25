@@ -7,7 +7,7 @@
 import { PROTOCOL_VERSION, Cmd, Ev, type Command, type Event, type FrameRows, type FrameStats, type Speed } from '../shared/protocol.ts';
 import type { Sim } from './sim.ts';
 import { startGenerateJob, type GenOutcome, type WorldgenJob } from './worldgen.ts';
-import { heartbeatDue, planPump, pumpFaultAction } from './scheduler.ts';
+import { heartbeatDue, mainPingLost, planPump, pumpFaultAction } from './scheduler.ts';
 import { snapshotDue } from './snapshot.ts';
 import { decodeChronicle, encodeChronicle, MAX_SIZE_STEP, MIN_SIZE_STEP } from './chronicle.ts';
 import { contentHash } from '../content/content-hash.ts';
@@ -29,6 +29,11 @@ let lastSnapshotTick = -1;
 /** Tick of the last Heartbeat posted (-1 before the first one for a realm) and pumps since then. */
 let lastHeartbeatTick = -1;
 let pumpsSinceHeartbeat = 0;
+/** Page liveness (19 section 2, main_hang): performance.now() of the last Cmd.Ping, whether the page was hidden then,
+ * and whether this silence has already been reported (one report per silence). */
+let lastPingAt: number | null = null;
+let pingHidden = false;
+let mainHangReported = false;
 const bufferPool: ArrayBuffer[] = [];
 
 /** Worldgen slice budget per pump, ms (03 section 10: slices of at most 12 ms). */
@@ -228,6 +233,7 @@ function pump(): void {
   const wall = performance.now();
   const elapsed = wall - lastWall;
   lastWall = wall;
+  checkMainPings(wall);
   if (job) {
     runJobSlice();
     return;
@@ -264,6 +270,16 @@ function pump(): void {
     pumpsSinceHeartbeat = 0;
     post({ kind: Ev.Heartbeat, tick: sim.tick, avgTickMs });
   }
+}
+
+/**
+ * Judges the page from its pings (19 section 2, main_hang). Posted as a Fault when the page wakes, because a frozen
+ * page cannot draw the overlay itself; the queued Fault arrives first.
+ */
+function checkMainPings(now: number): void {
+  if (mainHangReported || !mainPingLost(lastPingAt, now, pingHidden)) return;
+  mainHangReported = true;
+  post({ kind: Ev.Fault, severity: 'error', code: 'MAIN_HANG', detail: 'the page sent no ping for 8 s', sys: 'ping' });
 }
 
 function handle(cmd: Command): void {
@@ -358,6 +374,12 @@ function handle(cmd: Command): void {
     case Cmd.ReturnBuffer:
       if (bufferPool.length < 4) bufferPool.push(cmd.buffer);
       return;
+    case Cmd.Ping:
+      lastPingAt = performance.now();
+      pingHidden = cmd.hidden;
+      mainHangReported = false;
+      post({ kind: Ev.Pong, reply: cmd.seq });
+      return;
   }
 }
 
@@ -370,6 +392,7 @@ self.onmessage = (event: MessageEvent<Command>) => {
       severity: 'error',
       code: 'SIM_COMMAND',
       detail: err instanceof Error ? err.message : String(err),
+      sys: 'command',
     });
   }
 };
@@ -390,6 +413,7 @@ channel.port1.onmessage = () => {
       severity: fatal ? 'fatal' : 'error',
       code: 'SIM_PUMP',
       detail: err instanceof Error ? err.message : String(err),
+      sys: 'pump',
     });
     // A single fault keeps the pump running (the world must not stop until reload); repeats end it.
     if (fatal) return;

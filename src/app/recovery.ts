@@ -39,6 +39,16 @@ export function journal(code: string, detail: string): void {
   }
 }
 
+/**
+ * The breadcrumb types of 19 section 3. The detail carries ids and numbers only (a power id, a window id, a speed):
+ * never coordinates, names or text typed by the player.
+ */
+export type CrumbCode = 'WINDOW_OPEN' | 'POWER_SELECT' | 'POWER_APPLY' | 'SAVE_START' | 'SAVE_DONE' | 'SPEED' | 'QUALITY' | 'AGE' | 'WORKER_RESTART';
+
+export function crumb(code: CrumbCode, detail: string): void {
+  journal(code, detail);
+}
+
 /** Returns true when the previous session did not reach pagehide cleanly. */
 export function startSentinel(): boolean {
   let unclean = false;

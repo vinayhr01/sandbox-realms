@@ -1,5 +1,5 @@
 import { MAX_CATCHUP_MS, TICK_MS } from '../shared/constants.ts';
-import type { Speed } from '../shared/protocol.ts';
+import { PING_LOST_MS, type Speed } from '../shared/protocol.ts';
 
 /** Speed -> ticks allowed per pump (17 section 3.1). The tick length never changes. */
 export const MAX_TICKS_PER_PUMP: Readonly<Record<Speed, number>> = { 0: 0, 0.5: 1, 1: 1, 2: 2, 5: 5, 10: 10 };
@@ -40,6 +40,14 @@ export const HEARTBEAT_PUMPS = 60;
 /** True when the worker should post a heartbeat: enough ticks since the last one, or enough idle pumps. */
 export function heartbeatDue(tick: number, lastHeartbeatTick: number, pumpsSinceHeartbeat: number): boolean {
   return tick - lastHeartbeatTick >= HEARTBEAT_TICKS || pumpsSinceHeartbeat >= HEARTBEAT_PUMPS;
+}
+
+/**
+ * True when the page has gone silent for too long (19 section 2, main_hang). `lastPingMs` is null before the first ping,
+ * so a worker that never had a page does not judge one. A hidden page is never judged: its timers are throttled.
+ */
+export function mainPingLost(lastPingMs: number | null, nowMs: number, hidden: boolean): boolean {
+  return lastPingMs !== null && !hidden && nowMs - lastPingMs > PING_LOST_MS;
 }
 
 /**

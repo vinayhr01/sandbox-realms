@@ -21,7 +21,7 @@ import { WindowHost } from '../ui/windowHost.ts';
 import { windowFor, type ChronicleActions, type ChronicleOutcome, type WindowDeps, type WindowParams } from '../ui/windowContent.ts';
 import { SimView } from '../ui/sim-view.ts';
 import { POWER_BY_ID, POWERS, TABS, powersInTab, type PowerDef, type TabId } from '../content/powers.ts';
-import { Ev, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
+import { Ev, PING_LOST_MS, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
 import { MONTH_TICKS, YEAR_TICKS, DEFAULT_SIZE_STEP } from '../shared/constants.ts';
 import { RULE_BY_ID, RuleSet } from '../sim/rules.ts';
 import { AudioEngine } from '../audio/engine.ts';
@@ -33,6 +33,7 @@ import { CueOverlay, StingerWatch, captionFor, cueOptionsFrom, hapticPattern, vi
 import { SimClient } from './sim-client.ts';
 import {
   bootGuard,
+  crumb,
   decideRecovery,
   fatalOpen,
   hideFatal,
@@ -59,7 +60,9 @@ import {
   type DegradeTrack,
 } from './recovery.ts';
 import { contentHash } from '../content/content-hash.ts';
-import { exportCrashRecord, firstFatalNote, noteCrashRun, recordCrash, setCrashConsent } from './crash-record.ts';
+import { consentFromOption, exportCrashRecord, firstFatalNote, noteCrashRun, recordCrash, setCrashConsent } from './crash-record.ts';
+import { logLine } from './log-ring.ts';
+import { noteFrameMs, noteSimMs, startLongTaskWatch } from './perf-sample.ts';
 
 /** Brush radii in tiles for slider positions 0..10 (04 section 1.1 sizes, trimmed for M1). */
 const BRUSH_RADII = [0, 1, 2, 3, 4, 5, 6, 8, 10, 12, 16] as const;
@@ -142,6 +145,16 @@ interface AutosaveRecovery {
 }
 let autosaveRecovery: AutosaveRecovery | null = null;
 
+/** The emergency save for fatal paths (19 section 7 step 3b). Resolves to a step name. Set once the save controller exists. */
+let emergencySave: (() => Promise<string>) | null = null;
+
+/** Settings that change the picture's cost. A change to one is a QUALITY breadcrumb (19 section 3). */
+const QUALITY_OPTIONS: ReadonlySet<string> = new Set(['ui.fpsCap', 'perf.renderScale', 'map.shadows', 'map.bloom', 'map.particles', 'map.treeWind']);
+
+/** When the last main_hang record was written. A frozen page can trip both the frame-gap check and the worker's ping check. */
+let mainHangRecordedMs = Number.NEGATIVE_INFINITY;
+const MAIN_HANG_DEDUP_MS = 10_000;
+
 /** The restore button. `hasSave` null means the save list is still being read, so the button waits. */
 function restoreAction(hasSave: boolean | null, primary: boolean, onRestored: () => void = () => undefined): FatalAction {
   return {
@@ -182,16 +195,23 @@ async function exportCrashAndDownload(): Promise<void> {
   setFatalDetail((await exportCrashToFile()).message);
 }
 
-/** Crash reporter for the recovery dialog. The ladder (19 section 7) decides which recovery buttons it offers. */
-function reportCrash(kind: FaultKind, title: string, detail: string, stack?: string, ctx: 'main' | 'worker' = 'main'): void {
+/**
+ * Crash reporter for the recovery dialog. The ladder (19 section 7) decides which recovery buttons it offers. The dialog
+ * shows at once; then the emergency save runs inside its budget, the record is written with the steps taken, and the
+ * dialog gets its full buttons. The sim has already stopped stepping on sim_fatal (the worker stops its pump), and a
+ * dead worker has nothing left to step.
+ */
+function reportCrash(kind: FaultKind, title: string, detail: string, stack?: string, ctx: 'main' | 'worker' = 'main', sys?: string): void {
   // The dialog shows at once; the restore button waits until the save list has been read.
   showFatal(title, detail, [restoreAction(null, false), safeModeAction(false)]);
   void (async () => {
+    const saved = emergencySave ? await emergencySave() : 'emergency_save_unavailable';
     const hasSave = autosaveRecovery ? await autosaveRecovery.hasSave() : false;
     const now = Date.now();
     const decision = decideRecovery({ kind, nowMs: now, attempts: loadAttempts(), hasValidAutosave: hasSave });
     storeAttempt({ atMs: now, kind, level: decision.level ?? 'fatal_dialog' });
-    void recordCrash({ kind, ctx, message: detail, stack, recovery: decision.level ?? 'none' });
+    const steps = decision.level ? [saved, decision.level] : [saved];
+    void recordCrash({ kind, ctx, message: detail, stack, sys, recovery: steps });
     // The first fatal dialog explains the consent choice once (19 section 9).
     const note = firstFatalNote();
     const text = note === null ? detail : `${detail} ${note}`;
@@ -300,6 +320,7 @@ function osPrefers(query: string): boolean {
 
 async function boot(): Promise<void> {
   installGlobalErrorHandlers(reportCrash);
+  startLongTaskWatch();
   const guard = bootGuard(Date.now(), startSentinel());
   if (!supported()) {
     showFatal(
@@ -322,6 +343,8 @@ async function boot(): Promise<void> {
   // Insight layers and overlays: added after the marks, so the tints and icons draw over them.
   const insight = new InsightLayer(renderer.app);
   const client = new SimClient();
+  // The worker judges this page by its pings (19 section 2, main_hang); hidden pages are not judged.
+  client.startPings(() => document.hidden);
   const progressBar = worldgenBar();
   // Audio feed: the Age, biome shares and mood from each snapshot (16 B8). Read by the music state below.
   const musicFeed = new MusicFeed();
@@ -342,7 +365,7 @@ async function boot(): Promise<void> {
     'ui.reduceFlash': osPrefers('(prefers-reduced-motion: reduce)'),
   };
   let options: Options = loadOptions(safeStorage(), osDefaults);
-  setCrashConsent(boolOption(options, 'privacy.errorReports'));
+  setCrashConsent(consentFromOption(stringOption(options, 'privacy.errorReports')));
   const startSpeed = Number.parseFloat(stringOption(options, 'game.defaultSpeed'));
 
   // Audio starts on the first gesture (16 B6), never before. Safe Mode keeps it off.
@@ -423,6 +446,8 @@ async function boot(): Promise<void> {
   const cooldownUntil = new Map<string, number>();
 
   let simTick = 0;
+  /** The Age last written as a breadcrumb, so an Age change is recorded once. */
+  let lastAgeCrumb: string | null = null;
   /** The sim tick at the last successful autosave; the autosave is due only when the tick has moved on. */
   let savedTick = -1;
   let simHash = 0;
@@ -510,7 +535,11 @@ async function boot(): Promise<void> {
   const showMainHang = (gapMs: number): void => {
     const seconds = Math.round(gapMs / 1000);
     journal('MAIN_HANG', `main thread frozen for about ${seconds} s`);
-    void recordCrash({ kind: 'main_hang', ctx: 'main', message: `main thread frozen for about ${seconds} s`, recovery: 'none' });
+    const nowMs = Date.now();
+    if (nowMs - mainHangRecordedMs > MAIN_HANG_DEDUP_MS) {
+      mainHangRecordedMs = nowMs;
+      void recordCrash({ kind: 'main_hang', ctx: 'main', message: `main thread frozen for about ${seconds} s`, recovery: [] });
+    }
     if (watchdogShown) return;
     showFatal(
       'Not responding',
@@ -528,7 +557,7 @@ async function boot(): Promise<void> {
     if (stalled && !watchdogShown) {
       watchdogShown = true;
       journal('WORKER_STALL', 'no heartbeat for 6 s');
-      void recordCrash({ kind: 'worker_dead', ctx: 'worker', message: 'no heartbeat for 6 s', recovery: 'none' });
+      void recordCrash({ kind: 'worker_dead', ctx: 'worker', message: 'no heartbeat for 6 s', recovery: [] });
       showNotResponding();
     } else if (!stalled && watchdogShown) {
       watchdogShown = false;
@@ -592,8 +621,14 @@ async function boot(): Promise<void> {
     $('realm-name').textContent = `Realm ${seed.toString(36).toUpperCase().slice(-6)}`;
   };
 
+  let lastSpeedCrumb = '';
   const applySpeed = (): void => {
     client.setSpeed(state.paused ? 0 : state.speed);
+    const speedNow = state.paused ? 'paused' : `${state.speed}x`;
+    if (speedNow !== lastSpeedCrumb) {
+      lastSpeedCrumb = speedNow;
+      crumb('SPEED', speedNow);
+    }
     $('pause').setAttribute('aria-pressed', String(state.paused));
     $('pause').setAttribute('aria-label', state.paused ? 'Resume' : 'Pause');
     $('pause').textContent = state.paused ? '▶' : '❚❚';
@@ -787,6 +822,7 @@ async function boot(): Promise<void> {
       flushStroke();
       stroke = null;
     }
+    if (power) crumb('POWER_SELECT', power.id);
     state.armed = power;
     stepAnchor = null;
     const op = strokeOp(power);
@@ -848,6 +884,7 @@ async function boot(): Promise<void> {
     const op = strokeOp(power);
     if (op) client.stroke(op, state.shape, brushRadius(), x, y, x, y, true);
     else client.power(power.id, x, y);
+    crumb('POWER_APPLY', power.id);
     playCueAt(op ? CUE.paint : CUE.power, x);
   };
 
@@ -869,6 +906,7 @@ async function boot(): Promise<void> {
 
   // Windows: one dialog, filled by windowContent. Settings, rules, ages, and the rest open from here.
   const openWindow = (id: string, params: WindowParams = {}): void => {
+    crumb('WINDOW_OPEN', id);
     const build = windowFor(id, windowDeps, params);
     if (!build) {
       setStatus('That window is not available yet.');
@@ -913,6 +951,7 @@ async function boot(): Promise<void> {
     hasSave: () => saveController.restoreTarget(safeModeOn()).then((target) => target !== null),
     restore: () => saveController.restoreAutosave(safeModeOn()),
   };
+  emergencySave = () => saveController.emergencySave();
   // Boot-loop guard (19 section 4): repeated unclean boots offer the restore, Safe Mode, or carrying on.
   // The save list is read first, so the restore button is enabled only when a valid autosave exists.
   if (guard.loop) {
@@ -1157,6 +1196,7 @@ async function boot(): Promise<void> {
         simTick = event.stats.tick;
         simHash = event.stats.stateHash;
         simAvgTickMs = event.stats.avgTickMs;
+        if (event.stats.ticksThisPump > 0) noteSimMs(event.stats.avgTickMs);
         simSpeed = event.stats.speed;
         noteCrashRun({ tick: simTick, speed: simSpeed });
         calendarText = `Y${Math.floor(simTick / YEAR_TICKS) + 1} M${(Math.floor(simTick / MONTH_TICKS) % 12) + 1}`;
@@ -1164,17 +1204,37 @@ async function boot(): Promise<void> {
         return;
       case Ev.Fault:
         progressBar.hide();
-        journal(event.code, event.detail);
+        // The page froze and the worker judged it from the pings it stopped getting (19 section 2, main_hang).
+        // The page is awake now, so the overlay can show.
+        if (event.code === 'MAIN_HANG') {
+          showMainHang(PING_LOST_MS);
+          return;
+        }
+        if (event.code === 'WORKER_RESPAWN') crumb('WORKER_RESTART', 'respawn');
+        else journal(event.code, event.detail);
         if (event.severity === 'fatal') {
-          reportCrash(event.code === 'WORKER_ERROR' ? 'worker_dead' : 'sim_fatal', 'The simulation stopped', event.detail, undefined, 'worker');
+          reportCrash(
+            event.code === 'WORKER_ERROR' ? 'worker_dead' : 'sim_fatal',
+            'The simulation stopped',
+            event.detail,
+            undefined,
+            'worker',
+            event.sys,
+          );
         } else {
           // Non-fatal worker faults get a crash record too (19 section 2 js_worker; section 1, principle 3).
-          if (event.severity === 'error') void recordCrash({ kind: 'js_worker', ctx: 'worker', message: event.detail, recovery: 'none' });
+          // A warning is not a crash, so it only goes to the log ring (recordCrash logs the errors it records).
+          if (event.severity === 'error') void recordCrash({ kind: 'js_worker', ctx: 'worker', message: event.detail, sys: event.sys, recovery: [] });
+          else logLine('warn', `${event.code}: ${event.detail}`);
           notify(event.detail, CUE.error);
         }
         return;
       case Ev.Snapshot:
         noteCrashRun({ age: event.snap.age ?? null });
+        if ((event.snap.age ?? null) !== lastAgeCrumb) {
+          lastAgeCrumb = event.snap.age ?? null;
+          if (lastAgeCrumb !== null) crumb('AGE', lastAgeCrumb);
+        }
         simView.apply(event.snap);
         musicFeed.ingest(event.snap);
         for (const id of stingers.ingest(event.snap.age ?? null, event.snap.dominions.filter((d) => d.atWar).length)) playCue(id);
@@ -1217,7 +1277,8 @@ async function boot(): Promise<void> {
     if (id === 'game.disasters' && !setRule('natural_calamities', value === true)) return;
     options = setOption(options, id, value);
     saveOptions(safeStorage(), options);
-    if (id === 'privacy.errorReports') setCrashConsent(boolOption(options, 'privacy.errorReports'));
+    if (id === 'privacy.errorReports') setCrashConsent(consentFromOption(stringOption(options, 'privacy.errorReports')));
+    if (QUALITY_OPTIONS.has(id)) crumb('QUALITY', `${id}=${String(value)}`);
     if (id === 'ui.fullscreen') toggleFullscreen(options[id] === true);
     // Hide status bar on phones: full screen is requested when the row is turned on (13 section 15).
     if (id === 'ui.hideStatusBar' && value === true && window.matchMedia('(pointer: coarse)').matches) toggleFullscreen(true);
@@ -1374,6 +1435,7 @@ async function boot(): Promise<void> {
     }
     saveController.frame(ticker.deltaMS, state.paused || document.hidden, autosaveState());
     degradeFrame(ticker.deltaMS);
+    noteFrameMs(ticker.deltaMS);
     const hiddenGap = hiddenSinceFrame;
     hiddenSinceFrame = false;
     // On the frame the main thread wakes, the worker's heartbeats are queued behind it: judge the worker next frame.

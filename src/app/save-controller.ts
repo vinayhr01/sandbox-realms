@@ -21,7 +21,12 @@ import {
   type SlotInfo,
   type SlotMeta,
 } from './saves.ts';
-import { chooseRestore, restoreOffers, type RestoreCandidate } from './recovery.ts';
+import { chooseRestore, crumb, restoreOffers, type RestoreCandidate } from './recovery.ts';
+
+/** The emergency save on a fatal path may take this long (19 section 7 step 3b, T-19-3). */
+export const EMERGENCY_SAVE_BUDGET_MS = 1_500;
+/** Emergency saves are at least this far apart. A main-thread error that repeats every frame must not write every frame. */
+export const EMERGENCY_SAVE_MIN_MS = 10_000;
 
 /** Produces and restores the live realm. The UI never touches the sim directly. */
 export interface ChronicleSource {
@@ -118,6 +123,7 @@ export class SaveController {
   private readonly loadedAtMs: number;
   private lastAutosaveMs: number | null = null;
   private lastSuspendMs: number | null = null;
+  private lastEmergencyMs: number | null = null;
 
   constructor(
     private readonly open: () => Promise<SaveService>,
@@ -207,18 +213,27 @@ export class SaveController {
 
   /** Runs one action from the Chronicle window. `slotId` is 'new' for a save into the first free manual slot. */
   async perform(action: SaveAction, slotId: string): Promise<ActionOutcome> {
+    if (action === 'save' || action === 'quick') crumb('SAVE_START', action);
     try {
+      let outcome: ActionOutcome;
       switch (action) {
         case 'save':
-          return await this.saveManual(slotId);
+          outcome = await this.saveManual(slotId);
+          break;
         case 'quick':
-          return await this.saveQuick();
+          outcome = await this.saveQuick();
+          break;
         case 'load':
-          return await this.load(slotId);
+          outcome = await this.load(slotId);
+          break;
         case 'delete':
-          return await this.remove(slotId);
+          outcome = await this.remove(slotId);
+          break;
       }
+      if (action === 'save' || action === 'quick') crumb('SAVE_DONE', `${action} ${outcome.ok ? 'ok' : 'failed'}`);
+      return outcome;
     } catch (err) {
+      if (action === 'save' || action === 'quick') crumb('SAVE_DONE', `${action} failed`);
       return fail(this.describe(err));
     }
   }
@@ -332,6 +347,8 @@ export class SaveController {
     }
     this.retries = 0;
     this.inFlight = true;
+    crumb('SAVE_START', 'auto');
+    let outcome = 'failed';
     try {
       const captured = await this.source.capture();
       if (!captured) return;
@@ -341,6 +358,7 @@ export class SaveController {
         this.lastAutosaveMs = this.now();
         this.clock.markSaved();
         this.onAutosaved?.();
+        outcome = 'ok';
       } else {
         this.failures++;
       }
@@ -348,6 +366,7 @@ export class SaveController {
       this.failures++;
     } finally {
       this.inFlight = false;
+      crumb('SAVE_DONE', `auto ${outcome}`);
     }
   }
 
@@ -364,10 +383,40 @@ export class SaveController {
     if (!this.source.canCapture) return;
     const nowMs = this.now();
     if (decideSuspend({ nowMs, lastSuspendMs: this.lastSuspendMs, lastAutosaveMs: this.lastAutosaveMs }) === 'skip') return;
+    crumb('SAVE_START', 'suspend');
     const captured = await this.source.capture();
-    if (!captured) return;
+    if (!captured) {
+      crumb('SAVE_DONE', 'suspend no realm');
+      return;
+    }
     const result = await (await this.service()).writeSuspend(captured.bytes, captured.info, nowMs);
     if (result.ok) this.lastSuspendMs = nowMs;
+    crumb('SAVE_DONE', `suspend ${result.ok ? 'ok' : 'failed'}`);
+  }
+
+  /**
+   * The emergency save on a fatal path (19 section 7 step 3b, principle 1). It ignores the suspend throttle, writes the
+   * suspend slot, and gives up after EMERGENCY_SAVE_BUDGET_MS. Resolves to a step name for the crash record.
+   */
+  async emergencySave(budgetMs: number = EMERGENCY_SAVE_BUDGET_MS): Promise<string> {
+    if (!this.source.canCapture) return 'emergency_save_unavailable';
+    const nowMs = this.now();
+    if (this.lastEmergencyMs !== null && nowMs - this.lastEmergencyMs < EMERGENCY_SAVE_MIN_MS) return 'emergency_save_throttled';
+    this.lastEmergencyMs = nowMs;
+    crumb('SAVE_START', 'emergency');
+    const work = (async (): Promise<string> => {
+      const captured = await this.source.capture();
+      if (!captured) return 'emergency_save_no_realm';
+      const result = await (await this.service()).writeSuspend(captured.bytes, captured.info, this.now());
+      if (result.ok) {
+        this.lastSuspendMs = this.now();
+        return 'emergency_save_ok';
+      }
+      return 'emergency_save_full';
+    })().catch((): string => 'emergency_save_failed');
+    const outcome = (await settleWithin(work, budgetMs)) ?? 'emergency_save_timeout';
+    crumb('SAVE_DONE', `emergency ${outcome}`);
+    return outcome;
   }
 
   private describe(err: unknown): string {

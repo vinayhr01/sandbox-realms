@@ -134,7 +134,7 @@ export const SETTINGS: readonly SettingDef[] = [
   // Language and privacy
   C('lang', 'lang', 'Language', ['auto', 'en'], 'auto'),
   B('privacy.telemetry', 'privacy', 'Share anonymous usage data', false),
-  B('privacy.errorReports', 'privacy', 'Send error reports', false, true),
+  C('privacy.errorReports', 'privacy', 'Crash reports', ['ask', 'always', 'never'], 'ask', true),
   // Developer
   B('dev.enabled', 'dev', 'Developer tools', false, true),
 ];
@@ -157,6 +157,22 @@ export const GROUP_LABELS: Readonly<Record<OptionGroup, string>> = {
 
 export const DEFAULT_OPTIONS: Options = Object.freeze(Object.fromEntries(SETTINGS.map((s) => [s.id, s.def])));
 
+/**
+ * Readable names for choice values whose raw value is not the label (19 section 9 consent modes). A value without an
+ * entry is shown as itself.
+ */
+const CHOICE_LABELS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  'privacy.errorReports': { ask: 'Ask every time', always: 'Always send', never: 'Never send' },
+};
+
+/** The text a choice value shows in Settings. */
+export function choiceLabel(id: string, value: OptionValue): string {
+  return CHOICE_LABELS[id]?.[String(value)] ?? String(value);
+}
+
+/** The old boolean `privacy.errorReports` (before Settings close 5) maps to `always` (on) or `ask` (off). */
+const ERROR_REPORTS_ID = 'privacy.errorReports';
+
 /** Minimal storage surface; `localStorage` satisfies it. */
 export interface KeyValueStorage {
   getItem(key: string): string | null;
@@ -178,6 +194,8 @@ export function sanitizeOptions(input: unknown, base: Options = DEFAULT_OPTIONS)
     }
     if (s.kind === 'bool') {
       out[s.id] = typeof raw === 'boolean' ? raw : fallback;
+    } else if (s.id === ERROR_REPORTS_ID && typeof raw === 'boolean') {
+      out[s.id] = raw ? 'always' : 'ask';
     } else if (s.kind === 'int') {
       out[s.id] = typeof raw === 'number' && Number.isFinite(raw) ? Math.min(s.max ?? raw, Math.max(s.min ?? raw, Math.round(raw))) : fallback;
     } else {

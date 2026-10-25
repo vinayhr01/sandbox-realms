@@ -4,6 +4,7 @@ import { n4 } from '../grid.ts';
 import type { Sim } from '../sim.ts';
 import { stopFire } from './fire.ts';
 import { magmaQuench } from './magma.ts';
+import { detonateChain } from '../explosions.ts';
 
 /** Probability a hollow with a sea neighbour fills in one run (04 section 2). */
 const REFILL_CHANCE = 0.7;
@@ -72,6 +73,8 @@ export function rainDrop(sim: Sim, i: number): void {
     if (seaId !== undefined) fillHollow(sim, i, seaId);
   }
   if (realm.molten.has(i)) magmaQuench(sim, i);
+  // Water-triggered charges (18e section 5) detonate when rain lands on them (04 section 2).
+  if (realm.ground[i] === G.charge_water) detonateChain(sim.explosionContext(), i);
   if (realm.scarred.has(i)) realm.setScar(i, 0);
   void GROUND_BY_ELEVATION;
   void groundId;

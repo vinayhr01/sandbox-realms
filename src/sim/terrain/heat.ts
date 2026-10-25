@@ -1,7 +1,7 @@
 import { G, ground } from '../../content/grounds.ts';
 import { FLAG, type Realm } from '../realm.ts';
 import type { Sim } from '../sim.ts';
-import { explode } from '../explosions.ts';
+import { detonateChain } from '../explosions.ts';
 import { fireChanceAt, scarStage, startFire } from './fire.ts';
 import { addMagma } from './magma.ts';
 import { thaw } from './freeze.ts';
@@ -49,12 +49,8 @@ export function applyHeatEffects(sim: Sim, i: number): void {
   }
   if (h >= IGNITE_AT && fireChanceAt(sim, i) > 0 && !realm.hasFlag(i, FLAG.burning)) startFire(sim, i);
 
-  // >= 24: explosive devices detonate and covers are stripped.
-  const device = ground(realm.ground[i] ?? 0);
-  if (h >= DETONATE_AT && device.blastRadius > 0) {
-    realm.setGround(i, G.cinderscar);
-    explode(sim.explosionContext(), i % realm.side, Math.floor(i / realm.side), device.blastRadius, device.blastRadius * 10, 'Explosion', -1);
-  }
+  // >= 24: explosive devices detonate, chaining through neighbouring devices, and covers are stripped.
+  if (h >= DETONATE_AT && ground(realm.ground[i] ?? 0).blastRadius > 0) detonateChain(sim.explosionContext(), i);
   if (h >= DETONATE_AT && (realm.cover[i] ?? 0) !== 0) realm.setCover(i, 0);
 
   // >= 36: molten tiles are re-heated (their cooling wait restarts); soil and paths become strand.

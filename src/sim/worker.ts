@@ -6,7 +6,7 @@
  */
 import { PROTOCOL_VERSION, Cmd, Ev, type Command, type Event, type FrameRows, type FrameStats, type Speed } from '../shared/protocol.ts';
 import type { Sim } from './sim.ts';
-import { generateRealm } from './worldgen.ts';
+import { startGenerateJob, type GenOutcome, type WorldgenJob } from './worldgen.ts';
 import { heartbeatDue, planPump, pumpFaultAction } from './scheduler.ts';
 import { snapshotDue } from './snapshot.ts';
 import { decodeChronicle, encodeChronicle, MAX_SIZE_STEP, MIN_SIZE_STEP } from './chronicle.ts';
@@ -30,6 +30,139 @@ let lastSnapshotTick = -1;
 let lastHeartbeatTick = -1;
 let pumpsSinceHeartbeat = 0;
 const bufferPool: ArrayBuffer[] = [];
+
+/** Worldgen slice budget per pump, ms (03 section 10: slices of at most 12 ms). */
+const JOB_SLICE_MS = 12;
+/** What a generation job needs to be rebuilt: the request. */
+interface JobRequest {
+  seed: number | string;
+  sizeStep: number;
+  template: string;
+}
+interface PendingJob {
+  gen: WorldgenJob;
+  request: JobRequest;
+  /** NewRealm seq for the Ready reply; 0 for a job resumed after a reload. */
+  seq: number;
+  resumed: boolean;
+  lastPct: number;
+}
+/** The generation job in progress, if any. The previous realm stays frozen until it finishes. */
+let job: PendingJob | null = null;
+
+/**
+ * Starts a generation job. Generation is deterministic, so the checkpoint is only the request: a
+ * reload rebuilds the same realm by running the job again (the progress events start from 0).
+ */
+function startJob(request: JobRequest, seq: number, resumed: boolean): void {
+  job = { gen: startGenerateJob(request), request, seq, resumed, lastPct: -1 };
+  accMs = 0;
+  void writeCheckpoint(request);
+}
+
+/** Runs the job for up to JOB_SLICE_MS, posting progress whenever the whole-percent figure moves. */
+function runJobSlice(): void {
+  const current = job;
+  if (!current) return;
+  const started = performance.now();
+  for (;;) {
+    const step = current.gen.next();
+    if (step.done) {
+      finishJob(step.value);
+      return;
+    }
+    const p = step.value;
+    const pct = Math.floor(p.progress * 100);
+    if (pct !== current.lastPct) {
+      current.lastPct = pct;
+      post({ kind: Ev.WorldgenProgress, reply: current.seq, stage: p.stage, name: p.name, progress: p.progress, attempt: p.attempt, resumed: current.resumed });
+    }
+    if (performance.now() - started >= JOB_SLICE_MS) return;
+  }
+}
+
+/** Installs a finished job as the live realm and publishes it as NewRealm always did. */
+function finishJob(done: GenOutcome): void {
+  const finished = job;
+  if (!finished) return;
+  job = null;
+  sim = done.sim;
+  accMs = 0;
+  lastPublishedTick = -1;
+  lastSnapshotTick = -1;
+  lastHeartbeatTick = -1;
+  pumpsSinceHeartbeat = 0;
+  lastHash = sim.stateHash();
+  void writeCheckpoint(null);
+  post({
+    kind: Ev.Ready,
+    reply: finished.seq,
+    protocolVersion: PROTOCOL_VERSION,
+    side: sim.realm.side,
+    sizeStep: finished.request.sizeStep,
+    seed: sim.realm.seed,
+    contentHash: contentHash(),
+  });
+  publishFrame(true);
+  publishSnapshot();
+}
+
+/* Checkpoint store (IndexedDB is reachable from workers; a blocked store only disables resume). */
+const DB_NAME = 'sandbox-realms-worldgen';
+const STORE = 'jobs';
+const KEY = 'pending';
+
+function openJobStore(): Promise<IDBDatabase | null> {
+  if (typeof indexedDB === 'undefined') return Promise.resolve(null);
+  return new Promise((resolve) => {
+    try {
+      const request = indexedDB.open(DB_NAME, 1);
+      request.onupgradeneeded = () => {
+        request.result.createObjectStore(STORE);
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+/** Stores the request of the job in progress, or clears it when `request` is null. */
+async function writeCheckpoint(request: JobRequest | null): Promise<void> {
+  const db = await openJobStore();
+  if (!db) return;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      if (request) tx.objectStore(STORE).put(request, KEY);
+      else tx.objectStore(STORE).delete(KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  } catch {
+    // Storage may be blocked (private windows): the job still runs, it just cannot resume after a reload.
+  } finally {
+    db.close();
+  }
+}
+
+async function readCheckpoint(): Promise<JobRequest | null> {
+  const db = await openJobStore();
+  if (!db) return null;
+  try {
+    return await new Promise<JobRequest | null>((resolve, reject) => {
+      const get = db.transaction(STORE, 'readonly').objectStore(STORE).get(KEY);
+      get.onsuccess = () => resolve((get.result as JobRequest | undefined) ?? null);
+      get.onerror = () => reject(get.error);
+    });
+  } catch {
+    return null;
+  } finally {
+    db.close();
+  }
+}
 
 const post = (event: Event, transfer: Transferable[] = []): void => {
   self.postMessage(event, transfer);
@@ -95,6 +228,10 @@ function pump(): void {
   const wall = performance.now();
   const elapsed = wall - lastWall;
   lastWall = wall;
+  if (job) {
+    runJobSlice();
+    return;
+  }
   if (!sim) return;
 
   if (speed === 0) {
@@ -142,6 +279,12 @@ function handle(cmd: Command): void {
         return;
       }
       post({ kind: Ev.Ready, reply: cmd.seq, protocolVersion: PROTOCOL_VERSION, side: 0, sizeStep: 0, seed: 0, contentHash: contentHash() });
+      // A generation job cut short by a reload is started again from its stored request (replay).
+      void readCheckpoint().then((request) => {
+        if (!request || job || sim) return;
+        if (!Number.isInteger(request.sizeStep) || request.sizeStep < MIN_SIZE_STEP || request.sizeStep > MAX_SIZE_STEP) return;
+        startJob(request, 0, true);
+      });
       return;
     case Cmd.NewRealm: {
       const sizeStep = cmd.sizeStep;
@@ -149,25 +292,8 @@ function handle(cmd: Command): void {
         post({ kind: Ev.Fault, severity: 'error', code: 'BAD_SIZE', detail: `size step ${sizeStep} is outside ${MIN_SIZE_STEP}..${MAX_SIZE_STEP}` });
         return;
       }
-      const built = generateRealm({ seed: cmd.seed, sizeStep, template: cmd.template });
-      sim = built.sim;
-      accMs = 0;
-      lastPublishedTick = -1;
-      lastSnapshotTick = -1;
-      lastHeartbeatTick = -1;
-      pumpsSinceHeartbeat = 0;
-      lastHash = sim.stateHash();
-      post({
-        kind: Ev.Ready,
-        reply: cmd.seq,
-        protocolVersion: PROTOCOL_VERSION,
-        side: sim.realm.side,
-        sizeStep,
-        seed: sim.realm.seed,
-        contentHash: contentHash(),
-      });
-      publishFrame(true);
-      publishSnapshot();
+      // The job replies with Ready when it finishes (03 section 10); the old realm stays until then.
+      startJob({ seed: cmd.seed, sizeStep, template: cmd.template }, cmd.seq, false);
       return;
     }
     case Cmd.SaveRealm: {
@@ -176,6 +302,9 @@ function handle(cmd: Command): void {
       return;
     }
     case Cmd.LoadRealm:
+      // A loaded save supersedes any generation job, including one resumed after a reload.
+      job = null;
+      void writeCheckpoint(null);
       try {
         sim = decodeChronicle(cmd.bytes);
         accMs = 0;

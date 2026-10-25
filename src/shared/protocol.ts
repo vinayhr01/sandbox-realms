@@ -45,6 +45,8 @@ export enum Ev {
   Loaded = 108,
   /** Sim liveness for the main-thread watchdog (17 section 10). Additive kind; PROTOCOL_VERSION unchanged. */
   Heartbeat = 109,
+  /** Worldgen job progress (03 section 10). Additive kind; PROTOCOL_VERSION unchanged. */
+  WorldgenProgress = 110,
 }
 
 export type Speed = 0 | 0.5 | 1 | 2 | 5 | 10;
@@ -433,6 +435,11 @@ export type Event =
   | { kind: Ev.Ready; reply: number; protocolVersion: number; side: number; sizeStep: number; seed: number; contentHash: string }
   /** Posted every HEARTBEAT_TICKS ticks, or after HEARTBEAT_PUMPS pumps with no tick (paused). Not a reply. */
   | { kind: Ev.Heartbeat; tick: number; avgTickMs: number }
+  /**
+   * A generation job advanced. `reply` is the NewRealm seq, or 0 for a job resumed after a reload.
+   * `progress` runs 0..1 over the whole job; `stage` indexes the six 03 section 10 stage names.
+   */
+  | { kind: Ev.WorldgenProgress; reply: number; stage: number; name: string; progress: number; attempt: number; resumed: boolean }
   | { kind: Ev.Frame; rows: FrameRows | null; stats: FrameStats }
   | { kind: Ev.QueryResult; reply: number; tileX: number; tileY: number; elevation: number; ground: string; inBounds: boolean }
   | { kind: Ev.Fault; severity: 'warn' | 'error' | 'fatal'; code: string; detail: string }

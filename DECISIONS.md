@@ -862,3 +862,67 @@ Code: `src/sim/combat.ts` (applyDamage `cause`, on-hit modifiers, `predate`, `ti
 - **Bomb cuts (4 of 12).** `havoc_powder`, `havoc_timed`, `havoc_hidden` (device grounds need the explodeChain trigger, timers and step-on detection of 04 8.4, which are not built) and `havoc_sparkler` (festive glimmer has no sim effect). Not modelled: the 0.9 s drop, sunburst flash and high-flyer hits, wasteland as a ground (cover and scar only), the water soak of 0.5, and the bomb counter at launch.
 - **Golden.** `GOLDEN_HASH` (`tests/unit/golden.test.ts`) is not edited and will not match: `eat_hunt` now draws the `combat` stream and counts attack timers down, and the content hash changes with the bomb entries. Re-baseline with a run.
 - **Save format.** Projectiles gain optional fields (`kind`, `shooter`, `mods`, `blast`, `ignite`). Older saves load with them absent; the chronicle check is unchanged.
+
+## Clock, worldgen and flora release
+
+Scope: frame clamp (02 section 2, 17 section 3.1), resumable worldgen jobs and progress events (03 sections 1, 10), flora from the 18d registry that the sim can express (18d sections 2, 3.3 to 3.5, 5.2, 5.3). Code: `src/sim/scheduler.ts` and `src/shared/constants.ts` (unchanged this round), `src/sim/worldgen.ts`, `src/sim/worker.ts`, `src/shared/protocol.ts` (additive `Ev.WorldgenProgress` = 110), `src/sim/flora.ts`, `src/content/flora-18d.ts` (new). Not touched: `src/sim/beings/`, `powers/`, `settlements/`, `dominions/`, `terrain/`, `GOLDEN_HASH`.
+
+Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). Types and behaviour were checked by reading. `tests/unit/golden.test.ts` is expected to fail: the seeding draw order and the flora registry changed (see flora below). The golden value is not re-baselined here.
+
+### 1. Frame clamp (decision)
+
+- **The two values are different quantities, so both apply.** 02 section 2 clamps the wall-clock frame delta: `frameDt` is at most 100 ms before the speed multiplier. 17 section 3.1 caps the world-time accumulator: `acc` is at most `MAX_CATCHUP_MS` = 250 ms of world time. The first stops a tab-switch spike from adding more than 100 ms of wall time; the second stops a backlog from replaying more than 250 ms of world time.
+- **Kept as built:** `FRAME_DT_CLAMP_MS` = 100 (`scheduler.ts`, applied first) and `MAX_CATCHUP_MS` = 250 (`constants.ts`, applied second). Worked cases, checked by hand: x2 with a 10 s stall gives 100 ms, so 200 ms of world time, so 4 ticks (02 section 12 test 2, second half). x10 with a 4 s stall gives 1000 ms, capped to 250 ms, so 5 ticks (the existing `tests/unit/sim.test.ts` stall expectation). Both are expected to hold; not run.
+- **Spec defect, not implemented:** 02 section 12 test 2, first case ("at x2 with frameDt = 0.5 s the loop executes exactly 20 ticks") cannot hold under either cap. A 0.5 s frame is clamped to 0.1 s (4 ticks at x2), and a 250 ms cap gives 5 ticks. 20 ticks would need both caps to be at least 500 ms. Flagged for the 02 owner; no code changed for it.
+
+### 2. Resumable worldgen jobs (03 section 10)
+
+- **Job shape.** `buildOnce` is now a generator (`src/sim/worldgen.ts`). It yields at row boundaries inside the three noise stages, after each biome patch, after each of the ten wild-seeding passes, and at each stage start. `startGenerateJob(req)` returns the job; `generateRealm(req)` drives it to the end, so every existing caller and test gets the same output. The rng calls are in the same order as before, so the arrays are unchanged for any seed.
+- **Stages.** The 24-step table of 03 section 2 is collapsed into the six UI stages of 03 section 10 (`WORLDGEN_STAGES`: Shaping land, Carving seas, Growing biomes, Planting, Settling beasts, Finishing). Progress is `(stage + fraction) / 6` over the whole job, counting re-rolls.
+- **Slices.** The worker runs a job for up to 12 ms per pump (`JOB_SLICE_MS`), then yields to the message loop. A job in progress freezes the previous realm: no ticks run and no frames are published until `Ready`. Progress is posted only when the whole-percent figure moves (`Ev.WorldgenProgress`, `reply` = the NewRealm seq).
+- **Resume after reload (replay, not state restore).** The worker writes the request to IndexedDB (`sandbox-realms-worldgen`) when a job starts, and clears it when the job finishes or when a save is loaded. On `Init` it reads the request back and starts the job again with `resumed: true` and `reply: 0`. Generation is deterministic, so the rebuilt realm is the same. Progress restarts at 0. Storage that is blocked only disables the resume; the job still runs.
+- **Cut.** No cancel command (protocol additions are events only, per the brief). A new NewRealm replaces a running job, and the superseded job's Ready never comes.
+- **Cut.** The 12 ms slice is met at row, patch and pass boundaries. The typing and elevation loops (one pass over all tiles each) and `seedStartingBeasts` (one call) are not split.
+- **Not done, flagged for the main-thread owner.** `src/app/sim-client.ts` and `main.ts` are not touched. A resumed job posts `Ready` with `reply: 0`, which reaches the listener as an unsolicited Ready. The page must treat that as a realm start, and should show `WorldgenProgress`. Until then the resumed realm appears without a loading bar.
+- **Determinism note.** Worldgen keeps its own hash-seeded stream (`createRng(hash3(seed, ...))`), not `sim.rng` named streams. Moving it to `sim.rng` would change every generated world, so it is not done here. New flora randomness uses `sim.rng('flora')` and `sim.rng('purge')`.
+
+### 3. Flora from 18d (src/content/flora-18d.ts, src/sim/flora.ts)
+
+Registry rule kept: the new entries are appended after the existing 15 entries, so saved flora codes keep their meaning.
+
+**Added:**
+- 10 bushes (18d 3.3), kind `bush`: mature at 6 Months, lifespan 8 Years, spread 0.2 with one hop, spread ids drawn from bushes that share a home biome (18d `spreadIds: 'home'`). `embercurrant` is rare (spawn chance 0.4).
+- 4 crops (18d 3.4), kind `crop`: ripe at 3 Months, rot 6 Months later (`deathResult` `withered_stalk`), plantable on `tilled` ground only. `emmer` is the default variety; `millet`, `rime_oat` and `marsh_rice` are picked by biome (`cropFor`).
+- 3 remains (18d 3.5), kind `remains`: `charred_stump`, `fallen_log`, `withered_stalk`. They never spread and are not counted in Parcel counts; they fade after 4 Years.
+- `manure_pile` (18d 3.5), kind `object`: its age is the flora age. From 30 Months, each sweep visit has a 30% chance to turn it into a biome plant; otherwise it fades at 36 Months.
+
+**Changed:**
+- Wild seeding (03 section 8.1) now picks the category uniformly among tree, plant (fungi included) and bush, then an id from the biome list. Before, it picked uniformly among all candidates. This changes every seeded world; it is the spec rule.
+- Drought and frost ruins (18d 5.2) leave `withered_stalk` on the tile instead of nothing.
+- Spread: bushes run under the `plant_spread` rule with a 40 ss period. 18d gives no period for bushes; 40 matches the plant kind (a choice, not a spec value).
+- Browse strip: `floraBlockedUntil` is reused as the one-Month strip timer for a browsed mature plant. Seeding already respects it, so no save-format change is needed. A stripped plant gives nothing until the timer passes. Side effect: a stripped tile cannot take new flora for up to one Month after the plant dies.
+- `fieldflower` gained `eatenBy: ['flower', 'nectar']`.
+
+**New sim-side functions (no callers yet):**
+- `dropManure(sim, x, y)`: places a pile on the tile or the nearest free neighbour, capped at six per Parcel. The caller is 06 section 2.4 `relieve`, in `beings/`.
+- `plantCrop(sim, i)`: plants a variety on a `tilled` tile. The callers are the tillers of 09 section 11.
+- `harvestCrop(sim, i)`: returns 1 grain for a ripe crop and clears the tile. The caller is the mill of 09.
+- `browseFlora(sim, i, diet)`: fuel for `leaf` (always; seedlings and young are destroyed; mature plants are stripped), `nectar` (+7, the plant survives) and `wood` (a tree in its last tenth of life is destroyed). The caller would be the diet code of `beings/`, which uses `grass`, `omni`, `nectar` and `flesh`, not 18d's diet names. It is not wired.
+
+**Cut (18d asks for it, the sim cannot express it yet):**
+- Bush ripeness and picking, and the 20% destruction on pick (18d 3.3). It needs a per-tile ripe bit, which is a new Realm array and a save-schema bump. `fruit` bites return 0 and no bush is picked.
+- Crop tending (09 tillers, `makeField`), mill grain and the `cropsGrow` pause. Crops keep ageing while `cropsGrow` is false. Harvest and planting have no caller yet.
+- Manure growth boost (x1.5 for flora within one tile). The sim's stages are age-based, not the 18d 5.1 rate, so there is no rate to multiply.
+- Burn results (18d 2 `burnResult`): fire lives in `src/sim/terrain/fire.ts`, owned by the terrain agent, which still clears burnt flora to nothing. Fallen logs and charred stumps therefore have no producer yet.
+- Felling and woodcutter yields (wood, fibre, stone from felled trees): no woodcutter in the sim.
+- Shade skip in the drought pass (S trees, 50%).
+- `seed` bites (fungi and crops) and `flower` bites: 18d names the diet but not the outcome, so they return 0.
+- W (wet ground) for fenberry, marsh rice and reeds, and `strand ok` for dune figs: the sim has no wet-edge rule and a beach tile is either strand or land, so these use their home land tiles only.
+- The rate model of 18d 5.1 and the tree limits of 18d 2 (lowloam halving, dense rounding up) are not changed; they were not in the listed items.
+
+**Hand-offs (outside this round's files):**
+- `src/sim/powers/terrain-powers.ts` `plantFlora` plants any registry id on a biome whose list names it. Crop ids list variety biomes, so a power that named a crop would plant it on untilled ground. No current power does. The powers owner should refuse kinds `crop`, `remains` and `object` there.
+- `src/sim/beings/system.ts` should call `browseFlora` and `dropManure` (06 section 2.2 and 2.4).
+- `src/sim/terrain/fire.ts` should place the `burnResult` remains (18d 2).
+
+**Unverified (not run):** that every bush home biome resolves in `BIOMES` (checked by grep, all ten present); that the content module import order has no runtime cycle (`content/flora-18d.ts` imports only a type from `sim/flora.ts`); the IndexedDB resume on a real reload; the crop and manure timing against the 18d 7.2 timer wheel (the sim uses a sweep, not the wheel).

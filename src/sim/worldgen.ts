@@ -168,19 +168,63 @@ export interface GenRequest {
 }
 
 /**
+ * The six UI stages of 03 section 10, in order. Names are the player-facing labels.
+ */
+export const WORLDGEN_STAGES: readonly string[] = ['Shaping land', 'Carving seas', 'Growing biomes', 'Planting', 'Settling beasts', 'Finishing'];
+
+/**
+ * One progress report from a generation job. `progress` runs 0..1 over the whole job, counting
+ * re-rolls, so it can fall back when a re-roll starts (rare; low-land maps only).
+ */
+export interface WorldgenProgress {
+  stage: number;
+  name: string;
+  progress: number;
+  attempt: number;
+}
+
+export interface GenOutcome {
+  sim: Sim;
+  report: GenReport;
+}
+
+/** A generation job: resumes at each `yield` (a slice boundary), returns the finished Sim. */
+export type WorldgenJob = Generator<WorldgenProgress, GenOutcome, void>;
+
+/**
+ * Starts a generation job (03 section 10, resumable jobs). The job does the same work in the same
+ * order as the old one-shot build, so a request yields identical arrays whether it runs in one go
+ * (generateRealm) or in slices (the worker). Drive it with `next()`; `yield` marks a point where
+ * the caller may stop and post progress.
+ */
+export function startGenerateJob(req: GenRequest): WorldgenJob {
+  return generateJob(req);
+}
+
+/**
  * Builds a new Sim from a generation request (03 section 1). Re-rolls with seed+1 (up to 8 times)
  * while the land fraction is below 6% (03 section 1 validation), and reports the final attempt.
  */
-export function generateRealm(req: GenRequest): { sim: Sim; report: GenReport } {
+export function generateRealm(req: GenRequest): GenOutcome {
+  const job = startGenerateJob(req);
+  for (;;) {
+    const step = job.next();
+    if (step.done) return step.value;
+  }
+}
+
+function* generateJob(req: GenRequest): WorldgenJob {
   const base = worldSeedOf(req.seed);
   const params: GenParams = { ...DEFAULT_PARAMS, ...(TEMPLATES[req.template] ?? {}), ...(req.overrides ?? {}) };
   const minLand = MIN_LAND[req.template] ?? 0.06;
+  const flora = req.startingFlora ?? true;
+  const beasts = req.startingBeasts ?? true;
   let attempt = 0;
-  let sim = buildOnce(base, req.sizeStep, params, req.startingFlora ?? true, req.startingBeasts ?? true);
+  let sim = yield* buildOnce(base, req.sizeStep, params, flora, beasts, 0);
   let land = landFraction(sim.realm);
   while (land < minLand && attempt < 8) {
     attempt++;
-    sim = buildOnce(base + attempt, req.sizeStep, params, req.startingFlora ?? true, req.startingBeasts ?? true);
+    sim = yield* buildOnce(base + attempt, req.sizeStep, params, flora, beasts, attempt);
     land = landFraction(sim.realm);
   }
   return {
@@ -189,7 +233,17 @@ export function generateRealm(req: GenRequest): { sim: Sim; report: GenReport } 
   };
 }
 
-function buildOnce(seed: number, sizeStep: number, p: GenParams, flora: boolean, beasts: boolean): Sim {
+/** Progress report for stage `stage` at fraction `f` (0..1) of that stage. */
+function progressOf(stage: number, f: number, attempt: number): WorldgenProgress {
+  return { stage, name: WORLDGEN_STAGES[stage] ?? '', progress: (stage + f) / WORLDGEN_STAGES.length, attempt };
+}
+
+/** Relays a sub-job's fraction (0..1) into the band [from, to] of stage `stage`. */
+function* relay(stage: number, from: number, to: number, sub: Generator<number, void, void>, attempt: number): Generator<WorldgenProgress, void, void> {
+  for (const f of sub) yield progressOf(stage, from + (to - from) * f, attempt);
+}
+
+function* buildOnce(seed: number, sizeStep: number, p: GenParams, flora: boolean, beasts: boolean, attempt: number): Generator<WorldgenProgress, Sim, void> {
   const sim = new Sim(seed, sizeStep);
   const realm = sim.realm;
   const rng = createRng(hash3(seed, 0x67656e, 1));
@@ -197,27 +251,15 @@ function buildOnce(seed: number, sizeStep: number, p: GenParams, flora: boolean,
   const h = side / 2;
   const elev = new Float32Array(side * side);
 
-  // Noise stages (03 section 4): stage 1 adds, 2 and 3 subtract finer detail.
-  const stage = (alpha: number, scale: number, sign: 1 | -1): void => {
-    if (scale <= 0) return;
-    const offX = rng.int(1_000_000);
-    const offY = rng.int(1_000_000);
-    const seedS = rng.int(0x7fffffff);
-    for (let j = 0; j < side; j++) {
-      for (let i = 0; i < side; i++) {
-        const n = noise01(((offX + i) / side) * scale, ((offY + j) / side) * scale, seedS);
-        const delta = Math.floor(n * 255 * alpha);
-        elev[j * side + i] = (elev[j * side + i] ?? 0) + sign * delta;
-      }
-    }
-  };
+  // Stage 0, Shaping land. Noise stages (03 section 4): stage 1 adds, 2 and 3 subtract finer detail.
+  yield progressOf(0, 0, attempt);
   if (p.forceHeight > 0) {
     elev.fill(p.forceHeight);
   } else {
-    stage(1, p.noise1, 1);
+    yield* relay(0, 0, 0.34, noiseStage(elev, side, rng, 1, p.noise1, 1), attempt);
   }
-  stage(0.2, 4 * p.noise2, -1);
-  stage(0.1, 10 * p.noise3, -1);
+  yield* relay(0, 0.34, 0.67, noiseStage(elev, side, rng, 0.2, 4 * p.noise2, -1), attempt);
+  yield* relay(0, 0.67, 0.8, noiseStage(elev, side, rng, 0.1, 10 * p.noise3, -1), attempt);
 
   for (let j = 0; j < side; j++) {
     for (let i = 0; i < side; i++) {
@@ -291,7 +333,8 @@ function buildOnce(seed: number, sizeStep: number, p: GenParams, flora: boolean,
     }
   }
 
-  // Typing (03 section 5.1): every tile gets its band kind; the realm edge is deep sea.
+  // Stage 1, Carving seas. Typing (03 section 5.1): every tile gets its band kind; the realm edge is deep sea.
+  yield progressOf(1, 0, attempt);
   for (let k = 0; k < realm.tileCount; k++) {
     realm.elevation[k] = clamp(Math.round(elev[k] ?? 0), 0, 255);
     realm.ground[k] = GROUND_BY_ELEVATION[realm.elevation[k] ?? 0] ?? 0;
@@ -348,19 +391,49 @@ function buildOnce(seed: number, sizeStep: number, p: GenParams, flora: boolean,
   // Edge ring (03 section 5): forced deep sea, flagged as the realm edge (Realm constructor did the flags).
   realm.rebuildSets();
 
-  if (p.randomBiomes) paintBiomes(sim, rng);
+  // Stage 2, Growing biomes.
+  if (p.randomBiomes) yield* relay(2, 0, 1, paintBiomes(sim, rng), attempt);
+  // Stage 3, Planting: ten wild-seeding passes (03 section 8.1).
+  yield progressOf(3, 0, attempt);
   if (p.addFlora && flora) {
-    for (let pass = 0; pass < 10; pass++) wildSeeding(sim, Math.floor(realm.tileCount / 16));
+    for (let pass = 0; pass < 10; pass++) {
+      wildSeeding(sim, Math.floor(realm.tileCount / 16));
+      yield progressOf(3, (pass + 1) / 10, attempt);
+    }
   }
 
+  // Stage 4, Settling beasts.
+  yield progressOf(4, 0, attempt);
   buildRegions(realm);
   if (beasts) {
     const landTiles = Math.round(landFraction(realm) * realm.tileCount);
     const groups = Math.min(40, Math.max(1, Math.round(landTiles / 1500)));
     seedStartingBeasts(sim, groups);
   }
+
+  // Stage 5, Finishing.
+  yield progressOf(5, 0, attempt);
   realm.markAllDirty();
   return sim;
+}
+
+/**
+ * One noise stage (03 section 4): yields after each row, with the fraction of rows done. A stage
+ * with scale 0 draws nothing from the rng, as before.
+ */
+function* noiseStage(elev: Float32Array, side: number, rng: Rng, alpha: number, scale: number, sign: 1 | -1): Generator<number, void, void> {
+  if (scale <= 0) return;
+  const offX = rng.int(1_000_000);
+  const offY = rng.int(1_000_000);
+  const seedS = rng.int(0x7fffffff);
+  for (let j = 0; j < side; j++) {
+    for (let i = 0; i < side; i++) {
+      const n = noise01(((offX + i) / side) * scale, ((offY + j) / side) * scale, seedS);
+      const delta = Math.floor(n * 255 * alpha);
+      elev[j * side + i] = (elev[j * side + i] ?? 0) + sign * delta;
+    }
+    yield (j + 1) / side;
+  }
 }
 
 function clamp(v: number, lo: number, hi: number): number {
@@ -391,14 +464,15 @@ function carveShapes(elev: Float32Array, side: number, count: number, rng: Rng):
   }
 }
 
-/** Biome painting (03 section 6): flood fills of soil with weighted biome choice. */
-function paintBiomes(sim: Sim, rng: Rng): void {
+/** Biome painting (03 section 6): flood fills of soil with weighted biome choice. Yields per patch. */
+function* paintBiomes(sim: Sim, rng: Rng): Generator<number, void, void> {
   const realm = sim.realm;
   const soil: number[] = [];
   for (let k = 0; k < realm.tileCount; k++) {
     const g = realm.ground[k] ?? 0;
     if (g === G.lowloam || g === G.highloam) soil.push(k);
   }
+  const total = soil.length || 1;
   const pickBiome = (): number => pickWeightedBiome(rng, BIOME_WEIGHTS);
   while (soil.length > 0) {
     const start = soil[soil.length - 1] ?? 0;
@@ -432,6 +506,7 @@ function paintBiomes(sim: Sim, rng: Rng): void {
       const g = realm.ground[k] ?? 0;
       if ((g === G.lowloam || g === G.highloam) && realm.cover[k] === 0) soil.push(k);
     }
+    yield Math.min(1, 1 - soil.length / total);
   }
 }
 

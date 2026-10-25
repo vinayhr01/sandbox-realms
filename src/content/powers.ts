@@ -189,6 +189,16 @@ export const POWERS: readonly PowerDef[] = [
   click('lm_fire_vent', 'grow', 'Fire Vent', 'start_volcano', { small: 1 }),
   click('lm_hotspring', 'grow', 'Hot Spring', 'start_geyser', { kind: 'water' }),
   click('lm_acidspring', 'grow', 'Acid Spring', 'start_geyser', { kind: 'acid' }),
+  // Landmark structures and beacon pillars (18e section 2, 12 section 8.3): placed on the tapped tile by placeStructure.
+  // lm_hive and lm_standing_stone have no landmark definition in content/creeps.ts yet, so they are not listed.
+  click('lm_ice_spire', 'grow', 'Ice Spire', 'place_structure', { structure: 'rime_pylon' }),
+  click('lm_flame_spire', 'grow', 'Flame Spire', 'place_structure', { structure: 'ember_pylon' }),
+  click('lm_idea_seed', 'grow', 'Idea Seed', 'place_structure', { structure: 'insight_seed' }),
+  click('lm_spire_light', 'grow', 'Lantern Spire', 'place_structure', { structure: 'lantern_spire' }),
+  click('beacon_spore', 'grow', 'Spore Pillar', 'place_structure', { structure: 'spore_pillar' }),
+  click('beacon_logic', 'grow', 'Reason Pillar', 'place_structure', { structure: 'reason_pillar' }),
+  click('beacon_gilded', 'grow', 'Gilded Pillar', 'place_structure', { structure: 'gilded_pillar' }),
+  click('beacon_chime', 'grow', 'Chime Pillar', 'place_structure', { structure: 'chime_pillar' }),
   click('creep_gloomgrowth', 'grow', 'Gloomgrowth', 'place_creep_hub', { hub: 'gloom_heart' }),
   click('creep_bloatmoss', 'grow', 'Bloatmoss', 'place_creep_hub', { hub: 'bloat_heart' }),
   click('creep_gourdgrowth', 'grow', 'Gourdgrowth', 'place_creep_hub', { hub: 'gourd_heart' }),

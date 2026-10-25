@@ -1023,3 +1023,19 @@ Deviations (OPEN defaults): a birth inherits the bearer's morph; castes are not 
 **Ecology risk (not measured).** Hungry predators now fight any grazer in sight (H when hungry, 07 9.4), and monsters (group G, wild in the roster) are hostile to every kind. Monsters are seeded by `seedStartingBeasts` as before, so the world now has fighting that the sim did not have. Expect the strict soak (`STRICT=1 npm run soak`) to move. Not run.
 
 **Not verified.** Nothing above has run. Expect failures in the golden test, and check the test suite for pins on the schema number, decision count and the beast ecology. The tests cannot be edited under this brief's touch set.
+
+## Landmark powers and folk fights
+
+Scope: landmark and beacon placement powers, and one new decision row (`brawl`) for Folk brawls. Army fights are not wired (see below).
+
+**Landmark and pillar powers.** `src/content/powers.ts` adds eight Grow-tab click powers with handler `place_structure` and a `structure` parameter: `lm_ice_spire` (rime_pylon), `lm_flame_spire` (ember_pylon), `lm_idea_seed` (insight_seed), `lm_spire_light` (lantern_spire), and the beacon pillars `beacon_spore`, `beacon_logic`, `beacon_gilded`, `beacon_chime` (spore, reason, gilded and chime pillars). `src/sim/powers/handlers.ts` runs `placeStructure` (landmarks.ts) on the tapped tile with the live list from the new `structuresOf(host)` accessor in `src/sim/settlements/adapter.ts`. Placement is refused before the first settlements step (no list yet), off the realm, or by `placeStructure` itself (realm cap, occupied tile, non-land anchor, creep hub). Not added: `lm_hive` (hive_hanging) and `lm_standing_stone` (standing_stone), since `LANDMARKS` in `src/content/creeps.ts` has no entry for them. `lm_fire_vent`, `lm_hotspring` and `lm_acidspring` keep their own handlers. Footprints are still not checked.
+
+**Folk brawl (08 section 2.5, 07 section 10.3).** Row 13 `brawl` (tier 3, weight 1, cooldown 600, no flags) is appended, so earlier indices are unchanged. Eligible when: the Being is Folk, not fleeing, the `fight` row found no target this decision (scratch empty), a roll on `beings` is under `brawlStartChance` (0.02) times the trait scale, and a Folk is in sight (`findEnemy`). Its task is the shared fight task (`fightStep`). A blow between two Folk goes through `brawlBlow`: once the victim is under half its vitality, a roll under `brawlStopChance` (0.1) ends the brawl. The stop blow does 1 damage, the victim gets `dazed` and mood `bested_in_fight`, and the grudge between the pair is dropped on both sides (`dropAggro`). Tuning values are in `src/sim/beings/tuning.ts` (ROUND8). Stream: `beings` only.
+
+Deviations: the default stop chance applies to every Folk pair, since Beings carry no dominion (no 0.5 same-dominion or 0 enemy-dominion case). The 6-tick wait for the attacker is not modelled. A victim always takes the grudge (strike does this), not the 30% roll. No outburst trigger. The brawl start is a per-decision roll, not a search, because the `fight` row owns the search timer. Folk still never start fights with other Folk through `fight`, since their relation is N.
+
+**Not wired.** Army fights: armies (`src/sim/dominions/armies.ts`) settle by strength exchange at dominion level and place no Beings, so Folk armies do not fight in the beings layer. Favour strife (`fav_strife`) still does not start a brawl (no hook).
+
+**Save and golden.** The decision table is now 14 rows, so each Being's cooldown table is one entry longer. The save check compares that count with the content table, so saves written before this change are probably rejected. No schema number bump was made here. `GOLDEN_HASH` is not edited and will not match, because brawl draws from the `beings` stream on every Folk decision.
+
+**Not verified.** Nothing above has run: no tests, tsc, vitest, build or Playwright (instruction).

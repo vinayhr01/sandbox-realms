@@ -15,7 +15,7 @@ import { ROUND6, ROUND8, TUNING } from './tuning.ts';
 import { MONTH_TICKS, YEAR_TICKS } from '../../shared/constants.ts';
 import { predate } from '../combat.ts';
 import { chooseDecision, type CandidateContext } from './brain.ts';
-import { addAggro, aggroFoes } from './aggro.ts';
+import { addAggro, aggroFoes, dropAggro } from './aggro.ts';
 import { factionOf, relation, type Faction, type Relation } from './hostility.ts';
 import { findEnemy, scheduleSearch, searchDue, tileGap } from './perception.ts';
 import {
@@ -987,10 +987,11 @@ function startTarget(sim: Sim, slot: number): number {
  * 1. The victim is hurt, angry at the attacker, and may reflect damage or counter-strike once. A kill credits the
  * attacker and gives it `killed_foe`.
  */
-function strike(sim: Sim, attacker: number, victim: number): void {
+function strike(sim: Sim, attacker: number, victim: number, fixed = 0): void {
   const b = sim.beings;
   const s = b.store;
-  const hit = Math.max(1, Math.floor((s.mightA[attacker] ?? 1) * strikeScale(sim, attacker) * (1 - (s.platingA[victim] ?? 0) / 100)));
+  // `fixed` > 0 replaces the computed damage (the brawl stop blow does 1, 08 section 2.5).
+  const hit = fixed > 0 ? fixed : Math.max(1, Math.floor((s.mightA[attacker] ?? 1) * strikeScale(sim, attacker) * (1 - (s.platingA[victim] ?? 0) / 100)));
   b.stats.blows++;
   s.vit[victim] = (s.vit[victim] ?? 0) - hit;
   if ((s.vit[victim] ?? 0) <= 0) {
@@ -1015,6 +1016,35 @@ function strike(sim: Sim, attacker: number, victim: number): void {
     s.vit[attacker] = (s.vit[attacker] ?? 0) - riposte;
     if ((s.vit[attacker] ?? 0) <= 0) killBeing(sim, attacker, 'combat', victim);
   }
+}
+
+/** Whether a Being is Folk (07 section 9.4 `folk` faction). */
+function isFolk(sim: Sim, slot: number): boolean {
+  const b = sim.beings;
+  return b.species(b.store.species[slot] ?? 0).folk;
+}
+
+/**
+ * One blow of a Folk-on-Folk fight, with the brawl rule (08 section 2.5, default stop chance). Once the victim is under half
+ * its vitality, a roll may end the brawl: the blow does 1 damage, the victim is dazed and bested, and the grudge between the
+ * two ends on both sides. Returns true while the fight goes on. The same-dominion and enemy-dominion chances are not
+ * modelled (no dominion on a Being), so the default applies to every Folk pair.
+ */
+function brawlBlow(sim: Sim, attacker: number, victim: number): boolean {
+  const s = sim.beings.store;
+  const low = (s.vit[victim] ?? 0) * 2 < (s.maxVit[victim] ?? 0);
+  if (low && sim.rng('beings').next() < ROUND8.brawlStopChance) {
+    strike(sim, attacker, victim, 1);
+    if (s.alive[victim] === 1) {
+      sim.effects.add(victim, 'dazed', sim.tick);
+      addMood(sim, victim, 'bested_in_fight');
+      dropAggro(sim, victim, attacker);
+    }
+    dropAggro(sim, attacker, victim);
+    return false;
+  }
+  strike(sim, attacker, victim);
+  return s.alive[victim] === 1 && s.alive[attacker] === 1;
 }
 
 /** Mating (06 section 6.3): a pregnancy for the bearer, with its gestation, litter and fuel cost (06 section 6.4). */
@@ -1068,6 +1098,37 @@ function sporeBirth(sim: Sim, slot: number): void {
     const y = (s.y[slot] ?? 0) + rng.int(2 * r + 1) - r;
     spawnBeing(sim, species, x, y, false, slot);
   }
+}
+
+/**
+ * The fight task (07 section 10, 08 section 2.3), shared by the `fight` and `brawl` decisions. Takes the target from an
+ * engaged aggro entry or from this decision's search. A blow between two Folk goes through the brawl rule.
+ */
+function fightStep(sim: Sim, slot: number): boolean {
+  const b = sim.beings;
+  const s = b.store;
+  let target = engagedTarget(sim, slot);
+  if (target < 0) {
+    // A fresh target from this decision's search (eligibility wrote it); it becomes a grudge for the chase.
+    target = b.scratch[slot] ?? -1;
+    b.scratch[slot] = -1;
+    if (target < 0) return false;
+    addAggro(sim, slot, target, ROUND8.grudgeTicks);
+  }
+  if (s.alive[target] !== 1) return false;
+  if (tileGap(sim, slot, target) > 1) {
+    stepToward(sim, slot, s.x[target] ?? 0, s.y[target] ?? 0);
+    setNext(sim, slot, 2);
+    return true;
+  }
+  if (isFolk(sim, slot) && isFolk(sim, target)) {
+    const going = brawlBlow(sim, slot, target);
+    setNext(sim, slot, ROUND8.fightBeat);
+    return going;
+  }
+  strike(sim, slot, target);
+  setNext(sim, slot, ROUND8.fightBeat);
+  return s.alive[target] === 1 && s.alive[slot] === 1;
 }
 
 /** The decision tasks of the beast layer (07 section 5, beast subset). Each returns true while the task continues. */
@@ -1133,27 +1194,8 @@ const TASKS: Record<string, TaskFn> = {
     setNext(sim, slot, 2);
     return true;
   },
-  fight: (sim, slot) => {
-    const b = sim.beings;
-    const s = b.store;
-    let target = engagedTarget(sim, slot);
-    if (target < 0) {
-      // A fresh target from this decision's search (eligibility wrote it); it becomes a grudge for the chase.
-      target = b.scratch[slot] ?? -1;
-      b.scratch[slot] = -1;
-      if (target < 0) return false;
-      addAggro(sim, slot, target, ROUND8.grudgeTicks);
-    }
-    if (s.alive[target] !== 1) return false;
-    if (tileGap(sim, slot, target) > 1) {
-      stepToward(sim, slot, s.x[target] ?? 0, s.y[target] ?? 0);
-      setNext(sim, slot, 2);
-      return true;
-    }
-    strike(sim, slot, target);
-    setNext(sim, slot, ROUND8.fightBeat);
-    return s.alive[target] === 1 && s.alive[slot] === 1;
-  },
+  fight: fightStep,
+  brawl: fightStep,
   eat_grass: (sim, slot) => forage(sim, slot, 'grass'),
   eat_nectar: (sim, slot) => forage(sim, slot, 'nectar'),
   eat_hunt: (sim, slot) => {
@@ -1238,6 +1280,14 @@ function eligible(sim: Sim, slot: number, id: string, fleeing: boolean): boolean
       if (fleeing) return false;
       if (engagedTarget(sim, slot) >= 0) return true;
       const target = startTarget(sim, slot);
+      b.scratch[slot] = target;
+      return target >= 0;
+    }
+    case 'brawl': {
+      // Folk only. It runs only when the fight row found no hostile (its scratch is empty), on a small roll per decision.
+      if (fleeing || !isFolk(sim, slot) || b.scratch[slot] !== -1) return false;
+      if (sim.rng('beings').next() >= ROUND8.brawlStartChance * fightStartScale(sim, slot)) return false;
+      const target = findEnemy(sim, slot, (o) => o !== slot && s.alive[o] === 1 && isFolk(sim, o));
       b.scratch[slot] = target;
       return target >= 0;
     }

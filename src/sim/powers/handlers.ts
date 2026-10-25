@@ -11,7 +11,8 @@ import { BOMB_PROFILE_BY_ID, POWER_BY_ID, type BombProfile, type PowerDef } from
 import { applyStroke, brushOffsets, clampRadius } from '../brush.ts';
 import { CALAMITY_BY_ID, calamityRoll } from '../calamity.ts';
 import { spawnBeing, spawnFolk } from '../beings/system.ts';
-import { hamletsOf } from '../settlements/adapter.ts';
+import { hamletsOf, structuresOf } from '../settlements/adapter.ts';
+import { placeStructure } from '../settlements/landmarks.ts';
 import { explode } from '../explosions.ts';
 import { applyDamage } from '../combat.ts';
 import { scarStage, startFire } from '../terrain/fire.ts';
@@ -266,6 +267,11 @@ export function executePower(sim: Sim, def: PowerDef, x: number, y: number): boo
       return inBounds && geyserAt(sim, x, y, p.kind === 'acid' ? 'acid' : 'water');
     case 'place_creep_hub':
       return inBounds && creepHubAt(sim, tileAt(sim, x, y), String(p.hub ?? ''));
+    case 'place_structure': {
+      // Landmark or beacon pillar on the tapped tile (18e 2.2). Refused before the first settlements step (no list yet).
+      const list = structuresOf(sim);
+      return inBounds && list !== null && placeStructure(sim, list, String(p.structure ?? ''), tileAt(sim, x, y));
+    }
     case 'calamity':
       return runCalamity(sim, String(p.calamity));
     case 'bless':

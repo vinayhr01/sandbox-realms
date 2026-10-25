@@ -84,6 +84,10 @@ export const ROUND8 = {
   searchSpread: 21,
   /** Chance per search that a Being starts a fight with a hostile in sight (TUNE). */
   fightStartChance: 0.25,
+  /** Chance per decision that a Folk starts a brawl with a Folk in sight, before the trait scale (TUNE). */
+  brawlStartChance: 0.02,
+  /** Chance that a brawl blow stops the fight once the victim is under half its vitality (08 2.5 default; TUNE). */
+  brawlStopChance: 0.1,
   /** Aggro lifetime for an attacker, in ticks (07 section 10.4: seething 1200). */
   seethingTicks: 1200,
   /** Aggro from a fight the Being started, in ticks (TUNE: keeps the chase going). */

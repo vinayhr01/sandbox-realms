@@ -5,7 +5,7 @@
  * in transfer mode (Mode T; Mode S is a later optimisation, see DECISIONS.md).
  */
 import { PROTOCOL_VERSION, Cmd, Ev, type Command, type Event, type FrameRows, type FrameStats, type Speed } from '../shared/protocol.ts';
-import type { Sim } from './sim.ts';
+import type { PartGate, Sim } from './sim.ts';
 import { startGenerateJob, type GenOutcome, type WorldgenJob } from './worldgen.ts';
 import { SYS_DISABLE_CYCLES, SYS_DISABLE_TICKS, SysIsolation, heartbeatDue, mainPingLost, planPump, pumpFaultAction } from './scheduler.ts';
 import { snapshotDue } from './snapshot.ts';
@@ -36,6 +36,11 @@ let pingHidden = false;
 let mainHangReported = false;
 /** System isolation (17 section 9): fault counts and switch-offs of the worker parts, for the current realm only. */
 let sysIso = new SysIsolation();
+/** The fault gate of the sim's parts (sim.ts part): reads this realm's isolation and reports the faults to it. */
+const partGate: PartGate = {
+  isOff: (part, tick) => sysIso.isOff(part, tick),
+  fault: (part, tick, err) => partFault(part, 'SIM_SYSTEM', err instanceof Error ? err.message : String(err), tick),
+};
 const bufferPool: ArrayBuffer[] = [];
 
 /** Worldgen slice budget per pump, ms (03 section 10: slices of at most 12 ms). */
@@ -94,6 +99,7 @@ function finishJob(done: GenOutcome): void {
   if (!finished) return;
   job = null;
   sim = done.sim;
+  sim.setPartGate(partGate);
   accMs = 0;
   lastPublishedTick = -1;
   lastSnapshotTick = -1;
@@ -232,6 +238,11 @@ function takeBuffer(bytes: number): ArrayBuffer {
   return new ArrayBuffer(bytes);
 }
 
+/** True when the worker's speed is 0. A function, so the pump's loop does not see the speed narrowed by its branch. */
+function isAutoPaused(): boolean {
+  return speed === 0;
+}
+
 function pump(): void {
   const wall = performance.now();
   const elapsed = wall - lastWall;
@@ -260,6 +271,8 @@ function pump(): void {
       avgTickMs = avgTickMs === 0 ? dt : avgTickMs * 0.9 + dt * 0.1;
       ran++;
       if (sim.tick % HASH_EVERY_TICKS === 0) lastHash = sim.stateHash();
+      // A part's third switch-off stops the sim inside this tick (partFault): no more ticks in this pump.
+      if (isAutoPaused()) break;
     }
     // Ticks not run inside the budget are discarded: the world runs slower instead (17 section 3.1).
     ticksThisPump = ran;
@@ -326,6 +339,7 @@ function handle(cmd: Command): void {
       void writeCheckpoint(null);
       try {
         sim = decodeChronicle(cmd.bytes);
+        sim.setPartGate(partGate);
         accMs = 0;
         lastPublishedTick = -1;
         lastSnapshotTick = -1;
@@ -389,28 +403,32 @@ function handle(cmd: Command): void {
 }
 
 /**
- * A command threw (17 section 9). The error is posted as before, with `sysOff` when the part is now off. Three faults in
- * 10 s switch the command part off for 600 ticks (a warn); the third switch-off stops the sim: a Fault error, and the sim
- * is paused. The pump is not switched off: its ticks are the clock that ends a switch-off, and its fault rule is
- * pumpFaultAction (three faults in a row stop the sim).
+ * A part of the sim threw (17 section 9). The error is posted with `sysOff` when the part is now off. Three faults in
+ * 10 s switch the part off for 600 ticks (a warn); the third switch-off stops the sim: a Fault error, and the sim is
+ * paused (speed 0). The main thread shows that pause from SYS_STOP. The pump is not a part: its ticks are the clock that
+ * ends a switch-off, and its fault rule is pumpFaultAction (three faults in a row stop the sim).
  */
-function commandFault(detail: string): void {
-  const tick = sim?.tick ?? 0;
-  const { verdict } = sysIso.fault('command', performance.now(), tick);
-  post({ kind: Ev.Fault, severity: 'error', code: 'SIM_COMMAND', detail, sys: 'command', sysOff: sysIso.isOff('command', tick) });
+function partFault(part: string, code: string, detail: string, tick: number): void {
+  const { verdict } = sysIso.fault(part, performance.now(), tick);
+  post({ kind: Ev.Fault, severity: 'error', code, detail, sys: part, sysOff: sysIso.isOff(part, tick) });
   if (verdict === 'disable') {
-    post({ kind: Ev.Fault, severity: 'warn', code: 'SYS_OFF', detail: `command part off for ${SYS_DISABLE_TICKS} ticks`, sys: 'command', sysOff: true });
+    post({ kind: Ev.Fault, severity: 'warn', code: 'SYS_OFF', detail: `${part} part off for ${SYS_DISABLE_TICKS} ticks`, sys: part, sysOff: true });
   } else if (verdict === 'stop') {
     speed = 0;
     post({
       kind: Ev.Fault,
       severity: 'error',
       code: 'SYS_STOP',
-      detail: `command part switched off ${SYS_DISABLE_CYCLES} times; sim paused`,
-      sys: 'command',
+      detail: `${part} part switched off ${SYS_DISABLE_CYCLES} times; sim paused`,
+      sys: part,
       sysOff: true,
     });
   }
+}
+
+/** A command threw while the worker handled it (17 section 9, the command part). */
+function commandFault(detail: string): void {
+  partFault('command', 'SIM_COMMAND', detail, sim?.tick ?? 0);
 }
 
 self.onmessage = (event: MessageEvent<Command>) => {

@@ -736,3 +736,61 @@ Scope: the failing `dominions-wiring` test "a campaign moves parcels" (129 expec
 - **Result.** The test passes unchanged. The count stays 128/128 until the defeat, then 129/127 (checked with armies on and off). `GOLDEN_HASH` stays 1492628085 (golden test passes).
 - **Not changed, found on the way.** `dominionsYearly` raises armies even with `standing_armies` off, although the `dominionStep` comment says that rule raises none (10 section 8 and 09 section 8 require it). Not changed here, because the fix above does not depend on it.
 - **Not checked.** The Playwright suite was not run (instruction). The attack-order numbers (5% casualties, renown) are unchanged TUNE values.
+
+## Settlements and creeps release
+
+Scope: 09 (jobs, trade, mood, town tier, garrison, roads), 18c (buildings), 18e (creep hubs, landmarks, beacon pillars, extended buildings). Code: `src/sim/settlements/` (`catalogue.ts`, `hamlet.ts`, `trade.ts`, `adapter.ts`, new `landmarks.ts`), `src/sim/terrain/creep.ts`, `src/sim/terrain/eruption.ts`, `src/content/creeps.ts`, `src/sim/snapshot.ts` and `src/shared/protocol.ts` (additive `tier`), `src/sim/chronicle.ts` (`checkHamlets`, the hamlet section only). Not touched: `src/sim/beings/`, `src/sim/powers/`, `src/sim/combat.ts`, `src/sim/dominions/`, `src/content/powers.ts`, `GOLDEN_HASH`, `SCHEMA_VERSION`, `FORMAT_VERSION`.
+
+Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). Types were checked by reading. `GOLDEN_HASH` (1492628085) is unchanged and not re-baselined; the content hash changes (new `bazaar` row), which is expected.
+
+**Persisted state (hamlet section only, `TAG.hamlets`).** The section gains three optional arrays, all absent in older saves (which load as empty):
+- `structures`: `{ id, tile, next }` per landmark or beacon pillar. `next` is the absolute tick of the next pulse.
+- `hubs`: `{ tile, def, tiles, nextPulse, alive }` per creep hub. A dead hub stores `nextPulse` 0 (JSON cannot hold Infinity) and loads as Infinity. Before this round creep hubs and their tiles were not saved (see `terrain/state.ts`), so a reloaded realm lost its creep. This closes that gap for hubs only. Vents and quakes are still not saved.
+- `creepGuard`: `[tile, untilTick]` pairs (18e 8 edge 4).
+`checkHamlets` (chronicle.ts) checks the shapes before `restoreHamlets` checks the contents (ids against `LANDMARK_BY_ID` and `CREEP_HUB_BY_ID`, tile range, finite numbers). `Hamlet` gained no field; `Hamlet.gold` is unchanged.
+
+**Settlements (09).**
+- *Buildings.* Added `bazaar` (18c 4.1: 4x3, cost 8/5/0/90; iron 2 cut, as garrison did). Gate: pop 60, buildings 15, one per hamlet (09 section 6). Hamlets now have 20 build rows (19 spec ids, plus `quarry_lodge`).
+- *Bazaar effect* (09 10.5, the default design, TUNE): every 600 ticks (30 s) a hamlet with a bazaar converts 10 of the first of food, wood or stone that holds more than 30 into 4 gold (`trade.ts` `bazaarStep`, run per second from `settlementsStep`).
+- *Town tier* (09 section 2; the M6 exit test "a hamlet grows to a town"): `TOWN_POP` = 40, `tierOf(h)` returns `town` at 40 folk or more. Derived, not saved; shown as `HamletRow.tier` (protocol, additive). Naming templates and the dominion-capital tie-break are not built (names and dominions are outside this round). The build orders already gate on population directly, as 09 says. **The M6 exit test is not verified:** it needs a run, and in this sim folk come from the beings census (`census` in `adapter.ts`).
+- *Jobs.* No new job. The sim runs forager, miner and woodcutter (the 09 jobs with a sim-side input). Cut, with reasons: builder (construction is instant, so a builder has no work), prospector and honey gatherer (deposits and hives are map fixtures, not built), herbalist (flora rules are in 18d), tiller (needs tilled fields and a mill), roadwright (needs customs), cleaner (no ruins are built), manure collector (no manure piles), hunter (per-being kill rule), soldier (armies are in dominions, outside this round).
+- *Beacon desires.* A hamlet with a parcel centre within `BEACON_RANGE` (40 tiles) of a pillar adopts the nearest two pillars' build ids (`desiresOf`, 18e 2.3). In `buildChoices`, desired builds lead the civic choices. Deviation: the spec draws uniformly with each desire listed twice, but first-fit placement has no uniform draw, so a desire leads instead of weighting. The desire list is derived each second and not saved.
+- *Mood.* No new mood term. The hamlet-level terms are complete (round 4). The per-folk events (09 section 9) need beings, which are outside this round. The 18e hub-proximity terms (gloom -3, gourd +2 within 6 tiles) need creep hub positions in `hamletMood`, which runs in both `snapshot.ts` and the hamlet step; cut for now, to be added with a shared mood context.
+- *Garrison soldiers and gear.* Cut. Soldiers are armies in `dominions/`, which this round may not edit. Reading the dominion state is possible through `dominionState`, but producing soldiers writes armies, so the soldier gate and the timer halving wait for a dominions round. Gear storage (15 per list) is in `items/`, outside the touch set, as round 4 already recorded.
+- *Roads (09 11.3).* Cut. The rule runs only with the custom trait `roadworks`, and customs are not built. The A* would run on the parcel grid, but there is no trigger.
+- *Trade.* The supply round (10.4) and the bazaar conversion are the trade paths. Boat income (10.5) is not built (no boats).
+
+**Buildings (18c).** Built now: 19 of the 60 18c rows, plus `quarry_lodge` from 18e (20 spec ids in the catalogue). Cut from 18c section 4.1 (the rest), with reasons:
+- Need soldiers or combat: `drill_post`, `watchspire`, `palisade`, `gatehouse`, `beacon_tower`.
+- Need culture not built: `shrine`, `archive`, `lecture_stone`, `pyre`, `apothecary`.
+- Need fields or water: `farmstead`, `mill_a`, `mill_b`, `springwell` (its water effect has no sim target), `fishers_pier`, `harbor`.
+- Need items: `smithy`.
+- Need boats: `fishers_pier`, `harbor` (already listed).
+- 18c section 4.2 wild, hazard, resource and wonder objects are map fixtures, not hamlet buildings. `wonder_obelisk` has no defined dominion bonus, so it is cut.
+- **Statuses.** No building added here needs a status to run, so the status work is empty. The sim applies no status in play (`combat.ts` is outside this round), and the 18c statuses the buildings name (`scorched` from fire on buildings) need a building-fire rule the hamlet does not have.
+
+**Creeps (18e 1).**
+- *Built.* Hubs now avoid civic building tiles when spreading (18e 8 edge 3; `civilTiles`). A hub dies when its tile stops being land (flooded or molten: 18e 1.5 and 8 edge 2) or has burned for `CREEP_BURN_TICKS` = 120 (6 s, 18e 1.5). Hub state is saved (above).
+- *Cut or deviated.* The seeded pulse offset (18e 1.3 rule 1) is not applied: 18e acceptance test 1 says "after 8 s exactly 6 tiles", and the two conflict. The first pulse stays at 160 ticks. The being-level rules (18e 1.4: `growth_fever`, `sluggish`, `unnerved`, `giggling` on steppers, with immunity tags) are cut: species carry no immunity tags, and beings are outside this round. Gourd props (18e 1.7) are cut: there is no decor-structure layer. Acid on hub hp is cut: the hub has no hp model.
+
+**Landmarks (18e 2).** New module `src/sim/settlements/landmarks.ts`, with the table in `src/content/creeps.ts` (`LANDMARKS`).
+- `rime_pylon`: every 600 ticks, `freeze` every tile in a radius-8 disc (18e 2.1, strength as the freeze op). Being temperature (`changeBeingTemperature`) is cut.
+- `ember_pylon`: every 600 ticks, `startFire` on each flammable tile in a radius-5 disc with chance 0.35 (draws from the `landmark` stream). Being heat is cut.
+- `acid_font`: every 400 ticks, one acid drop 2..15 tiles away (`fallAcid` in `eruption.ts`, the acid vent rule).
+- `insight_seed` and `lantern_spire`: placed and saved, but dormant. Lore growth and the night-fear rule are not built.
+- `volcano_cone_small`: already built as the small vent (`startVolcano(small)`, 3x3 `molten_3`, 1200 to 3600 ticks), so no change. `volcano_cone` and the geyser entries were already in place. Vents are still not saved (existing gap).
+- Beacon pillars (`spore_pillar`, `reason_pillar`, `gilded_pillar`, `chime_pillar`): placed and saved. The monster spawners they unlock (12 section 8.5) and the customs focus traits (11) are cut (powers and customs are outside this round).
+- Placement is `placeStructure(sim, list, id, tile)`: checks the realm cap, a walkable land anchor, no other structure or live hub there, and turns a creep anchor to lowloam (18e 8 edge 5). **No power is wired.** The power dispatch is in `src/sim/powers`, outside this round, so no landmark or pillar can be placed from the power panel yet. The `lm_fire_vent`, `lm_hotspring`, `lm_acidspring` and `creep_*` powers keep working as before.
+- Structures on a tile that stops being land are removed (18e 2.2).
+- Footprints are recorded but only the anchor tile is used (1x2 pillars and 2x2 pylons occupy one tile in the sim). Cap per id (18e 2.1, 2.3). The insight seed's "one per hamlet" rule is not checked, only its realm cap of 12.
+
+**Extended buildings (18e 3).** Restored 7: `quarry_lodge` built. The other six restored (`bastion`, `brazier_tower`, `slipway`, `arsenal`, `paddock`, `sea_lantern`) are cut: they need soldiers, boats, gear or mounts. Optional `EXT` 6 (`stargazer`, `hide_works`, `brewhouse`, `bake_oven`, `bee_shed`, `grove_lodge`) are not built: they are off by default (18e 3.2), and each needs an input not in the sim (Lore, armour crafting, a cheer resource, a hive or fruit trees). The task named `src/content/creeps.ts` for extended buildings; the building registry is `src/sim/settlements/catalogue.ts`, and the extended set was not added to either file, for the reasons above.
+
+**Tests to update when testing resumes (not run).**
+- Hamlet row shape: tests that compare `snapshot.hamlets` rows exactly need the new optional `tier` key.
+- Hamlet snapshot shape: tests comparing `snapshotHamlets` output exactly need the optional `structures`, `hubs` and `creepGuard` keys.
+- `tests/unit/terrain-creep.test.ts`: spread now skips civic building tiles (no test should be affected unless it places a hamlet on creep). Burn and flood death of hubs are new behaviour, with no test yet.
+- `tests/unit/golden.test.ts`: the golden replay should be unchanged unless a hamlet reaches pop 60 with 15 buildings (the bazaar gate). Re-baseline only if it moves, and say so in the commit.
+- `docs/spec-coverage.md` (outside the touch set) still shows 7 of 60 buildings and no jobs, trade, mood or roads.
+
+**Open items.** M6 exit test (a hamlet grows to a town) unverified. Power wiring for landmarks and pillars. Vents and quakes not saved. Being-level creep effects and immunity tags. Hub proximity in hamlet mood. Garrison soldiers and gear, after a dominions round.

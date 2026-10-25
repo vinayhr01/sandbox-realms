@@ -1,9 +1,16 @@
 import { ground, groundId } from '../../content/grounds.ts';
-import { CREEP_DECAY_PER_RUN, CREEP_DECAY_TICKS, CREEP_HUB_BY_ID, CREEP_PULSE_TICKS, CREEP_REALM_CAP, type CreepHubDef } from '../../content/creeps.ts';
+import { CREEP_BURN_TICKS, CREEP_DECAY_PER_RUN, CREEP_DECAY_TICKS, CREEP_HUB_BY_ID, CREEP_PULSE_TICKS, CREEP_REALM_CAP, type CreepHubDef } from '../../content/creeps.ts';
 import { FLAG } from '../realm.ts';
 import { n4, n8 } from '../grid.ts';
 import type { Sim } from '../sim.ts';
+import { civilTiles } from '../settlements/hamlet.ts';
+import { hamletsOf } from '../settlements/adapter.ts';
 import { terrainState, type CreepHub, type TerrainState } from './state.ts';
+
+/** Tiles under civil buildings, which creep never takes (18e 8 edge 3; 09 section 6). */
+function civilOf(sim: Sim): Set<number> {
+  return civilTiles(hamletsOf(sim), sim.realm.side);
+}
 
 /** Live hubs of the realm (18e 1.1 cap). */
 function aliveCount(state: TerrainState): number {
@@ -16,13 +23,14 @@ function aliveCount(state: TerrainState): number {
  * Whether tile j may take creep (18e 1.3 rule 3): walkable land that is not molten, rimeplate or
  * another creep, not burning, not guarded after acid (1.5), and not a hub tile.
  */
-function eligible(sim: Sim, j: number, creepGround: number): boolean {
+function eligible(sim: Sim, j: number, creepGround: number, civil: ReadonlySet<number>): boolean {
   const realm = sim.realm;
   const g = realm.ground[j] ?? 0;
   if (g === creepGround) return false;
   const kind = ground(g);
   if (kind.layer !== 'land' || kind.creep || g === groundId('rimeplate')) return false;
   if (realm.hasFlag(j, FLAG.burning)) return false;
+  if (civil.has(j)) return false;
   const state = terrainState(sim);
   if ((state.creepGuard.get(j) ?? 0) > sim.tick) return false;
   return !state.hubs.some((h) => h.tile === j);
@@ -39,14 +47,25 @@ export function placeCreepHub(sim: Sim, tile: number, hubId: string): boolean {
   if (state.hubs.some((h) => h.alive && h.tile === tile)) return false;
   const creepGround = groundId(def.ground);
   const realm = sim.realm;
+  const civil = civilOf(sim);
   let room = false;
   for (let k = 0; k < 4 && !room; k++) {
     const j = n4(tile, realm.side, k);
-    if (j >= 0 && eligible(sim, j, creepGround)) room = true;
+    if (j >= 0 && eligible(sim, j, creepGround, civil)) room = true;
   }
   if (!room) return false;
   state.hubs.push({ tile, def: hubId, tiles: new Set(), nextPulse: sim.tick + CREEP_PULSE_TICKS, alive: true });
   return true;
+}
+
+/**
+ * A hub dies when its tile stops being land (flooded or molten: 18e 1.5 and 8 edge 2) or has burned for
+ * CREEP_BURN_TICKS (18e 1.5). Both are checked per tick in creepStep.
+ */
+function hubLost(sim: Sim, hub: CreepHub): boolean {
+  const realm = sim.realm;
+  if (ground(realm.ground[hub.tile] ?? 0).layer !== 'land') return true;
+  return realm.hasFlag(hub.tile, FLAG.burning) && sim.tick - (realm.fireStart[hub.tile] ?? 0) >= CREEP_BURN_TICKS;
 }
 
 /** Kills a hub. Its creep stays until decay clears it, and it never regrows (18e 1.6). */
@@ -71,12 +90,13 @@ function pulse(sim: Sim, hub: CreepHub, def: CreepHubDef): void {
   const cand: number[] = [];
   const weight: number[] = [];
   const sources = [hub.tile, ...hub.tiles];
+  const civil = civilOf(sim);
   for (const s of sources) {
     for (let k = 0; k < 4; k++) {
       const j = n4(s, realm.side, k);
       if (j < 0 || seen.has(j)) continue;
       seen.add(j);
-      if (!eligible(sim, j, creepGround)) continue;
+      if (!eligible(sim, j, creepGround, civil)) continue;
       let links = 0;
       for (let q = 0; q < 4; q++) {
         const m = n4(j, realm.side, q);
@@ -164,6 +184,9 @@ function decay(sim: Sim, hub: CreepHub, def: CreepHubDef): void {
 export function creepStep(sim: Sim): void {
   const state = terrainState(sim);
   if (state.hubs.length === 0) return;
+  for (const hub of state.hubs) {
+    if (hub.alive && hubLost(sim, hub)) removeCreepHub(sim, hub.tile);
+  }
   for (const hub of state.hubs) {
     const def = CREEP_HUB_BY_ID.get(hub.def);
     if (!def) continue;

@@ -46,7 +46,7 @@ import { MAX_BEINGS } from './beings/store.ts';
 import { dominionsOfSim, pactsOfSim, parcelsPerAxis, snapshotDominions } from './dominions/adapter.ts';
 import { centroidParcel } from './dominions/armies.ts';
 import { hamletsOf } from './settlements/adapter.ts';
-import { hamletMood, PARCEL } from './settlements/hamlet.ts';
+import { hamletMood, PARCEL, tierOf } from './settlements/hamlet.ts';
 import { codexProgress } from './progression.ts';
 import { clanSpeciesName, yearsSince, type Clan } from './clans/clans.ts';
 import { itemsOf } from './items/summary.ts';
@@ -513,6 +513,7 @@ function hamletsOfSim(sim: Sim): { hamlets: HamletRow[]; hamletCount: number } {
     buildings: h.buildings.length,
     parcels: h.parcels.size,
     mood: hamletMood(h),
+    tier: tierOf(h),
   }));
   return { hamlets: rows, hamletCount: rows.length };
 }

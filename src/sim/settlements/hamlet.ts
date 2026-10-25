@@ -47,6 +47,33 @@ export interface HamletContext {
   isOn(id: string): boolean;
   /** True when another hamlet already owns the parcel; expansion must not take it. */
   claimed?: (parcel: number) => boolean;
+  /** Build ids this hamlet is drawn to by nearby beacon pillars (18e 2.3), derived each second, never saved. */
+  desires?: readonly string[];
+}
+
+/** Folk at which a hamlet is a town (09 section 2 size tier, TOWN_POP; TUNE). A label: build orders gate on pop directly. */
+export const TOWN_POP = 40;
+
+/** Size tier of a hamlet (09 section 2): `town` from TOWN_POP folk, else `hamlet`. Derived, never saved. */
+export function tierOf(h: Hamlet): 'hamlet' | 'town' {
+  return h.folk >= TOWN_POP ? 'town' : 'hamlet';
+}
+
+/**
+ * Tile indices covered by the civil buildings of the given hamlets (09 section 6 footprints), for rules that keep
+ * other things off built ground (creep, 18e 1.3 rule 3). Derived from the buildings; nothing is stored.
+ */
+export function civilTiles(hamlets: readonly Hamlet[], side: number): Set<number> {
+  const tiles = new Set<number>();
+  for (const h of hamlets) {
+    for (const b of h.buildings) {
+      const depth = heightOf(b.def);
+      for (let dy = 0; dy < depth; dy++) {
+        for (let dx = 0; dx < b.def.footprint; dx++) tiles.add((b.y + dy) * side + b.x + dx);
+      }
+    }
+  }
+  return tiles;
 }
 
 /** Share of a parcel's tiles that must be land for it to take a founding (09 section 2, rule 1; TUNE, relaxed from 100%). */
@@ -257,6 +284,8 @@ const RULES: readonly BuildRule[] = [
   { id: 'garrison', minFolk: GARRISON_FOLK, minBuildings: GARRISON_BUILDINGS, minParcels: GARRISON_PARCELS },
   { id: 'monument', minFolk: 70, minBuildings: 15 },
   { id: 'great_hall_3', minFolk: 100, minBuildings: 20 },
+  // 09 section 6 bazaar (pop 60, bldg 15).
+  { id: 'bazaar', minFolk: 60, minBuildings: 15 },
 ];
 
 /**
@@ -264,7 +293,7 @@ const RULES: readonly BuildRule[] = [
  * first while folk outnumber housing or fewer than four houses stand, highest tier first. Only
  * buildings whose `needs` are standing are listed.
  */
-export function buildChoices(h: Hamlet): BuildingDef[] {
+export function buildChoices(h: Hamlet, desires: readonly string[] = []): BuildingDef[] {
   const houseCount = h.buildings.filter((b) => (HOUSE_TIERS as readonly string[]).includes(b.def.id)).length;
   const housingNeeded = h.folk > housingSlots(h) || houseCount < 4;
   const houses: BuildingDef[] = [];
@@ -282,7 +311,10 @@ export function buildChoices(h: Hamlet): BuildingDef[] {
     if (rule.when && !rule.when(h)) continue;
     specials.push(def);
   }
-  return housingNeeded ? [...houses, ...specials] : specials;
+  // Beacon desires (18e 2.3) come first among the civic choices. The spec draws uniformly with desires listed
+  // twice; the first-fit order here cannot weight, so a desired build simply leads.
+  const tail = [...specials.filter((d) => desires.includes(d.id)), ...specials.filter((d) => !desires.includes(d.id))];
+  return housingNeeded ? [...houses, ...tail] : tail;
 }
 
 /**
@@ -323,7 +355,7 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
   const housing = housingSlots(h);
   if (ctx.isOn('folk_births') && h.food > h.folk * 2 && h.folk < housing && h.folk < 100) h.folk += 1;
   // One building per step. Territory grows only after a building is actually placed; the builder's coins follow the placement.
-  for (const def of buildChoices(h)) {
+  for (const def of buildChoices(h, ctx.desires ?? [])) {
     if (placeBuilding(ctx, h, def)) {
       h.gold += BUILDER_COINS;
       expandTerritory(ctx, h);

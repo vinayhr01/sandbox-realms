@@ -6,7 +6,7 @@
  * Numbers are TUNE. Construction is instant in this sim, so 18c progress times are not used.
  *
  * Cut from the 09 catalogue (not in this table; reasons in DECISIONS.md "Settlements round 4"):
- * springwell, drill_post, watchspire, shrine, archive, bazaar, fishers_pier, harbor, mill_a, mill_b,
+ * springwell, drill_post, watchspire, shrine, archive, fishers_pier, harbor, mill_a, mill_b,
  * farmstead, smithy, apothecary, palisade, gatehouse, beacon_tower, lecture_stone, pyre, and the
  * 18e extended set except quarry_lodge (bastion, brazier_tower, slipway, arsenal, paddock, sea_lantern,
  * stargazer, hide_works, brewhouse, bake_oven, bee_shed, grove_lodge). The 18c section 4.2 wild, hazard,
@@ -89,6 +89,8 @@ export const BUILDINGS: readonly BuildingDef[] = [
   // Waystop: the 18c rest stop. 09 gives it no build order, so its gates are TUNE (see hamlet.ts).
   { id: 'waystop', name: 'Waystop', role: 'trade', wood: 8, stone: 4, gold: 25, footprint: 3, hp: 300, ...NONE, moodBonus: 10, needs: ['great_hall_1'] },
   { id: 'garrison', name: 'Garrison', role: 'defence', wood: 0, stone: 6, gold: 14, footprint: 3, hp: 600, ...NONE, needs: ['great_hall_2'] },
+  // 18c bazaar (iron 2 cut). Its effect is the supply-side gold conversion in trade.ts (09 10.5 default design).
+  { id: 'bazaar', name: 'Bazaar', role: 'trade', wood: 8, stone: 5, gold: 90, footprint: 4, height: 3, hp: 500, ...NONE, needs: [] },
   // 18e section 3.1 quarry_lodge: one extra digger and +25% outcrop yield, beside a quarry (the 6-tile range is not checked).
   { id: 'quarry_lodge', name: 'Quarry Lodge', role: 'work', wood: 6, stone: 6, gold: 10, footprint: 3, height: 2, hp: 300, ...NONE, outcropBonus: 0.25, jobs: [{ job: 'miner', slots: 1 }], needs: ['quarry'] },
 ];

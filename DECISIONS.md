@@ -587,6 +587,39 @@ Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruc
 
 **Fixed decisions that were left alone:** `docs/spec-coverage.md` (not in the touch list; rows 05, 06 and 07 still read PARTIAL and need an update after a run). `PROTOCOL_VERSION` and `SNAPSHOT_VERSION` unchanged.
 
+### Beings round 7
+
+Scope: the four brief items: 06 2.1 low-fuel pace, 06 7.3 corpses, 05 section 5 genome, and the 06 4.1 `emotions` tag. Code: `src/sim/beings/genome.ts` (new), `strains.ts`, `system.ts` (founder code only), `social.ts` (`feelsMood`), `src/sim/chronicle.ts` (beings section and its reader). No content, snapshot or protocol change.
+
+Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruction). Types were checked by reading. `GOLDEN_HASH` is not edited and will not match: founders now draw from the `lineage` stream, and the mood grant below changes mood for `fear_organ` strains.
+
+**Persisted state (no bump).** `SCHEMA_VERSION` stays 4. Schema 4 is unreleased, so nothing is bumped; a save written by the round 6 build (no code block) is rejected. The beings section gains, after the free list, a u32 count of lineage codes, then per code: u32 strain id, u32 seed salt, u8 strand count, and per strand a u8 type index and per slot a u8 kind code (0 empty, else library index + 1) and a u8 special (0 none, 1 booster, 2 blocked). Shape checks: the code count equals the strain count; each code names a registry strain once; strand type known; kind code in the library; special 0..2; a usable slot is filled and a blocked slot is empty; at least one usable slot per strand; seed salt below 55556. The `Strain` record and section 17 are unchanged: codes live in `Strains` outside the snapshot. No corpse data is saved (no corpses exist).
+
+**Step 1: low-fuel pace (06 2.1, 07 7.1). Cut.** 06 names one fuel threshold: hungry at fuel/fuel_max <= 0.5, which unlocks the eating decisions and nothing else. No spec section gives a pace or speed effect for low fuel. 07 7.1 gives the pace formula with no fuel term, and 08 `famished` lists a mood event and an eating task, not a speed. The brief asked for the spec's thresholds, and there are none, so the movement path in `system.ts` is unchanged and no TUNE values were added. Needs a spec decision (for example a pace multiplier below 50% fuel, and its value) before it is built.
+
+**Step 2: corpses (06 7.3). Cut, as the spec states.** 7.3's default is no persistent corpse object. The only decay it names is a 600-tick `Remains` decal, render only, in `src/render` (outside the touch set). It gives no gameplay decay time and no decomposition system. So nothing is built: no corpse record, no decay timer, no tile decomposition effect, and no population exclusion (dead beings are already removed from the store, so they never count). Persisting corpses needs a spec decision first: keep 7.3's default, or make corpses persistent, which brings in 06 2.2 (`edible` victims) and a decay time.
+
+**Step 3: genome (05 section 5). Partly built.**
+- Built, `genome.ts`:
+  - Segment library from the 5.2 ladder (TUNE values as stated). Pairing (male and female), flaw and volatile kinds exist. Tempo and scale are gated: decomposition and mutation skip them, since no unlock exists. Kind ids are `stat:value`.
+  - Strands: four types, tiny (12 slots), short (18), mid (24), long (30), six columns. Booster and blocked counts are the 5.3 ranges. The spec gives no capacity per type name, so the mapping by name is ours.
+  - Budget decomposition (5.3): pseudo-stats first, then up to 300 rounds with the 80% descending pick, placement across strands, fillers from 5.2, and a final shuffle. Seed is hash(worldSeed, speciesIndex, salt), with the salt from the `lineage` stream.
+  - `mutateFrom` (6.3): the code gets k + 1 slot mutations per strand, on a copy of the parent's code, with a new seed salt for the child. The trait path is unchanged.
+  - Resonance totals (5.4): edge keys hash(worldSeed, kind, side) mod 4, flaw halving, full-resonance doubling, pairing blocks, volatile meta. `genomeTotals` computes them on demand. Not saved, and nothing in play calls it.
+- Budget source (OPEN): the data holds no budget table. The budget is read from the species base (vitality, endurance, might, pace, span, plating, litter). A real budget table belongs in `src/content`.
+- Cut or not built:
+  - Totals are not applied to stats (05 6.2: `strain.base = species.base + total.base`). With the derived budget, applying them would double the species base, so the genome has no effect on any stat in play yet.
+  - Phenotypes (05 section 8): not built. The spec says species list palettes per biome, and the data has no palette lists. The Being record gets no phenotype index or shade, and the strain gets no `phenotypes`, `biomeVariant` or `birthMarks`.
+  - `unstableShuffle`, the `shifting_code` timer (6000 to 12000 ticks), and the `gene_chaos` rule: not built. No per-strain timer exists and the code affects no stat.
+  - Species-forced strand type (Folk long or mid, swarm insects tiny): not built. There is no species field for it.
+  - The volatile segments do not add to the strain's meta mutation, which still comes from the traits only.
+  - `evolvedInto`, uplift and evolve (6.4): not built, as in round 6.
+- Trait-set rule kept from round 6: when `mutateFrom` finds the trait set unchanged it returns null and the code mutation is discarded. The flood guard still applies, so code mutation lands only when a new strain is founded.
+
+**Step 4: mood (06 4.1, `emotions` tag). A trait grant from the data.** The spec names the tag but grants it to no trait. Of the 18b rows, `fear_organ` ("Gains fear/flee responses") is the only one whose text is an emotional capacity. Every awakened strain holds it, so the round 6 default (awakened strains) is a subset of this one. `feelsMood` now checks `EMOTIONS_TRAIT` = `fear_organ` in `social.ts`. Effect: beasts with a fear organ feel mood now, and awakened Folk still do. Trait rows that mention mood (`dream_gland`, `cheerful`, `unravelled`, `placid`) modify mood or behaviour rather than grant the tag, so they are not used. If the spec means a dedicated tag, it needs a `strainTags` column in 18b.
+
+**Superseded:** the round 6 OPEN default for `feelsMood` (awakened strains) is replaced by the `fear_organ` grant above.
+
 ## Testing pass after round 6 merges
 
 - **Running decision task is saved.** A save-and-load run diverged on its first step because the beings' running task was not saved (07 section 14 leaves this OPEN). The task is now saved as an i16 per Being in the beings section; the schema stays 4 since no release has shipped schema 4.

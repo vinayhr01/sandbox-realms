@@ -11,6 +11,15 @@ import { SPECIES } from '../content/beasts.ts';
 import { DECISION_ROWS } from '../content/decisions.ts';
 import { STRAIN_TRAIT_BY_ID } from '../content/traits.ts';
 import type { Strain } from './beings/strains.ts';
+import {
+  SEED_SALT_RANGE,
+  SEGMENT_KINDS,
+  STRAND_TYPES,
+  segmentIndex,
+  strandCapacity,
+  type Genome,
+  type Strand,
+} from './beings/genome.ts';
 import { restoreClans, type ClanState } from './clans/clans.ts';
 import { fnv1a } from '../shared/rng.ts';
 
@@ -37,6 +46,9 @@ export { fnv1a };
 export const CHRONICLE_MAGIC = 'SRCH';
 export const FORMAT_VERSION = 1;
 /**
+ * Beings round 7 (still schema 4; schema 4 is unreleased, so no bump): the beings section ends with one lineage
+ * code per strain (05 section 5): strain id, seed salt, then each Strand's type and each slot's kind code and
+ * special. Its strain count must equal the strain registry's. Corpses are not saved (none are built).
  * Schema 4 (beings round 6): each Being in the beings section also carries mood, endurance, sleep (end tick
  * and last vitality), bond and close-contact links, and one decision cooldown per decision (the decision
  * count is written first and must match content/decisions.ts). Schema 3 saves are rejected: their beings
@@ -297,6 +309,22 @@ export function encodeChronicle(sim: Sim): Uint8Array {
     for (const slot of layout.list) w.u32(slot);
     w.u32(layout.free.length);
     for (const slot of layout.free) w.u32(slot);
+    // Lineage codes (beings round 7): kind code 0 is empty, else library index + 1; special 0 none, 1 booster, 2 blocked.
+    const codes = sim.beings.strains.genomeEntries();
+    w.u32(codes.length);
+    for (const [id, code] of codes) {
+      w.u32(id);
+      w.u32(code.seedSalt);
+      w.u8(code.strands.length);
+      for (const strand of code.strands) {
+        w.u8(STRAND_TYPES.indexOf(strand.type));
+        for (let i = 0; i < strand.slots.length; i++) {
+          const kind = strand.slots[i];
+          w.u8(kind ? segmentIndex(kind) + 1 : 0);
+          w.u8(strand.specials[i] === 'booster' ? 1 : strand.specials[i] === 'blocked' ? 2 : 0);
+        }
+      }
+    }
   });
 
   section(body, TAG.combat, (w) => {
@@ -625,6 +653,9 @@ function decodeBeings(sim: Sim, r: Reader): void {
   const freeLen = r.u32();
   const free: number[] = [];
   for (let k = 0; k < freeLen; k++) free.push(r.u32());
+  const codeCount = r.u32();
+  const codes: [number, Genome][] = [];
+  for (let k = 0; k < codeCount; k++) codes.push(readLineageCode(r));
   if (r.remaining !== 0) throw new Error('chronicle: trailing bytes in beings section');
 
   // The layout must describe exactly the live slots and the dead ones, each once.
@@ -632,6 +663,10 @@ function decodeBeings(sim: Sim, r: Reader): void {
     throw new Error('chronicle: being list does not match the live records');
   }
   if (freeLen + count !== capacity) throw new Error('chronicle: free stack size mismatch');
+  // Every strain has exactly one lineage code, and each code names a strain in the registry.
+  const codeIds = new Set(codes.map(([id]) => id));
+  if (codeIds.size !== codeCount || codeCount !== sim.beings.strains.size) throw new Error('chronicle: lineage codes do not match the strains');
+  for (const [id] of codes) if (!sim.beings.strains.get(id)) throw new Error(`chronicle: lineage code names a missing strain ${id}`);
   for (const rec of raw) {
     for (const link of [rec.fields['bondWith'] ?? -1, rec.fields['closeWith'] ?? -1]) {
       if (link !== -1 && !seen.has(link)) throw new Error(`chronicle: being ${rec.slot} names a missing bond partner`);
@@ -681,9 +716,49 @@ function decodeBeings(sim: Sim, r: Reader): void {
   }
   for (let slot = 0; slot < capacity; slot++) s.generation[slot] = generation[slot] ?? 0;
   s.restoreLayout(list, free);
+  for (const [id, code] of codes) sim.beings.strains.setGenome(id, code);
   // Child counts and the derived stats are not saved: both are rebuilt from the restored records.
   s.rebuildChildCounts();
   for (const rec of raw) refreshStats(sim, rec.slot);
+}
+
+/**
+ * Reads one lineage code (beings round 7) with its shape checks: known strand types, kind codes in the library,
+ * specials in 0..2, every usable slot holding a kind, and at least one usable slot per strand.
+ */
+function readLineageCode(r: Reader): [number, Genome] {
+  const id = r.u32();
+  const seedSalt = r.u32();
+  if (seedSalt >= SEED_SALT_RANGE) throw new Error(`chronicle: lineage code of strain ${id} has a bad seed salt`);
+  const strandCount = r.u8();
+  if (strandCount < 1) throw new Error(`chronicle: lineage code of strain ${id} has no strands`);
+  const strands: Strand[] = [];
+  for (let s = 0; s < strandCount; s++) {
+    const type = STRAND_TYPES[r.u8()];
+    if (!type) throw new Error(`chronicle: lineage code of strain ${id} has an unknown strand type`);
+    const slots: (string | null)[] = [];
+    const specials: Strand['specials'] = [];
+    let blocked = 0;
+    for (let i = 0; i < strandCapacity(type); i++) {
+      const kindCode = r.u8();
+      const specialCode = r.u8();
+      if (kindCode > SEGMENT_KINDS.length) throw new Error(`chronicle: lineage code of strain ${id} has an unknown segment`);
+      if (specialCode > 2) throw new Error(`chronicle: lineage code of strain ${id} has an unknown special`);
+      const kind = kindCode === 0 ? null : (SEGMENT_KINDS[kindCode - 1]?.id ?? null);
+      const special: Strand['specials'][number] = specialCode === 1 ? 'booster' : specialCode === 2 ? 'blocked' : null;
+      if (special === 'blocked') {
+        blocked++;
+        if (kind !== null) throw new Error(`chronicle: lineage code of strain ${id} has a segment on a blocked slot`);
+      } else if (kind === null) {
+        throw new Error(`chronicle: lineage code of strain ${id} has an empty usable slot`);
+      }
+      slots.push(kind);
+      specials.push(special);
+    }
+    if (blocked >= strandCapacity(type)) throw new Error(`chronicle: lineage code of strain ${id} has no usable slot`);
+    strands.push({ type, slots, specials });
+  }
+  return [id, { strands, seedSalt }];
 }
 
 /** Restores the strain registry (section 17). Traits are kept only when the content still defines them. */

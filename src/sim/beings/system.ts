@@ -8,6 +8,7 @@ import { recordStat } from '../stats-hooks.ts';
 import { assemble, type Assembled } from './assembly.ts';
 import { DECISION_ROWS, EMPTY_PAUSE } from '../../content/decisions.ts';
 import { BeingStore } from './store.ts';
+import { newGenome, SEED_SALT_RANGE, speciesBudget } from './genome.ts';
 import { addStrainTrait, mutateFrom, strainMutation, Strains } from './strains.ts';
 import { addMood, beginSleep, bondCheck, isAsleep, sleepCheck } from './social.ts';
 import { ROUND6, TUNING } from './tuning.ts';
@@ -435,7 +436,9 @@ function place(
   if (!strain) {
     const traits: string[] = [];
     for (const id of founder?.strain ?? []) addStrainTrait(traits, id);
-    strain = b.strains.create(speciesIdx, def.name, 0, 0, traits);
+    // A new strain gets a lineage code decomposed from the species budget (05 section 5.3).
+    const code = newGenome(speciesBudget(def), sim.realm.seed, speciesIdx, sim.rng('lineage').int(SEED_SALT_RANGE));
+    strain = b.strains.create(speciesIdx, def.name, 0, 0, traits, code);
   }
   // Birth mutation (05 section 6.3): a bearer whose strain can mutate may give the newborn a mutant strain.
   // An unchanged trait set keeps the newborn in the parent's strain (mutateFrom returns null).

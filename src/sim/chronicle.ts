@@ -287,6 +287,7 @@ export function encodeChronicle(sim: Sim): Uint8Array {
       w.i32(s.closeWith[slot] ?? -1);
       w.u32(s.closeGen[slot] ?? 0);
       w.u32(s.closeSince[slot] ?? 0);
+      w.i16(sim.beings.task[slot] ?? -1);
       for (let k = 0; k < DECISION_ROWS.length; k++) w.u32(sim.beings.cooldown[slot * DECISION_ROWS.length + k] ?? 0);
     }
     // Full generation table (dead slots keep their counters) and the exact list and free-stack order.
@@ -607,6 +608,7 @@ function decodeBeings(sim: Sim, r: Reader): void {
         closeWith: r.i32(),
         closeGen: r.u32(),
         closeSince: r.u32(),
+        task: r.i16(),
     };
     for (let c = 0; c < DECISION_ROWS.length; c++) fields[`cool${c}`] = r.u32();
     // Shape checks (schema 4): mood in range, endurance within the species maximum, bond links name a
@@ -636,7 +638,7 @@ function decodeBeings(sim: Sim, r: Reader): void {
     }
   }
 
-  // Tasks are not saved (07 section 14): every loaded Being picks again.
+  // The running task is saved so a loaded run continues exactly as the live one (07 section 14 leaves this open).
   sim.beings.task.fill(-1);
   sim.beings.cooldown.fill(0);
   for (const rec of raw) {
@@ -674,6 +676,7 @@ function decodeBeings(sim: Sim, r: Reader): void {
     s.closeWith[slot] = f['closeWith'] ?? -1;
     s.closeGen[slot] = f['closeGen'] ?? 0;
     s.closeSince[slot] = f['closeSince'] ?? 0;
+    sim.beings.task[slot] = f['task'] ?? -1;
     for (let c = 0; c < DECISION_ROWS.length; c++) sim.beings.cooldown[slot * DECISION_ROWS.length + c] = f[`cool${c}`] ?? 0;
   }
   for (let slot = 0; slot < capacity; slot++) s.generation[slot] = generation[slot] ?? 0;

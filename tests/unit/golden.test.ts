@@ -10,7 +10,7 @@ import { seedStartingBeasts } from '../../src/sim/beings/system.ts';
  */
 // Changed when the golden run started seeding beasts and the species took roster values (see DECISIONS.md).
 // Beings round 2 (18a roster of 90 species, wild seeding by biome, strains, parent links): was 1157961273.
-const GOLDEN_HASH = 2562049680;
+const GOLDEN_HASH = 1492628085;
 
 function replay(): number[] {
   const sim = generateRealm({ seed: 20240601, sizeStep: 2, template: 'continent' }).sim;

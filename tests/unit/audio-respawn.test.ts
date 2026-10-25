@@ -31,6 +31,6 @@ describe('replies to requests the dead worker never answered', () => {
   });
 
   it('a realm or init reply is a zero Ready', () => {
-    expect(fallbackReply(Cmd.NewRealm, 10)).toEqual({ kind: Ev.Ready, reply: 10, protocolVersion: PROTOCOL_VERSION, side: 0, sizeStep: 0, seed: 0 });
+    expect(fallbackReply(Cmd.NewRealm, 10)).toEqual({ kind: Ev.Ready, reply: 10, protocolVersion: PROTOCOL_VERSION, side: 0, sizeStep: 0, seed: 0, contentHash: '' });
   });
 });

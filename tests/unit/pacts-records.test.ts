@@ -78,7 +78,7 @@ describe('leaving and dissolving', () => {
     expect(state.pacts).toEqual([]);
   });
 
-  it('with three members, a war inside makes the stronger leave and the pact keeps two', () => {
+  it('with three members, a war between two members dissolves the whole pact (round 4 rule)', () => {
     const ds = [dom(1, 100), dom(2, 20), dom(3, 10), dom(4, 8)];
     const rel = new RelationMatrix();
     rel.set(2, 3, 'war');
@@ -86,7 +86,7 @@ describe('leaving and dissolving', () => {
     makePact(state, 2, 3, 0);
     state.pacts[0]!.memberIds = [2, 3, 4];
     pactYear(state, ds, [], rel, 5);
-    expect(state.pacts[0]?.memberIds).toEqual([3, 4]);
+    expect(state.pacts).toEqual([]);
   });
 
   it('a member that no longer exists leaves, and the pact dissolves below two members', () => {

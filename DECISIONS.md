@@ -519,3 +519,9 @@ Status: edits only. No tests, tsc, vitest, build or Playwright were run (instruc
 - Not built: the lineage code and segments (05 sections 5.1 to 5.5, including `mutateSlot` and `unstableShuffle`), so `k` applies to traits only. Uplift and evolve (05 6.4).
 
 **Fixed decisions that were left alone:** `docs/spec-coverage.md` (not in the touch list; rows 05, 06 and 07 still read PARTIAL and need an update after a run). `PROTOCOL_VERSION` and `SNAPSHOT_VERSION` unchanged.
+
+## Testing pass after round 6 merges
+
+- **Running decision task is saved.** A save-and-load run diverged on its first step because the beings' running task was not saved (07 section 14 leaves this OPEN). The task is now saved as an i16 per Being in the beings section; the schema stays 4 since no release has shipped schema 4.
+- **Golden hash re-baselined.** `GOLDEN_HASH` 2562049680 -> 1492628085 after the round 4 to round 6 sim changes (pacts, armies, items, mood, sleep, bonds, decisions, lineage, engine heartbeat). Determinism check passes.
+- **Test updates.** `pacts-records`: a war inside a three-member pact dissolves the whole pact (round 4 rule). `pacts-opinion`: the march test measures distance to the enemy parcel (column 9, row 0). `audio-respawn`: the zero Ready reply carries `contentHash: ''`.

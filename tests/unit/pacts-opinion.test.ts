@@ -61,7 +61,9 @@ describe('army march (10 section 8, position)', () => {
     marchArmies(armies, ds, rel, perAxis);
     expect(armies[0]?.parcel).toBe(1);
     for (let i = 0; i < 20; i++) marchArmies(armies, ds, rel, perAxis);
-    expect(Math.max(Math.abs((armies[0]?.parcel ?? 0) % perAxis - 9), Math.abs(Math.floor((armies[0]?.parcel ?? 0) / perAxis) - 9))).toBe(1);
+    // The enemy's nearest parcel is 9 (column 9, row 0); the army stops one parcel short of it.
+    const p = armies[0]?.parcel ?? 0;
+    expect(Math.max(Math.abs((p % perAxis) - 9), Math.abs(Math.floor(p / perAxis) - 0))).toBe(1);
   });
 
   it('centroidParcel picks the parcel nearest the centre', () => {

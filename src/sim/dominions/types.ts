@@ -1,7 +1,10 @@
 import type { Rng } from '../../shared/rng.ts';
 
-/** Runs one unit of a dominion slice (dominion id, body) under the fault gate (17 section 9). Sim.unit('dominion', ...) fits. */
-export type UnitGuard = (id: number, run: () => void) => void;
+/**
+ * Runs one unit of a slice (its id, body) under the fault gate (17 section 9). Sim.unit fits: ('dominion', id) for a dominion,
+ * ('hamlet', index) for a hamlet, ('border', 'a-b') for a border pair.
+ */
+export type UnitGuard = (id: number | string, run: () => void) => void;
 
 /** Diplomatic state between two dominions (10 section 2, reduced to three levels). */
 export type Relation = 'peace' | 'tension' | 'war';
@@ -59,6 +62,8 @@ export interface DominionContext {
   armyParcel?: Map<number, number>;
   /** Parcels per side of the realm, for the army contact test. Optional, with armyParcel. */
   perAxis?: number;
+  /** Runs one border pair's campaign joining and exchange under the fault gate (17 section 9, `border:a-b`). Optional: without it a throw propagates. */
+  borderUnit?: UnitGuard;
 }
 
 /** Key of an unordered pair of dominion ids: the lower id first. */

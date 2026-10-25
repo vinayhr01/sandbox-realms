@@ -1,4 +1,4 @@
-import type { Dominion, DominionContext, RelationMatrix } from './types.ts';
+import type { Dominion, DominionContext, RelationMatrix, UnitGuard } from './types.ts';
 import { HAMLET_CAPTURE } from './capture.ts';
 
 /** Ticks between campaign decisions and strength exchanges (TUNE). */
@@ -23,14 +23,18 @@ export function dominionStep(ctx: DominionContext, relations: RelationMatrix): v
   }
   if (ctx.tick % CAMPAIGN_INTERVAL === 0) {
     joinCampaigns(ctx, relations);
+    // Each border pair is one unit (17 section 9, `border:a-b`): a throw in one leaves the other pairs their exchange.
+    const guard: UnitGuard = ctx.borderUnit ?? ((_, run) => run());
     for (const [a, b] of ctx.borders) {
-      if (relations.get(a, b) !== 'war') continue;
-      const da = byId(ctx, a);
-      const db = byId(ctx, b);
-      if (!da || !db) continue;
-      if (!armies && (da.strength <= 0 || db.strength <= 0)) continue;
-      if (!inContact(ctx, a, b)) continue;
-      exchange(ctx, da, db, relations);
+      guard(`${a}-${b}`, () => {
+        if (relations.get(a, b) !== 'war') return;
+        const da = byId(ctx, a);
+        const db = byId(ctx, b);
+        if (!da || !db) return;
+        if (!armies && (da.strength <= 0 || db.strength <= 0)) return;
+        if (!inContact(ctx, a, b)) return;
+        exchange(ctx, da, db, relations);
+      });
     }
   }
   for (const d of ctx.dominions) {
@@ -54,10 +58,14 @@ function byId(ctx: DominionContext, id: number): Dominion | undefined {
  */
 function joinCampaigns(ctx: DominionContext, relations: RelationMatrix): void {
   if (!ctx.pacts) return;
+  // Each border pair is one unit (17 section 9, `border:a-b`), as in dominionStep.
+  const guard: UnitGuard = ctx.borderUnit ?? ((_, run) => run());
   for (const [a, b] of ctx.borders) {
-    if (relations.get(a, b) !== 'war') continue;
-    joinSide(ctx, relations, a, b);
-    joinSide(ctx, relations, b, a);
+    guard(`${a}-${b}`, () => {
+      if (relations.get(a, b) !== 'war') return;
+      joinSide(ctx, relations, a, b);
+      joinSide(ctx, relations, b, a);
+    });
   }
 }
 

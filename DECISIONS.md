@@ -2687,3 +2687,30 @@ Closes the gap left by "Replay and worker log close 10": `Cmd.Possess` had no cl
 **GOLDEN_HASH will drift.** Possession is a new player action, so a realm with a possess command gives a different result. A run with no possess command should be unchanged. `GOLDEN_HASH` was not edited.
 
 **Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`. Needed with test access: a worker test that a Possess command reaches `possessCommand` and a stale id refuses; a UI test that the possess power is enabled and that `ui-powers` still passes; and a hash check that a no-command run still matches `GOLDEN_HASH`.
+## Isolation finish close 11
+
+Scope: closes the slices that "Isolation granularity close 10" left as whole systems: `loyaltyStep`, `garrisonStep`, `structureStep`, the per-border-pair loops in `dominionStep` and `engageContacts`, `rankStep`, `captureTick`'s per-hamlet loop, and the per-system bodies of `runTerrain` and `runBehaviours`. Spec: `Spec/systems/17-engine-runtime-performance.md`, section 9, "System isolation" (verified at `game/Spec`). Files: `src/sim/sim.ts` (`unit()`), `src/sim/dominions/types.ts` (`UnitGuard`, `DominionContext.borderUnit`), `src/sim/dominions/step.ts`, `src/sim/dominions/adapter.ts` (`engageContacts`, `rankStep`, `loyaltyStep`, `captureTick`), `src/sim/dominions/capture.ts` (`captureStep`), `src/sim/settlements/garrison-adapter.ts` (`garrisonStep`). Development only: no tests, tsc, vitest, build or Playwright were run. `GOLDEN_HASH` is not edited.
+
+**Closed.**
+- Border pairs: `Sim.unit` takes kind `'border'` and an id that is a number or a string. A pair is `border:a-b`, in the array order of `ctx.borders` / `s.borders`. `dominionStep` runs the exchange loop and `joinCampaigns` each pair under `DominionContext.borderUnit`, which the adapter sets. `engageContacts` calls `sim.unit` per pair.
+- Hamlets (`hamlet:<index>`): `loyaltyStep`'s per-hamlet body, `garrisonStep`'s per-hamlet pass, and `captureStep`'s per-hamlet step through the optional `CaptureContext.unit`, which `captureTick` sets.
+- Dominions (`dominion:<id>`): `rankStep`'s per-dominion assignment.
+- No fault: the same calls run in the same order. `continue` became `return` inside each unit's closure. No randomness is drawn in a different order.
+
+**Not closed, and why.**
+- `structureStep`: its units are landmarks (`Structure`), which are not one of the unit kinds the brief lists (hamlet, dominion, border pair, being). A `structure` kind would need its own counter and stop rule, so it stays whole for now.
+- `runTerrain` and `runBehaviours`: each system call is already its own part (`this.part` and `this.behaviour`), so a throw in one system is already contained. Their inner sweeps are per tile or per region, not per hamlet, dominion, border pair or being.
+- `rankDominions` (one global computation) and the `d.target` clearing loop in `dominionStep` (no per-unit body that can throw) are left whole.
+- `garrisonStep`'s record cleanup loop (records of vanished or ungarrisoned hamlets) is a sweep over records, not a unit, and is left as it was.
+
+**Decisions.**
+- `hamlet:<index>` is one name across four systems: `settlementsStep`, `garrisonStep`, `loyaltyStep` and `captureStep`. Faults in any of them count together, and a switch-off of `hamlet:<i>` skips that hamlet in all four for 600 ticks. This follows the per-entity rule, but a hamlet that faults in several systems reaches the three-cycle stop sooner.
+- A switched-off hamlet is not stepped in `captureStep`, so the sweep at its end drops its capture progress. A switched-off hamlet in `garrisonStep` keeps its record, and its pass is skipped until it is back on.
+- Cost: each unit builds a name string and calls `isOff` once per pass when a gate is set, and each unit allocates a closure even with no gate. Per hamlet per pass for loyalty and garrison, per hamlet per `CAPTURE_STEP_TICKS` for capture, per pair per `CAMPAIGN_INTERVAL` for borders. Not measured, because nothing was run (17 section 3.3).
+
+**Caveats of the earlier rounds, restated.**
+- Per-unit stops can stop a realm. Three switch-offs of one unit stop the sim even when the rest of the slice runs (17 section 9, as the brief sets it). A pair, hamlet or dominion that keeps throwing can do so now in more slices than before. Worth a look before release.
+- Slot- and index-named units. `being:<slot>` names a slot, not a Being, so a switch-off skips whichever Being occupies it. `hamlet:<index>` is an index in `hamletsOf` order, which holds because hamlets are only appended. `border:a-b` names the pair, so it is stable while the borders are unchanged.
+- Fatal invariant violations (17 section 9) are still not detected. Deviation 2 of "Pump isolation close 7" (the ping part) is unchanged.
+
+**Not verified.** Nothing was run (instruction). Types were checked by reading against `strict`, `exactOptionalPropertyTypes` and `noUncheckedIndexedAccess`: `UnitGuard` now takes `number | string` (armies and rulers callers pass numbers, unchanged), and `borderUnit` and `CaptureContext.unit` are optional. Needed with test access: a unit test where one border pair throws and the other pairs still exchange, counted as `border:a-b`; a hamlet fault seen by two of the hamlet systems, counted together under `hamlet:<i>`; a check that three faults on one unit switch only that unit off for 600 ticks; and a no-fault hash check with and without a gate, which should match `GOLDEN_HASH` as before.

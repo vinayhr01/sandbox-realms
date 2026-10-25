@@ -664,6 +664,12 @@ function checkDominions(raw: unknown): DominionSnapshot | null {
   if (raw.taxSeen !== undefined && (!Array.isArray(raw.taxSeen) || !raw.taxSeen.every((p) => Array.isArray(p) && p.length === 2))) {
     throw new Error('chronicle: dominion section tax records are not valid');
   }
+  // Optional tax flows (tax.ts TaxFlow, written by the yearly pass): each record has its eight numbers. restoreDominions checks
+  // the ranges and that the shares add up. Saves written before the flows existed have none and load with an empty list.
+  const TAX_FLOW_KEYS = ['anchor', 'dominion', 'tick', 'loot', 'toLeader', 'toRuler', 'hamletShare', 'leaderShare'] as const;
+  if (raw.taxFlows !== undefined && (!Array.isArray(raw.taxFlows) || !raw.taxFlows.every((f) => isRecord(f) && TAX_FLOW_KEYS.every((k) => isFiniteNumber(f[k]))))) {
+    throw new Error('chronicle: dominion section tax flows are not valid');
+  }
   // Optional ruler (rulers.ts): a record whose slot and generation are numbers, and a finite succession-wait tick. restoreDominions checks the ranges.
   const rulerShape = (r: unknown): boolean => isRecord(r) && isFiniteNumber(r.slot) && isFiniteNumber(r.gen);
   if (!raw.dominions.every((d) => isRecord(d) && (d.traits === undefined || Array.isArray(d.traits)) && (d.taxRaised === undefined || isFiniteNumber(d.taxRaised)) && (d.ruler === undefined || rulerShape(d.ruler)) && (d.rulerWaitUntil === undefined || isFiniteNumber(d.rulerWaitUntil)))) {

@@ -1437,6 +1437,9 @@ async function boot(): Promise<void> {
           // The arrow kinds only when the Settings master is on, and never on touch.
           arrows: boolOption(options, 'ui.cursorArrows') && canHover ? new Set([...viewFlags].filter((k) => k.startsWith('arrow.'))) : new Set<string>(),
           hoverId: hoverPoint?.id ?? -1,
+          moneyFlow: boolOption(options, 'ui.moneyFlow'),
+          ties: viewFlags.has('ties'),
+          accord: viewFlags.has('accord'),
         },
         { offX: cam.offX, offY: cam.offY, zoom: cam.zoom },
       );

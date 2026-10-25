@@ -24,6 +24,8 @@ import {
   MAP_INTRIGUE_CAP,
   MAP_MARK_CAP,
   MAP_POINT_CAP,
+  MAP_TAX_CAP,
+  MAP_TIE_CAP,
   type MapBuilding,
   type MapIntrigue,
   type MapKind,
@@ -33,6 +35,8 @@ import {
   type MapMarks,
   type MapPoint,
   type MapSizeClass,
+  type MapTaxFlow,
+  type MapTies,
   type MapTiles,
   type NotableRows,
   type PactBlock,
@@ -49,7 +53,7 @@ import { DECISION_ROWS } from '../content/decisions.ts';
 import { SS_TICKS } from './clock.ts';
 import { MAX_BEINGS } from './beings/store.ts';
 import { aggroFoes } from './beings/aggro.ts';
-import { dominionsOfSim, pactsOfSim, parcelsPerAxis, snapshotDominions } from './dominions/adapter.ts';
+import { accordCandidatesOf, dominionsOfSim, opinionsOfSim, pactsOfSim, parcelsPerAxis, snapshotDominions, taxFlowsOfSim } from './dominions/adapter.ts';
 import { centroidParcel } from './dominions/armies.ts';
 import { hamletsOf } from './settlements/adapter.ts';
 import { hamletMood, PARCEL, tierOf } from './settlements/hamlet.ts';
@@ -104,6 +108,8 @@ export function buildSnapshot(sim: Sim): Snapshot {
     mapBoats: boatMarksOf(sim),
     mapTiles: mapTilesOf(sim),
     mapLinks: mapLinksOf(sim),
+    mapTies: mapTiesOf(sim),
+    mapTaxFlows: mapTaxFlowsOf(sim),
   };
   return fitSnapshot(snap);
 }
@@ -422,15 +428,71 @@ function clansOf(sim: Sim): ClanBlock {
   return { count: list.length, living: list.filter((c) => c.extinctTick < 0).length, rows };
 }
 
+/** Tile of the centre of a parcel (the parcel's middle tile), as the map feeds give positions. */
+function tileOfParcel(p: number, perAxis: number): { x: number; y: number } {
+  return { x: (p % perAxis) * PARCEL + PARCEL / 2, y: Math.floor(p / perAxis) * PARCEL + PARCEL / 2 };
+}
+
+/**
+ * Ties and Accord feed (12 section 8.8): each dominion's centroid tile, the opinion of each bordering pair in both
+ * directions, and the pact candidates the sim's gates allow now. Reads only; each list is capped at MAP_TIE_CAP.
+ */
+function mapTiesOf(sim: Sim): MapTies {
+  const perAxis = parcelsPerAxis(sim);
+  const centres: MapTies['centres'] = [];
+  for (const d of snapshotDominions(sim)?.dominions ?? []) {
+    if (d.parcels.length === 0 || centres.length >= MAP_TIE_CAP) continue;
+    const t = tileOfParcel(centroidParcel(new Set(d.parcels), perAxis), perAxis);
+    centres.push([d.id, t.x, t.y]);
+  }
+  const opinions: MapTies['opinions'] = opinionsOfSim(sim)
+    .slice(0, MAP_TIE_CAP)
+    .map((e): [number, number, number] => [e.a, e.b, e.opinion]);
+  const accord = accordCandidatesOf(sim);
+  return {
+    centres,
+    opinions,
+    formPact: accord.formPact.slice(0, MAP_TIE_CAP),
+    joinPact: accord.joinPact.slice(0, MAP_TIE_CAP),
+  };
+}
+
+/**
+ * Money flow feed (O05): the latest yearly pass's per-hamlet tax records (tax.ts TaxFlow), placed at the hamlet's anchor
+ * parcel and the holding dominion's centroid. Reads only; capped at MAP_TAX_CAP.
+ */
+function mapTaxFlowsOf(sim: Sim): MapTaxFlow[] {
+  const perAxis = parcelsPerAxis(sim);
+  const centreOf = new Map<number, { x: number; y: number }>();
+  for (const d of snapshotDominions(sim)?.dominions ?? []) {
+    if (d.parcels.length > 0) centreOf.set(d.id, tileOfParcel(centroidParcel(new Set(d.parcels), perAxis), perAxis));
+  }
+  return taxFlowsOfSim(sim)
+    .slice(0, MAP_TAX_CAP)
+    .map((f): MapTaxFlow => {
+      const at = tileOfParcel(f.anchor, perAxis);
+      const to = centreOf.get(f.dominion) ?? at;
+      return { x: at.x, y: at.y, dominion: f.dominion, to: [to.x, to.y], loot: f.loot, toRuler: f.toRuler };
+    });
+}
+
 /**
  * Keeps the message under SNAPSHOT_MAX_BYTES by halving the longer of the two row lists (dominions,
  * hamlets) until it fits. The totals (dominionCount, hamletCount) stay exact; `truncated` says a cut happened.
  */
 export function fitSnapshot(snap: Snapshot): Snapshot {
   let out = snap;
-  // Map feeds go first (cursor arrows, layer tiles, boats, intrigues, then sprite feeds), then map marks and map points: the map simply draws without them.
+  // Map feeds go first (cursor arrows, ties, money flow, layer tiles, boats, intrigues, then sprite feeds), then map marks and map points: the map simply draws without them.
   if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapLinks !== undefined) {
     const { mapLinks: _links, ...rest } = out;
+    out = { ...rest, truncated: true };
+  }
+  if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapTies !== undefined) {
+    const { mapTies: _ties, ...rest } = out;
+    out = { ...rest, truncated: true };
+  }
+  if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapTaxFlows !== undefined) {
+    const { mapTaxFlows: _flows, ...rest } = out;
     out = { ...rest, truncated: true };
   }
   if (snapshotBytes(out) > SNAPSHOT_MAX_BYTES && out.mapTiles !== undefined) {

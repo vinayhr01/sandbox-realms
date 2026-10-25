@@ -44,3 +44,26 @@ export function taxSplit(loot: number, local: number, tribute: number): TaxSplit
   const hamletShare = Math.floor(rest / 2);
   return { toLeader, toRuler, hamletShare, leaderShare: rest - hamletShare };
 }
+
+/**
+ * One hamlet's tax flow in one yearly pass (10 section 6). `anchor` is the hamlet's lowest parcel (the key `taxSeen`
+ * uses), `dominion` the dominion holding most of its parcels (the one that receives `toRuler`). The shares add up:
+ * `toRuler + hamletShare + leaderShare` is `toLeader`, and `toLeader` is at most `loot`. The adapter keeps the records of
+ * the latest pass only; `taxRaised` on the dominion stays the cumulative total.
+ */
+export interface TaxFlow {
+  anchor: number;
+  dominion: number;
+  tick: number;
+  loot: number;
+  toLeader: number;
+  toRuler: number;
+  hamletShare: number;
+  leaderShare: number;
+}
+
+/** The tax flow record of one hamlet's loot (taxSplit, with the hamlet and dominion named). Draws no randomness. */
+export function taxFlowOf(anchor: number, dominion: number, loot: number, rates: { local: number; tribute: number }, tick: number): TaxFlow {
+  const split = taxSplit(loot, rates.local, rates.tribute);
+  return { anchor, dominion, tick, loot, toLeader: split.toLeader, toRuler: split.toRuler, hamletShare: split.hamletShare, leaderShare: split.leaderShare };
+}

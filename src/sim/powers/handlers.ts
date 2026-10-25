@@ -18,6 +18,21 @@ import { meteorImpact } from '../terrain/meteor.ts';
 import { startQuake } from '../terrain/quake.ts';
 import { creepHubAt, geyserAt, heatAt, igniteAt, plantFlora, quenchAt, rainOn, seedBiome, snowOn, volcanoAt } from './terrain-powers.ts';
 import { blessAt, loreAt } from './rites.ts';
+import {
+  cleanseDrop,
+  foundlingAt,
+  itemRainDrop,
+  lootDrop,
+  moodDrop,
+  purifyDrop,
+  randomTraitDrop,
+  slumberDrop,
+  statusDrop,
+  surgeDrop,
+  traitDrop,
+  unweaveDrop,
+  wakeAt,
+} from './favour.ts';
 
 /** Beings placed by one beings calamity (a herd arriving at a tile). */
 const CALAMITY_HERD = 6;
@@ -194,6 +209,33 @@ export function executePower(sim: Sim, def: PowerDef, x: number, y: number): boo
       if (!inBounds) return false;
       loreAt(sim, x, y, Number(p.radius ?? 4));
       return true;
+    // Favour drops (12 section 8.7): effects land on the beings on the tapped tile (see favour.ts).
+    case 'favour_status':
+      return inBounds && statusDrop(sim, x, y, String(p.status ?? ''), Number(p.fall ?? 0));
+    case 'favour_surge':
+      return inBounds && surgeDrop(sim, x, y, Number(p.fall ?? 0));
+    case 'favour_mood':
+      return inBounds && moodDrop(sim, x, y, String(p.event ?? ''), Number(p.extra ?? 0), Number(p.fall ?? 0));
+    case 'favour_trait':
+      return inBounds && traitDrop(sim, x, y, String(p.trait ?? ''), Number(p.fall ?? 0));
+    case 'favour_trait_random':
+      return inBounds && randomTraitDrop(sim, x, y, p.polarity === 'bad' ? 'bad' : 'good', Number(p.chance ?? 0));
+    case 'favour_sleep':
+      return inBounds && slumberDrop(sim, x, y, Number(p.fall ?? 0));
+    case 'favour_unweave':
+      return inBounds && unweaveDrop(sim, x, y, Number(p.fall ?? 0));
+    case 'favour_cleanse':
+      return inBounds && cleanseDrop(sim, x, y, Number(p.fall ?? 0));
+    case 'favour_purify':
+      return inBounds && purifyDrop(sim, x, y);
+    case 'favour_foundling':
+      return inBounds && foundlingAt(sim, x, y);
+    case 'favour_wake':
+      return inBounds && wakeAt(sim, x, y);
+    case 'favour_items':
+      return inBounds && itemRainDrop(sim, x, y, Number(p.fall ?? 0));
+    case 'favour_loot':
+      return inBounds && lootDrop(sim, x, y, Number(p.fall ?? 0));
     default:
       return false;
   }

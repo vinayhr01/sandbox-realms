@@ -15,7 +15,7 @@ Two parts. **Current state** is the latest verified state and wins over anything
 | Beings | 90 SPECIES rows (84 beasts, 6 Folk). Folk never spawn in play (`spawnFolk` has no caller). Traits: 144 being, 154 strain. Ecosystem exit test not met (see below). |
 | Combat and statuses | 24 status definitions (spec roster 56). No status is applied in play. `meleeSwing` has no caller. |
 | Settlements, dominions, culture | Hamlets run (6 buildings). Dominions and culture are inert in play: `addDominion`, `addCustom`, `startIntrigue`, `addFamily` have no caller outside tests. |
-| Powers | 138 entries; all 138 enabled in the UI (`powerStatus`); 122 dispatch to real sim code (not recounted in this pass). Favour has one power (Bless, `favour_bless`) and Insight has one (Lore, `insight_lore`); the rest of those tabs is not built. |
+| Powers | 159 entries (138 before Powers round 4, plus 21). Favour: 21 entries (Bless and 20 round-4 entries); Insight: 2 (Lore and Compare). Favour and Insight rows the sim cannot express are cut (see Powers round 4). Enablement is by `powerStatus` (`src/ui/powerSupport.ts`). |
 | Rules, ages, calamities | 49 rules (about 18 never read), 11 ages, 16 calamities rolled every 80 ticks. |
 | UI | `WINDOW_CATALOG` has 74 entries: 62 of 62 spec window rows built (the nine `win_customize_*` ids are one row), plus 4 extras. Options: 75 settings (72 spec 13 rows and 3 spec 16 audio rows), saved to localStorage; 49 rows are flagged `live` after Map layers round 6 (the older "about 44" figure was not reproduced). Tutorial 4 steps. Edge pan, pinch and wheel zoom. Long-press, undo and minimap missing. |
 | Audio | Wired. `AudioEngine` (WebAudio, `src/audio/engine.ts`) is built in `main.ts` and unlocks on the first pointer, key or touch (never in Safe Mode). A procedural music bed starts on unlock; its state follows pause and tab visibility. `AudioModel` holds voice caps, volumes and mutes. Not checked on a device. |
@@ -174,6 +174,50 @@ Scope: `favour_bless` (Favour tab) and `insight_lore` (Insight tab), and the `ri
 - **Superseded (done).** `bless` and `lore` are now in `SIM_HANDLERS` (`src/ui/powerSupport.ts`), so both powers are enabled. The earlier "must be added there" note and the `tests/e2e/panels.spec.ts` expectation that Bless reads "not available yet" no longer apply.
 - **Still not built.** The UI toast `hint.rule_off` and the Lore window (`win_lore` is not in `WINDOW_CATALOG`).
 - **Golden.** `GOLDEN_HASH` unchanged (2562049680); the golden replay uses no powers.
+
+## Powers round 4
+
+Scope: the Favour (12 section 8.7) and Insight (12 section 8.8) entries that the sim can express with state that exists. Code: `src/content/powers.ts`, `src/sim/powers/favour.ts` (new), `src/sim/powers/handlers.ts`, `src/ui/powerSupport.ts` (`SIM_HANDLERS`). Bless and Lore are unchanged.
+
+**Count.** Built: 20 Favour entries (plus Bless) and 1 Insight entry (`ins_compare`, plus Lore). Cut: 13 Favour and 56 Insight rows. The spec's own counts do not match its rows (8.7 says 28, the rows total 33; 8.8 says about 40, the rows total 57). Counts here are the rows as written, with each `L01`..`X14` style id counted once.
+
+**Drop model.** Favour magic drops are `brush` kind. The UI sends one application per tapped tile, so each application is one drop roll (fallChance 0.3, `fall` param) and the beings on that tile take the effect. Brush size does not widen a Favour drop. Purify uses fall 1. Grace and Hex roll per being (chance 0.15). Rolls use the named stream `favour`.
+
+**Substitutions (Favour).**
+- Vigour: `spirited` becomes `emboldened` (speed x1.3, damage x1.3). Regen is not built. Spark also uses `emboldened`, because `vigilant` has no status and the rest-need effect has no state.
+- Ward: `warded` as spec. The structure hp +50% part is not built.
+- Surge: `spirited` and `warded` each 20% per being (`emboldened`, `warded`); `vigilant` is dropped; `mana_surge` becomes `empowered` for every being on the tile.
+- Muse: mood +20 via event `inspired` (25) with extra -5. The 90 s fade is not built (mood has no per-event decay). The cultural idea is not started.
+- Kinship: opinion +30 becomes mood event `made_friend` (40) with extra -10, for the beings on the tile. There is no opinion or dominion state. The spec's pair-between-beings effect is one-sided here.
+- Strife: opinion -30 becomes mood `talked_badly` (-15) with extra -15. The brawl is not started (no fight-start hook).
+- Grudge: there is no grudge state. The beings on the tile gain status `frenzy` (damage x2, 300 s). Targeting the nearest non-kin is not built.
+- Frenzy: trait `frenzied_mind` (permanent). "Ignores flee" is not in the sim (trait data only). Beings with `stalwartheart` are skipped.
+- Grace and Hex: good or bad traits are chosen at random. 18b has no good or bad tags, so the classification is derived from the effect text: a trait is bad when its text has a negative figure or an `x0.` multiplier and no positive one, good in the reverse case, and unclassified when both appear. Four traits are named bad by hand (`frenzied_mind`, `hexmarked`, `cursed_line`, `vermin_bearer`). Whirlwind shrinking and growing is not built (no whirlwind state).
+- Slumber: `dozing` becomes the sleep state (06 section 5, `beginSleep` with kind `nap`). Damage ends it, as the spec says. The length follows the nap rule (about 20 to 60 s), not 60 s exactly.
+- Unweave: removes `warded`, `emboldened`, `empowered` and `hexed`. Magic clouds (`cloud_arcane`) are not built.
+- Cleanse: removes `coughing`, `venomed`, `rotting` and `hexed`, and the traits `hexmarked` and `vermin_bearer`. Creep contact is not built.
+- Purify: removes every bad trait (the classification above). Costs nothing.
+- Foundling: a breeding-age being on the tile (not a child, not expecting, not in lull) gets a child at once through `spawnBeing` with that being as parent, so the strain and birth-mutation rules of 05 and 06 apply. A being that cannot breed makes the rite fail (returns false; the UI shows no toast). The mating lull is set to 1800 ticks. The sim's births have one bearer, so no second parent is mixed in.
+- Waking Flora: default of OPEN-12-4. A tree on the tile becomes a `rootwarden` and the tree is removed. Other flora and structures are not converted.
+- Item Rain: gives items from the item-rain list (`sim.items.rain`, set by the item rain editor) to the beings on the tile through the existing `itemRain`. With an empty list the rite does nothing (the items system would otherwise pick any kind).
+- Loot Rain: each being on the tile gets a random non-unique item of tier 4 or lower (TUNE, `LOOT_MAX_TIER`), through `giveItem`.
+- Edit Item Rain: `open_window` to `win_item_rain_edit`.
+
+**Cut (Favour, 13 rows).**
+- `fav_hush`: the sim has no casting or silence state, and no status with that effect exists.
+- `fav_dust_white`, `fav_dust_black`, `fav_dust_red`, `fav_dust_blue`, `fav_dust_gold`, `fav_dust_purple` (6): they paint a dominion colour and flag, and dominions have no state in play. They have no combat effect, so nothing in the sim would change.
+- `fav_rain_a`, `fav_rain_b`, `fav_rain_c` (3): they add or remove traits from user lists kept in settings. The sim cannot read settings, and no list state exists in the sim. Inventing default lists was rejected.
+- `fav_rain_a_edit`, `fav_rain_b_edit`, `fav_rain_c_edit` (3): editors for the cut trait rains.
+
+**Cut (Insight, 56 rows).**
+- `ins_inspect`, `ins_follow`, `ins_possess`, `ins_select_hamlet` (4): selection, camera and control of a being. Selection lives in the UI, and no sim command for a controlled being exists (`src/sim/beings` is out of scope).
+- `ins_layers` L01 to L10 (10), `ins_marks` M01 to M07 (7), `ins_overlays` O01 to O08 (8), `ins_arrows` A01 to A07 (7), `ins_tips_tiles` and `ins_tips_beings` (2): view state only. A `toggle` power can only flip a sim rule, and no UI status exists for these.
+- `ins_lists` X01 to X14 (14) and `ins_knowledge` (the Codex, `list_codex`): these open windows that exist in `WINDOW_CATALOG`, but `open_window` opens `win_` plus the window param (`src/app/main.ts` line 550), so a `list_*` id cannot be reached. The fix is one line in `main.ts` and one in `powerSupport.ts` (`powerStatus` also builds `win_`), both outside this round's file list. Follow-up: allow full window ids in `open_window`; that would enable these 15 rows.
+- `ins_ties`, `ins_forecast`, `ins_accord` (3): they need a selected dominion, a pact or a campaign, and dominions are inert in play.
+
+**Persisted state.** No new fields and no change to the Chronicle schema. The named RNG stream `favour` is created on the first Favour roll. Stream state is saved in the Chronicle, so a save made after a Favour power is used carries it. Beings, mood, effects and item state change only through their existing fields.
+
+**Other effects.** `POWERS` is hashed in `src/content/content-hash.ts`, so the content hash changes with this round. `GOLDEN_HASH` is unchanged (2562049680), and the golden replay uses no powers. Nothing was run: this round was checked by reading only (no tests, tsc, build or Playwright).
 
 ## Clans (kinbands)
 

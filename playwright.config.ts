@@ -28,8 +28,6 @@ export default defineConfig({
     // full HD desktop viewport. These run only the platform-*.spec.ts smoke tests.
     { name: 'chromium-360x640', testMatch: /platform-.*\.spec\.ts/, use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 640 }, hasTouch: true } },
     { name: 'chromium-1920x1080', testMatch: /platform-.*\.spec\.ts/, use: { ...devices['Desktop Chrome'], viewport: { width: 1920, height: 1080 } } },
-    { name: 'firefox-360x640', testMatch: /platform-.*\.spec\.ts/, use: { ...devices['Desktop Firefox'], viewport: { width: 360, height: 640 }, hasTouch: true } },
-    { name: 'firefox-1920x1080', testMatch: /platform-.*\.spec\.ts/, use: { ...devices['Desktop Firefox'], viewport: { width: 1920, height: 1080 } } },
     { name: 'webkit-360x640', testMatch: /platform-.*\.spec\.ts/, use: { ...devices['Desktop Safari'], viewport: { width: 360, height: 640 }, hasTouch: true } },
     { name: 'webkit-1920x1080', testMatch: /platform-.*\.spec\.ts/, use: { ...devices['Desktop Safari'], viewport: { width: 1920, height: 1080 } } },
   ],

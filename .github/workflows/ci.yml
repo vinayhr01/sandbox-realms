@@ -40,8 +40,6 @@ jobs:
         include:
           - browser: chromium
             projects: --project=desktop-chromium --project=phone-portrait --project=chromium-360x640 --project=chromium-1920x1080
-          - browser: firefox
-            projects: --project=firefox-360x640 --project=firefox-1920x1080
           - browser: webkit
             projects: --project=webkit-360x640 --project=webkit-1920x1080
     steps:

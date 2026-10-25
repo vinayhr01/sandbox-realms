@@ -1381,3 +1381,8 @@ Scope: three failing unit tests in the beings and chronicle area. Development on
 
 - **Golden hash re-baselined.** `GOLDEN_HASH` 1492628085 -> 3940167734. The change comes from the sim changes merged since the last re-baseline: worldgen flora seeding (wild seeding draws), beings AI, fights and aggro, combat, dead-slot zeroing (store.kill), and the rest listed in the Golden review section. The value is the one the round-6 run produced; a bisect has not been done.
 - **E2E names.** The havoc bomb is `Charge` (spec name). The power-status text and the power search row follow it. The "Hand charge" row no longer matches the search for `Charge` (anchored match).
+
+## Browser matrix: Firefox removed
+
+- Firefox projects are removed from `playwright.config.ts` and from the CI browser matrix. The Playwright Firefox build does not launch on the Windows development machine (side-by-side configuration error), so it could not be tested. The app is tested on Chromium (desktop, tablet, phone and 360x640 and 1920x1080 projects) and WebKit (360x640 and 1920x1080).
+- Firefox support is therefore not verified. Add it back when a machine can launch it.

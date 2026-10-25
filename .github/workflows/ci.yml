@@ -37,7 +37,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check:determinism
-      - run: npx vitest run tests/unit/golden.test.ts
+      - run: npx --no-install vitest run tests/unit/golden.test.ts
 
   playwright:
     # Runs in parallel with the other jobs. Each browser is split into four shards.
@@ -58,8 +58,8 @@ jobs:
           node-version: 24.22.1
           cache: npm
       - run: npm ci
-      - run: npx playwright install --with-deps ${{ matrix.browser }}
-      - run: npx playwright test --shard=${{ matrix.shard }}/4 ${{ matrix.projects }}
+      - run: npx --no-install playwright install --with-deps ${{ matrix.browser }}
+      - run: npx --no-install playwright test --shard=${{ matrix.shard }}/4 ${{ matrix.projects }}
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: failure()
         with:

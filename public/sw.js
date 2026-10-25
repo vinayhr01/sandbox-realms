@@ -2,7 +2,9 @@
 // network-first for navigations with an offline fallback. It never calls skipWaiting,
 // so a new build waits for the next cold start (17 section 10: never hot-swap mid-session).
 const CACHE = 'sr-shell-v2';
-const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/icon-maskable-192.png', '/icon-maskable-512.png'];
+// BASE is the deploy path ('/' locally, '/sandbox-realms/' on GitHub Pages), read from the worker scope.
+const BASE = new URL(self.registration.scope).pathname;
+const SHELL = ['', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-maskable-192.png', 'icon-maskable-512.png'].map((p) => BASE + p);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
@@ -28,10 +30,10 @@ self.addEventListener('fetch', (event) => {
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put('/index.html', copy));
+          caches.open(CACHE).then((cache) => cache.put(BASE + 'index.html', copy));
           return response;
         })
-        .catch(() => caches.match('/index.html').then((hit) => hit ?? Response.error())),
+        .catch(() => caches.match(BASE + 'index.html').then((hit) => hit ?? Response.error())),
     );
     return;
   }
@@ -40,7 +42,7 @@ self.addEventListener('fetch', (event) => {
     caches.match(request).then((hit) => {
       if (hit) return hit;
       return fetch(request).then((response) => {
-        if (response.ok && url.pathname.startsWith('/assets/')) {
+        if (response.ok && url.pathname.startsWith(BASE + 'assets/')) {
           const copy = response.clone();
           caches.open(CACHE).then((cache) => cache.put(request, copy));
         }

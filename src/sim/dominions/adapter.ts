@@ -309,7 +309,8 @@ export function dominionsYearly(sim: Sim): void {
   const ienv: IntrigueEnv = { dominions: s.dominions, borders: s.borders, relations: s.relations, truce: s.truce, pacts: s.pacts, tick: sim.tick };
   resolveIntrigues(ienv, s.intrigues);
   proposeIntrigues(ienv, s.intrigues);
-  raiseArmies(s.armies, s.dominions, perAxis);
+  // Standing armies off raises no armies (09 section 8); existing armies still sync below.
+  if (sim.rules.isOn('standing_armies')) raiseArmies(s.armies, s.dominions, perAxis);
   // Captains and slots: one captain per hamlet, and the hamlet's folk, both counted by the hamlet's majority owner
   // (no hamlet data leaves one captain and no slots).
   const hamlets = new Map<number, number>();

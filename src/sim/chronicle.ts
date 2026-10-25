@@ -565,7 +565,11 @@ function checkCulture(raw: unknown): CulturePayload {
   const creeds = raw.creeds;
   const listsOk = [raw.customs, raw.creeds, raw.dialects, raw.intrigues, raw.families].every(Array.isArray);
   const creedsOk = Array.isArray(creeds) && creeds.every((c) => isRecord(c) && isFiniteNumber(c.id) && Array.isArray(c.holders) && c.holders.every(isFiniteNumber));
-  if (!listsOk || !creedsOk) throw new Error('chronicle: culture payload is not valid');
+  // Customs (11 section 4.1): each has a group (a dominion id) and a list of trait id strings. Ids are read against the catalogue on load.
+  const customsOk =
+    Array.isArray(raw.customs) &&
+    raw.customs.every((c) => isRecord(c) && isFiniteNumber(c.group) && Array.isArray(c.traits) && c.traits.every((t) => typeof t === 'string'));
+  if (!listsOk || !creedsOk || !customsOk) throw new Error('chronicle: culture payload is not valid');
   // Optional family records (11 section 7): when present, each has an id, two founders, a member list and a banner.
   if (raw.familyRecords !== undefined) {
     const records = raw.familyRecords;

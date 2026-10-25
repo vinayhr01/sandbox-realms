@@ -56,6 +56,9 @@ export const MOOD_VALUE = {
   razed: -35,
   hamlet_conquered: 30,
   destroyed: 35,
+  // Creep hub proximity (18e section 2): once per Month within 6 tiles of a hub (settlements/adapter.ts).
+  blighted_view: -3,
+  festive_sight: 2,
 } as const;
 
 export type MoodEvent = keyof typeof MOOD_VALUE;

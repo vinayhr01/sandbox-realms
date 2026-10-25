@@ -5,6 +5,7 @@ import { dissolvePact, formPact, hasEnemy, joinPact, pactOf, pactPower, PACT_TIM
 import type { Dominion, RelationMatrix } from './types.ts';
 import { foundAllowed, splitAllowed, type FoundFacts, type SplitFacts } from '../culture/trait-rules.ts';
 import { uprisingAllowed, type UprisingFacts } from './rebellion.ts';
+import { RITE_KINDS, RITE_STRENGTH, isRiteKind, type RiteKind } from '../../content/rites.ts';
 
 /**
  * Intrigue records (10 sections 11-12, 11 section 3 catalogue). Rulers and the intrigue engine do not exist here, so an
@@ -12,11 +13,14 @@ import { uprisingAllowed, type UprisingFacts } from './rebellion.ts';
  * resolved in the next yearly pass. The pact intrigues resolve through the pact functions in pacts.ts. The three split
  * intrigues (divideCustom, schismCreed, divergeDialect; 11 section 2) resolve through the culture hooks in `split`, and the
  * two founding intrigues (newDialect, newCreed; 11 section 3) through the culture hooks in `found`. The uprising (10 section
- * 11) resolves through the hooks in `rebel`.
- * See DECISIONS.md "Pacts and armies round 5", "Dominions close 5", "Culture founding close 6" and "Rebellion close 14".
+ * 11) resolves through the hooks in `rebel`. The creed rites (11 section 3, content/rites.ts) resolve through the rite hooks
+ * in `rite`, and are proposed last, while their creed holds the tenet.
+ * See DECISIONS.md "Pacts and armies round 5", "Dominions close 5", "Culture founding close 6", "Rebellion close 14" and
+ * "Spells and rites close 14" (and "Spells merge close 14" for the merge order) for each substitution.
  */
 
-export type IntrigueKind = 'formPact' | 'joinPact' | 'dissolvePact' | 'divideCustom' | 'schismCreed' | 'divergeDialect' | 'newDialect' | 'newCreed' | 'uprising';
+/** Every intrigue kind: the pact, split, founding and uprising kinds, and the fifteen creed rites (11 section 3, rites.ts). */
+export type IntrigueKind = 'formPact' | 'joinPact' | 'dissolvePact' | 'divideCustom' | 'schismCreed' | 'divergeDialect' | 'newDialect' | 'newCreed' | 'uprising' | RiteKind;
 
 /** The split intrigues (11 section 2): a custom divides, a creed schisms, a dialect diverges. */
 export type SplitKind = 'divideCustom' | 'schismCreed' | 'divergeDialect';
@@ -53,6 +57,7 @@ export const INTRIGUE_COST: Readonly<Record<IntrigueKind, number>> = {
   newDialect: 0,
   newCreed: 25,
   uprising: 15,
+  ...RITE_STRENGTH,
 };
 /** Every intrigue kind, for the save check (adapter.ts restoreDominions). */
 export const INTRIGUE_KINDS: readonly IntrigueKind[] = Object.keys(INTRIGUE_COST) as IntrigueKind[];
@@ -114,6 +119,16 @@ export interface RebelHooks {
   apply(dominionId: number, hamlet: number): boolean;
 }
 
+/**
+ * Rite hooks (11 section 3, content/rites.ts; built in culture/rites.ts). `allowed` is the rite's gate for the dominion: its
+ * creed holds the rite's tenet, the `rituals` rule is on, and the rite has a target. It is read when proposing and again when
+ * resolving. `apply` runs the rite's world effect and returns false when nothing landed. Draws from the `rites` stream only in apply.
+ */
+export interface RiteHooks {
+  allowed(kind: RiteKind, dominionId: number): boolean;
+  apply(kind: RiteKind, dominionId: number): boolean;
+}
+
 /** What the gates read: the dominions, borders, relations, truces and pacts, and the tick. */
 export interface IntrigueEnv {
   dominions: readonly Dominion[];
@@ -134,6 +149,8 @@ export interface IntrigueEnv {
   found?: FoundHooks;
   /** Hooks for the uprising intrigue (10 section 11). Optional: without them no uprising is proposed. */
   rebel?: RebelHooks;
+  /** Rite hooks for the creed rites (11 section 3). Optional: without them no rite is proposed. */
+  rite?: RiteHooks;
 }
 
 function opinionOf(env: IntrigueEnv): OpinionContext {
@@ -253,6 +270,14 @@ function uprisingTarget(env: IntrigueEnv, d: number): number {
   return -1;
 }
 
+/**
+ * Gate for a creed rite by dominion `d` (11 section 3): the rite hooks test the creed tenet, the `rituals` rule and the
+ * target (RiteHooks.allowed). Used when proposing and again when resolving. Draws no randomness.
+ */
+export function riteOk(env: IntrigueEnv, kind: RiteKind, d: number): boolean {
+  return dom(env, d) !== undefined && env.rite?.allowed(kind, d) === true;
+}
+
 /** The dominion a formPact by `a` would ask (the lowest-id free neighbour with no intrigue running), or -1. */
 function formPactTarget(env: IntrigueEnv, state: IntrigueState, a: number): number {
   if (active(state, a) || cooling(state, a, env.tick)) return -1;
@@ -314,10 +339,19 @@ export function proposeIntrigues(env: IntrigueEnv, state: IntrigueState): void {
         }
       }
     }
-    // An uprising (10 section 11) is tried last, when no other intrigue was picked. Its target is a hamlet of the dominion.
+    // An uprising (10 section 11) is tried when no other intrigue was picked. Its target is a hamlet of the dominion.
     if (!pick) {
       const hamlet = uprisingTarget(env, d.id);
       if (hamlet >= 0) pick = { kind: 'uprising', targetId: hamlet };
+    }
+    // A creed rite (11 section 3) is tried last. The table order decides which of the dominion's allowed rites is proposed.
+    if (!pick) {
+      for (const kind of RITE_KINDS) {
+        if (riteOk(env, kind, d.id)) {
+          pick = { kind, targetId: d.id };
+          break;
+        }
+      }
     }
     if (!pick) continue;
     const cost = INTRIGUE_COST[pick.kind];
@@ -356,6 +390,8 @@ export function resolveIntrigues(env: IntrigueEnv, state: IntrigueState): void {
       env.found?.apply(i.kind, i.dominionId);
     } else if (i.kind === 'uprising' && uprisingOk(env, i.dominionId, i.targetId)) {
       env.rebel?.apply(i.dominionId, i.targetId);
+    } else if (isRiteKind(i.kind) && riteOk(env, i.kind, i.dominionId)) {
+      env.rite?.apply(i.kind, i.dominionId);
     }
   }
 }

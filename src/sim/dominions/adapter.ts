@@ -28,7 +28,7 @@ import {
   type SplitKind,
 } from './intrigue.ts';
 import { CAMPAIGN_KINDS, newCampaignState, type Campaign, type CampaignSnapshot, type CampaignState } from './campaigns.ts';
-import { type RebelLeaderFacts, type UprisingFacts } from './rebellion.ts';
+import { anchorOf, indexOfAnchor, type RebelLeaderFacts, type UprisingFacts } from './rebellion.ts';
 import { taxFlowOf, taxRatesOf, type TaxFlow } from './tax.ts';
 import { leadingHamlet, rulersStep, rulerLive, rulerStatsOf, RULER_WAIT_MIN, RULER_WAIT_SPAN, type RulerRef, type RulerStats } from './rulers.ts';
 import { rankDominions, RANK_PERIOD_TICKS } from './rank.ts';
@@ -822,13 +822,6 @@ function moveBeingsTo(sim: Sim, slots: readonly number[], anchor: number): void 
   }
 }
 
-/** Lowest parcel of a hamlet: its key in the capture progress, the hold records and the tax loot (tax.ts). */
-function anchorOf(parcels: ReadonlySet<number>): number {
-  let anchor = Infinity;
-  for (const p of parcels) anchor = Math.min(anchor, p);
-  return anchor;
-}
-
 /**
  * Whether a hamlet is being captured: its capture progress is above 0 (capture.ts). The settlements gates read it (09
  * section 6 build tick, 09 section 9 soldier gate). Read only; draws no randomness.
@@ -1265,6 +1258,11 @@ function rebelHooksOf(sim: Sim, s: DominionState, settlements: ReturnType<typeof
   const soldiersAt = (i: number): number => garrisonsOf(sim).find((r) => r.hamlet === i)?.soldiers ?? 0;
   return {
     hamlets: (d) => (on() ? holdsOf(d) : []),
+    anchorOf: (i) => {
+      const h = settlements[i];
+      return h ? anchorOf(h.parcels) : -1;
+    },
+    indexOf: (anchor) => indexOfAnchor(settlements, anchor),
     facts: (d, i): UprisingFacts | undefined => {
       if (!on()) return undefined;
       const dom = s.dominions.find((x) => x.id === d);

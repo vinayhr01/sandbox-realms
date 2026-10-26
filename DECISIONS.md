@@ -2907,3 +2907,15 @@ Merge of `worktree-agent-a584ead3d558e4960` (spells and rites close 14) into `ma
 - `adapter.ts`: imports merged without duplicates (`RebelHooks` and `RiteHooks`; `applyRite` and `riteAllowed` from `culture/rites.ts`; `razedMood` kept in the `culture/effects.ts` import). `dominionsYearly` passes both `rebel` and `rite` hooks.
 - Saved fields: the spell section (chronicle tag 23, `snapshotSpells`) is written and restored with `checkSpells` (non-negative whole number triples), alongside main's `hamletsRazed` and the other dominion fields.
 - Not verified: no tests, vitest, build or Playwright were run (instruction). `npm run typecheck` is the only check run. `GOLDEN_HASH` was not edited and may drift, since casters draw from the spell and rite streams.
+
+## Spec coverage refresh close 15
+
+Docs only: `docs/spec-coverage.md` rewritten against main at 4d81302 (it was last refreshed before close 4). No source, test or Spec file changed. Nothing was run: counts come from importing the registries in Node and from grep; the close 4 to close 14 "Remaining" and "Not built" lines were the evidence for what is open.
+
+- Status words are now DONE, PARTIAL, NOT BUILT (and N/A). The old MISSING is NOT BUILT. Art moved from MISSING to PARTIAL (procedural sprites exist).
+- Rows removed: the legal checklist rows (removed on purpose) and WebKit and Firefox as test-matrix items (owner decision, close 13). The M12 platform row now records Chromium only.
+- Rows added: M8 "name sets, sound shift, dialect syllables" as NOT BUILT (spec gap). Remaining work is now a short list grouped by reason: spec gap, owner decision, not built.
+- Stale claims corrected: heartbeat, watchdog, contentHash handshake and degradation ladder exist; 512 is offered and Titan sits behind Advanced; hold, long-press and double-tap are wired (undo is not); `meleeSwing` has a caller; town tier, dominions, culture call sites, rulers, boats, capture, raze, rebellion, spells and rites, minimap, world tooltips and 56 Insight rows are built. Counts: powers 250, statuses 32, buildings 31 of 60, settings 78 (58 live), flora 35, decision rows 27, schema 7, `GOLDEN_HASH` 1357125849.
+- Spot checks by grep that held: `liveCount: () => 0` in `powers/handlers.ts` (no calamity cap binds); `writeBook` has no caller; `countsCredited`, `grantAllowed` and `achievementProgress` have no caller outside tests; 16 of 49 rule ids have no string reference outside `rules.ts`.
+- The "Current state" table at the top of this file is also stale (it still says heartbeat is never posted, 6 buildings, 159 powers, inert culture). It was not edited here; the dated sections and `docs/spec-coverage.md` win.
+- Open and unverified: no exit test is confirmed met; the M3 soak was not re-run after the Beings releases; the IndexedDB path, dialogs and audio have no recorded browser or device run.

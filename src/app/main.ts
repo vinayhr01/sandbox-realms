@@ -792,7 +792,7 @@ async function boot(): Promise<void> {
       return;
     }
     if (!held) return;
-    const abilities: { kick?: boolean; jump?: boolean; talk?: boolean; dash?: boolean; steal?: boolean; swear?: boolean } = {};
+    const abilities: NonNullable<Parameters<SimClient['possess']>[5]> = {};
     abilities[action] = true;
     client.possess(possessedId, true, possessOrder.x, possessOrder.y, attackHeld, abilities);
   };

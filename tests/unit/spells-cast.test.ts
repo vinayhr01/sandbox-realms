@@ -2,10 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { generateRealm } from '../../src/sim/worldgen.ts';
 import { seedStartingBeasts } from '../../src/sim/beings/system.ts';
 import { MAX_BEINGS } from '../../src/sim/beings/store.ts';
-import { BEING_TRAIT_INDEX } from '../../src/content/traits.ts';
 import { addDominion, parcelsPerAxis } from '../../src/sim/dominions/adapter.ts';
 import { AETHER_BASE, AETHER_REGEN_TICKS, RECOVER_CAST_TICKS, SPELL_BY_ID } from '../../src/content/spells.ts';
-import { aetherOf, tryCast } from '../../src/sim/spells.ts';
+import { aetherOf, spellListsOf, tryCast } from '../../src/sim/spells.ts';
 import type { Sim } from '../../src/sim/sim.ts';
 
 // 08 section 9.1: tryCast gates and lazy aether. The caster's only spell is `ward_self` via a creed tenet (spell ward_self: self target, chance 0.2,
@@ -19,7 +18,7 @@ function casterWorld(): { sim: Sim; slot: number; key: number } {
   seedStartingBeasts(sim, 4);
   const slot = sim.beings.store.at(0);
   // The spell source is a creed tenet (`spell_ward_self`) of the dominion that holds every parcel; the talent route is
-  // covered by the it.fails test at the end (talent gifts are strain traits, not being traits).
+  // covered by the talent test at the end.
   const perAxis = parcelsPerAxis(sim);
   addDominion(sim, 1, 10, Array.from({ length: perAxis * perAxis }, (_, p) => p));
   sim.culture.creeds.push({ id: 1, holders: new Set([1]), tenets: ['spell_ward_self'] });
@@ -111,11 +110,15 @@ describe('tryCast gates (08 section 9.1)', () => {
 });
 
 describe('talent spell source (08 section 9.1, 18b TAL)', () => {
-  // BUG (reported, not fixed): the talent gifts (ward_gift, arc_gift, ...) are rows of STRAIN_ROWS in content/traits.ts, so
-  // BEING_TRAIT_INDEX has no entry for them and spellListsOf (spells.ts) never finds a talent mark on any Being. Talent
-  // spells can therefore never be cast; only creed tenets and fated_hero are live sources. it.fails flips when this is fixed.
-  it.fails('ward_gift is a being trait the spell lists can read', () => {
-    expect(BEING_TRAIT_INDEX.has('ward_gift')).toBe(true);
+  // Talent gifts (ward_gift, arc_gift, ...) are strain traits (content/traits.ts STRAIN_ROWS), so spellListsOf reads them from the Being's strain.
+  it('a Being whose strain holds ward_gift can cast ward_self', () => {
+    const { sim, slot } = casterWorld();
+    sim.culture.creeds.length = 0;
+    expect(spellListsOf(sim, slot)).toEqual([]);
+    const strain = sim.beings.strains.get(sim.beings.store.strain[slot] ?? 0);
+    expect(strain).toBeDefined();
+    strain!.traits.push('ward_gift');
+    expect(spellListsOf(sim, slot)).toEqual([['ward_self']]);
   });
 });
 

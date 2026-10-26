@@ -29,6 +29,7 @@ import { plantFlora } from './powers/terrain-powers.ts';
 import { spawnBeing, walkable } from './beings/system.ts';
 import { factionOf, relation, type Faction } from './beings/hostility.ts';
 import { isPossessed } from './beings/possession.ts';
+import { strainHas } from './beings/trait-hooks.ts';
 import { ageDef } from './ages.ts';
 import { creedSpellsOfSlot } from './culture/effects.ts';
 
@@ -127,9 +128,9 @@ export function spellListsOf(sim: Sim, slot: number): string[][] {
   const s = sim.beings.store;
   const lists: string[][] = [];
   const talent: string[] = [];
+  // Talent gifts (18b TAL) are strain traits, so they are read from the Being's strain.
   for (const [trait, spells] of TALENT_SPELLS) {
-    const k = BEING_TRAIT_INDEX.get(trait);
-    if (k !== undefined && s.hasMark(slot, k)) talent.push(...spells);
+    if (strainHas(sim, slot, trait)) talent.push(...spells);
   }
   const builtTalent = talent.filter((id) => SPELL_BY_ID.get(id)?.built === true);
   if (builtTalent.length > 0) lists.push(builtTalent);

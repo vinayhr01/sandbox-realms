@@ -794,7 +794,7 @@ export function captureTick(sim: Sim): void {
 }
 
 /**
- * Living beings standing on the parcels, in slot order: the same beings the settlements census counts for a hamlet's folk.
+ * Living Folk standing on the parcels, in slot order: the same beings the settlements census counts for a hamlet's folk.
  * Draws no randomness.
  */
 function beingsOnParcels(sim: Sim, parcels: ReadonlySet<number>): number[] {
@@ -803,6 +803,7 @@ function beingsOnParcels(sim: Sim, parcels: ReadonlySet<number>): number[] {
   const out: number[] = [];
   for (let k = 0; k < st.size; k++) {
     const slot = st.at(k);
+    if (!sim.beings.species(st.species[slot] ?? 0).folk) continue;
     const p = Math.floor((st.y[slot] ?? 0) / PARCEL) * perAxis + Math.floor((st.x[slot] ?? 0) / PARCEL);
     if (parcels.has(p)) out.push(slot);
   }

@@ -135,7 +135,6 @@ export function riteAllowed(sim: Sim, env: RiteEnv, kind: RiteKind, d: number): 
   const target = RITE_TABLE[kind].target;
   if (target === 'ownDominion') return parcelsOfDominion(sim, d).length > 0;
   if (target === 'ownHamlet') return hamletsOwnedBy(sim, d, true).length > 0;
-  if (kind === 'pitRite' && hamletsOwnedBy(sim, d, true).length > 0) return true;
   return enemyHamlets(sim, env, d).length > 0;
 }
 

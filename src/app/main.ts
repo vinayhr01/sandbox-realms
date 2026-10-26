@@ -1616,7 +1616,7 @@ async function boot(): Promise<void> {
   });
 
   window.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
     keysDown.add(e.code);
     // Possession keys (13 section 10, DECISIONS "Possession controls close 14"): J holds attack, K/L/U/T/Y/N are one-shot
     // abilities. Modifier chords and auto-repeat do not fire them. They do nothing unless a Being is held.

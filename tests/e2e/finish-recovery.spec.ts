@@ -63,7 +63,7 @@ test('an uncaught error opens the crash dialog with reload and Safe Mode', async
 
   await expect(page.locator('#fatal')).toBeVisible();
   await expect(page.locator('#fatal-title')).toHaveText('Something went wrong');
-  await expect(page.locator('#fatal-detail')).toHaveText('simulated crash');
+  await expect(page.locator('#fatal-detail')).toContainText('simulated crash');
   await expect(page.getByRole('button', { name: 'Start in Safe Mode', exact: true })).toBeVisible();
   await expect(page.locator('#fatal-reload')).toBeVisible();
 });

@@ -68,7 +68,7 @@ export const DISSOLVE_PACT_AGE_TICKS = 10 * YEAR_TICKS;
 /** Pact power must be at least this multiple of the power of all dominions outside it (the spec's 2x, TUNE). */
 export const DISSOLVE_POWER_RATIO = 2;
 
-/** One intrigue. `targetId` is the asked dominion for formPact, the pact id for joinPact and dissolvePact, and the hamlet index for uprising. */
+/** One intrigue. `targetId` is the asked dominion for formPact, the pact id for joinPact and dissolvePact, and the hamlet's anchor (its lowest parcel, rebellion.ts anchorOf) for uprising, so a changed hamlet list cannot move it. */
 export interface Intrigue {
   id: number;
   kind: IntrigueKind;
@@ -112,9 +112,13 @@ export interface FoundHooks {
  * Hooks of the uprising intrigue (10 section 11; adapter.ts builds them). `hamlets` lists the hamlet indices a dominion holds
  * (hamletsOf order), and none while the `uprisings` rule is off. `facts` gives the gate facts of one hamlet, undefined when
  * the rule is off or the hamlet is not the dominion's. `apply` runs the uprising and returns false when it is refused.
+ * `anchorOf` gives the stable anchor of a hamlet index (-1 when none), `indexOf` the current index of an anchor (-1 when no
+ * hamlet has it); the intrigue stores the anchor and resolves it to an index when it checks and when it applies.
  */
 export interface RebelHooks {
   hamlets(dominionId: number): number[];
+  anchorOf(hamlet: number): number;
+  indexOf(anchor: number): number;
   facts(dominionId: number, hamlet: number): UprisingFacts | undefined;
   apply(dominionId: number, hamlet: number): boolean;
 }
@@ -342,7 +346,8 @@ export function proposeIntrigues(env: IntrigueEnv, state: IntrigueState): void {
     // An uprising (10 section 11) is tried when no other intrigue was picked. Its target is a hamlet of the dominion.
     if (!pick) {
       const hamlet = uprisingTarget(env, d.id);
-      if (hamlet >= 0) pick = { kind: 'uprising', targetId: hamlet };
+      const anchor = hamlet >= 0 ? (env.rebel?.anchorOf(hamlet) ?? -1) : -1;
+      if (anchor >= 0) pick = { kind: 'uprising', targetId: anchor };
     }
     // A creed rite (11 section 3) is tried last. The table order decides which of the dominion's allowed rites is proposed.
     if (!pick) {
@@ -388,8 +393,10 @@ export function resolveIntrigues(env: IntrigueEnv, state: IntrigueState): void {
       if (splitOk(env, i.kind, i.dominionId)) env.split?.apply(i.kind, i.dominionId);
     } else if (isFoundKind(i.kind) && foundOk(env, i.kind, i.dominionId)) {
       env.found?.apply(i.kind, i.dominionId);
-    } else if (i.kind === 'uprising' && uprisingOk(env, i.dominionId, i.targetId)) {
-      env.rebel?.apply(i.dominionId, i.targetId);
+    } else if (i.kind === 'uprising') {
+      // The anchor is resolved to today's index; a hamlet that no longer exists drops the intrigue.
+      const h = env.rebel?.indexOf(i.targetId) ?? -1;
+      if (h >= 0 && uprisingOk(env, i.dominionId, h)) env.rebel?.apply(i.dominionId, h);
     } else if (isRiteKind(i.kind) && riteOk(env, i.kind, i.dominionId)) {
       env.rite?.apply(i.kind, i.dominionId);
     }

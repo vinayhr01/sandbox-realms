@@ -85,3 +85,15 @@ export function uprisingAllowed(f: UprisingFacts): boolean {
   if (f.soldiers < REBEL_MIN_SOLDIERS) return false;
   return f.soldiers >= f.capitalSoldiers * (1 - REBEL_SOLDIER_SHARE * f.unhappyHamlets);
 }
+
+/** Lowest parcel of a hamlet: its stable key in the capture, hold and tax records, and in the uprising intrigue (intrigue.ts). */
+export function anchorOf(parcels: ReadonlySet<number>): number {
+  let anchor = Infinity;
+  for (const p of parcels) anchor = Math.min(anchor, p);
+  return anchor;
+}
+
+/** The current index of the hamlet with this anchor, or -1 when no hamlet has it any more. Draws no randomness. */
+export function indexOfAnchor(hamlets: readonly { parcels: ReadonlySet<number> }[], anchor: number): number {
+  return hamlets.findIndex((h) => anchorOf(h.parcels) === anchor);
+}

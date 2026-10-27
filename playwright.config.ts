@@ -21,9 +21,10 @@ export default defineConfig({
   },
   projects: [
     { name: 'desktop-chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 720 } } },
-    { name: 'phone-portrait', use: { ...devices['Pixel 5'], viewport: { width: 390, height: 844 }, hasTouch: true } },
-    { name: 'phone-landscape', use: { ...devices['Pixel 5'], viewport: { width: 844, height: 390 }, hasTouch: true } },
-    { name: 'tablet', use: { ...devices['Desktop Chrome'], viewport: { width: 820, height: 1180 }, hasTouch: true } },
+    // Phone and tablet run only the layout specs; everything else is viewport-independent and runs on desktop-chromium.
+    { name: 'phone-portrait', testMatch: /(platform-smoke|smoke|panels)\.spec\.ts/, use: { ...devices['Pixel 5'], viewport: { width: 390, height: 844 }, hasTouch: true } },
+    { name: 'phone-landscape', testMatch: /(platform-smoke|smoke|panels)\.spec\.ts/, use: { ...devices['Pixel 5'], viewport: { width: 844, height: 390 }, hasTouch: true } },
+    { name: 'tablet', testMatch: /(platform-smoke|smoke|panels)\.spec\.ts/, use: { ...devices['Desktop Chrome'], viewport: { width: 820, height: 1180 }, hasTouch: true } },
     // Platform matrix (PLATFORM-REQUIREMENTS section 6): each engine at the smallest phone and the
     // full HD desktop viewport. These run only the platform-*.spec.ts smoke tests.
     { name: 'chromium-360x640', testMatch: /platform-.*\.spec\.ts/, use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 640 }, hasTouch: true } },

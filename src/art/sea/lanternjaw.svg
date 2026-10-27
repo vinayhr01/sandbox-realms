@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="lanternjaw-c" gradientUnits="userSpaceOnUse" x1="0" y1="50" x2="0" y2="110"><stop offset="0" stop-color="#6e5a54"/><stop offset=".5" stop-color="#52403b"/><stop offset=".8" stop-color="#5e4c44"/><stop offset="1" stop-color="#7d6a5c"/></linearGradient>
+<linearGradient id="lanternjaw-f" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6a5650"/><stop offset="1" stop-color="#36282a"/></linearGradient>
+<radialGradient id="lanternjaw-g" cx=".4" cy=".4" r=".6"><stop offset="0" stop-color="#fffbe2"/><stop offset=".45" stop-color="#ffe45c"/><stop offset="1" stop-color="#e99a1c"/></radialGradient>
+<radialGradient id="lanternjaw-h"><stop offset="0" stop-color="#fff3a0" stop-opacity=".7"/><stop offset="1" stop-color="#fff3a0" stop-opacity="0"/></radialGradient>
+<radialGradient id="lanternjaw-m" cx=".2" cy=".5" r=".9"><stop offset="0" stop-color="#7a2530"/><stop offset="1" stop-color="#220a10"/></radialGradient>
+<path id="lanternjaw-b" d="M16 70C22 58 36 50 53 50C71 50 86 60 94 72C96.5 76 98 79 100 80L100 86C96 88 92 94 84 100C72 108 52 110 36 106C24 103 14 98 7.5 92.5C5.5 90.5 6 88.5 9 87.5C14 85.5 20 83.5 24 82C20 80 16 78 14 75.5C13 73.5 14 71.5 16 70Z"/>
+<clipPath id="lanternjaw-k1"><rect width="78" height="128"/></clipPath>
+<clipPath id="lanternjaw-k2"><rect x="72" width="18" height="128"/></clipPath>
+<clipPath id="lanternjaw-k3"><rect x="86" width="42" height="128"/></clipPath>
+</defs>
+<g stroke="#1f1513" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="seg-1" data-pivot="56 80">
+<g id="seg-2" data-pivot="78 82">
+<path d="M76 58.5C80 54.5 85 53.5 90 56C90 61 89 65 88 68Z" fill="url(#lanternjaw-f)"/>
+<g id="seg-3" data-pivot="90 83">
+<g id="tail" data-pivot="98 83">
+<path d="M95.5 79C103 74 111 70 117.5 70C121 76 121.5 90 118 96.5C111.5 96.5 103.5 92 95.5 87Z" fill="url(#lanternjaw-f)"/>
+<path d="M100 81l15-8M101 83h17M100 85l15 8" fill="none" stroke-width=".8" opacity=".45"/>
+</g>
+<path d="M84 99C87 102 90 104 94 104.5C93.5 100 92.5 97 91 94Z" fill="url(#lanternjaw-f)"/>
+<use href="#lanternjaw-b" clip-path="url(#lanternjaw-k3)" fill="url(#lanternjaw-c)"/>
+</g>
+<use href="#lanternjaw-b" clip-path="url(#lanternjaw-k2)" fill="url(#lanternjaw-c)"/>
+</g>
+<use href="#lanternjaw-b" clip-path="url(#lanternjaw-k1)" fill="url(#lanternjaw-c)"/>
+<path d="M14.5 73.5C20 77.5 26 80.5 30.5 82C24.5 85 16.5 87 9.5 88C10 82.5 11.5 77.5 14.5 73.5Z" fill="url(#lanternjaw-m)" stroke-width="1.2"/>
+<path d="M15.5 74.5l1 5 1.3-4ZM18.5 76.5l1.2 6 1.3-5ZM22 78.5l1 4.8 1.2-4ZM25.5 80.2l.8 3.4 1-3.1ZM11.5 86.8l1.6-6.2.9 5.8ZM15 86l1.4-6.4 1.2 5.8ZM19 85l1-4.8 1 4.4ZM23 83.8l.8-3.4.9 3.1Z" fill="#fbf4e4" stroke="#8a7c6c" stroke-width=".5"/>
+<path d="M29.5 54C25 45 21 40 17.5 38.5" fill="none" stroke="#2c201e" stroke-width="2.8"/>
+<path d="M29.5 54C25 45 21 40 17.5 38.5" fill="none" stroke="#8a7064" stroke-width="1.3"/>
+<circle cx="17" cy="37.5" r="8.5" fill="url(#lanternjaw-h)" stroke="none"/>
+<circle cx="17" cy="37.5" r="4.6" fill="url(#lanternjaw-g)" stroke="#a8641a" stroke-width="1"/>
+<circle cx="15.6" cy="36" r="1.2" fill="#fff" stroke="none"/>
+<path d="M20 64C26 56 38 52.5 50 52.5" fill="none" stroke="#8f7a70" stroke-width="1.6" opacity=".7"/>
+<g fill="#3a2a27" stroke="none" opacity=".7"><circle cx="44" cy="60" r="1.2"/><circle cx="52" cy="57" r="1"/><circle cx="60" cy="61" r="1.3"/><circle cx="68" cy="58" r="1"/><circle cx="48" cy="68" r="1"/><circle cx="66" cy="68" r="1.2"/><circle cx="74" cy="64" r="1"/><circle cx="56" cy="74" r="1.1"/></g>
+<g fill="#a99486" stroke="none" opacity=".55"><circle cx="40" cy="96" r="1"/><circle cx="48" cy="100" r="1.1"/><circle cx="58" cy="101" r=".9"/><circle cx="68" cy="99" r="1"/><circle cx="30" cy="92" r=".9"/></g>
+<path d="M30 84C36 88 40 94 41 100M44 66q4 6 4 14" fill="none" stroke-width="1" opacity=".5"/>
+<path d="M12 90q-2 3-3 7M18 93l-1.5 5M25 96l-1 4.5" fill="none" stroke="#3a2a27" stroke-width="1" opacity=".8"/>
+<circle cx="35" cy="64" r="3" fill="#cdb98a" stroke-width="1"/>
+<circle cx="35" cy="64.2" r="1.8" fill="#120c0a" stroke="none"/>
+<circle cx="34.2" cy="63.4" r=".7" fill="#fff" stroke="none"/>
+<path d="M31 60.5q4-2 8 0" fill="none" stroke-width="1.1"/>
+<g id="fin" data-pivot="56 91">
+<path d="M55.5 89.5C59.5 96 65.5 100.5 72.5 100.5C71 95 67 90.5 60.5 87.5Z" fill="url(#lanternjaw-f)"/>
+<path d="M58 91l10 8M60 89.5l10 6" fill="none" stroke-width=".8" opacity=".45"/>
+</g>
+</g>
+</g>
+</svg>

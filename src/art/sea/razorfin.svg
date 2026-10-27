@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="razorfin-c" gradientUnits="userSpaceOnUse" x1="0" y1="66" x2="0" y2="99"><stop offset="0" stop-color="#6f8396"/><stop offset=".45" stop-color="#8496a7"/><stop offset=".6" stop-color="#b9c4cd"/><stop offset=".68" stop-color="#eef1f3"/><stop offset="1" stop-color="#fbfcfc"/></linearGradient>
+<linearGradient id="razorfin-f" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a8c9d"/><stop offset="1" stop-color="#4a5b6c"/></linearGradient>
+<path id="razorfin-b" d="M5 85C6 79 14 73 28 70C42 67 58 67 72 70C83 72.5 92 76 102 79.5L102 85C93 87 84 91.5 72 94.5C58 98 42 98.5 28 96.5C16 94.5 8 91 5 87Z"/>
+<clipPath id="razorfin-k1"><rect width="68" height="128"/></clipPath>
+<clipPath id="razorfin-k2"><rect x="62" width="24" height="128"/></clipPath>
+<clipPath id="razorfin-k3"><rect x="80" width="48" height="128"/></clipPath>
+</defs>
+<g stroke="#2c3946" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="seg-1" data-pivot="52 83">
+<path d="M34 69.5C40 62 44 53 45.5 44C50.5 50 55 56 64 61C60 63 58.5 66 60 69.5Z" fill="url(#razorfin-f)"/>
+<path d="M44 52q3 5 9 10" fill="none" stroke-width="1" opacity=".35"/>
+<g id="seg-2" data-pivot="66 83">
+<path d="M60 95C62 98.5 64 101 67 102.5C68.5 99.5 69 97 70 93.5Z" fill="url(#razorfin-f)"/>
+<g id="seg-3" data-pivot="82 82">
+<g id="tail" data-pivot="100 82">
+<path d="M97 80.5C102.5 75 108 68 114.5 60C116.5 65 115.5 70.5 113 75.5C111.5 78 111 80 111.5 82L106 84Z" fill="url(#razorfin-f)"/>
+<path d="M98 84.5C104.5 85.5 110 89 114 95C108 95.5 102.5 92.5 97.5 88Z" fill="url(#razorfin-f)"/>
+<path d="M101 79q5-6 11-15M101 87q5 1.5 9 5" fill="none" stroke-width="1" opacity=".35"/>
+</g>
+<path d="M83.5 75.5C85.5 72.5 87.5 70.5 89 68C90 71 91 73.5 93.5 77Z" fill="url(#razorfin-f)"/>
+<path d="M82 92C84 95 85 97.5 86 99.5C88 96.5 89.5 94 92 90Z" fill="url(#razorfin-f)"/>
+<use href="#razorfin-b" clip-path="url(#razorfin-k3)" fill="url(#razorfin-c)"/>
+</g>
+<use href="#razorfin-b" clip-path="url(#razorfin-k2)" fill="url(#razorfin-c)"/>
+</g>
+<use href="#razorfin-b" clip-path="url(#razorfin-k1)" fill="url(#razorfin-c)"/>
+<path d="M12 76C24 70.5 44 68.5 64 69.5" fill="none" stroke="#a9b8c5" stroke-width="1.6" opacity=".7"/>
+<path d="M36 78q-1.4 5.5 0 11M39.5 77.5q-1.4 5.8 0 11.5M43 77.3q-1.4 6 0 12M46.5 77.3q-1.4 6 0 12M50 77.5q-1.3 5.6 0 11" fill="none" stroke-width="1" opacity=".55"/>
+<path d="M22 86q10 3 24 2M54 85q12 1 24-1" fill="none" stroke="#8496a7" stroke-width="1" opacity=".5"/>
+<path d="M9.5 89C15 92.5 23 93.5 31 90.8" fill="none" stroke="#2a3038" stroke-width="1.3"/>
+<path d="M12.5 90.2l1 2 1-1.6ZM16 91.3l1 2 1-1.8ZM19.5 92l1 2 1-1.9ZM23 92.2l1 1.9 1-1.9ZM26.5 91.9l1 1.8.9-1.9Z" fill="#fff" stroke="#8f9aa4" stroke-width=".5"/>
+<path d="M8.2 81.2q1.6-1 3 .2" fill="none" stroke-width="1"/>
+<circle cx="19" cy="79.4" r="2.7" fill="#d5dde4" stroke-width="1"/>
+<circle cx="19.1" cy="79.5" r="1.8" fill="#10161d" stroke="none"/>
+<circle cx="18.4" cy="78.8" r=".7" fill="#fff" stroke="none"/>
+<path d="M15.5 76.5q3.5-2 7 0" fill="none" stroke-width="1" opacity=".6"/>
+<g id="fin" data-pivot="35 92">
+<path d="M31 90C33 98 37 104 45.5 110.5C47 105 45.5 98 41 90.5Z" fill="url(#razorfin-f)"/>
+<path d="M35 94q3 6 8 11" fill="none" stroke-width="1" opacity=".35"/>
+</g>
+</g>
+</g>
+</svg>

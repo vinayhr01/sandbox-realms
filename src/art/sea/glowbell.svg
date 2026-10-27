@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="glowbell-c" cx=".45" cy=".3" r=".8"><stop offset="0" stop-color="#fff1fa" stop-opacity=".98"/><stop offset=".45" stop-color="#f3a6dc" stop-opacity=".92"/><stop offset="1" stop-color="#9a56c8" stop-opacity=".9"/></radialGradient>
+<linearGradient id="glowbell-o" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7b8e4"/><stop offset="1" stop-color="#c47ad8" stop-opacity=".75"/></linearGradient>
+<radialGradient id="glowbell-g"><stop offset="0" stop-color="#fff" stop-opacity=".8"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+<path id="glowbell-t" d="M0 0C-4 8 4 14 0 22C-4 30 4 36 0 44C-3 50 2 54 1 58M4 0C1 7 8 13 5 20C2 27 8 33 5 40" fill="none"/>
+<g id="glowbell-s"><use href="#glowbell-t" stroke="#8a4aa8" stroke-width="2.6"/><use href="#glowbell-t" stroke="#f6c4ea" stroke-width="1.2"/></g>
+</defs>
+<g stroke="#7a3a8a" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="bell" data-pivot="64 40">
+<g id="tent-1" data-pivot="31 58"><use href="#glowbell-s" x="30" y="58"/></g>
+<g id="tent-2" data-pivot="47 60"><use href="#glowbell-s" x="45" y="60" transform="matrix(1 0 0 .95 0 3)"/></g>
+<g id="tent-3" data-pivot="81 60"><use href="#glowbell-s" x="79" y="60" transform="matrix(1 0 0 .95 0 3)"/></g>
+<g id="tent-4" data-pivot="97 58"><use href="#glowbell-s" x="95" y="58"/></g>
+<path d="M56 58C52 66 58 72 54 80C50 88 56 94 52 102C56 104 58 100 58 96C60 88 56 82 60 74C62 68 60 62 62 58Z" fill="url(#glowbell-o)" stroke-width="1.1"/>
+<path d="M72 58C76 66 70 72 74 80C78 88 72 94 76 104C72 106 69 102 69 97C68 89 72 82 68 74C66 68 68 62 66 58Z" fill="url(#glowbell-o)" stroke-width="1.1"/>
+<path d="M61 58C60 68 66 76 63 86C61 94 65 100 64 108C67 104 68 98 67 92C66 84 69 74 67 58Z" fill="url(#glowbell-o)" stroke-width="1.1"/>
+<path d="M55 64q-2 2 0 4M57 78q-3 2-1 5M73 66q2 2 0 4M71 80q3 2 1 5M64 80q-2 2 0 4M65 94q2 2 0 4" fill="none" stroke="#fff" stroke-width="1" opacity=".7"/>
+<path d="M24 56C24 32 42 18 64 18C86 18 104 32 104 56C100 59 96 56 92 59.5C88 56.5 84 58.5 80 61C76 58 72 59.5 68 61.5C64 58.5 60 59.5 56 61.5C52 59 48 57 44 60.5C40 57 36 58.5 32 59.5C28 56.5 26.5 58.5 24 56Z" fill="url(#glowbell-c)"/>
+<ellipse cx="58" cy="34" rx="20" ry="12" fill="url(#glowbell-g)" stroke="none"/>
+<g fill="none" stroke="#c4489c" stroke-width="2.2" opacity=".75"><path d="M47 46q4-7 9 0"/><path d="M58 47q5-7 10 0"/><path d="M70 46q4.5-6.5 9 .5"/><path d="M53 39q5-6 10-.5"/><path d="M65 39q5-6 9.5 0"/></g>
+<path d="M30 52C30 36 44 26 60 24.5M98 52C98 40 92 32 84 28" fill="none" stroke="#fff" stroke-width="1.6" opacity=".55"/>
+<path d="M28 54C46 50 82 50 100 54" fill="none" stroke-width="1" opacity=".4"/>
+<g fill="#ffd86a" stroke="#a0642a" stroke-width=".6"><circle cx="32" cy="59.2" r="1.4"/><circle cx="44" cy="60" r="1.4"/><circle cx="56" cy="61.3" r="1.4"/><circle cx="68" cy="61.3" r="1.4"/><circle cx="80" cy="60.8" r="1.4"/><circle cx="92" cy="59.3" r="1.4"/></g>
+<g fill="#fff" stroke="none"><circle cx="31.6" cy="58.8" r=".45"/><circle cx="43.6" cy="59.6" r=".45"/><circle cx="55.6" cy="60.9" r=".45"/><circle cx="67.6" cy="60.9" r=".45"/><circle cx="79.6" cy="60.4" r=".45"/><circle cx="91.6" cy="58.9" r=".45"/></g>
+</g>
+</g>
+</svg>

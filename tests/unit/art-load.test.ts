@@ -11,11 +11,16 @@ describe('chunkOf', () => {
     }
   });
 
-  it('sends Folk rows to folk, bird-gait species to bird, and wild beasts to beast', () => {
+  it('sends Folk rows to folk, beast-group bird gaits to bird, and wild beasts to beast', () => {
     expect(chunkOf('hearthborn')).toBe('folk');
     expect(chunkOf('cluckling')).toBe('bird');
     expect(chunkOf('talonkite')).toBe('bird');
     expect(chunkOf('thistlehart')).toBe('beast');
+  });
+
+  it('keeps flyers in their own group: stormwyrm stays monster, nectarbuzz stays insect', () => {
+    expect(chunkOf('stormwyrm')).toBe('monster');
+    expect(chunkOf('nectarbuzz')).toBe('insect');
   });
 });
 

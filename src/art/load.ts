@@ -34,13 +34,15 @@ const LOADERS: Record<ArtChunk, () => Promise<ArtModule>> = {
   buildings: () => import('./buildings/index.ts'),
 };
 
-/** The art chunk of a species: Folk rows go to folk, species with a flyer or bird gait go to bird, and the rest
- *  follow their map sprite group. An unknown id falls back to the group of index -1, which is beast. */
+/** The art chunk of a species: Folk rows go to folk, beast-group species with a flyer or bird gait go to bird, and
+ *  the rest follow their map sprite group (so mothlet stays insect and stormwyrm stays monster). An unknown id falls
+ *  back to the group of index -1, which is beast. */
 export function chunkOf(speciesId: string): ArtChunk {
-  const group = speciesGroup(SPECIES_BY_ID.get(speciesId) ?? -1);
+  const index = SPECIES_BY_ID.get(speciesId) ?? -1;
+  const group = speciesGroup(index);
   if (group === 'folk') return 'folk';
   const gait = SPECIES_GAIT[speciesId];
-  if (gait && (gait.air === 'flyer' || gait.land === 'bird')) return 'bird';
+  if (group === 'beast' && gait && (gait.air === 'flyer' || gait.land === 'bird')) return 'bird';
   return CHUNK_OF_GROUP[group];
 }
 

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="mine-bk" x2="0" y2="1"><stop offset="0" stop-color="#8a5c34"/><stop offset="1" stop-color="#4f321a"/></linearGradient>
+<linearGradient id="mine-dk" x2="0" y2="1"><stop offset="0" stop-color="#3e2c1f"/><stop offset="1" stop-color="#120a06"/></linearGradient>
+<linearGradient id="mine-me" x2="0" y2="1"><stop offset="0" stop-color="#a3acb4"/><stop offset="1" stop-color="#59626a"/></linearGradient>
+<linearGradient id="mine-rk" x2="0" y2="1"><stop offset="0" stop-color="#b8ad9b"/><stop offset="1" stop-color="#71685b"/></linearGradient>
+<linearGradient id="mine-wd" x2="0" y2="1"><stop offset="0" stop-color="#cf975d"/><stop offset="1" stop-color="#94602f"/></linearGradient>
+<linearGradient id="mine-wds"><stop offset="0" stop-color="#a06a3a"/><stop offset="1" stop-color="#68401f"/></linearGradient>
+
+</defs>
+<g stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<path d="M2 120C4 98 12 80 24 68C32 58 44 46 58 40C70 35 84 40 96 50C108 60 118 78 123 94C125 104 126 112 126 120Z" fill="url(#mine-rk)" stroke="#4b443b"/>
+<path d="M24 68C32 58 44 46 58 40C66 37 74 37 82 40C76 42 70 44 66 48C56 50 46 58 38 66C34 70 28 72 24 68Z" fill="#9cc867" stroke="#3a5e27"/>
+<path d="M58 40l-2 4M70 38v4M80 40l1 4M42 50l-2 3M30 62l-2 3" fill="none" stroke="#3f6d28" stroke-width="1" opacity=".9"/>
+<path d="M14 92l8-6M18 104l10 2M100 66l8 6M108 84l8 2M112 100l8-4M88 56l6 4" fill="none" stroke="#4b443b" stroke-width="1" opacity=".6"/>
+<path d="M44 120V72H84V120Z" fill="url(#mine-dk)" stroke="#140c08"/>
+<path d="M50 120L60 90M78 120L68 90" fill="none" stroke="#8f969c" stroke-width="1.6"/>
+<path d="M52 116h24M54.8 108h18.4M57.2 101h13.6M59 95h10" fill="none" stroke="#4a2e16" stroke-width="2"/>
+<path d="M40 68h6v52h-6Z" fill="url(#mine-wd)" stroke="#53331a"/>
+<path d="M82 68h6v52h-6Z" fill="url(#mine-wd)" stroke="#53331a"/>
+<path d="M92 69L92 62L96.4 59.6L96.4 66.6Z" fill="url(#mine-wds)" stroke="#53331a"/>
+<path d="M36 62L92 62L96.4 59.6L40.4 59.6Z" fill="url(#mine-wd)" stroke="#53331a"/>
+<path d="M36 69L36 62L92 62L92 69Z" fill="url(#mine-wd)" stroke="#53331a"/>
+<path d="M46 74L52 69M82 74L76 69" fill="none" stroke="#5a3a1e" stroke-width="2.4"/>
+<path d="M56 66.6L72 52M72 66.6L56 52" fill="none" stroke="#8a5a32" stroke-width="2"/>
+<path d="M51.6 55.6Q56 50 62 49M76.4 55.6Q72 50 66 49" fill="none" stroke="#59626a" stroke-width="2.6"/>
+<path d="M30 69H40M31 69V73" fill="none" stroke="#3b4148" stroke-width="1.4"/>
+<path d="M27.6 73H34.4L35 83H27Z" fill="url(#mine-me)" stroke="#3b4148"/>
+<path d="M29 75H33V81H29Z" fill="#ffd45e" stroke="#c98a2a"/>
+<path d="M92 96L96 92L102 94L106 89L112 93L118 91L120 96Z" fill="#4b4744" stroke="#2a2826"/>
+<circle cx="101" cy="93" r="1.2" fill="#f2c94c"/>
+<circle cx="111" cy="92" r="1" fill="#e6e6e6"/>
+<circle cx="116" cy="94" r="1" fill="#f2c94c"/>
+<path d="M90 95H122L119 112H93Z" fill="url(#mine-me)" stroke="#3b4148"/>
+<path d="M94 100H118M97 95V112M106 95V112M115 95V112" fill="none" stroke="#3b4148" stroke-width="1.2" opacity=".6"/>
+<ellipse cx="99" cy="114.6" rx="5" ry="5" fill="url(#mine-bk)" stroke="#2a180a"/>
+<ellipse cx="115" cy="114.6" rx="5" ry="5" fill="url(#mine-bk)" stroke="#2a180a"/>
+<circle cx="99" cy="114.6" r="1.4" fill="#59626a"/>
+<circle cx="115" cy="114.6" r="1.4" fill="#59626a"/>
+<path d="M84 119.6H126" fill="none" stroke="#8f969c" stroke-width="1.4"/>
+<ellipse cx="14" cy="115.4" rx="8" ry="4.6" fill="url(#mine-rk)" stroke="#4b443b"/>
+<ellipse cx="26" cy="117.2" rx="5" ry="2.8" fill="url(#mine-rk)" stroke="#4b443b"/>
+</g>
+</svg>

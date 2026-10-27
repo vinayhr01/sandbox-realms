@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="garrison-ss" x2="0" y2="1"><stop offset="0" stop-color="#a39a87"/><stop offset="1" stop-color="#766e60"/></linearGradient>
+<linearGradient id="garrison-st" x2="0" y2="1"><stop offset="0" stop-color="#dad1bf"/><stop offset="1" stop-color="#aba28f"/></linearGradient>
+<linearGradient id="garrison-sld" x2="0" y2="1"><stop offset="0" stop-color="#5b6a80"/><stop offset="1" stop-color="#3d4758"/></linearGradient>
+<linearGradient id="garrison-sl" x2="0" y2="1"><stop offset="0" stop-color="#8a9ab0"/><stop offset="1" stop-color="#5b6a80"/></linearGradient>
+<linearGradient id="garrison-sn" x2="0" y2="1"><stop offset="0" stop-color="#c4bba9"/><stop offset="1" stop-color="#a49b88"/></linearGradient>
+<linearGradient id="garrison-gl" x2="0" y2="1"><stop offset="0" stop-color="#4d3a29"/><stop offset="1" stop-color="#1f160e"/></linearGradient>
+<linearGradient id="garrison-gw" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a6"/><stop offset="1" stop-color="#f2a443"/></linearGradient>
+<linearGradient id="garrison-dr" x2="0" y2="1"><stop offset="0" stop-color="#a06a3c"/><stop offset="1" stop-color="#5f3a1c"/></linearGradient>
+<linearGradient id="garrison-au" x2="0" y2="1"><stop offset="0" stop-color="#f7df80"/><stop offset="1" stop-color="#c9922c"/></linearGradient>
+<linearGradient id="garrison-rd" x2="0" y2="1"><stop offset="0" stop-color="#d84c36"/><stop offset="1" stop-color="#8f2a1b"/></linearGradient>
+<linearGradient id="garrison-ir" x2="0" y2="1"><stop offset="0" stop-color="#868b94"/><stop offset="1" stop-color="#4a4e55"/></linearGradient>
+<linearGradient id="garrison-twh"><stop offset=".15" stop-color="#c99360"/><stop offset="1" stop-color="#6a4222"/></linearGradient>
+</defs>
+<g stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<path d="M78 118.6L93 108.1L93 82.1L78 92.6Z" fill="url(#garrison-ss)" stroke="#5a5347"/>
+<path d="M6 118.6L78 118.6L78 92.6L6 92.6Z" fill="url(#garrison-st)" stroke="#5a5347"/>
+<path d="M6.8 113.1h70.4M15 113.1v-5.5M24 113.1v-5.5M33 113.1v-5.5M42 113.1v-5.5M51 113.1v-5.5M60 113.1v-5.5M69 113.1v-5.5M6.8 107.6h70.4M10.5 107.6v-5.5M19.5 107.6v-5.5M28.5 107.6v-5.5M37.5 107.6v-5.5M46.5 107.6v-5.5M55.5 107.6v-5.5M64.5 107.6v-5.5M73.5 107.6v-5.5M6.8 102.1h70.4M15 102.1v-5.5M24 102.1v-5.5M33 102.1v-5.5M42 102.1v-5.5M51 102.1v-5.5M60 102.1v-5.5M69 102.1v-5.5M6.8 96.6h70.4M10.5 96.6v-3.2M19.5 96.6v-3.2M28.5 96.6v-3.2M37.5 96.6v-3.2M46.5 96.6v-3.2M55.5 96.6v-3.2M64.5 96.6v-3.2M73.5 96.6v-3.2" fill="none" stroke="#5a5347" stroke-width="1" opacity=".45"/>
+<path d="M10.5 65.4L88.5 65.4L97.5 82.1L19.5 82.1Z" fill="url(#garrison-sld)" stroke="#2f3746"/>
+<path d="M78 92.6L93 82.1L85.5 67.4Z" fill="url(#garrison-ss)" stroke="#5a5347"/>
+<path d="M1.5 94.7L79.5 94.7L79.5 96.9L1.5 96.9Z" fill="url(#garrison-sld)" stroke="#2f3746"/>
+<path d="M1.5 94.7L79.5 94.7L88.5 65.4L10.5 65.4Z" fill="url(#garrison-sl)" stroke="#2f3746"/>
+<path d="M3.3 88.8h78M5.1 82.9h78M6.9 77.1h78M8.7 71.2h78M10.2 94.7l1.8 -5.9M18.8 94.7l1.8 -5.9M27.5 94.7l1.8 -5.9M36.2 94.7l1.8 -5.9M44.8 94.7l1.8 -5.9M53.5 94.7l1.8 -5.9M62.2 94.7l1.8 -5.9M70.8 94.7l1.8 -5.9M7.6 88.8l1.8 -5.9M16.3 88.8l1.8 -5.9M25 88.8l1.8 -5.9M33.6 88.8l1.8 -5.9M42.3 88.8l1.8 -5.9M51 88.8l1.8 -5.9M59.6 88.8l1.8 -5.9M68.3 88.8l1.8 -5.9M13.8 82.9l1.8 -5.8M22.4 82.9l1.8 -5.8M31.1 82.9l1.8 -5.8M39.8 82.9l1.8 -5.8M48.4 82.9l1.8 -5.8M57.1 82.9l1.8 -5.8M65.8 82.9l1.8 -5.8M74.4 82.9l1.8 -5.8M11.2 77.1l1.8 -5.9M19.9 77.1l1.8 -5.9M28.6 77.1l1.8 -5.9M37.2 77.1l1.8 -5.9M45.9 77.1l1.8 -5.9M54.6 77.1l1.8 -5.9M63.2 77.1l1.8 -5.9M71.9 77.1l1.8 -5.9M17.4 71.2l1.8 -5.9M26 71.2l1.8 -5.9M34.7 71.2l1.8 -5.9M43.4 71.2l1.8 -5.9M52 71.2l1.8 -5.9M60.7 71.2l1.8 -5.9M69.4 71.2l1.8 -5.9M78 71.2l1.8 -5.9" fill="none" stroke="#2f3746" stroke-width="1" opacity=".45"/>
+<path d="M79.5 94.7L88.5 65.4L97.5 82.1L97.5 85.1L88.5 68.4L79.5 97.7Z" fill="url(#garrison-sld)" stroke="#2f3746"/>
+<path d="M10.5 110.1L18.5 110.1L18.5 98.1L10.5 98.1ZM9.5 111.2L19.5 111.2L19.5 109.2L9.5 109.2Z" fill="url(#garrison-sn)" stroke="#5a5347" stroke-width="1.2"/>
+<path d="M12 108.6L17 108.6L17 99.6L12 99.6Z" fill="url(#garrison-gl)" stroke="#2a1d12" stroke-width="1"/>
+<path d="M14.5 108.6v-9M12 104.1h5" fill="none" stroke="#5a5347" stroke-width="1.1"/>
+<path d="M13.2 101.2l1.4 1.6" fill="none" stroke="#fff" stroke-width="1" opacity=".6"/>
+<path d="M22.5 110.1L30.5 110.1L30.5 98.1L22.5 98.1ZM21.5 111.2L31.5 111.2L31.5 109.2L21.5 109.2Z" fill="url(#garrison-sn)" stroke="#5a5347" stroke-width="1.2"/>
+<path d="M24 108.6L29 108.6L29 99.6L24 99.6Z" fill="url(#garrison-gw)" stroke="#9a5a1c" stroke-width="1"/>
+<path d="M26.5 108.6v-9M24 104.1h5" fill="none" stroke="#5a5347" stroke-width="1.1"/>
+<path d="M25.2 101.2l1.4 1.6" fill="none" stroke="#fff" stroke-width="1" opacity=".6"/>
+<path d="M66.5 110.1L74.5 110.1L74.5 98.1L66.5 98.1ZM65.5 111.2L75.5 111.2L75.5 109.2L65.5 109.2Z" fill="url(#garrison-sn)" stroke="#5a5347" stroke-width="1.2"/>
+<path d="M68 108.6L73 108.6L73 99.6L68 99.6Z" fill="url(#garrison-gl)" stroke="#2a1d12" stroke-width="1"/>
+<path d="M70.5 108.6v-9M68 104.1h5" fill="none" stroke="#5a5347" stroke-width="1.1"/>
+<path d="M69.2 101.2l1.4 1.6" fill="none" stroke="#fff" stroke-width="1" opacity=".6"/>
+<path d="M34 118.6V107.6A8 8 0 0 1 50 107.6V118.6Z" fill="url(#garrison-sn)" stroke="#5a5347"/>
+<path d="M36 118.6V107.6A6 6 0 0 1 48 107.6V118.6Z" fill="url(#garrison-dr)" stroke="#3f2611"/>
+<path d="M39 118.6v-14.5M42 118.6v-16.5M45 118.6v-14.5" fill="none" stroke="#3f2611" stroke-width="1" opacity=".6"/>
+<path d="M36.8 114.4l8.2 -.1M36.8 108.1h8.2" fill="none" stroke="#2c2f34" stroke-width="1.4"/>
+<path d="M44.4 111a1 1 0 1 0 2 0a1 1 0 1 0 -2 0Z" fill="url(#garrison-au)" stroke="#7a5514" stroke-width=".8"/>
+<path d="M37.5 93.1h9v4q0 4-4.5 6q-4.5-2-4.5-6Z" fill="url(#garrison-rd)" stroke="#5e1a10" stroke-width="1.2"/>
+<path d="M42 94.1v7.5M39 96.6h6" fill="none" stroke="#f2d56a" stroke-width="1.3"/>
+<path d="M54 119.3l-1 -21M56.6 119.3l-.6 -21M59.2 119.3l-.2 -21M61.8 119.3l.2 -21" fill="none" stroke="#6b4424" stroke-width="1.3"/>
+<path d="M51.9 98.3l1.1-4 1.1 4ZM54.9 98.3l1.1-4 1.1 4ZM57.9 98.3l1.1-4 1.1 4ZM60.9 98.3l1.1-4 1.1 4Z" fill="url(#garrison-ir)" stroke="#2c2f34" stroke-width=".8"/>
+<path d="M52.5 110.3h11" fill="none" stroke="#5a3a1c" stroke-width="2"/>
+<path d="M103 117.9L115 109.5L115 51.5L103 59.9Z" fill="url(#garrison-ss)" stroke="#5a5347"/>
+<path d="M79 117.9L103 117.9L103 59.9L79 59.9Z" fill="url(#garrison-st)" stroke="#5a5347"/>
+<path d="M79.8 111.9h22.4M87 111.9v-6M95 111.9v-6M79.8 105.9h22.4M83 105.9v-6M91 105.9v-6M99 105.9v-6M79.8 99.9h22.4M87 99.9v-6M95 99.9v-6M79.8 93.9h22.4M83 93.9v-6M91 93.9v-6M99 93.9v-6M79.8 87.9h22.4M87 87.9v-6M95 87.9v-6M79.8 81.9h22.4M83 81.9v-6M91 81.9v-6M99 81.9v-6M79.8 75.9h22.4M87 75.9v-6M95 75.9v-6M79.8 69.9h22.4M83 69.9v-6M91 69.9v-6M99 69.9v-6M79.8 63.9h22.4M87 63.9v-3.2M95 63.9v-3.2" fill="none" stroke="#5a5347" stroke-width="1" opacity=".45"/>
+<path d="M103.4 111.6l11.2 -7.8M107 109.1v-6M111 106.3v-6M103.4 105.6l11.2 -7.8M105 104.5v-6M109 101.7v-6M113 98.9v-6M103.4 99.6l11.2 -7.8M107 97.1v-6M111 94.3v-6M103.4 93.6l11.2 -7.8M105 92.5v-6M109 89.7v-6M113 86.9v-6M103.4 87.6l11.2 -7.8M107 85.1v-6M111 82.3v-6M103.4 81.6l11.2 -7.8M105 80.5v-6M109 77.7v-6M113 74.9v-6M103.4 75.6l11.2 -7.8M107 73.1v-6M111 70.3v-6M103.4 69.6l11.2 -7.8M105 68.5v-6M109 65.7v-6M113 62.9v-6M103.4 63.6l11.2 -7.8M107 61.1v-3.2M111 58.3v-3.2" fill="none" stroke="#5a5347" stroke-width="1" opacity=".45"/>
+<path d="M90 95.9L92.2 95.9L92.2 87.9L90 87.9Z" fill="url(#garrison-gl)" stroke="#2a1d12" stroke-width="1"/>
+<path d="M90 77.9L92.2 77.9L92.2 69.9L90 69.9Z" fill="url(#garrison-gl)" stroke="#2a1d12" stroke-width="1"/>
+<path d="M107 78.6L110.5 76.2L110.5 64.2L107 66.6Z" fill="url(#garrison-ss)" stroke="#5a5347"/>
+<path d="M107.5 76.8L110 75L110 66L107.5 67.8Z" fill="url(#garrison-gl)" stroke="#2a1d12" stroke-width="1"/>
+<path d="M108.8 75.9v-9" fill="none" stroke="#5a5347" stroke-width="1"/>
+<path d="M77.5 63.3L103.5 63.3L103.5 60.3L77.5 60.3Z" fill="url(#garrison-sn)" stroke="#5a5347" stroke-width="1"/>
+<path d="M77.5 60.3L103.5 60.3L116.5 51.2L90.5 51.2Z" fill="url(#garrison-ss)" stroke="#5a5347"/>
+<path d="M82 59.2L102 59.2L112 52.2L92 52.2Z" fill="#6e6656" stroke="#5a5347" stroke-width="1"/>
+<path d="M94 52.2L95.5 51.2L95.5 46.2L94 47.2ZM103 52.2L104.5 51.2L104.5 46.2L103 47.2ZM112 52.2L113.5 51.2L113.5 46.2L112 47.2ZM115 52.2L116.5 51.2L116.5 46.2L115 47.2Z" fill="url(#garrison-ss)" stroke="#5a5347" stroke-width="1"/>
+<path d="M89 52.2L94 52.2L94 47.2L89 47.2ZM98 52.2L103 52.2L103 47.2L98 47.2ZM107 52.2L112 52.2L112 47.2L107 47.2ZM110 52.2L115 52.2L115 47.2L110 47.2Z" fill="url(#garrison-ss)" stroke="#5a5347" stroke-width="1"/>
+<path d="M91 52.9L93.5 51.2L93.5 46.2L91 47.9ZM86.5 56.1L89 54.3L89 49.3L86.5 51.1Z" fill="url(#garrison-ss)" stroke="#5a5347" stroke-width="1"/>
+<path d="M88 52.9L91 52.9L91 47.9L88 47.9ZM83.5 56.1L86.5 56.1L86.5 51.1L83.5 51.1Z" fill="url(#garrison-ss)" stroke="#5a5347" stroke-width="1"/>
+<path d="M114 52.9L116.5 51.2L116.5 46.2L114 47.9ZM109.5 56.1L112 54.3L112 49.3L109.5 51.1Z" fill="url(#garrison-ss)" stroke="#5a5347" stroke-width="1"/>
+<path d="M111 52.9L114 52.9L114 47.9L111 47.9ZM106.5 56.1L109.5 56.1L109.5 51.1L106.5 51.1Z" fill="url(#garrison-st)" stroke="#5a5347" stroke-width="1"/>
+<path d="M82.5 60.3L84 59.2L84 54.2L82.5 55.3ZM91.5 60.3L93 59.2L93 54.2L91.5 55.3ZM100.5 60.3L102 59.2L102 54.2L100.5 55.3ZM103.5 60.3L105 59.2L105 54.2L103.5 55.3Z" fill="url(#garrison-ss)" stroke="#5a5347" stroke-width="1"/>
+<path d="M77.5 60.3L82.5 60.3L82.5 55.3L77.5 55.3ZM86.5 60.3L91.5 60.3L91.5 55.3L86.5 55.3ZM95.5 60.3L100.5 60.3L100.5 55.3L95.5 55.3ZM98.5 60.3L103.5 60.3L103.5 55.3L98.5 55.3Z" fill="url(#garrison-st)" stroke="#5a5347" stroke-width="1"/>
+<path d="M97 55.7V30.7" fill="none" stroke="#5a3a1c" stroke-width="1.8"/>
+<path d="M95.6 30.1a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0 -2.8 0Z" fill="url(#garrison-au)" stroke="#7a5514" stroke-width=".8"/>
+<path d="M96.4 31.7c-6.4 -2 -9.6 2 -16 1l2.5 3.2l-2.5 3.2c6.4 1 9.6 -3 16 -1.5Z" fill="url(#garrison-rd)" stroke="#5e1a10" stroke-width="1.2"/>
+<path d="M68.4 112Q67.2 116 68.4 120A3.6 1.4 0 0 0 75.6 120Q76.8 116 75.6 112Z" fill="url(#garrison-twh)" stroke="#563419" stroke-width="1"/>
+<path d="M68.4 112a3.6 1.4 0 1 0 7.2 0a3.6 1.4 0 1 0 -7.2 0Z" fill="#7a4c28" stroke="#563419" stroke-width="1"/>
+<path d="M67.8 117.6q4.2 2.2 8.4 0M67.8 114.2q4.2 2.2 8.4 0" fill="none" stroke="#2c2f34" stroke-width="1.1"/>
+</g>
+</svg>

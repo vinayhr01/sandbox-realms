@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="watchspire-sth"><stop offset=".15" stop-color="#e0d7c5"/><stop offset="1" stop-color="#837a68"/></linearGradient>
+<linearGradient id="watchspire-sn" x2="0" y2="1"><stop offset="0" stop-color="#c4bba9"/><stop offset="1" stop-color="#a49b88"/></linearGradient>
+<linearGradient id="watchspire-dr" x2="0" y2="1"><stop offset="0" stop-color="#a06a3c"/><stop offset="1" stop-color="#5f3a1c"/></linearGradient>
+<linearGradient id="watchspire-au" x2="0" y2="1"><stop offset="0" stop-color="#f7df80"/><stop offset="1" stop-color="#c9922c"/></linearGradient>
+<linearGradient id="watchspire-gl" x2="0" y2="1"><stop offset="0" stop-color="#4d3a29"/><stop offset="1" stop-color="#1f160e"/></linearGradient>
+<linearGradient id="watchspire-slh"><stop offset=".15" stop-color="#97a7bd"/><stop offset="1" stop-color="#4c5a6f"/></linearGradient>
+<linearGradient id="watchspire-rd" x2="0" y2="1"><stop offset="0" stop-color="#d84c36"/><stop offset="1" stop-color="#8f2a1b"/></linearGradient>
+<linearGradient id="watchspire-gw" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a6"/><stop offset="1" stop-color="#f2a443"/></linearGradient>
+</defs>
+<g stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<path d="M40 114V120A20 8 0 0 0 80 120V114A20 8 0 0 0 40 114Z" fill="url(#watchspire-sth)" stroke="#5a5347"/>
+<path d="M43 56V114A17 6.8 0 0 0 77 114V56A17 6.8 0 0 0 43 56Z" fill="url(#watchspire-sth)" stroke="#5a5347"/>
+<path d="M43.6 108A17 6.8 0 0 0 76.4 108M43.6 101A17 6.8 0 0 0 76.4 101M43.6 94A17 6.8 0 0 0 76.4 94M43.6 87A17 6.8 0 0 0 76.4 87M43.6 80A17 6.8 0 0 0 76.4 80M43.6 73A17 6.8 0 0 0 76.4 73M43.6 66A17 6.8 0 0 0 76.4 66M43.6 59A17 6.8 0 0 0 76.4 59M50 113v7M60 114.3v7M70 113v7M76.2 109.6v7M54.7 107v7M65.3 107v7M73.8 104.5v7M77 100.5v7M50 99v7M60 100.3v7M70 99v7M76.2 95.6v7M54.7 93v7M65.3 93v7M73.8 90.5v7M77 86.5v7M50 85v7M60 86.3v7M70 85v7M76.2 81.6v7M54.7 79v7M65.3 79v7M73.8 76.5v7M77 72.5v7M50 71v7M60 72.3v7M70 71v7M76.2 67.6v7M54.7 65v7M65.3 65v7M73.8 62.5v7M77 58.5v7" fill="none" stroke="#5a5347" stroke-width="1" opacity=".45"/>
+<path d="M53.5 126.3V108.5A6.5 6.5 0 0 1 66.5 108.5V126.3Z" fill="url(#watchspire-sn)" stroke="#5a5347"/>
+<path d="M53.5 126.5V117A6.5 6.5 0 0 1 66.5 117V126.5Z" fill="url(#watchspire-sn)" stroke="#5a5347"/>
+<path d="M55.5 126.5V117A4.5 4.5 0 0 1 64.5 117V126.5Z" fill="url(#watchspire-dr)" stroke="#3f2611"/>
+<path d="M57.8 126.5v-11.5M60 126.5v-13.5M62.3 126.5v-11.5" fill="none" stroke="#3f2611" stroke-width="1" opacity=".6"/>
+<path d="M56.3 123h6M56.3 117.8h6" fill="none" stroke="#2c2f34" stroke-width="1.4"/>
+<path d="M61.5 120.2a1 1 0 1 0 2 0a1 1 0 1 0 -2 0Z" fill="url(#watchspire-au)" stroke="#7a5514" stroke-width=".8"/>
+<path d="M53 88L55.2 88L55.2 81L53 81Z" fill="url(#watchspire-gl)" stroke="#2a1d12" stroke-width="1"/>
+<path d="M66 76L68.2 76L68.2 69L66 69Z" fill="url(#watchspire-gl)" stroke="#2a1d12" stroke-width="1"/>
+<path d="M59 68L61.2 68L61.2 62L59 62Z" fill="url(#watchspire-gl)" stroke="#2a1d12" stroke-width="1"/>
+<path d="M41.5 56V59A18.5 7.4 0 0 0 78.5 59V56A18.5 7.4 0 0 0 41.5 56Z" fill="url(#watchspire-sth)" stroke="#5a5347"/>
+<path d="M43 59l1.5 4M50.7 64.4l.8 4M60 65.8v4M69.4 64.4l-.8 4M77 59l-1.5 4" fill="none" stroke="#5a5347" stroke-width="1.6"/>
+<path d="M39 48V56A21 8.4 0 0 0 81 56V48A21 8.4 0 0 0 39 48Z" fill="url(#watchspire-sth)" stroke="#5a5347"/>
+<path d="M38.2 46.1L40.9 46.1L40.9 42.1L38.2 42.1Z" fill="#857c6b" stroke="#5a5347" stroke-width="1"/>
+<path d="M47.8 40.4L54 40.4L54 36.4L47.8 36.4Z" fill="#857c6b" stroke="#5a5347" stroke-width="1"/>
+<path d="M66 40.4L72.2 40.4L72.2 36.4L66 36.4Z" fill="#857c6b" stroke="#5a5347" stroke-width="1"/>
+<path d="M41.5 48a18.5 7.4 0 1 0 37 0a18.5 7.4 0 1 0 -37 0Z" fill="#6e6656" stroke="#5a5347" stroke-width="1"/>
+<path d="M42 47L60 13L78 47A18 7.2 0 0 1 42 47Z" fill="url(#watchspire-slh)" stroke="#2f3746"/>
+<path d="M60 15l-16.6 34.8M60 15l-12.7 37.1M60 15l-6.9 38.7M60 15v39.2M60 15l6.9 38.7M60 15l12.7 37.1M60 15l16.6 34.8M53.7 24.9A6.3 2.5 0 0 0 66.3 24.9M48.3 35.1A11.7 4.7 0 0 0 71.7 35.1" fill="none" stroke="#2f3746" stroke-width="1" opacity=".45"/>
+<path d="M38.1 50.6V45.6H40.7V50.6Z" fill="url(#watchspire-sth)" stroke="#5a5347" stroke-width="1"/>
+<path d="M44.6 56V51H52.1V56Z" fill="url(#watchspire-sth)" stroke="#5a5347" stroke-width="1"/>
+<path d="M59.8 57.2V52.2H68.4V57.2Z" fill="url(#watchspire-sth)" stroke="#5a5347" stroke-width="1"/>
+<path d="M74.8 53.7V48.7H80.1V53.7Z" fill="url(#watchspire-sth)" stroke="#5a5347" stroke-width="1"/>
+<path d="M60 13v-6" fill="none" stroke="#5a3a1c" stroke-width="1.6"/>
+<path d="M58.4 12.5a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0 -3.2 0Z" fill="url(#watchspire-au)" stroke="#7a5514" stroke-width=".8"/>
+<path d="M60.5 7c4-1.5 7 1 11-.5l-2.5 2.6 2.5 2.4c-4 1.4-7-1-11 .5Z" fill="url(#watchspire-rd)" stroke="#5e1a10" stroke-width="1.1"/>
+<path d="M56 39h7v-5l-3.5-4-3.5 4Z" fill="url(#watchspire-slh)" stroke="#2f3746" stroke-width="1"/>
+<path d="M57.6 39h3.8v-4l-1.9-2-1.9 2Z" fill="url(#watchspire-gw)" stroke="#9a5a1c" stroke-width=".8"/>
+</g>
+</svg>

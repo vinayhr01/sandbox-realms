@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="fishers_pier-wa" x2="0" y2="1"><stop offset="0" stop-color="#86cfe2"/><stop offset="1" stop-color="#3f92b5"/></linearGradient>
+<linearGradient id="fishers_pier-ts" x2="0" y2="1"><stop offset="0" stop-color="#8f5d33"/><stop offset="1" stop-color="#5f3a1d"/></linearGradient>
+<linearGradient id="fishers_pier-tw" x2="0" y2="1"><stop offset="0" stop-color="#c99360"/><stop offset="1" stop-color="#94603a"/></linearGradient>
+<linearGradient id="fishers_pier-tt" x2="0" y2="1"><stop offset="0" stop-color="#b07a48"/><stop offset="1" stop-color="#8a5a32"/></linearGradient>
+<linearGradient id="fishers_pier-gw" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a6"/><stop offset="1" stop-color="#f2a443"/></linearGradient>
+<linearGradient id="fishers_pier-dr" x2="0" y2="1"><stop offset="0" stop-color="#a06a3c"/><stop offset="1" stop-color="#5f3a1c"/></linearGradient>
+<linearGradient id="fishers_pier-au" x2="0" y2="1"><stop offset="0" stop-color="#f7df80"/><stop offset="1" stop-color="#c9922c"/></linearGradient>
+<linearGradient id="fishers_pier-gl" x2="0" y2="1"><stop offset="0" stop-color="#4d3a29"/><stop offset="1" stop-color="#1f160e"/></linearGradient>
+<linearGradient id="fishers_pier-th" x2="0" y2="1"><stop offset="0" stop-color="#efcb76"/><stop offset="1" stop-color="#b98b3c"/></linearGradient>
+<linearGradient id="fishers_pier-irh"><stop offset=".15" stop-color="#9aa0a8"/><stop offset="1" stop-color="#3e4248"/></linearGradient>
+<linearGradient id="fishers_pier-twh"><stop offset=".15" stop-color="#c99360"/><stop offset="1" stop-color="#6a4222"/></linearGradient>
+<linearGradient id="fishers_pier-gr" x2="0" y2="1"><stop offset="0" stop-color="#86b85a"/><stop offset="1" stop-color="#4b7a31"/></linearGradient>
+</defs>
+<g stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<path d="M38 124Q44 112 60 108L118 102Q125 102 125 107V120Q125 124 121 124Z" fill="url(#fishers_pier-wa)" stroke="#2a6a88"/>
+<path d="M64 116q2.5 -1.4 5 0t5 0M92 120q2.5 -1.4 5 0t5 0M108 110q2 -1.4 4 0t4 0M80 111q2 -1.4 4 0t4 0" fill="none" stroke="#e8f8ff" stroke-width="1" opacity=".75"/>
+<path d="M64.1 114.6L65.3 113.8L65.3 105.8L64.1 106.6Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M61.7 114.6L64.1 114.6L64.1 106.6L61.7 106.6Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M80.1 114.6L81.3 113.8L81.3 105.8L80.1 106.6Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M77.7 114.6L80.1 114.6L80.1 106.6L77.7 106.6Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M96.1 114.6L97.3 113.8L97.3 105.8L96.1 106.6Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M93.7 114.6L96.1 114.6L96.1 106.6L93.7 106.6Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M110.1 114.6L111.3 113.8L111.3 105.8L110.1 106.6Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M107.7 114.6L110.1 114.6L110.1 106.6L107.7 106.6Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M120.1 114.6L121.3 113.8L121.3 105.8L120.1 106.6Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M117.7 114.6L120.1 114.6L120.1 106.6L117.7 106.6Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M71 104.3q3 7 10 7h14q6 0 8-7Z" fill="url(#fishers_pier-tw)" stroke="#563419" stroke-width="1.3"/>
+<path d="M71 104.3h32" fill="none" stroke="#5a3a1c" stroke-width="1.6"/>
+<path d="M117 109.9L123 105.7L123 102.7L117 106.9Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M51 106.9L117 106.9L123 102.7L57 102.7Z" fill="url(#fishers_pier-tw)" stroke="#563419"/>
+<path d="M51 109.9L117 109.9L117 106.9L51 106.9Z" fill="url(#fishers_pier-tt)" stroke="#563419"/>
+<path d="M55.3 106.7l5.5 -3.8M60.3 106.7l5.5 -3.8M65.3 106.7l5.5 -3.8M70.3 106.7l5.5 -3.8M75.3 106.7l5.5 -3.8M80.3 106.7l5.5 -3.8M85.3 106.7l5.5 -3.8M90.3 106.7l5.5 -3.8M95.3 106.7l5.5 -3.8M100.3 106.7l5.5 -3.8M105.3 106.7l5.5 -3.8M110.3 106.7l5.5 -3.8M115.3 106.7l5.5 -3.8" fill="none" stroke="#563419" stroke-width="1" opacity=".45"/>
+<path d="M59.6 117.9L60.9 117L60.9 104L59.6 104.9Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M57 117.9L59.6 117.9L59.6 104.9L57 104.9Z" fill="url(#fishers_pier-tw)" stroke="#563419"/>
+<path d="M75.6 117.9L76.9 117L76.9 104L75.6 104.9Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M73 117.9L75.6 117.9L75.6 104.9L73 104.9Z" fill="url(#fishers_pier-tw)" stroke="#563419"/>
+<path d="M91.6 117.9L92.9 117L92.9 104L91.6 104.9Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M89 117.9L91.6 117.9L91.6 104.9L89 104.9Z" fill="url(#fishers_pier-tw)" stroke="#563419"/>
+<path d="M105.6 117.9L106.9 117L106.9 104L105.6 104.9Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M103 117.9L105.6 117.9L105.6 104.9L103 104.9Z" fill="url(#fishers_pier-tw)" stroke="#563419"/>
+<path d="M115.6 117.9L116.9 117L116.9 104L115.6 104.9Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M113 117.9L115.6 117.9L115.6 104.9L113 104.9Z" fill="url(#fishers_pier-tw)" stroke="#563419"/>
+<path d="M84 104.8v-30M106 104.8v-30" fill="none" stroke="#6b4424" stroke-width="2"/>
+<path d="M84 75.8Q95 82.8 106 75.8L104 96.8Q95 100.8 86 96.8Z" fill="#d9c9a2" opacity=".35"/>
+<path d="M87.7 79.6l.8 20M91.3 80.8l.4 20M95 81.3l0 20M98.7 80.8l-.4 20M102.3 79.6l-.8 20M85 80.8Q95 86.8 105 80.8M85 85.8Q95 91.8 105 85.8M85 90.8Q95 96.8 105 90.8M85 95.8Q95 101.8 105 95.8" fill="none" stroke="#8a7a5a" stroke-width=".9"/>
+<path d="M50 117.2L64 107.4L64 83.4L50 93.2Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M10 117.2L50 117.2L50 93.2L10 93.2Z" fill="url(#fishers_pier-tw)" stroke="#563419"/>
+<path d="M14.5 116.4v-22.4M19 116.4v-22.4M23.5 116.4v-22.4M28 116.4v-22.4M32.5 116.4v-22.4M37 116.4v-22.4M41.5 116.4v-22.4M46 116.4v-22.4" fill="none" stroke="#563419" stroke-width="1" opacity=".45"/>
+<path d="M50.4 112.9l13.2 -9.2M50.4 108.9l13.2 -9.2M50.4 104.9l13.2 -9.2M50.4 100.9l13.2 -9.2M50.4 96.9l13.2 -9.2" fill="none" stroke="#563419" stroke-width="1" opacity=".45"/>
+<path d="M54.5 105.6L59 102.4L59 92.4L54.5 95.6Z" fill="url(#fishers_pier-ts)" stroke="#563419"/>
+<path d="M55 103.7L58.5 101.3L58.5 94.3L55 96.7Z" fill="url(#fishers_pier-gw)" stroke="#9a5a1c" stroke-width="1"/>
+<path d="M56.8 102.5v-7" fill="none" stroke="#563419" stroke-width="1"/>
+<path d="M29 117.2V107.2A7 7 0 0 1 43 107.2V117.2Z" fill="url(#fishers_pier-tw)" stroke="#563419"/>
+<path d="M31 117.2V107.2A5 5 0 0 1 41 107.2V117.2Z" fill="url(#fishers_pier-dr)" stroke="#3f2611"/>
+<path d="M33.5 117.2v-12.5M36 117.2v-14.5M38.5 117.2v-12.5" fill="none" stroke="#3f2611" stroke-width="1" opacity=".6"/>
+<path d="M31.8 113.5h6.7M31.8 107.9h6.7" fill="none" stroke="#2c2f34" stroke-width="1.4"/>
+<path d="M37.8 110.5a1 1 0 1 0 2 0a1 1 0 1 0 -2 0Z" fill="url(#fishers_pier-au)" stroke="#7a5514" stroke-width=".8"/>
+<path d="M14.5 109.7L24.5 109.7L24.5 99.7L14.5 99.7ZM13.5 110.8L25.5 110.8L25.5 108.8L13.5 108.8Z" fill="url(#fishers_pier-tw)" stroke="#563419" stroke-width="1.2"/>
+<path d="M16 108.2L23 108.2L23 101.2L16 101.2Z" fill="url(#fishers_pier-gl)" stroke="#2a1d12" stroke-width="1"/>
+<path d="M19.5 108.2v-7M16 104.7h7" fill="none" stroke="#563419" stroke-width="1.1"/>
+<path d="M17.2 102.8l1.4 1.6" fill="none" stroke="#fff" stroke-width="1" opacity=".6"/>
+<path d="M4 95.6L28 68.6L46 56L22 83Z" fill="url(#fishers_pier-th)" stroke="#6e4d1d"/>
+<path d="M28 68.6L52 95.6L70 83L46 56Z" fill="url(#fishers_pier-th)" stroke="#6e4d1d"/>
+<path d="M54.4 91.7l-9.6 -10.8M52 82.5l-10.8 -12.2M61.6 86.7l-9.6 -10.8M48.4 71.8l-7.2 -8.1M59.2 77.4l-10.8 -12.1M42.9 85.3l18 -12.6M34.7 76.2l18 -12.6" fill="none" stroke="#6e4d1d" stroke-width="1" opacity=".5"/>
+<path d="M10 93.2L50 93.2L30 68.2Z" fill="url(#fishers_pier-tw)" stroke="#563419"/>
+<path d="M14.3 89.2h31.4M17.4 85.2h25.2M20.4 81.2h19.2M23.5 77.2h13M26.6 73.2h6.8" fill="none" stroke="#563419" stroke-width="1" opacity=".45"/>
+<path d="M4 95.6L28 68.6L52 95.6L52 98.6L28 72.2L4 98.6Z" fill="url(#fishers_pier-th)" stroke="#6e4d1d"/>
+<path d="M12 95.2h16" fill="none" stroke="#8a6a40" stroke-width="1"/>
+<path d="M14 95.2q1.5 3 0 7.5l-1.2 1.8h2.4l-1.2-1.8q-1.5-4.5 0-7.5ZM18 95.2q1.5 3 0 7.5l-1.2 1.8h2.4l-1.2-1.8q-1.5-4.5 0-7.5ZM22 95.2q1.5 3 0 7.5l-1.2 1.8h2.4l-1.2-1.8q-1.5-4.5 0-7.5ZM26 95.2q1.5 3 0 7.5l-1.2 1.8h2.4l-1.2-1.8q-1.5-4.5 0-7.5Z" fill="url(#fishers_pier-irh)" stroke="#3e4a55" stroke-width=".8"/>
+<path d="M107.6 98.5Q106.4 102 107.6 105.5A3.4 1.4 0 0 0 114.4 105.5Q115.6 102 114.4 98.5Z" fill="url(#fishers_pier-twh)" stroke="#563419" stroke-width="1"/>
+<path d="M107.6 98.5a3.4 1.4 0 1 0 6.8 0a3.4 1.4 0 1 0 -6.8 0Z" fill="#7a4c28" stroke="#563419" stroke-width="1"/>
+<path d="M107 103.4q4 2 8 0M107 100.5q4 2 8 0" fill="none" stroke="#2c2f34" stroke-width="1.1"/>
+<path d="M61.5 101.9h10l-1.4 4.5h-7.2Z" fill="url(#fishers_pier-tt)" stroke="#563419" stroke-width="1"/>
+<path d="M62.5 101.6q2-2.6 4-.2q2-2.4 4 .2" fill="#a9c3cf" stroke="#3e5a66" stroke-width=".8"/>
+<path d="M1 120a3 3 0 0 1 2.5 -3.7a3.3 3.3 0 0 1 5.5 -1a3 3 0 0 1 2 4.8Z" fill="url(#fishers_pier-gr)" stroke="#2f4f1f" stroke-width="1"/>
+<path d="M4 117.5q1.5 -1.5 3 0" fill="none" stroke="#c4e08a" stroke-width=".9" opacity=".7"/>
+</g>
+</svg>

@@ -1903,6 +1903,8 @@ async function boot(): Promise<void> {
     openWindow: () => windowHost.current,
     snapshot: () => simView.current,
     creatureCount: () => creatures.drawnCount(),
+    /** The camera's zoom in CSS px per tile (0 before the camera exists). */
+    zoom: () => camera?.zoom ?? 0,
     resets: () => creatureReset.resets,
     /** The layer's state now: the realm resets so far, the feed sample's length, and the sprites drawn. */
     creatureState: () => ({ resets: creatureReset.resets, sample: interp.sample(performance.now(), []), drawn: creatures.drawnCount() }),
@@ -1911,20 +1913,24 @@ async function boot(): Promise<void> {
     /** The feed sample this frame: each Being's feed key and interpolated tile, in feed order. */
     beingPoints: () => drawBeings.slice(0, beingCount).map((d) => ({ key: d.key, x: d.x, y: d.y })),
     /**
-     * Spawns n beings of one species through the Beings tab's spawn power, on the tile of the land Being nearest the
-     * realm centre (a spawn needs a walkable tile, and the centre may be water).
+     * Spawns n beings of one species through the Beings tab's spawn power. Without x and y they go on the tile of the
+     * land Being nearest the realm centre (a spawn needs a walkable tile, and the centre may be water). With x and y they
+     * go on that tile instead; the sim refuses a non-walkable tile, so a caller spreading spawns gets fewer beings.
      */
-    spawnMany: (speciesId: string, n: number) => {
+    spawnMany: (speciesId: string, n: number, x?: number, y?: number) => {
       const power = POWERS.find((p) => p.handler === 'spawn_being' && p.params['species'] === speciesId);
       if (!power) throw new Error(`no spawn power for ${speciesId}`);
-      const mid = Math.floor(realmSide / 2);
-      let at = { x: mid, y: mid };
-      let best = Infinity;
-      for (const d of drawBeings.slice(0, beingCount)) {
-        const dist = (d.x - mid) ** 2 + (d.y - mid) ** 2;
-        if (d.state !== BeingState.Swim && dist < best) {
-          best = dist;
-          at = { x: Math.round(d.x), y: Math.round(d.y) };
+      let at = { x: x ?? 0, y: y ?? 0 };
+      if (x === undefined || y === undefined) {
+        const mid = Math.floor(realmSide / 2);
+        let best = Infinity;
+        at = { x: mid, y: mid };
+        for (const d of drawBeings.slice(0, beingCount)) {
+          const dist = (d.x - mid) ** 2 + (d.y - mid) ** 2;
+          if (d.state !== BeingState.Swim && dist < best) {
+            best = dist;
+            at = { x: Math.round(d.x), y: Math.round(d.y) };
+          }
         }
       }
       for (let i = 0; i < n; i++) client.power(power.id, at.x, at.y);

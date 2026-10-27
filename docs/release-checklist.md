@@ -19,6 +19,7 @@ Browser and device status, in one place:
 - [ ] Per-milestone screenshot diffs. Not done: screenshots are written but not compared.
 - [ ] Lighthouse mobile run (PWA, accessibility >= 90, performance budget). Not done.
 - [ ] Real-device checks on a low Android and an iPhone. Not done.
+- [ ] Check walking creatures on one real Android device (a low-end phone). Map graphics (DECISIONS.md, Map graphics). Zoom to 16 px per tile with a few hundred beings, then about 3,000 at 10x speed: creatures walk, face their direction of travel and do not slide; the dots-to-icons switch does not pop; terrain detail fades in smoothly. Not done.
 - [ ] Golden replay hash identical across engines. Not done: only Node runs the check.
 - [ ] COOP and COEP headers and the SharedArrayBuffer mode. Not built.
 

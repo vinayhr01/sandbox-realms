@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://vinayhr01.github.io/sandbox-realms/sitemap.xml

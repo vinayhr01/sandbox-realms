@@ -1,0 +1,34 @@
+# Sandbox Realms
+
+> Sandbox Realms is a free browser god game and world-building sandbox. You shape terrain, seed biomes, call weather and disasters, and watch about 90 creatures and six peoples build hamlets, form dominions, creeds and cultures, and wage campaigns. It runs in a web browser with mouse, touch or keyboard, needs no install, and can run offline as a web app.
+
+## What it is
+
+- A simulation sandbox (god game) in which the player acts as an unseen power over a realm.
+- The world is deterministic: the same seed produces the same realm.
+- Free to play, single player, no account.
+- Built with TypeScript, Vite and PixiJS. Source code is on GitHub.
+
+## How to play and controls
+
+- Pick the Terrain tab, choose Inspect, Raise or Lower, then set brush size and shape (round, square or diamond). Drag on the map to paint.
+- Tap or click a tile to inspect its elevation and ground.
+- Drag or pinch to move the camera; use the mouse wheel or pinch to zoom.
+- Use the Powers tabs (World, Terrain, Nature, Weather, Creatures, Destruction, Blessings, Inspect) to spawn creatures, call weather and trigger disasters.
+- Simulation speed (pause, x0.5, x1, x2, x5, x10) is in the top bar. Realm size is set on the Realm tab.
+- Keyboard shortcuts are listed in the Keys window.
+
+## Features
+
+- Terrain shaping, biome seeding and biome spread over time
+- Weather and natural disasters: fire, water, magma and freezing
+- About 90 creatures and six peoples, each with traits and behaviour
+- Hamlets, dominions, pacts, armies and campaigns
+- Creeds, customs, dialects and cultures
+- Achievements, a chronicle of events and population statistics
+- Saves on the device; works offline as an installable progressive web app
+
+## Links
+
+- Play: https://vinayhr01.github.io/sandbox-realms/
+- Source code and README: https://github.com/vinayhr01/sandbox-realms

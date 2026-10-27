@@ -1,6 +1,16 @@
 # Sandbox Realms
 
-Browser god-game sandbox for mouse and touch. Milestones 0 to 12 of `../BUILD-PLAN.md` are partly built: the engine, terrain, beings, combat, saves, settlements, dominions, culture and a first set of powers run in the game. Many spec items are still missing or unwired; `docs/spec-coverage.md` lists each one.
+**Play free in your browser: https://vinayhr01.github.io/sandbox-realms/**
+
+Sandbox Realms is a free browser god game and world-building sandbox. Shape the land, seed biomes, call weather and disasters, and watch about 90 creatures and six peoples build hamlets, form dominions, creeds and cultures, and wage campaigns. It is a simulation sandbox with a deterministic world: the same seed gives the same realm. It runs with mouse, touch and keyboard, needs no install, and can run offline as a web app.
+
+- Terrain tools: raise, lower and inspect tiles with round, square or diamond brushes
+- Biomes, weather and natural disasters that change the realm over time
+- Creatures, hamlets, dominions, armies and campaigns
+- Creeds, customs, dialects and cultures
+- Mouse, touch and keyboard controls; works offline as an installable web app
+
+Development status: milestones 0 to 12 of `../BUILD-PLAN.md` are partly built: the engine, terrain, beings, combat, saves, settlements, dominions, culture and a first set of powers run in the game. Many spec items are still missing or unwired; `docs/spec-coverage.md` lists each one.
 
 ## Run
 

@@ -3,6 +3,10 @@
  * (gait, mode) it can play, rasterised, and drawn into 2048 px pages. Each frame is kept at 128 px and at 48 px, on
  * separate page sets, each page mipmapped. Frames bake in idle callbacks, at most BUDGET_MS of work per callback.
  *
+ * Uploads: a page is uploaded to the GPU at most once per FLUSH_INTERVAL_MS, or at once when the bake queue drains.
+ * A frame is handed out (frame() / building()) only after the flush that uploads its page; until then the layer draws
+ * its group silhouette.
+ *
  * Decoding: a posed SVG is decoded as an <img> (img.decode()), not with createImageBitmap(Blob). Measured in headless
  * Chromium: createImageBitmap rejects an SVG blob (InvalidStateError), while <img>.decode() decodes it at 128 x 128.
  */
@@ -26,6 +30,8 @@ const MODE_INDEX: Readonly<Record<PoseMode, number>> = { idle: 0, walk: 1, run: 
 const GAIT_IDS = Object.keys(GAITS) as GaitId[];
 const BUDGET_MS = 4;
 const MAX_INFLIGHT = 8;
+/** Pages are uploaded at most this often while the bake queue has work left. */
+const FLUSH_INTERVAL_MS = 100;
 const IDLE_TIMEOUT_MS = 200;
 const FALLBACK_DELAY_MS = 16;
 const STATES = [BeingState.Idle, BeingState.Walk, BeingState.Run, BeingState.Swim, BeingState.Sleep, BeingState.Hit];
@@ -57,6 +63,12 @@ interface Job {
   target: Target;
 }
 
+/** A frame drawn on a page but not yet uploaded: it is handed out by `apply` after the next flush. */
+interface Pending {
+  tex: Texture;
+  apply: () => void;
+}
+
 /** A 2048 px canvas holding frames of one size, with its texture source. `next` is the next free slot. */
 class Page {
   readonly canvas = document.createElement('canvas');
@@ -74,9 +86,9 @@ class Page {
     this.source = new CanvasSource({ resource: this.canvas, autoGenerateMipmaps: true, transparent: true });
   }
 
-  clear(): void {
-    this.ctx.clearRect(0, 0, PAGE, PAGE);
-    this.next = 0;
+  /** Frees the GPU copy. The canvas is left to the garbage collector with the page. */
+  destroy(): void {
+    this.source.destroy();
   }
 }
 
@@ -87,11 +99,16 @@ function slotOf(px: FramePx): { slot: number; cols: number; capacity: number } {
 }
 
 /** Decodes an SVG source as an <img> (see the module comment). The object URL is revoked once decoded. */
-function decode(svg: string): Promise<HTMLImageElement> {
+function decodeSvg(svg: string): Promise<HTMLImageElement> {
   const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
   const img = new Image();
   img.src = url;
   return img.decode().then(() => img).finally(() => URL.revokeObjectURL(url));
+}
+
+function defaultSchedule(work: () => void): void {
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(work, { timeout: IDLE_TIMEOUT_MS });
+  else setTimeout(work, FALLBACK_DELAY_MS);
 }
 
 function parseOrWarn(svg: string, id: string): Rig | null {
@@ -103,21 +120,36 @@ function parseOrWarn(svg: string, id: string): Rig | null {
   }
 }
 
+/** Test seams: the decoder, the clock and the idle scheduler. The defaults are the browser's. */
+export interface AtlasOptions {
+  decode?: (svg: string) => Promise<HTMLImageElement>;
+  now?: () => number;
+  schedule?: (work: () => void) => void;
+}
+
 export class Atlas implements FrameSource {
   private readonly pages = new Map<FramePx, Page[]>();
   private readonly cells = new Map<number, Texture>();
   private readonly buildingCells = new Map<string, Texture>();
+  private readonly pending: Pending[] = [];
   private readonly requestedSpecies = new Set<number>();
   private readonly requestedBuildings = new Set<string>();
   private readonly queue: Job[] = [];
   private readonly ready: { job: Job; img: HTMLImageElement }[] = [];
   private readonly dirty = new Set<Page>();
+  private readonly decodeSvg: (svg: string) => Promise<HTMLImageElement>;
+  private readonly now: () => number;
+  private readonly schedule: (work: () => void) => void;
   private inflight = 0;
   /** Bumped by rebuild: decodes started before it are dropped when they land. */
   private gen = 0;
   private scheduled = false;
+  private lastFlush = Number.NEGATIVE_INFINITY;
 
-  constructor(renderer: Renderer) {
+  constructor(renderer: Renderer, opts: AtlasOptions = {}) {
+    this.decodeSvg = opts.decode ?? decodeSvg;
+    this.now = opts.now ?? (() => performance.now());
+    this.schedule = opts.schedule ?? defaultSchedule;
     renderer.canvas.addEventListener('webglcontextrestored', () => this.rebuild());
   }
 
@@ -140,24 +172,29 @@ export class Atlas implements FrameSource {
     return this.cells.get(cellKey(species, gait as GaitId, mode, frameIndex, px)) ?? null;
   }
 
-  /** The baked still of a building kind, or null until it is baked. */
+  /** The baked still of a building kind, or null until it is baked and uploaded. */
   building(kind: string, px: FramePx): Texture | null {
     return this.buildingCells.get(`${kind}|${px}`) ?? null;
   }
 
-  /** Clears every page and queues every species and building requested so far. Called on webglcontextrestored. */
+  /**
+   * Drops every page and every frame texture, then queues every species and building requested so far. Called on
+   * webglcontextrestored. The old textures are destroyed (a texture registers with its page source, so an undestroyed
+   * one would be kept alive by the source) and the old pages' sources are destroyed; new frames start on new pages.
+   */
   rebuild(): void {
     this.gen++;
     this.queue.length = 0;
     this.ready.length = 0;
+    for (const t of this.cells.values()) t.destroy();
+    for (const t of this.buildingCells.values()) t.destroy();
+    for (const p of this.pending) p.tex.destroy();
     this.cells.clear();
     this.buildingCells.clear();
-    for (const list of this.pages.values()) {
-      for (const page of list) {
-        page.clear();
-        this.dirty.add(page);
-      }
-    }
+    this.pending.length = 0;
+    this.dirty.clear();
+    for (const list of this.pages.values()) for (const page of list) page.destroy();
+    this.pages.clear();
     for (const species of this.requestedSpecies) this.startSpecies(species);
     for (const kind of this.requestedBuildings) this.startBuilding(kind);
     this.kick();
@@ -225,14 +262,16 @@ export class Atlas implements FrameSource {
   private kick(): void {
     if (this.scheduled) return;
     this.scheduled = true;
-    if (typeof requestIdleCallback === 'function') requestIdleCallback(this.work, { timeout: IDLE_TIMEOUT_MS });
-    else setTimeout(this.work, FALLBACK_DELAY_MS);
+    this.schedule(this.work);
   }
 
-  /** One idle callback: place decoded frames and start decodes for at most BUDGET_MS, then upload the dirty pages. */
+  /**
+   * One idle callback: place decoded frames and start decodes for at most BUDGET_MS, then upload the dirty pages if
+   * they are due. While uploads are waiting for their interval, the callback keeps itself scheduled.
+   */
   private readonly work = (): void => {
     this.scheduled = false;
-    const t0 = performance.now();
+    const t0 = this.now();
     for (;;) {
       const done = this.ready.shift();
       if (done) {
@@ -243,18 +282,32 @@ export class Atlas implements FrameSource {
       } else {
         break;
       }
-      if (performance.now() - t0 >= BUDGET_MS) break;
+      if (this.now() - t0 >= BUDGET_MS) break;
     }
+    this.flushIfDue();
+    if (this.ready.length > 0 || (this.queue.length > 0 && this.inflight < MAX_INFLIGHT) || this.pending.length > 0) this.kick();
+  };
+
+  /**
+   * Uploads the dirty pages and hands out their pending frames. Due when the last upload was FLUSH_INTERVAL_MS ago, or at
+   * once when the bake has drained (nothing queued, decoding or ready).
+   */
+  private flushIfDue(): void {
+    if (this.dirty.size === 0) return;
+    const drained = this.queue.length === 0 && this.inflight === 0 && this.ready.length === 0;
+    const t = this.now();
+    if (!drained && t - this.lastFlush < FLUSH_INTERVAL_MS) return;
     for (const page of this.dirty) page.source.update();
     this.dirty.clear();
-    if (this.ready.length > 0 || (this.queue.length > 0 && this.inflight < MAX_INFLIGHT)) this.kick();
-  };
+    for (const p of this.pending.splice(0)) p.apply();
+    this.lastFlush = t;
+  }
 
   private startDecode(job: Job): void {
     const gen = this.gen;
     this.inflight++;
     const svg = poseRig(job.rig, job.gait, job.phase, job.mode);
-    decode(svg)
+    this.decodeSvg(svg)
       .then(
         (img) => {
           if (gen === this.gen) this.ready.push({ job, img });
@@ -276,12 +329,18 @@ export class Atlas implements FrameSource {
       page.ctx.drawImage(img, x, y, px, px);
       const tex = new Texture({ source: page.source, frame: new Rectangle(x, y, px, px) });
       const t = job.target;
-      if ('building' in t) this.buildingCells.set(`${t.building}|${px}`, tex);
-      else this.cells.set(cellKey(t.species, t.gait, t.mode, t.frame, px), tex);
+      if ('building' in t) {
+        const key = `${t.building}|${px}`;
+        this.pending.push({ tex, apply: () => this.buildingCells.set(key, tex) });
+      } else {
+        const key = cellKey(t.species, t.gait, t.mode, t.frame, px);
+        this.pending.push({ tex, apply: () => this.cells.set(key, tex) });
+      }
       this.dirty.add(page);
     }
   }
 
+  /** The next free slot of the newest page of this size; a full page (or none) is followed by a new one. */
   private alloc(px: FramePx): { page: Page; x: number; y: number } {
     const list = this.pages.get(px) ?? [];
     this.pages.set(px, list);

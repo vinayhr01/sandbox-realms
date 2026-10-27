@@ -88,7 +88,8 @@ export class FeedInterp {
         t.px = snap ? b.x : t.x;
         t.py = snap ? b.y : t.y;
         if (dx !== 0) t.facing = dx < 0 ? -1 : 1;
-        t.moved = dist;
+        // A snapped Being did not walk: it jumped, so it reports no movement.
+        t.moved = snap ? 0 : dist;
       }
       t.x = b.x;
       t.y = b.y;

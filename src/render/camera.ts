@@ -9,8 +9,8 @@ const EDGE_MARGIN_PX = 16;
 /** Zoom range relative to the fit-to-screen zoom (13 section 9: 0.4x..8x of base; TUNE). */
 const MIN_FACTOR = 0.5;
 const MAX_FACTOR = 8;
-/** Absolute upper limit so single tiles stay pickable at very small grids. */
-const MAX_ZOOM_PX = 48;
+/** Absolute upper limit in CSS px per tile: at this zoom a creature icon is at its largest (creatures.ts). */
+const MAX_ZOOM_PX = 96;
 
 export interface TilePoint {
   x: number;
@@ -55,7 +55,7 @@ export class Camera {
   }
 
   get maxZoom(): number {
-    return Math.min(Math.max(this.fitZoom * MAX_FACTOR, 24), MAX_ZOOM_PX);
+    return Math.min(this.fitZoom * MAX_FACTOR, MAX_ZOOM_PX);
   }
 
   /** Continuous tile coordinates under a screen point (not floored). */

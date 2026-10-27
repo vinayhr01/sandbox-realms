@@ -110,4 +110,11 @@ describe('feed interpolation', () => {
     interp.reset();
     expect(sampleAt(interp, 0)).toHaveLength(0);
   });
+
+  it('snap reports no movement', () => {
+    const interp = new FeedInterp();
+    interp.push(feedOf([{ slot: 1, x: 10, y: 5 }]), 0);
+    interp.push(feedOf([{ slot: 1, x: 10 + SNAP_TILES + 2, y: 5 }]), 100);
+    expect(byKey(sampleAt(interp, 150), KEY_1).moved).toBe(0);
+  });
 });

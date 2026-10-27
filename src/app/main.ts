@@ -2,6 +2,9 @@ import '../ui/styles.css';
 import type { Ticker } from 'pixi.js';
 import { TerrainRenderer, type CursorState } from '../render/terrain.ts';
 import { MarkLayer } from '../render/marks.ts';
+import { CreatureLayer } from '../render/creatures.ts';
+import { FeedInterp, type DrawBeing } from '../render/feed-interp.ts';
+import { BeingState } from '../shared/being-feed.ts';
 import { InsightLayer } from '../render/insight-layers.ts';
 import { Camera } from '../render/camera.ts';
 import { MapInput } from '../ui/input.ts';
@@ -26,6 +29,7 @@ import { plainName } from '../content/plain-names.ts';
 import { Ev, PING_LOST_MS, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
 import { MONTH_TICKS, YEAR_TICKS, DEFAULT_SIZE_STEP } from '../shared/constants.ts';
 import { RULE_BY_ID, RuleSet } from '../sim/rules.ts';
+import { MAX_BEINGS } from '../sim/beings/store.ts';
 import { AudioEngine } from '../audio/engine.ts';
 import { audioOptionsFrom, CUE, musicViewState, type Cue } from './audio-wiring.ts';
 import { LAYER_CAP_DESKTOP, LAYER_CAP_PHONE } from '../audio/music.ts';
@@ -369,8 +373,15 @@ async function boot(): Promise<void> {
 
   const host = $('map');
   const renderer = await TerrainRenderer.create(host);
-  // Map marks and beings: added after the terrain so they draw on top of it.
+  // Creatures (beings, buildings, boats) and map marks: added after the terrain so they draw on top of it, marks over creatures.
+  const creatures = new CreatureLayer(renderer.app);
   const marks = new MarkLayer(renderer.app);
+  // The being feed (Ev.Beings), smoothed for drawing. The first beingCount entries of drawBeings are this frame's beings.
+  const interp = new FeedInterp();
+  const drawBeings: DrawBeing[] = [];
+  let beingCount = 0;
+  /** True once a feed has arrived for the current realm, so a followed being missing from the feed is lost. */
+  let beingsFed = false;
   // Insight layers and overlays: added after the marks, so the tints and icons draw over them.
   const insight = new InsightLayer(renderer.app);
   const client = new SimClient();
@@ -458,9 +469,9 @@ async function boot(): Promise<void> {
   let stroke: Stroke | null = null;
   /** Step drag (Settings): the first tap of a two-tap stroke, or null. */
   let stepAnchor: Tile | null = null;
-  /** Insight Follow: armed (the next tap picks a being) and the being followed, by its snapshot id. */
+  /** Insight Follow: armed (the next tap picks a being) and the being followed, by its feed key (slot << 16 | generation). */
   let followPending = false;
-  let followId: number | null = null;
+  let followKey: number | null = null;
   /** Insight Possess (07 section 13): armed (the next tap picks a being), and the being held by its snapshot id or null. Not saved. */
   let possessPending = false;
   let possessedId: number | null = null;
@@ -674,7 +685,12 @@ async function boot(): Promise<void> {
     stroke = null;
     stepAnchor = null;
     followPending = false;
-    followId = null;
+    followKey = null;
+    // A new, loaded or respawned realm has new Beings and buildings: the feed of the old one is dropped.
+    interp.reset();
+    creatures.clear();
+    beingCount = 0;
+    beingsFed = false;
     // A new or loaded realm has new Beings: the held one is not carried over (control is not saved, 07 section 14).
     possessPending = false;
     possessedId = null;
@@ -1214,13 +1230,18 @@ async function boot(): Promise<void> {
     windowHost.feed();
   });
 
-  /** The being under a screen point in the latest snapshot: within 10 px, or 24 px on touch. Null when none. */
-  const pickBeing = (sx: number, sy: number): { id: number; x: number; y: number } | null => {
+  /**
+   * The being under a screen point in the latest feed sample (the snapshot holds only 96 beings): within 10 px, or 24 px
+   * on touch. `key` is the feed key, `id` the sim's being id (generation * MAX_BEINGS + slot), `x` and `y` its tile.
+   */
+  const pickBeing = (sx: number, sy: number): { key: number; id: number; x: number; y: number } | null => {
     const cam = camera;
-    const points = simView.current?.mapPoints;
-    if (!cam || !points) return null;
+    if (!cam || beingCount === 0) return null;
     const radius = window.matchMedia('(pointer: coarse)').matches ? 24 : 10;
-    return nearestMapPoint(points, cam, sx, sy, radius);
+    const hit = nearestMapPoint(drawBeings.slice(0, beingCount), cam, sx, sy, radius);
+    if (!hit) return null;
+    // The feed's generation is 16 bits; the sim checks the full generation, so a Being past 65535 generations is refused.
+    return { key: hit.key, id: (hit.key & 0xffff) * MAX_BEINGS + (hit.key >>> 16), x: Math.round(hit.x), y: Math.round(hit.y) };
   };
 
   /** Reads one tile from the sim and reports it in the status line. Held presses say so. */
@@ -1243,7 +1264,7 @@ async function boot(): Promise<void> {
     onPan: (dx, dy) => {
       const k = numberOption(options, 'input.panSpeed') / 100;
       // A manual pan releases Follow (the camera would otherwise fight the drag).
-      followId = null;
+      followKey = null;
       camera?.panBy(dx * k, dy * k);
     },
     onZoom: (factor, sx, sy) => {
@@ -1355,7 +1376,7 @@ async function boot(): Promise<void> {
       if (followPending) {
         const hit = pickBeing(sx, sy);
         if (hit) {
-          followId = hit.id;
+          followKey = hit.key;
           followPending = false;
           setStatus('Following that being. Esc or a pan releases it.');
         } else {
@@ -1468,6 +1489,14 @@ async function boot(): Promise<void> {
           else logLine('warn', `${event.code}: ${event.detail}`);
           notify(event.detail, CUE.error);
         }
+        return;
+      case Ev.Beings:
+        interp.push(event.feed, performance.now());
+        beingsFed = true;
+        // The building list comes only when it changed; the boats come with every feed.
+        if (event.feed.buildings) creatures.setBuildings(event.feed.buildings);
+        creatures.setBoats(event.feed.boats);
+        client.returnBuffer(event.feed.data.buffer as ArrayBuffer, true);
         return;
       case Ev.Snapshot:
         noteCrashRun({ age: event.snap.age ?? null });
@@ -1633,7 +1662,7 @@ async function boot(): Promise<void> {
       updateSizeOutput();
     } else if (e.code === 'Escape') {
       followPending = false;
-      followId = null;
+      followKey = null;
       if (possessedId !== null || possessPending) releasePossession();
       hamletPending = false;
       dominionPending = false;
@@ -1680,20 +1709,22 @@ async function boot(): Promise<void> {
       const dy = (keysDown.has('ArrowDown') || keysDown.has('KeyS') ? 1 : 0) - (keysDown.has('ArrowUp') || keysDown.has('KeyW') ? 1 : 0);
       if (dx !== 0 || dy !== 0) {
         cam.panBy(-dx * dt, -dy * dt);
-        followId = null;
+        followKey = null;
       }
     }
-    // Follow: centre the camera on the followed being's latest snapshot position. The sample holds the
-    // oldest 96 beings, so a being outside it is lost (the status says so). A snapshot without points keeps it.
-    if (cam && followId !== null) {
-      const points = simView.current?.mapPoints;
-      const p = points?.find((q) => q.id === followId);
+    // The feed sample: every living Being, smoothed between worker frames (feed-interp.ts).
+    const beingNowMs = performance.now();
+    beingCount = interp.sample(beingNowMs, drawBeings);
+    // Follow: centre the camera on the followed being's sampled position. It is lost once it has left the feed.
+    if (cam && followKey !== null) {
+      let p: DrawBeing | undefined;
+      for (let i = 0; i < beingCount; i++) if (drawBeings[i]?.key === followKey) p = drawBeings[i];
       if (p) {
         cam.offX = renderer.app.screen.width / 2 - (p.x + 0.5) * cam.zoom;
         cam.offY = renderer.app.screen.height / 2 - (p.y + 0.5) * cam.zoom;
         cam.panBy(0, 0);
-      } else if (points) {
-        followId = null;
+      } else if (beingsFed) {
+        followKey = null;
         setStatus('Lost sight of the being you were following.');
       }
     }
@@ -1729,6 +1760,12 @@ async function boot(): Promise<void> {
       }
     }
     if (cam) {
+      const view = { offX: cam.offX, offY: cam.offY, zoom: cam.zoom, viewW: renderer.app.screen.width, viewH: renderer.app.screen.height };
+      creatures.setToggles({
+        shadows: boolOption(options, 'map.shadows') && !degradedOff.has('map.shadows'),
+        boats: boolOption(options, 'marks.boats'),
+      });
+      creatures.draw(drawBeings, beingCount, view, beingNowMs);
       marks.update(
         simView.current,
         {
@@ -1738,12 +1775,11 @@ async function boot(): Promise<void> {
           campaigns: boolOption(options, 'marks.campaigns'),
           battles: boolOption(options, 'marks.battles'),
           intrigues: boolOption(options, 'marks.intrigues'),
-          boats: boolOption(options, 'marks.boats'),
           names: stringOption(options, 'map.names') as 'full' | 'banner' | 'off',
           favouritesOnlyNames: boolOption(options, 'map.favouritesOnlyNames'),
           nameScale: numberOption(options, 'ui.scaleNames'),
         },
-        { offX: cam.offX, offY: cam.offY, zoom: cam.zoom, viewW: renderer.app.screen.width, viewH: renderer.app.screen.height },
+        view,
       );
       // Insight hover (desktop only): the Being under the pointer, where the cursor arrows start.
       const hoverPoint =
@@ -1859,6 +1895,30 @@ async function boot(): Promise<void> {
     commands: () => [...client.sentKinds],
     openWindow: () => windowHost.current,
     snapshot: () => simView.current,
+    creatureCount: () => creatures.drawnCount(),
+    /** A new realm with a random seed, as the Realm tab's restart does. */
+    newWorld: () => restartRealm?.(),
+    /** The feed sample this frame: each Being's feed key and interpolated tile, in feed order. */
+    beingPoints: () => drawBeings.slice(0, beingCount).map((d) => ({ key: d.key, x: d.x, y: d.y })),
+    /**
+     * Spawns n beings of one species through the Beings tab's spawn power, on the tile of the land Being nearest the
+     * realm centre (a spawn needs a walkable tile, and the centre may be water).
+     */
+    spawnMany: (speciesId: string, n: number) => {
+      const power = POWERS.find((p) => p.handler === 'spawn_being' && p.params['species'] === speciesId);
+      if (!power) throw new Error(`no spawn power for ${speciesId}`);
+      const mid = Math.floor(realmSide / 2);
+      let at = { x: mid, y: mid };
+      let best = Infinity;
+      for (const d of drawBeings.slice(0, beingCount)) {
+        const dist = (d.x - mid) ** 2 + (d.y - mid) ** 2;
+        if (d.state !== BeingState.Swim && dist < best) {
+          best = dist;
+          at = { x: Math.round(d.x), y: Math.round(d.y) };
+        }
+      }
+      for (let i = 0; i < n; i++) client.power(power.id, at.x, at.y);
+    },
     rule: (id: string) => rules.isOn(id),
     cooldownFraction: (id: string) => {
       const power = POWER_BY_ID.get(id);

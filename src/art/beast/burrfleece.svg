@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="burrfleece-w" cx=".42" cy=".3" r=".75"><stop offset="0" stop-color="#fffaf0"/><stop offset=".55" stop-color="#efe5d0"/><stop offset="1" stop-color="#cbbb98"/></radialGradient>
+<linearGradient id="burrfleece-k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a5c55"/><stop offset="1" stop-color="#3c322e"/></linearGradient>
+<linearGradient id="burrfleece-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5d504a"/><stop offset="1" stop-color="#3a302c"/></linearGradient>
+<linearGradient id="burrfleece-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#433834"/><stop offset="1" stop-color="#2a2220"/></linearGradient>
+<g id="burrfleece-l"><path d="M45.5 88C45.5 96 46.5 104 46.5 112H52.5C52.5 104 54 96 54 88Z" stroke="#241c19"/><path d="M45.8 111.5H53L53.8 120H44.6Q45 115.5 45.8 111.5Z" fill="#2b2320" stroke="#1a1412"/><path d="M49.3 114V120" stroke="#5a4c44" stroke-width=".8"/><path d="M43 90Q40 84 45 81Q47 76 53 78Q58 77 58 82Q61 87 56 90Q53 94 49 92Q44 94 43 90Z" fill="url(#burrfleece-w)"/></g>
+</defs>
+<g stroke="#8f7d5c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="51 85"><use href="#burrfleece-l" x="6" fill="url(#burrfleece-f)"/></g>
+<g id="leg-br" data-pivot="87 85"><use href="#burrfleece-l" x="30" fill="url(#burrfleece-f)"/></g>
+<g id="body" data-pivot="70 72">
+<g id="tail" data-pivot="104 66"><path d="M102 61Q109 59 111 65Q114 70 109 74Q106 78 102 74Z" fill="url(#burrfleece-w)"/><path d="M105 66q2 2 1 5" fill="none" stroke-width="1" opacity=".5"/></g>
+<path d="M38 76Q32 70 37 63Q36 54 45 52Q49 44 58 47Q64 41 72 45Q79 41 86 46Q94 43 98 51Q107 52 106 61Q112 67 107 75Q110 83 101 86Q98 93 89 91Q83 96 76 92Q69 96 63 92Q56 96 50 91Q42 92 41 85Q34 83 38 76Z" fill="url(#burrfleece-w)"/>
+<path d="M50 58q3-3 6 0M62 54q3-3 6 0M75 53q3-3 6 0M88 56q3-3 6 0M56 66q3-3 6 0M69 63q3-3 6 0M82 64q3-3 6 0M95 66q3-3 6 0M62 75q3-3 6 0M75 73q3-3 6 0M88 75q3-3 6 0M51 79q3-3 6 0M70 83q3-3 6 0M84 84q3-3 6 0" fill="none" stroke-width="1.1" opacity=".5"/>
+<path d="M48 50Q60 44 74 46Q86 45 95 51" fill="none" stroke="#fff" stroke-width="2.2" opacity=".7"/>
+<g id="head" data-pivot="44 62">
+<path d="M37 57C42 54 48 55 51 59C48 62.5 42 63 37.5 61Z" fill="url(#burrfleece-k)" stroke="#2a211e"/>
+<path d="M39.5 58.5C43 57.3 46.5 57.8 48.5 59.5C45.5 60.8 42 61 39.5 60.2Z" fill="#c99a8c" stroke="none"/>
+<path d="M45 52C39 49 31 50 25 55C20 59 16 63 14.5 67C13.5 70.5 15.5 73.5 19 73.8C25 74.2 31 72.5 36.5 70C42 67.5 46 62 45 52Z" fill="url(#burrfleece-k)" stroke="#2a211e"/>
+<path d="M16 68.5C17.5 66.5 20 66 21.5 67.5C21 70 19 71.5 17 71.3Z" fill="#7b6a63" stroke="none" opacity=".8"/>
+<path d="M17 67.2q1.2-1.5 2.6-.6" fill="none" stroke="#1d1715" stroke-width="1.1"/>
+<path d="M15.3 71.8Q18 73.2 22 72.2" fill="none" stroke="#1d1715" stroke-width="1"/>
+<path d="M27 59.5q3-2.5 6-.6" fill="none" stroke="#2a211e" stroke-width="1"/>
+<ellipse cx="29.6" cy="62.3" rx="2.5" ry="2.1" fill="#f1e6cf" stroke="none"/>
+<ellipse cx="29.4" cy="62.4" rx="1.7" ry="1.6" fill="#1a1210" stroke="none"/>
+<circle cx="28.8" cy="61.8" r=".7" fill="#fff" stroke="none"/>
+<path d="M33 66q2 1.5 4 0M23 63.5q1.5 1 3 .2" fill="none" stroke="#8a7a72" stroke-width=".9" opacity=".7"/>
+<path d="M30 53Q28 47 34 46Q37 41 43 44Q49 43 48 49Q51 53 46 56Q41 58 37 55Q31 57 30 53Z" fill="url(#burrfleece-w)"/>
+<path d="M35 50q2-2 4 0M41 48q2-2 4 0" fill="none" stroke-width="1" opacity=".55"/>
+</g>
+</g>
+<g id="leg-bl" data-pivot="83 85"><use href="#burrfleece-l" x="34" fill="url(#burrfleece-n)"/></g>
+<g id="leg-fl" data-pivot="47 85"><use href="#burrfleece-l" fill="url(#burrfleece-n)"/></g>
+</g>
+</svg>

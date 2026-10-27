@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="cragscrambler-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4eee3"/><stop offset=".6" stop-color="#d9cdb8"/><stop offset="1" stop-color="#ab9a7e"/></linearGradient>
+<linearGradient id="cragscrambler-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d9ccb5"/><stop offset="1" stop-color="#8e7d64"/></linearGradient>
+<linearGradient id="cragscrambler-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#aa9a80"/><stop offset="1" stop-color="#65584a"/></linearGradient>
+<linearGradient id="cragscrambler-h" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#a8977c"/><stop offset="1" stop-color="#5a4d3e"/></linearGradient>
+<g id="cragscrambler-fl"><path d="M44 74C43 84 45 92 47 100L46.5 112C46.5 114 46 115 45.5 116H52.5L52.6 112C52.6 107 52.3 103 52.8 99C54 92 57.5 84 57 74C56 66 50 63 46 66C44.5 68 44 71 44 74Z"/><path d="M45.3 115.5H52.8L53.5 120H43.2Q43.6 117.5 45.3 115.5Z" fill="#3f3630" stroke="#241d18"/><path d="M48.5 116.2V120" stroke="#77695c" stroke-width=".8"/><path d="M46.6 99.5q3 1.5 6 0" fill="none" stroke-width="1" opacity=".4"/></g>
+<g id="cragscrambler-bl"><path d="M79 70C79 80 84 89 90 96L90 112C90 114 89.5 115 89 116H96L96.3 112C96.5 106 97.5 101 99.3 97.5C101.5 88 101 76 98 66C92 62 84 64 79 70Z"/><path d="M88.8 115.5H96.3L97 120H86.7Q87.1 117.5 88.8 115.5Z" fill="#3f3630" stroke="#241d18"/><path d="M92 116.2V120" stroke="#77695c" stroke-width=".8"/></g>
+</defs>
+<g stroke="#6b5c48" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="56 76"><use href="#cragscrambler-fl" x="6" fill="url(#cragscrambler-f)"/></g>
+<g id="leg-br" data-pivot="81 74"><use href="#cragscrambler-bl" x="-6" fill="url(#cragscrambler-f)"/></g>
+<g id="body" data-pivot="70 70">
+<g id="tail" data-pivot="100 57"><path d="M99 57C100.5 51.5 104 47.5 108.5 46.5C109 51 107 55.5 103 59Z" fill="url(#cragscrambler-c)"/><path d="M103 54l3-4" fill="none" stroke-width="1" opacity=".4"/></g>
+<path d="M40 68C40 58 49 53 60 53C74 53 86 51 95 54C102 57 104 65 102 74C100 81 95 85 88 85C78 86 62 86 54 85C46 84 40 78 40 68Z" fill="url(#cragscrambler-c)"/>
+<path d="M50 82L51.5 88L54 84L56 90L58.5 85L61 91L63.5 85.5L66 91L68.5 85.5L71 90.5L73.5 85.5L76 90L78.5 85L81 89L83 84.5L86 85Z" fill="#c9bba2"/>
+<path d="M52 55C64 53 80 53.5 94 54" fill="none" stroke="#fff" stroke-width="2.2" opacity=".7"/>
+<path d="M58 62l2 4M65 60l2 5M73 61l1.5 4M81 60l2 5M89 62l1.5 4M62 72l1.5 4M78 71l1.5 4M90 70l1.5 4" fill="none" stroke-width="1" opacity=".35"/>
+<path d="M88 59C94 58 99 61 100 66" fill="none" stroke-width="1" opacity=".35"/>
+<g id="head" data-pivot="46 62">
+<path d="M41 75C36 67 33 58 32 48L41 37C45 45 51 52 58 57C52 62 46 67 41 75Z" fill="url(#cragscrambler-c)" stroke="none"/>
+<path d="M41 75C36 67 33 58 32 48M41 37C45 45 51 52 58 57" fill="none"/>
+<path d="M37 56q2 4 2 7M41 60q2 3 2 6M36 50q2 3 2 5" fill="none" stroke-width="1" opacity=".35"/>
+<path d="M39 32C41 25 46 20.5 52.5 20C56 20 58 23 56.5 26C53.5 24.5 50 25.5 47 28C45 30 44 32.5 44 35Z" fill="#7a6b58" stroke="#4a3f33"/>
+<path d="M17.4 52.6C16.2 57.6 17 62.6 19.6 66.4C20.6 64 21 66 22.2 64.6C22.6 60.6 23.4 56.6 25 52.4Z" fill="#bfae92"/>
+<path d="M19.5 56l.3 6M22 55.5l-.4 6" fill="none" stroke-width=".8" opacity=".5"/>
+<path d="M42 40C41 34 37 31 32 31C27 31 22 35 18 40C15 44 13 47 13.5 50C14 53 17 54 20 53.5C24 53 28 51 32 49C37 47 41 44 42 40Z" fill="url(#cragscrambler-c)"/>
+<path d="M14.2 50.6C15.2 53.2 18.4 54 21 53.4C21.8 51 20.6 48 18 47C16 47.4 14.6 48.6 14.2 50.6Z" fill="#e9c9bf" stroke="none" opacity=".8"/>
+<path d="M14.2 47.3q1.3-1.6 3-.8" fill="none" stroke="#3e3328" stroke-width="1.1"/>
+<path d="M14.6 52.3Q17.5 53.5 21.5 52.5" fill="none" stroke="#3e3328" stroke-width="1"/>
+<path d="M24 34.6q3-2.2 6-.6" fill="none" stroke-width="1"/>
+<ellipse cx="27" cy="37.4" rx="2.7" ry="2.2" fill="#e2b84a" stroke="#4a3f33" stroke-width=".9"/>
+<rect x="25" y="36.8" width="4" height="1.3" rx=".6" fill="#1e1810" stroke="none"/>
+<circle cx="26" cy="36.4" r=".6" fill="#fff" stroke="none"/>
+<path d="M30 45q3 1 6-1M22 42q2 1 4 0" fill="none" stroke-width="1" opacity=".35"/>
+<path d="M37 37.5C41 37 46 38.6 49 42C45 43.6 40.6 43 37.4 41Z" fill="url(#cragscrambler-c)"/>
+<path d="M39.5 39.2C42.5 39.2 45 40.2 46.6 41.6C44 42 41.6 41.6 39.8 40.6Z" fill="#e3c6b8" stroke="none"/>
+<path d="M34 33C36 25 41 20 48 19C52 19 54 22 52.5 25.5C49.5 24 46 25 43 27.5C41 29.5 40 32 39.5 35Z" fill="url(#cragscrambler-h)" stroke="#4a3f33"/>
+<path d="M38 28.5l2.6 1.6M40 25.5l2.6 1.8M43 22.5l2 2.3M47 20.5l1 2.6" fill="none" stroke="#c4b49a" stroke-width=".9"/>
+</g>
+</g>
+<g id="leg-bl" data-pivot="87 74"><use href="#cragscrambler-bl" fill="url(#cragscrambler-n)"/></g>
+<g id="leg-fl" data-pivot="50 76"><use href="#cragscrambler-fl" fill="url(#cragscrambler-n)"/></g>
+</g>
+</svg>

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="plateroll-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8c4a6"/><stop offset=".55" stop-color="#ad9272"/><stop offset="1" stop-color="#7c644a"/></linearGradient>
+<linearGradient id="plateroll-k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e2bcab"/><stop offset="1" stop-color="#b08676"/></linearGradient>
+<linearGradient id="plateroll-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfa694"/><stop offset="1" stop-color="#94695a"/></linearGradient>
+<linearGradient id="plateroll-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a87e6e"/><stop offset="1" stop-color="#6c4a3e"/></linearGradient>
+<g id="plateroll-l"><path d="M38 96C37.2 101 38 107 39 112.5L37 115.5C35.5 116.6 35 118.4 35.6 119.8H46.4C47.4 118 47.3 116 46.6 114L47.6 106C48.2 102 48.2 99 47.6 96C45 92.6 40.6 92.6 38 96Z"/><path d="M36.4 119.4l-3.4.9M39.4 119.6l-3 1.1M42.4 119.7l-2.4 1.1" stroke="#f2e8d4" stroke-width="1.3"/><path d="M40 100q3 1.4 6 0M40 106q3 1.4 6 0" fill="none" stroke-width=".9" opacity=".4"/></g>
+</defs>
+<g stroke="#4f3e2c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="49 96"><use href="#plateroll-l" x="6" fill="url(#plateroll-f)" stroke="#5e3f35"/></g>
+<g id="leg-br" data-pivot="80 96"><use href="#plateroll-l" x="37" fill="url(#plateroll-f)" stroke="#5e3f35"/></g>
+<g id="body" data-pivot="66 80">
+<g id="tail" data-pivot="101 89"><path d="M100 84C108 86 115 90 122 96C118 97.4 109 95.6 100 93.5Z" fill="url(#plateroll-c)"/><path d="M104 85.4v8.6M108 86.8v8M112 88.6l-.4 7M116 91l-.4 5" fill="none" stroke-width="1" opacity=".7"/></g>
+<path d="M30 92C34 96 44 98 66 98C88 98 98 96 102 92L102 90H30Z" fill="url(#plateroll-k)" stroke="#6e4c42"/>
+<g id="head" data-pivot="36 84">
+<path d="M41 77C35 73 27 73 21 77C16 80 11 85 7.5 89C6 91 6.8 93.6 9 93.8C14 94 20 93.2 26 92.2C32 91.2 38 90 42 88Z" fill="url(#plateroll-k)" stroke="#6e4c42"/>
+<path d="M7.6 90.6C8 89 9.6 88.4 10.8 89.2C11 90.6 10.2 91.8 8.8 92C8 91.8 7.6 91.4 7.6 90.6Z" fill="#5e3f35" stroke="none"/>
+<path d="M9.5 93.6Q12 93.8 15 93" fill="none" stroke="#5e3f35" stroke-width="1"/>
+<path d="M39 75.5C33 72.6 26 73.6 20 77.6C25 80 31 80.6 38 80Z" fill="url(#plateroll-c)"/>
+<path d="M24 77h2M28 76.4h2M32 76.2h2M27 79h2M31 78.8h2" fill="none" stroke="#efe2cc" stroke-width="1.6" opacity=".7"/>
+<path d="M30.5 76C28 70 28.5 63.5 31.6 60C35.2 62 36.6 69 35.6 76Z" fill="url(#plateroll-k)" stroke="#6e4c42"/>
+<path d="M31.8 73C30.6 69 31 65 32.4 63C34 65 34.6 69 34 73Z" fill="#c98f84" stroke="none"/>
+<path d="M21.6 82.6q2.2-1.6 4.4-.3" fill="none" stroke="#6e4c42" stroke-width="1"/>
+<ellipse cx="23.6" cy="84.4" rx="1.9" ry="1.7" fill="#f6eadc" stroke="none"/>
+<ellipse cx="23.5" cy="84.5" rx="1.4" ry="1.4" fill="#1e1410" stroke="none"/>
+<circle cx="23" cy="84" r=".55" fill="#fff" stroke="none"/>
+<path d="M16 89q3 1 6 .5M30 86q2 2 5 2" fill="none" stroke="#6e4c42" stroke-width=".9" opacity=".5"/>
+</g>
+<path d="M28 94C28 70 44 50 66 50C88 50 104 70 104 94Q66 100 28 94Z" fill="url(#plateroll-c)"/>
+<path d="M52 52.6C49 66 48 80 49 96.4M57 51.2C54.5 65 54 80 54.6 97M62 50.4C60.5 65 60 80 60.4 97.4M67 50.2C66.4 65 66.4 80 66.4 97.6M72 50.6C72.4 65 72.6 80 72.4 97.4M77 51.4C78 65 78.4 80 78.2 97M82 52.8C83.4 66 84 80 84 96.4" fill="none" stroke-width="1.2" stroke="#5e4a36"/>
+<path d="M53.5 52.4C51 66 50.4 80 50.6 96.4M58.5 51C56.6 65 56 80 56.2 97M63.5 50.4C62.6 65 62.2 80 62.2 97.4M68.5 50.3C68.6 65 68.6 80 68.4 97.5M73.5 50.8C74.4 65 74.6 80 74.4 97.3M78.5 51.8C80 65 80.4 80 80.2 96.8" fill="none" stroke="#efe2cc" stroke-width="1" opacity=".6"/>
+<path d="M34 80h2.2M38 74h2.2M42 68h2.2M46 62h2.2M38 86h2.2M42 80h2.2M46 74h2.2M46 86h2.2M90 62h2.2M94 68h2.2M98 76h2.2M88 72h2.2M92 80h2.2M98 86h2.2M88 86h2.2" fill="none" stroke="#efe2cc" stroke-width="2.4" opacity=".55"/>
+<path d="M36 82h2.2M40 76h2.2M44 70h2.2M40 88h2.2M44 82h2.2M90 66h2.2M94 74h2.2M90 78h2.2M94 86h2.2" fill="none" stroke="#6a523a" stroke-width="2.2" opacity=".35"/>
+<path d="M40 60Q54 50 66 51Q84 50 96 62" fill="none" stroke="#f4ead8" stroke-width="2.2" opacity=".6"/>
+<path d="M30 94l2.4 3.4 3-2.6 3 3 3-2.6 3 3 3-2.4M85 97.6l3-2.6 3 3 3-2.6 3 2.6 3-3 2-2" fill="none" stroke-width="1.1"/>
+</g>
+<g id="leg-bl" data-pivot="86 96"><use href="#plateroll-l" x="43" fill="url(#plateroll-n)" stroke="#6e4c42"/></g>
+<g id="leg-fl" data-pivot="43 96"><use href="#plateroll-l" fill="url(#plateroll-n)" stroke="#6e4c42"/></g>
+</g>
+</svg>

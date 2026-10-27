@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="sandhump-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ecca8e"/><stop offset=".55" stop-color="#d2a566"/><stop offset="1" stop-color="#a77c42"/></linearGradient>
+<linearGradient id="sandhump-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d4a86a"/><stop offset="1" stop-color="#9a7240"/></linearGradient>
+<linearGradient id="sandhump-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ad8650"/><stop offset="1" stop-color="#6e5130"/></linearGradient>
+<g id="sandhump-fl"><path d="M47 74C46 84 48 92 49.5 100L49.5 112H56.5L56.6 100C57.5 92 60 84 60 74C58 68 49 68 47 74Z"/><path d="M49.6 97.5C51.8 96.4 55 96.4 57 97.6L56.8 102C54.8 103 51.6 103 50 102Z" fill="#8a6638" stroke="none" opacity=".7"/><path d="M49 111.5C46.5 113 44.5 115.8 44.3 118.4C44.3 119.6 45.2 120.2 46.6 120.2H57.6C58.7 119.4 58.9 117.5 58.1 115L57.1 111.5Z" fill="#7a6048" stroke="#43321f"/><path d="M51.4 117.4V120.2" stroke="#43321f" stroke-width="1"/></g>
+<g id="sandhump-bl"><path d="M80 66C79 78 83 87 88 93L87.5 112H94.5L94.8 104C95.5 98 97 94 98 88C100 80 99 70 96 63C90 59 83 61 80 66Z"/><path d="M87 111.5C84.5 113 82.5 115.8 82.3 118.4C82.3 119.6 83.2 120.2 84.6 120.2H95.6C96.7 119.4 96.9 117.5 96.1 115L95.1 111.5Z" fill="#7a6048" stroke="#43321f"/><path d="M89.4 117.4V120.2" stroke="#43321f" stroke-width="1"/><path d="M87.6 99q3.4 1.6 7 0" fill="none" stroke-width="1" opacity=".4"/></g>
+</defs>
+<g stroke="#6e4e24" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="59 76"><use href="#sandhump-fl" x="6" fill="url(#sandhump-f)"/></g>
+<g id="leg-br" data-pivot="82 72"><use href="#sandhump-bl" x="-6" fill="url(#sandhump-f)"/></g>
+<g id="body" data-pivot="74 66">
+<g id="tail" data-pivot="104 56"><path d="M103.5 55C106.5 61 107.5 69 107.2 77" fill="none" stroke="#6e4e24" stroke-width="3.2"/><path d="M103.5 55C106.5 61 107.5 69 107.2 77" fill="none" stroke="#d2a566" stroke-width="1.6"/><path d="M107 75.5C104.6 78 104.4 82.6 105.8 86C106.6 84.6 107.6 84.2 108.6 85.6C110 82.4 109.8 78 107 75.5Z" fill="#7a5530"/></g>
+<path d="M44 66C44 56 52 50 60 46C64 34 70 26 78 26C86 26 90 34 92 44C100 46 106 54 106 64C106 74 102 82 94 84C82 86 64 86 56 84C48 82 44 76 44 66Z" fill="url(#sandhump-c)"/>
+<path d="M62 44C66 33 71 28 78 28C84 28 88 33 90 42" fill="none" stroke="#f8e2b4" stroke-width="2.4" opacity=".7"/>
+<path d="M66 32l-1.4-2.6M70 28.6l-.6-2.8M75 27l0-2.8M80 27l.6-2.8M85 29l1.4-2.4" fill="none" stroke="#a77c42" stroke-width="1.2"/>
+<path d="M52 82.6C62 84.8 82 85 94 82.4C88 79.6 74 78.8 62 79.2C57 79.4 54 80.6 52 82.6Z" fill="#f2dcb2" stroke="none" opacity=".75"/>
+<path d="M66 44q3 5 2 10M74 40q3 5 2 10M84 42q3 5 2 10M62 60q2 4 1.5 8M72 58q2 4 1.5 8M84 58q2 4 1.5 8M94 60q2 4 1.5 8" fill="none" stroke-width="1" opacity=".3"/>
+<g id="head" data-pivot="52 64">
+<path d="M52 73C44 78 35 77 30 70C26.5 64 25.5 56 23.5 48L33.5 41C35.5 49 37.5 56 41.5 60C45.5 63 51 60 56 55Z" fill="url(#sandhump-c)" stroke="none"/>
+<path d="M52 73C44 78 35 77 30 70C26.5 64 25.5 56 23.5 48M33.5 41C35.5 49 37.5 56 41.5 60C45.5 63 51 60 56 55" fill="none"/>
+<path d="M31 68q4 4 9 4M28 60q2 4 2 8M38 70q4 1 8-1" fill="none" stroke-width="1" opacity=".35"/>
+<path d="M30 74q1 3 0 6M34 75.6q1 3 0 6M38 76q1 3 0 5.6" fill="none" stroke="#a77c42" stroke-width="1.2" opacity=".8"/>
+<path d="M31 37C31 34.4 33 33 35 33.6C36 35 35.6 37.6 33.6 38.6Z" fill="url(#sandhump-c)"/>
+<path d="M37 42C35 36 29 33 23 34C18 35 14 38 11 42C9 45 7.5 48 8.5 50.5C9.5 52.5 12.5 53.5 15.5 53C19.5 52.5 24.5 50.5 28.5 48.5C33 46.5 37.5 45.5 37 42Z" fill="url(#sandhump-c)"/>
+<path d="M8.4 49.5C8.2 52.6 10.2 55 13 55.2C15.2 55.2 16.4 53.4 15.6 50.8C13.4 50.4 10.6 50 8.4 49.5Z" fill="#c9a07a"/>
+<path d="M9 48.6Q12 50.2 16.6 49.6" fill="none" stroke="#4a3418" stroke-width="1"/>
+<path d="M10.2 44.6q1.6-.4 2.6-1.8" fill="none" stroke="#4a3418" stroke-width="1.2"/>
+<ellipse cx="23.4" cy="40.6" rx="2.6" ry="2.2" fill="#f4e6cc" stroke="none"/>
+<ellipse cx="23.2" cy="40.8" rx="1.8" ry="1.8" fill="#24160a" stroke="none"/>
+<circle cx="22.5" cy="40.1" r=".8" fill="#fff" stroke="none"/>
+<path d="M20.2 39.4Q23.4 37 26.6 39.2" fill="none" stroke="#6e4e24" stroke-width="1.6"/>
+<path d="M20.6 39.2l-1.6-1.4M22 38.4l-1-1.8M23.6 38l-.4-1.8" fill="none" stroke="#4a3418" stroke-width=".8"/>
+<path d="M28 45q3-1 5-3.4M18 47q3 0 5-1" fill="none" stroke-width="1" opacity=".35"/>
+</g>
+</g>
+<g id="leg-bl" data-pivot="88 72"><use href="#sandhump-bl" fill="url(#sandhump-n)"/></g>
+<g id="leg-fl" data-pivot="53 76"><use href="#sandhump-fl" fill="url(#sandhump-n)"/></g>
+</g>
+</svg>

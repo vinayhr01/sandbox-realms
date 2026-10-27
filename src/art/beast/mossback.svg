@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="mossback-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b98848"/><stop offset=".55" stop-color="#8a5f2d"/><stop offset="1" stop-color="#5a3c1b"/></linearGradient>
+<radialGradient id="mossback-s" cx=".45" cy=".35" r=".7"><stop offset="0" stop-color="#d6a964"/><stop offset="1" stop-color="#9a6c34"/></radialGradient>
+<linearGradient id="mossback-r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c79a5c"/><stop offset="1" stop-color="#7c5426"/></linearGradient>
+<linearGradient id="mossback-k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a7a073"/><stop offset="1" stop-color="#6d6843"/></linearGradient>
+<linearGradient id="mossback-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a9467"/><stop offset="1" stop-color="#636039"/></linearGradient>
+<linearGradient id="mossback-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#77724c"/><stop offset="1" stop-color="#47442a"/></linearGradient>
+<linearGradient id="mossback-m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a6c45a"/><stop offset="1" stop-color="#5f8a34"/></linearGradient>
+<g id="mossback-l"><path d="M33 101C31 106 31.5 112 32.5 116C33 119 35 120 38 120H51C53 120 54 118.6 53.4 116C52.5 111 53 106 52 101C46 98 39 98 33 101Z"/><path d="M36 105q2-2 4 0M42 103q2-2 4 0M45 107q2-2 4 0M37 111q2-2 4 0M43 113q2-2 4 0" fill="none" stroke-width="1" opacity=".45"/><path d="M33.6 117.2l-2.6 2.9h4ZM37.8 118l-2.2 2.2h3.8ZM42 118.3l-1.8 1.9h3.6Z" fill="#efe4c4" stroke="#6e6648" stroke-width=".8"/></g>
+</defs>
+<g stroke="#3f2a14" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="50 100"><use href="#mossback-l" x="8" fill="url(#mossback-f)" stroke="#33311d"/></g>
+<g id="leg-br" data-pivot="88 100"><use href="#mossback-l" x="46" fill="url(#mossback-f)" stroke="#33311d"/></g>
+<g id="body" data-pivot="68 80">
+<g id="tail" data-pivot="108 95"><path d="M106 92C110 92 114 94 117 98C113 99 109 99 106 98Z" fill="url(#mossback-k)" stroke="#3f3d26"/></g>
+<g id="head" data-pivot="32 94"><g transform="matrix(1.2 0 0 1.2 -1 -17.6)">
+<path d="M38 100C30 101 24 98 20 93C17 90 13 90 9 89C5 88 4 84 5 80C6 75 10 72 15 72C20 72 24 75 26 80C28 85 32 88 38 90Z" fill="url(#mossback-k)" stroke="#3f3d26" stroke-width="1.25"/>
+<path d="M5.4 85C9 86.5 13 86.6 17 85.3" fill="none" stroke="#2e2c1a" stroke-width="1.2"/>
+<path d="M6 87q4 1.5 8 .8" fill="none" stroke="#3f3d26" stroke-width=".8" opacity=".6"/>
+<path d="M6.2 79.3q1-1.2 2.2-.5" fill="none" stroke="#2e2c1a" stroke-width="1.1"/>
+<path d="M12.6 76.5C14 74 18 73.6 20 76" fill="none" stroke="#3f3d26" stroke-width="1.2"/>
+<ellipse cx="16.4" cy="78.6" rx="2.4" ry="2.1" fill="#f0e8cf" stroke="none"/>
+<ellipse cx="16.2" cy="78.7" rx="1.7" ry="1.7" fill="#1e1a0e" stroke="none"/>
+<circle cx="15.6" cy="78" r=".7" fill="#fff" stroke="none"/>
+<path d="M23 86q2 3 1 6M28 89q2 3 1 6M33 91q1.5 3 .5 6M20 80q2 1 3 3" fill="none" stroke="#3f3d26" stroke-width="1" opacity=".45"/>
+</g>
+</g>
+<path d="M24 96C22 70 38 30 70 28C98 27 114 60 112 96Z" fill="url(#mossback-c)"/>
+<path d="M58 50L80 50L90 66L80 82L58 82L48 66Z" fill="url(#mossback-s)"/>
+<path d="M58 50L51 33M80 50L88 34M48 66L29 60M90 66L108 62M58 82L53 96M80 82L85 96M51 33Q44 40 29 60M88 34Q98 44 108 62" fill="none" stroke-width="1.6"/>
+<path d="M62 56H76L83 66L76 76H62L55 66Z" fill="none" stroke-width="1" opacity=".45"/>
+<path d="M36 82Q40 70 44 66M98 82Q96 72 94 66M62 44Q68 38 76 44M38 58Q42 48 50 42M100 58Q96 48 86 40" fill="none" stroke-width="1" opacity=".4"/>
+<path d="M44 34Q60 28 76 29" fill="none" stroke="#e8c58a" stroke-width="2.2" opacity=".6"/>
+<path d="M22 94Q23 102 30 102H106Q113 102 114 94Q68 99 22 94Z" fill="url(#mossback-r)"/>
+<path d="M34 97V102M46 97.7V102M58 98V102M70 98.2V102M82 98V102M94 97.7V102M104 97V102" fill="none" stroke-width="1"/>
+<path d="M49 37Q54 28 64 30Q73 25 83 30Q90 32 93 39Q86 37 80 39Q72 35 64 38Q56 35 49 37Z" fill="url(#mossback-m)" stroke="#3f5a1f" stroke-width="1.2"/>
+<path d="M57 31l-1.5-4M62 29.6l.5-4.6M74 27.6l-.6-4M80 29l2-3.6M87 32.5l2.8-2.6" fill="none" stroke="#567d2b" stroke-width="1.3"/>
+<circle cx="68.5" cy="26.5" r="1.8" fill="#f4e27a" stroke="#8a7a2a" stroke-width=".8"/>
+<path d="M101 70Q106 66 108 72Q103 74 101 70ZM33 72Q36 68 39 71Q36 75 33 72Z" fill="url(#mossback-m)" stroke="#3f5a1f" stroke-width="1"/>
+</g>
+<g id="leg-bl" data-pivot="96 100"><use href="#mossback-l" x="54" fill="url(#mossback-n)" stroke="#3f3d26"/></g>
+<g id="leg-fl" data-pivot="42 100"><use href="#mossback-l" fill="url(#mossback-n)" stroke="#3f3d26"/></g>
+</g>
+</svg>

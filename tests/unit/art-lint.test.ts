@@ -3,8 +3,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { GAITS, SPECIES_GAIT } from '../../src/art/gaits.ts';
-import { loadArt, type ArtChunk } from '../../src/art/load.ts';
+import { artFor, artForBuilding, chunkOf, loadArt, type ArtChunk } from '../../src/art/load.ts';
 import { artProblems } from '../../src/art/rig.ts';
+import { SPECIES } from '../../src/content/beasts.ts';
+import { BUILDINGS } from '../../src/sim/settlements/catalogue.ts';
 
 const CHUNKS: readonly ArtChunk[] = ['folk', 'beast', 'bird', 'sea', 'insect', 'undead', 'monster', 'divine', 'buildings'];
 const FIXTURE = readFileSync(join(process.cwd(), 'tests/fixtures/rig-quad.svg'), 'utf8');
@@ -25,6 +27,17 @@ describe('art lint', () => {
       for (const [id, svg] of Object.entries(art)) {
         expect(artProblems(svg, requiredParts(chunk, id)), `${chunk}/${id}`).toEqual([]);
       }
+    }
+  });
+
+  it('gives every species and every building art', async () => {
+    for (const s of SPECIES) {
+      await loadArt(chunkOf(s.id));
+      expect(artFor(s.id), `species ${s.id} (${chunkOf(s.id)})`).toEqual(expect.any(String));
+    }
+    await loadArt('buildings');
+    for (const b of BUILDINGS) {
+      expect(artForBuilding(b.id), `building ${b.id}`).toEqual(expect.any(String));
     }
   });
 

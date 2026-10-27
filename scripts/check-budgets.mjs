@@ -1,12 +1,17 @@
 // Build-size budgets (17 section 10, PERFORMANCE-PLAN section 2; map-graphics Global Constraints). Run after `npm run build`.
 // Fails when the main JS chunk exceeds 350 KB gzip, the worker chunk exceeds 250 KB gzip, any art chunk exceeds
-// 40 KB gzip, or all art chunks together exceed 250 KB gzip. Art chunks are the art-*.js files (src/art/<chunk>/).
+// its cap, or all art chunks together exceed 250 KB gzip. Art chunks are the art-*.js files (src/art/<chunk>/).
+// Each art chunk gets 40 KB gzip unless ART_CHUNK_LIMITS overrides it (controller ruling R17: the buildings chunk
+// gets 48 KB because its window glass is lit per building; creature chunks keep 40 KB).
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 
 const ASSETS = join('dist', 'assets');
 const LIMITS = { main: 350 * 1024, worker: 250 * 1024, artChunk: 40 * 1024, artTotal: 250 * 1024 };
+// Per-chunk gzip caps that override LIMITS.artChunk (keys are art chunk names, e.g. art-buildings).
+const ART_CHUNK_LIMITS = { 'art-buildings': 48 * 1024 };
+const artChunkLimit = (chunk) => ART_CHUNK_LIMITS[chunk] ?? LIMITS.artChunk;
 
 const files = readdirSync(ASSETS).filter((f) => f.endsWith('.js'));
 const gz = (f) => gzipSync(readFileSync(join(ASSETS, f))).length;
@@ -42,12 +47,15 @@ for (const [name, bytes, limit] of [['main', main, LIMITS.main], ['worker', work
   }
 }
 for (const [name, bytes] of artByChunk) {
-  if (bytes > LIMITS.artChunk) {
-    console.error(`budget exceeded: ${name} ${(bytes / 1024).toFixed(1)} KB gzip > ${LIMITS.artChunk / 1024} KB`);
+  const limit = artChunkLimit(name);
+  if (bytes > limit) {
+    console.error(`budget exceeded: ${name} ${(bytes / 1024).toFixed(1)} KB gzip > ${limit / 1024} KB`);
     failed = true;
+  } else {
+    console.log(`ok: ${name} ${(bytes / 1024).toFixed(1)} KB gzip <= ${limit / 1024} KB`);
   }
 }
 if (artByChunk.size > 0 && !failed) {
-  console.log(`ok: art chunks ${artByChunk.size}, largest ${artWorst[0]} ${(artWorst[1] / 1024).toFixed(1)} KB gzip <= ${LIMITS.artChunk / 1024} KB`);
+  console.log(`ok: art chunks ${artByChunk.size}, largest ${artWorst[0]} ${(artWorst[1] / 1024).toFixed(1)} KB gzip <= ${artChunkLimit(artWorst[0]) / 1024} KB`);
 }
 if (failed) process.exit(1);

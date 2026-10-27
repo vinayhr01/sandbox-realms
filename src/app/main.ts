@@ -22,6 +22,7 @@ import { WindowHost } from '../ui/windowHost.ts';
 import { windowFor, type ChronicleActions, type ChronicleOutcome, type WindowDeps, type WindowParams } from '../ui/windowContent.ts';
 import { SimView } from '../ui/sim-view.ts';
 import { POWER_BY_ID, POWERS, TABS, powersInTab, type PowerDef, type TabId } from '../content/powers.ts';
+import { plainName } from '../content/plain-names.ts';
 import { Ev, PING_LOST_MS, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
 import { MONTH_TICKS, YEAR_TICKS, DEFAULT_SIZE_STEP } from '../shared/constants.ts';
 import { RULE_BY_ID, RuleSet } from '../sim/rules.ts';
@@ -765,7 +766,7 @@ async function boot(): Promise<void> {
 
   // Power bar: one tab per power group; only the selected group's buttons exist in the DOM.
   let powerTab: TabState = { active: TABS[0], tabs: TABS };
-  const tabLabel = (tab: TabId): string => tab.charAt(0).toUpperCase() + tab.slice(1);
+  const tabLabel = (tab: TabId): string => plainName('tab', tab);
 
   /** Releases the held Being (Cmd.Possess on=false) and clears the possession state. */
   const releasePossession = (): void => {
@@ -1035,7 +1036,7 @@ async function boot(): Promise<void> {
     const before = rules.isOn(id);
     const ok = rules.set(id, on);
     if (!ok) {
-      setStatus(`${id.replace(/_/g, ' ')} cannot be turned off once on.`);
+      setStatus(`${plainName('rule', id)} cannot be turned off once on.`);
       return false;
     }
     if (before !== on) client.setRule(id, on);
@@ -1230,7 +1231,7 @@ async function boot(): Promise<void> {
         return;
       }
       const prefix = held ? 'Held: ' : '';
-      setStatus(`${prefix}Tile ${r.tileX}, ${r.tileY} · elevation ${r.elevation} · ${r.ground}`);
+      setStatus(`${prefix}Tile ${r.tileX}, ${r.tileY} · elevation ${r.elevation} · ${plainName('ground', r.ground)}`);
       feedTutorial('tile-inspected');
     });
   };

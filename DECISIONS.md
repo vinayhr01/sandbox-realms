@@ -2931,3 +2931,13 @@ Docs only: `docs/spec-coverage.md` rewritten against main at 4d81302 (it was las
 - Spot checks by grep that held: `liveCount: () => 0` in `powers/handlers.ts` (no calamity cap binds); `writeBook` has no caller; `countsCredited`, `grantAllowed` and `achievementProgress` have no caller outside tests; 16 of 49 rule ids have no string reference outside `rules.ts`.
 - The "Current state" table at the top of this file is also stale (it still says heartbeat is never posted, 6 buildings, 159 powers, inert culture). It was not edited here; the dated sections and `docs/spec-coverage.md` win.
 - Open and unverified: no exit test is confirmed met; the M3 soak was not re-run after the Beings releases; the IndexedDB path, dialogs and audio have no recorded browser or device run.
+
+## Plain names (owner decision, 2026-10-27)
+
+Players now read real-world names instead of the spec's coined words: Thistlehart is Deer, Gloamfang is Wolf, Deepmere is Deep Water, and the power tabs are World, Terrain, Nature, Weather, Creatures, Destruction, Blessings and Inspect. The owner approved the 659 names in `docs/superpowers/specs/2026-10-27-plain-names-review.md`. The design is in `2026-10-27-plain-names-design.md`.
+
+- **Ids stay the source of truth.** The spec's ids are unchanged in code, saves, stats and power ids, including `spawn_folk_*` for sea species. Only display strings changed. `GOLDEN_HASH` is unchanged. `contentHash` changes, because it hashes names, but it is only a worker handshake value and is not stored in saves.
+- **One table.** `src/content/plain-names.ts` holds every plain name. `plainName(kind, id, fallback)` returns the table entry, else the given fallback, else the humanized id, so raw `snake_case` never reaches the screen. Content name builders call it; the table applies to species, grounds, biomes, creeps, landmarks, items, traits, morphs, ages and achievements. UI spots that showed raw ids now call it too: tab labels, rule labels, the tile inspector's ground name, the tooltip task, custom traits, the age line in the ticker, item stat keys and omen powers.
+- **"Found" vs "Call".** Spawn power names now say "Found" only for Folk species and "Call" for every other species. Before, sea species and Phantom Hand read "Found …" because the name keyed on `wild`.
+- **Strain labels.** Strain labels are rebuilt at snapshot time from the current species name plus the strain id. Old saves keep the coined name in the stored field, and players see the new name.
+- **Not renamed.** Generated clan, family and custom proper names (for example "Ashfell"), and the dev tools rule ids.

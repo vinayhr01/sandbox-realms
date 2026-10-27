@@ -3,6 +3,7 @@
  * each function turns a Snapshot into the rows a window shows, so the rules can be tested in node.
  */
 import { ACHIEVEMENTS, TRAIT_TOTAL, ROSTER_SPAWNABLE, type AchievementDef } from '../content/achievements.ts';
+import { plainName } from '../content/plain-names.ts';
 import { trophySummary, visibleText } from '../sim/progression.ts';
 import type { AchievementRow, DominionRow, HamletRow, Snapshot, SpeciesRow } from '../shared/protocol.ts';
 
@@ -42,7 +43,8 @@ export function counterLabel(key: string): string {
     return text.charAt(0).toUpperCase() + text.slice(1);
   }
   const head = key.slice(0, dot);
-  const tail = words(key.slice(dot + 1));
+  const rest = key.slice(dot + 1);
+  const tail = head === 'powerUses' ? plainName('tab', rest) : words(rest);
   const headText = head === 'deathsByCause' ? 'Deaths by cause' : head === 'powerUses' ? 'Power uses' : head === 'milestone' ? 'Milestone' : words(head);
   return `${headText.charAt(0).toUpperCase() + headText.slice(1)}: ${tail}`;
 }

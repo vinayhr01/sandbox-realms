@@ -6,6 +6,7 @@
  * spawnBeing, omens map to a calamity id (see src/sim/calamity.ts).
  */
 import { SPECIES } from './beasts.ts';
+import { plainName } from './plain-names.ts';
 
 export const TABS = ['realm', 'shape', 'grow', 'sky', 'beings', 'havoc', 'favour', 'insight'] as const;
 export type TabId = (typeof TABS)[number];
@@ -33,7 +34,7 @@ const brush = (id: string, name: string, handler: string, params: Record<string,
   id,
   tab: 'shape',
   kind: 'brush',
-  name,
+  name: plainName('shapePower', id, name),
   repeatMs: 60,
   handler,
   params,
@@ -45,7 +46,7 @@ const click = (id: string, tab: TabId, name: string, handler: string, params: Re
   id,
   tab,
   kind: 'click',
-  name,
+  name: plainName('shapePower', id, name),
   repeatMs: 0,
   handler,
   params,
@@ -58,7 +59,7 @@ const drop = (id: string, name: string, handler: string, params: Record<string, 
   id,
   tab: 'favour',
   kind: 'brush',
-  name,
+  name: plainName('shapePower', id, name),
   repeatMs: 60,
   handler,
   params,
@@ -70,7 +71,7 @@ const toggle = (id: string, name: string, rule: string): PowerDef => ({
   id,
   tab: 'realm',
   kind: 'toggle',
-  name,
+  name: plainName('rule', rule, name),
   repeatMs: 0,
   handler: 'toggle_rule',
   params: { rule },
@@ -300,7 +301,7 @@ export const POWERS: readonly PowerDef[] = [
     id: sp.wild ? `spawn_beast_${sp.id}` : `spawn_folk_${sp.id}`,
     tab: 'beings',
     kind: 'spawn',
-    name: sp.wild ? `Call ${sp.name}` : `Found ${sp.name}`,
+    name: sp.folk ? `Found ${sp.name}` : `Call ${sp.name}`,
     repeatMs: 180,
     handler: 'spawn_being',
     params: { species: sp.id },
@@ -330,7 +331,7 @@ export const POWERS: readonly PowerDef[] = [
     id: `omen_${id}`,
     tab: 'havoc',
     kind: 'click',
-    name: `Omen: ${id.replace(/_/g, ' ')}`,
+    name: `Omen: ${plainName('omen', id)}`,
     repeatMs: 0,
     handler: 'calamity',
     params: { calamity: id },

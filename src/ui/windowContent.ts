@@ -3,6 +3,7 @@
  * window host shows it. All state comes in through WindowDeps, so the windows hold no game state.
  */
 import { POWERS, type PowerDef } from '../content/powers.ts';
+import { plainName } from '../content/plain-names.ts';
 import { AGES } from '../sim/ages.ts';
 import { RULES, RuleSet, ageRuleId, type RuleDef } from '../sim/rules.ts';
 import type { BrushShape, Command, Snapshot } from '../shared/protocol.ts';
@@ -113,11 +114,6 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
   if (className) node.className = className;
   if (text !== undefined) node.textContent = text;
   return node;
-};
-
-const humanize = (id: string): string => {
-  const words = id.replace(/_/g, ' ');
-  return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
 /** Experimental rules (13 section 15, game.experimentalRules). */
@@ -239,7 +235,7 @@ function buildRules(deps: WindowDeps): WindowBuild {
         name: 'Realm rules',
         items,
         rowHeight: 64,
-        label: (r) => humanize(r.id),
+        label: (r) => plainName('rule', r.id),
         sorts: [
           { key: 'group', label: 'Group' },
           { key: 'id', label: 'Name' },
@@ -253,12 +249,12 @@ function buildRules(deps: WindowDeps): WindowBuild {
         render: (rule) => {
           const row = el('div', 'rule-row');
           const text = el('div', 'rule-text');
-          const name = el('strong', undefined, humanize(rule.id) + (EXPERIMENTAL_RULES.has(rule.id) ? ' (experimental)' : ''));
+          const name = el('strong', undefined, plainName('rule', rule.id) + (EXPERIMENTAL_RULES.has(rule.id) ? ' (experimental)' : ''));
           text.append(name, el('span', 'option-note', rule.effect));
           const sw = el('button', 'switch');
           sw.type = 'button';
           sw.setAttribute('role', 'switch');
-          sw.setAttribute('aria-label', humanize(rule.id));
+          sw.setAttribute('aria-label', plainName('rule', rule.id));
           const on = deps.rules.isOn(rule.id);
           sw.setAttribute('aria-checked', String(on));
           sw.textContent = on ? 'On' : 'Off';
@@ -504,7 +500,7 @@ function buildPowerCatalogue(deps: WindowDeps): WindowBuild {
           row.type = 'button';
           row.disabled = !status.enabled;
           const text = el('div', 'rule-text');
-          text.append(el('strong', undefined, power.name), el('span', 'option-note', `${power.tab} tab${status.enabled ? '' : ' · not available yet'}`));
+          text.append(el('strong', undefined, power.name), el('span', 'option-note', `${plainName('tab', power.tab)} tab${status.enabled ? '' : ' · not available yet'}`));
           row.append(text);
           row.addEventListener('click', () => {
             deps.close();

@@ -3,6 +3,8 @@
  * systems read are typed; flavour text stays in the spec. A biome's cover ids are
  * `biomeCoverId(index, rank)`, two per biome (low and high ground, 18c "<id>_low/_high").
  */
+import { plainName } from './plain-names.ts';
+
 export type SpreadSource = 'water' | 'curse' | 'fire' | 'acid' | 'coffee' | 'blessing' | 'boost' | 'none';
 
 export interface BiomeDef {
@@ -41,7 +43,7 @@ const b = (
   extra: Partial<BiomeDef> = {},
 ): BiomeDef => ({
   id,
-  name,
+  name: plainName('biome', id, name),
   low,
   high,
   genWeight,

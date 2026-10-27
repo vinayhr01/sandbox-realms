@@ -1,4 +1,5 @@
 import type { Rng } from '../shared/rng.ts';
+import { plainName } from '../content/plain-names.ts';
 import { YEAR_TICKS } from '../shared/constants.ts';
 
 /**
@@ -32,7 +33,7 @@ export interface AgeDef {
 
 const dawn: AgeDef = {
   id: 'dawn',
-  name: 'Age of Dawn',
+  name: plainName('age', 'dawn', 'Age of Dawn'),
   yearsMin: 32,
   yearsMax: 52,
   defaultSlots: [1, 3, 5, 6],
@@ -55,7 +56,7 @@ export const AGES: readonly AgeDef[] = [
   dawn,
   {
     id: 'scorch',
-    name: 'Scorch Age',
+    name: plainName('age', 'scorch', 'Scorch Age'),
     yearsMin: 32,
     yearsMax: 52,
     defaultSlots: [],
@@ -75,7 +76,7 @@ export const AGES: readonly AgeDef[] = [
   },
   {
     id: 'long_night',
-    name: 'Long Night',
+    name: plainName('age', 'long_night', 'Long Night'),
     yearsMin: 32,
     yearsMax: 52,
     defaultSlots: [2, 7],
@@ -95,7 +96,7 @@ export const AGES: readonly AgeDef[] = [
   },
   {
     id: 'weeping',
-    name: 'Weeping Age',
+    name: plainName('age', 'weeping', 'Weeping Age'),
     yearsMin: 32,
     yearsMax: 52,
     defaultSlots: [2, 7],
@@ -119,7 +120,7 @@ export const AGES: readonly AgeDef[] = [
   },
   {
     id: 'silver_moon',
-    name: 'Silver Moon',
+    name: plainName('age', 'silver_moon', 'Silver Moon'),
     yearsMin: 32,
     yearsMax: 52,
     defaultSlots: [2, 7],
@@ -142,7 +143,7 @@ export const AGES: readonly AgeDef[] = [
   },
   {
     id: 'discord',
-    name: 'Age of Discord',
+    name: plainName('age', 'discord', 'Age of Discord'),
     yearsMin: 32,
     yearsMax: 52,
     defaultSlots: [],
@@ -162,7 +163,7 @@ export const AGES: readonly AgeDef[] = [
   },
   {
     id: 'marvels',
-    name: 'Age of Marvels',
+    name: plainName('age', 'marvels', 'Age of Marvels'),
     yearsMin: 32,
     yearsMax: 52,
     defaultSlots: [2, 7],
@@ -185,7 +186,7 @@ export const AGES: readonly AgeDef[] = [
   },
   {
     id: 'frostbound',
-    name: 'Frostbound Age',
+    name: plainName('age', 'frostbound', 'Frostbound Age'),
     yearsMin: 28,
     yearsMax: 38,
     defaultSlots: [],
@@ -205,7 +206,7 @@ export const AGES: readonly AgeDef[] = [
   },
   {
     id: 'cinder',
-    name: 'Cinder Age',
+    name: plainName('age', 'cinder', 'Cinder Age'),
     yearsMin: 32,
     yearsMax: 52,
     defaultSlots: [],
@@ -225,7 +226,7 @@ export const AGES: readonly AgeDef[] = [
   },
   {
     id: 'gloom',
-    name: 'Age of Gloom',
+    name: plainName('age', 'gloom', 'Age of Gloom'),
     yearsMin: 28,
     yearsMax: 38,
     defaultSlots: [],
@@ -245,7 +246,7 @@ export const AGES: readonly AgeDef[] = [
   },
   {
     id: 'veiled',
-    name: 'Veiled Age',
+    name: plainName('age', 'veiled', 'Veiled Age'),
     yearsMin: 32,
     yearsMax: 52,
     defaultSlots: [4, 8],

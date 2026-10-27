@@ -62,6 +62,18 @@ import { clanSpeciesName, yearsSince, type Clan } from './clans/clans.ts';
 import { itemsOf } from './items/summary.ts';
 import { boatMarksOf } from './boats/boats.ts';
 import type { Sim } from './sim.ts';
+import type { Strain } from './beings/strains.ts';
+
+/**
+ * Display label for a strain: the current species name plus the id. The stored `name` keeps the species
+ * name it was created with (old saves hold coined species names), so the label is rebuilt from SPECIES.
+ * Nothing is written back.
+ */
+function strainLabel(s: Strain | undefined): string {
+  if (!s) return '';
+  const base = SPECIES[s.species]?.name;
+  return base === undefined ? s.name : `${base} ${s.id}`;
+}
 
 /** Sim ticks between periodic snapshots: two sim-seconds, 40 ticks at 20 Hz (13 section 1). */
 export const SNAPSHOT_TICKS = 2 * SS_TICKS;
@@ -414,7 +426,7 @@ function clansOf(sim: Sim): ClanBlock {
     id: c.id,
     name: c.name,
     strain: c.strain,
-    strainName: sim.beings.strains.get(c.strain)?.name ?? '',
+    strainName: strainLabel(sim.beings.strains.get(c.strain)),
     species: clanSpeciesName(c),
     foundedTick: c.foundedTick,
     members: c.members,
@@ -551,7 +563,7 @@ function detailOf(sim: Sim): SnapshotDetail {
   const cap = SNAPSHOT_DETAIL_ROWS;
   const strains: StrainRow[] = sim.beings.strains.snapshot().list.map((s) => ({
     id: s.id,
-    name: s.name,
+    name: strainLabel(s),
     species: SPECIES[s.species]?.name ?? '',
     generation: s.generation,
     parent: s.parent,

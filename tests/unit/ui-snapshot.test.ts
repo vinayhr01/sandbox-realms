@@ -47,7 +47,8 @@ describe('counter labels', () => {
 
   it('reads keyed counters with their key', () => {
     expect(counterLabel('deathsByCause.eaten')).toBe('Deaths by cause: eaten');
-    expect(counterLabel('powerUses.terrain')).toBe('Power uses: terrain');
+    expect(counterLabel('powerUses.shape')).toBe('Power uses: Terrain');
+    expect(counterLabel('powerUses.terrain')).toBe('Power uses: Terrain');
     expect(counterLabel('milestone.first_realm')).toBe('Milestone: first realm');
   });
 

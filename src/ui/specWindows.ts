@@ -7,6 +7,7 @@
  */
 import { BEING_TRAITS, STRAIN_TRAITS, type BeingTraitDef } from '../content/traits.ts';
 import { ITEM_KINDS, ITEM_KIND_BY_ID, ITEM_SLOTS, type ItemKindDef } from '../content/items.ts';
+import { plainName } from '../content/plain-names.ts';
 import { YEAR_TICKS } from '../shared/constants.ts';
 import { Cmd, type BeingRow, type ItemRow, type Snapshot, type StructureRow } from '../shared/protocol.ts';
 import { listWindow } from './detailWindows.ts';
@@ -374,7 +375,7 @@ function holderText(row: ItemRow): string {
 /** Facts of one item row (inspector and the list detail line share the words). */
 export function itemFacts(row: ItemRow): Facts {
   const kind = ITEM_KIND_BY_ID.get(row.kind);
-  const stats = Object.entries(kind?.stats ?? {}).map(([k, v]) => `${k} ${v > 0 ? '+' : ''}${v}`);
+  const stats = Object.entries(kind?.stats ?? {}).map(([k, v]) => `${plainName('stat', k)} ${v > 0 ? '+' : ''}${v}`);
   return [
     ['Kind', row.name],
     ['Slot', SLOT_LABELS[row.slot] ?? row.slot],

@@ -9,6 +9,8 @@
  * Strain row: id|name|grp|rar|pot|inh|xg|effect. `pot` `+` add pot, `-` remove pot. `inh` Y, N, R.
  */
 
+import { plainName } from './plain-names.ts';
+
 /** Stat keys a trait can add to (flat) or scale (mult, 05 section 3.1). */
 export interface TraitFx {
   /** Flat additions to a stat (05 section 1 keys). */
@@ -424,7 +426,7 @@ export const BEING_TRAITS: readonly BeingTraitDef[] = parseRows(BEING_ROWS, (c) 
   const fx = BEING_FX[id];
   return {
     id,
-    name: c[1] ?? '',
+    name: plainName('beingTrait', id, c[1] ?? ''),
     group: c[2] ?? '',
     rarity: (c[3] ?? 'C') as BeingTraitDef['rarity'],
     src: c[4] ?? '',
@@ -441,7 +443,7 @@ export const STRAIN_TRAITS: readonly StrainTraitDef[] = parseRows(STRAIN_ROWS, (
   const fx = STRAIN_FX[id];
   return {
     id,
-    name: c[1] ?? '',
+    name: plainName('strainTrait', id, c[1] ?? ''),
     group: c[2] ?? '',
     rarity: (c[3] ?? 'C') as StrainTraitDef['rarity'],
     pot: c[4] ?? '',

@@ -9,6 +9,7 @@
  * TUNE values from 14 section 4.
  */
 import type { StatsRecord } from '../sim/stats.ts';
+import { PLAIN_ACHIEVEMENTS } from './plain-names.ts';
 
 export type AchievementGroup = 'Creation' | 'Realms' | 'Civilisation' | 'Beings' | 'Destruction' | 'Nature' | 'Experiments' | 'Codex' | 'Curiosities';
 
@@ -52,7 +53,7 @@ const def = (
   target: number,
 ): AchievementDef => ({ id, name, desc, group, hidden, value, target });
 
-export const ACHIEVEMENTS: readonly AchievementDef[] = [
+const CATALOGUE: readonly AchievementDef[] = [
   def('ach_cradle', 'Cradle', 'Spawn 100 beings.', 'Beings', false, (s) => c(s, 'beingsSpawned'), 100),
   def('ach_busy_hands', 'Busy Hands', 'Spawn 10,000 beings.', 'Beings', false, (s) => c(s, 'beingsSpawned'), 10000),
   def('ach_firm_ground', 'Firm Ground', 'Raise 1,000 tiles of land.', 'Creation', false, (s) => c(s, 'tilesPaintedLand'), 1000),
@@ -117,5 +118,11 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
   def('ach_night_owl', 'Night Owl', 'Stay in a session across local midnight.', 'Curiosities', true, (s) => c(s, 'nightOwl'), 1),
   def('ach_quick_study', 'Quick Study', 'Finish, not skip, the tutorial.', 'Curiosities', false, (s) => c(s, 'tutorialsFinished'), 1),
 ];
+
+/** Catalogue with the plain names and descriptions of PLAIN_ACHIEVEMENTS applied. */
+export const ACHIEVEMENTS: readonly AchievementDef[] = CATALOGUE.map((a) => {
+  const plain = PLAIN_ACHIEVEMENTS[a.id];
+  return plain ? { ...a, name: plain.name, desc: plain.desc } : a;
+});
 
 export const ACHIEVEMENT_BY_ID = new Map(ACHIEVEMENTS.map((a) => [a.id, a]));

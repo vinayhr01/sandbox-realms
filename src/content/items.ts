@@ -7,6 +7,8 @@
  * mechanic exists.
  */
 
+import { plainName } from './plain-names.ts';
+
 export const ITEM_SLOTS = ['weapon', 'helm', 'body', 'boots', 'ring', 'amulet'] as const;
 export type ItemSlot = (typeof ITEM_SLOTS)[number];
 
@@ -133,7 +135,7 @@ function buildMods(): ModDef[] {
       const rank = k + 1;
       const stats: ItemStats = {};
       stats[spec.stat] = value;
-      out.push({ id: `${family}_${rank}`, name: `${FAMILY_NAMES[family]} ${rank}`, family, rank, stats, flags: [], explicitOnly: false, quality: modQuality(rank) });
+      out.push({ id: `${family}_${rank}`, name: `${plainName('modFamily', family, FAMILY_NAMES[family])} ${rank}`, family, rank, stats, flags: [], explicitOnly: false, quality: modQuality(rank) });
     });
   }
   const explicit: [string, string, string[]][] = [
@@ -146,7 +148,7 @@ function buildMods(): ModDef[] {
     ['accursed', 'Accursed', ['cannot be removed or swapped', 'never crafted']],
     ['hallowed', 'Hallowed', ['cosmetic flag for Architect-gifted gear']],
   ];
-  for (const [id, name, flags] of explicit) out.push({ id, name, family: null, rank: 0, stats: {}, flags, explicitOnly: true, quality: 2 });
+  for (const [id, name, flags] of explicit) out.push({ id, name: plainName('modFamily', id, name), family: null, rank: 0, stats: {}, flags, explicitOnly: true, quality: 2 });
   return out;
 }
 
@@ -229,6 +231,7 @@ function kind(input: KindInput): ItemKindDef {
 function generatedKinds(): ItemKindDef[] {
   const out: ItemKindDef[] = [];
   for (const m of MATERIALS) {
+    const matName = plainName('material', m.id, m.name);
     const common = { material: m.id, tier: m.tier, equipmentValue: m.equipmentValue, rigidity: m.rigidity };
     const pace = m.pace ?? 0;
     const extra = { ...(m.extra ?? {}) };
@@ -240,7 +243,7 @@ function generatedKinds(): ItemKindDef[] {
           kind({
             ...common,
             id: `${m.id}_${group}`,
-            name: `${m.name} ${GROUP_LABEL[group]}`,
+            name: `${matName} ${GROUP_LABEL[group]}`,
             slot: 'weapon',
             group,
             stats: { might: m.weaponDamage, crit: m.weaponCrit ?? 0, pace },
@@ -259,7 +262,7 @@ function generatedKinds(): ItemKindDef[] {
         kind({
           ...common,
           id: `${m.id}_bow`,
-          name: `${m.name} bow`,
+          name: `${matName} bow`,
           slot: 'weapon',
           group: 'bow',
           stats: { might: m.bow.damage, crit: 0.1, pace },
@@ -278,7 +281,7 @@ function generatedKinds(): ItemKindDef[] {
           kind({
             ...common,
             id: `${m.id}_${slot}`,
-            name: `${m.name} ${SLOT_LABEL[slot]}`,
+            name: `${matName} ${SLOT_LABEL[slot]}`,
             slot,
             group: 'worn',
             stats: { plating: m.plating, pace: slot === 'boots' && m.id === 'hide' ? 1 : pace },
@@ -294,7 +297,7 @@ function generatedKinds(): ItemKindDef[] {
           kind({
             ...common,
             id: `${m.id}_${slot}`,
-            name: `${m.name} ${SLOT_LABEL[slot]}`,
+            name: `${matName} ${SLOT_LABEL[slot]}`,
             slot,
             group: 'worn',
             stats: { crit: m.crit, pace },
@@ -323,7 +326,7 @@ function uniqueKinds(): ItemKindDef[] {
     kind({ ...base, id: 'frost_staff', name: 'Frost staff', group: 'staff', stats: { might: 35 }, attack: 'ranged', reach: 18, spread: GROUP_SPREAD.staff, modifiers: ['rime_touch'], durability: 300, extra: { ...staff, projectile: 'rime_orb', spells: ['mending_rain', 'bolt_call'] } }),
     kind({ ...base, id: 'thicket_staff', name: 'Thicket staff', group: 'staff', stats: { might: 12 }, attack: 'ranged', reach: 20, spread: GROUP_SPREAD.staff, modifiers: ['sluggish'], extra: { aether: 40, critMult: 0.3, projectile: 'sap_orb', volley: 2, spells: ['mending_rain', 'overgrow'] } }),
     kind({ ...base, id: 'plague_healer_staff', name: "Plague healer's staff", group: 'staff', stats: { might: 35 }, targets: 3, spread: GROUP_SPREAD.staff, extra: { ...staff, spells: ['kindle', 'purify'] } }),
-  ];
+  ].map((k) => ({ ...k, name: plainName('unique', k.id, k.name) }));
 }
 
 /** Every item kind: generated tiers first, then the uniques. Ids are stable: saves store them. */

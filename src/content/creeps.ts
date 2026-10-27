@@ -2,6 +2,8 @@
  * Creep hubs (18e section 1): the structures that keep a creep ground alive. Numbers are TUNE
  * except where 18e states them. The hub's creep ground is the ground id of grounds.ts.
  */
+import { plainName } from './plain-names.ts';
+
 export type CreepGroundKey = 'gloomgrowth' | 'bloatmoss' | 'gourdgrowth';
 
 export interface CreepHubDef {
@@ -18,9 +20,9 @@ export interface CreepHubDef {
 }
 
 export const CREEP_HUBS: readonly CreepHubDef[] = [
-  { id: 'gloom_heart', name: 'Gloom Heart', ground: 'gloomgrowth', maxSize: 500, spreadBatch: 6, clearsFlora: true },
-  { id: 'bloat_heart', name: 'Bloat Heart', ground: 'bloatmoss', maxSize: 400, spreadBatch: 4, clearsFlora: true },
-  { id: 'gourd_heart', name: 'Gourd Heart', ground: 'gourdgrowth', maxSize: 300, spreadBatch: 3, clearsFlora: false },
+  { id: 'gloom_heart', name: plainName('creep', 'gloom_heart', 'Gloom Heart'), ground: 'gloomgrowth', maxSize: 500, spreadBatch: 6, clearsFlora: true },
+  { id: 'bloat_heart', name: plainName('creep', 'bloat_heart', 'Bloat Heart'), ground: 'bloatmoss', maxSize: 400, spreadBatch: 4, clearsFlora: true },
+  { id: 'gourd_heart', name: plainName('creep', 'gourd_heart', 'Gourd Heart'), ground: 'gourdgrowth', maxSize: 300, spreadBatch: 3, clearsFlora: false },
 ];
 
 export const CREEP_HUB_BY_ID = new Map(CREEP_HUBS.map((h) => [h.id, h]));
@@ -84,15 +86,15 @@ export const BEACON_RANGE = 40;
 export const BEACON_DESIRES = 2;
 
 export const LANDMARKS: readonly LandmarkDef[] = [
-  { id: 'rime_pylon', name: 'Rime Pylon', size: [2, 2], realmCap: 6, period: 600, radius: 8, effect: 'freeze', chance: 1, desires: [] },
-  { id: 'ember_pylon', name: 'Ember Pylon', size: [2, 2], realmCap: 6, period: 600, radius: 5, effect: 'ignite', chance: 0.35, desires: [] },
-  { id: 'acid_font', name: 'Acid Font', size: [2, 2], realmCap: 8, period: 400, radius: 15, effect: 'acid', chance: 1, desires: [] },
-  { id: 'insight_seed', name: 'Insight Seed', size: [1, 1], realmCap: 12, period: 0, radius: 24, effect: 'none', chance: 0, desires: [] },
-  { id: 'lantern_spire', name: 'Lantern Spire', size: [2, 2], realmCap: 10, period: 0, radius: 20, effect: 'none', chance: 0, desires: [] },
-  { id: 'spore_pillar', name: 'Spore Pillar', size: [1, 2], realmCap: 2, period: 0, radius: 0, effect: 'none', chance: 0, desires: ['farmstead', 'mill_a', 'granary'] },
-  { id: 'reason_pillar', name: 'Reason Pillar', size: [1, 2], realmCap: 2, period: 0, radius: 0, effect: 'none', chance: 0, desires: ['archive', 'lecture_stone', 'shrine'] },
-  { id: 'gilded_pillar', name: 'Gilded Pillar', size: [1, 2], realmCap: 2, period: 0, radius: 0, effect: 'none', chance: 0, desires: ['bazaar', 'monument', 'harbor'] },
-  { id: 'chime_pillar', name: 'Chime Pillar', size: [1, 2], realmCap: 2, period: 0, radius: 0, effect: 'none', chance: 0, desires: ['pyre', 'shrine', 'waystop'] },
+  { id: 'rime_pylon', name: plainName('landmark', 'rime_pylon', 'Rime Pylon'), size: [2, 2], realmCap: 6, period: 600, radius: 8, effect: 'freeze', chance: 1, desires: [] },
+  { id: 'ember_pylon', name: plainName('landmark', 'ember_pylon', 'Ember Pylon'), size: [2, 2], realmCap: 6, period: 600, radius: 5, effect: 'ignite', chance: 0.35, desires: [] },
+  { id: 'acid_font', name: plainName('landmark', 'acid_font', 'Acid Font'), size: [2, 2], realmCap: 8, period: 400, radius: 15, effect: 'acid', chance: 1, desires: [] },
+  { id: 'insight_seed', name: plainName('landmark', 'insight_seed', 'Insight Seed'), size: [1, 1], realmCap: 12, period: 0, radius: 24, effect: 'none', chance: 0, desires: [] },
+  { id: 'lantern_spire', name: plainName('landmark', 'lantern_spire', 'Lantern Spire'), size: [2, 2], realmCap: 10, period: 0, radius: 20, effect: 'none', chance: 0, desires: [] },
+  { id: 'spore_pillar', name: plainName('landmark', 'spore_pillar', 'Spore Pillar'), size: [1, 2], realmCap: 2, period: 0, radius: 0, effect: 'none', chance: 0, desires: ['farmstead', 'mill_a', 'granary'] },
+  { id: 'reason_pillar', name: plainName('landmark', 'reason_pillar', 'Reason Pillar'), size: [1, 2], realmCap: 2, period: 0, radius: 0, effect: 'none', chance: 0, desires: ['archive', 'lecture_stone', 'shrine'] },
+  { id: 'gilded_pillar', name: plainName('landmark', 'gilded_pillar', 'Gilded Pillar'), size: [1, 2], realmCap: 2, period: 0, radius: 0, effect: 'none', chance: 0, desires: ['bazaar', 'monument', 'harbor'] },
+  { id: 'chime_pillar', name: plainName('landmark', 'chime_pillar', 'Chime Pillar'), size: [1, 2], realmCap: 2, period: 0, radius: 0, effect: 'none', chance: 0, desires: ['pyre', 'shrine', 'waystop'] },
 ];
 
 export const LANDMARK_BY_ID = new Map(LANDMARKS.map((l) => [l.id, l]));

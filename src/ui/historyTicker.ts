@@ -5,6 +5,8 @@
  *
  * Lists are compared only when neither snapshot was cut (a list shorter than its exact count was halved by fitSnapshot).
  */
+import { plainName } from '../content/plain-names.ts';
+import { AGE_BY_ID } from '../sim/ages.ts';
 import type { Snapshot } from '../shared/protocol.ts';
 
 /** Most entries kept in the feed. */
@@ -20,7 +22,7 @@ export interface TickerEntry {
 /** The changes from `prev` to `next`, as short sentences in a fixed order. Pure. */
 export function tickerChanges(prev: Snapshot, next: Snapshot): string[] {
   const out: string[] = [];
-  if (next.age !== undefined && next.age !== prev.age) out.push(`Age: ${next.age}.`);
+  if (next.age !== undefined && next.age !== prev.age) out.push(`Age: ${AGE_BY_ID.get(next.age)?.name ?? plainName('age', next.age)}.`);
   if (next.hamletCount !== prev.hamletCount) out.push(`Hamlets: ${prev.hamletCount} to ${next.hamletCount}.`);
   if (next.dominionCount !== prev.dominionCount) out.push(`Dominions: ${prev.dominionCount} to ${next.dominionCount}.`);
   for (const m of POPULATION_MARKS) {

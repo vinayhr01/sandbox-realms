@@ -42,13 +42,13 @@ test.afterEach(async ({ page }, testInfo) => {
 test('Realm Rules: search, then a toggle changes the rule and sends it to the sim', async ({ page }) => {
   const call = await openRealm(page);
   await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('tab', { name: 'Powers: Realm' }).click();
+  await page.getByRole('tab', { name: 'Powers: World' }).click();
   await page.getByRole('button', { name: 'Realm Rules', exact: true }).click();
 
   const dialog = page.getByRole('dialog', { name: 'Realm Rules' });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole('searchbox', { name: 'Search Realm rules' }).fill('sky');
-  const sky = dialog.getByRole('switch', { name: 'Sky clouds' });
+  await dialog.getByRole('searchbox', { name: 'Search Realm rules' }).fill('clouds');
+  const sky = dialog.getByRole('switch', { name: 'Clouds' });
   await expect(sky).toHaveAttribute('aria-checked', 'true');
   await sky.click();
   await expect(sky).toHaveAttribute('aria-checked', 'false');
@@ -110,6 +110,6 @@ test('All powers: the catalogue filters to available powers and a tap arms one',
   await dialog.locator('.power-row').filter({ hasText: /^Charge/ }).click();
   await expect(dialog).toBeHidden();
 
-  await page.getByRole('tab', { name: 'Powers: Havoc' }).click();
+  await page.getByRole('tab', { name: 'Powers: Destruction' }).click();
   await expect(page.getByRole('button', { name: 'Charge', exact: true })).toHaveAttribute('aria-pressed', 'true');
 });

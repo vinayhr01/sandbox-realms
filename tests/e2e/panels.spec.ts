@@ -76,7 +76,7 @@ test('options: UI scale and reduce motion apply and persist across reload', asyn
 test('powers: arming Raise shows the armed state and a drag on the map raises terrain', async ({ page }) => {
   const call = await openRealm(page);
   await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('tab', { name: 'Powers: Shape' }).click();
+  await page.getByRole('tab', { name: 'Powers: Terrain' }).click();
 
   const raise = page.getByRole('button', { name: 'Raise', exact: true });
   await expect(raise).toHaveAttribute('aria-pressed', 'false');
@@ -103,7 +103,7 @@ test('powers: arming Raise shows the armed state and a drag on the map raises te
 test('powers: a sim power arms, a tap sends it to the sim, and an unbuilt power is disabled with a note', async ({ page }) => {
   const call = await openRealm(page);
   await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('tab', { name: 'Powers: Havoc' }).click();
+  await page.getByRole('tab', { name: 'Powers: Destruction' }).click();
   const bomb = page.getByRole('button', { name: 'Charge', exact: true });
   await expect(bomb).toBeVisible();
 
@@ -117,11 +117,11 @@ test('powers: a sim power arms, a tap sends it to the sim, and an unbuilt power 
   await expect.poll(() => call<number[]>('commands')).toContain(7);
 
   // Bless is built (rituals powers), so it is enabled. It is not tapped: that would disarm Bomb below.
-  await page.getByRole('tab', { name: 'Powers: Favour' }).click();
+  await page.getByRole('tab', { name: 'Powers: Blessings' }).click();
   const bless = page.getByRole('button', { name: 'Bless', exact: true });
   await expect(bless).not.toHaveAttribute('aria-disabled', 'true');
   await expect(bless).toHaveAttribute('aria-pressed', 'false');
-  await page.getByRole('tab', { name: 'Powers: Havoc' }).click();
+  await page.getByRole('tab', { name: 'Powers: Destruction' }).click();
   await expect(bomb).toHaveAttribute('aria-pressed', 'true');
 
   // An armed power that is not a brush must not block panning. The default view fits the whole

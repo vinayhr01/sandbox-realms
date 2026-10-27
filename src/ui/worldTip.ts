@@ -3,6 +3,7 @@
  * tooltip (group, size, mood, task), read from the latest snapshot only. Desktop only: the caller checks for a fine pointer.
  * Ground type and height are not in the snapshot, so the tile tip names the parcel's owners, not the terrain.
  */
+import { plainName } from '../content/plain-names.ts';
 import { decodeParcels } from '../shared/parcel-codec.ts';
 import type { MapKind, MapKindGroup, MapPoint, Snapshot } from '../shared/protocol.ts';
 import { hamletAtTile, parcelOfTile } from './powerSupport.ts';
@@ -33,7 +34,7 @@ export function tileTipLines(snap: Snapshot, x: number, y: number): string[] | n
 export function beingTipLines(point: MapPoint, kind: MapKind | undefined): string[] {
   const lines = [kind ? `${GROUP_LABEL[kind.group]}, size ${kind.size}` : point.folk ? 'Folk' : 'Beast'];
   if (kind?.mood !== undefined) lines.push(`Mood ${kind.mood}`);
-  lines.push(`Task: ${kind?.task ? kind.task.replace(/_/g, ' ') : 'none'}`);
+  lines.push(`Task: ${kind?.task ? plainName('decision', kind.task) : 'none'}`);
   return lines;
 }
 

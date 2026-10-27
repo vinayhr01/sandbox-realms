@@ -4,6 +4,8 @@
  * Elevation bands (`band`) apply to the generated kinds only; pits, molten, slime and
  * special charges are placed by systems, never by height.
  */
+import { plainName } from './plain-names.ts';
+
 export type GroundLayer = 'water' | 'land' | 'blocked' | 'molten' | 'slime';
 
 export interface GroundKind {
@@ -59,7 +61,7 @@ const def = (id: number, key: string, name: string, color: string, extra: Partia
   ...base,
   id,
   key,
-  name,
+  name: plainName('ground', key, name),
   color,
   band: null,
   ...extra,

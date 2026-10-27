@@ -4,6 +4,8 @@
  * All numbers are TUNE. Grants (chill-proof, fire-proof, and so on) are text: no sim mechanic reads them yet.
  */
 
+import { plainName } from './plain-names.ts';
+
 export interface MorphDef {
   id: string;
   adjective: string;
@@ -22,18 +24,18 @@ export interface MorphDef {
 
 /** The twelve biome morphs of 18a section 3.1, in table order. The morph index plus one is stored per Being. */
 export const MORPHS: readonly MorphDef[] = [
-  { id: 'rime', adjective: 'Rimed', biomes: ['rimewaste', 'paleglen'], hp: 1.15, dmg: 1, spd: 0.9, life: 1, arm: 0, grants: 'chill-proof', palette: 'pal_frost' },
-  { id: 'ember', adjective: 'Embered', biomes: ['cinderfields', 'ashbarren'], hp: 1, dmg: 1.15, spd: 1, life: 1, arm: 0, grants: 'fire-proof; burn on hit 15%', palette: 'pal_cinder' },
-  { id: 'dune', adjective: 'Dune-bred', biomes: ['dunesea', 'amberveldt'], hp: 0.9, dmg: 1, spd: 1.1, life: 1, arm: 0, grants: 'thirst-proof', palette: 'pal_sand' },
-  { id: 'fen', adjective: 'Fenland', biomes: ['sodden_hollow', 'bambooveil'], hp: 1, dmg: 1, spd: 1, life: 1, arm: 1, grants: 'swim; venom-proof', palette: 'pal_mire' },
-  { id: 'gloom', adjective: 'Gloomed', biomes: ['blightmoor'], hp: 0.85, dmg: 1.2, spd: 1, life: 1, arm: 0, grants: 'night vision; dread on kill 20%', palette: 'pal_ash' },
-  { id: 'gleam', adjective: 'Gleaming', biomes: ['gleamwood', 'skyhaven'], hp: 1, dmg: 1, spd: 1.1, life: 1, arm: 0, grants: 'emits light; +luck', palette: 'pal_glow' },
-  { id: 'stonebound', adjective: 'Stonebound', biomes: ['scree_flats', 'prism_hollow'], hp: 1, dmg: 1, spd: 0.9, life: 1, arm: 3, grants: 'climb crag', palette: 'pal_stone' },
-  { id: 'floral', adjective: 'Floral', biomes: ['bloomfield', 'trefoil_lea'], hp: 1, dmg: 1, spd: 1, life: 1.2, arm: 0, grants: 'heal-on-rest', palette: 'pal_blossom' },
-  { id: 'fungal', adjective: 'Fungal', biomes: ['sporeglen', 'sugarvale'], hp: 1.1, dmg: 1, spd: 1, life: 1, arm: 0, grants: 'spore puff on hurt', palette: 'pal_fungal' },
-  { id: 'umbral', adjective: 'Umbral', biomes: ['voidscar', 'riftmeadow'], hp: 1, dmg: 1.1, spd: 1, life: 1, arm: 0, grants: 'blink 5 tiles every 12 s', palette: 'pal_void' },
-  { id: 'tide', adjective: 'Tidal', biomes: ['strand', 'shoal', 'midmere'], hp: 1.05, dmg: 1, spd: 1, life: 1, arm: 0, grants: 'amphibious', palette: 'pal_tide' },
-  { id: 'thicket', adjective: 'Thicket-bred', biomes: ['steamthicket', 'heathermoor', 'russetwood'], hp: 1, dmg: 1, spd: 1.05, life: 1, arm: 0, grants: 'camouflage 3 tiles', palette: 'pal_leaf' },
+  { id: 'rime', adjective: plainName('morph', 'rime', 'Rimed'), biomes: ['rimewaste', 'paleglen'], hp: 1.15, dmg: 1, spd: 0.9, life: 1, arm: 0, grants: 'chill-proof', palette: 'pal_frost' },
+  { id: 'ember', adjective: plainName('morph', 'ember', 'Embered'), biomes: ['cinderfields', 'ashbarren'], hp: 1, dmg: 1.15, spd: 1, life: 1, arm: 0, grants: 'fire-proof; burn on hit 15%', palette: 'pal_cinder' },
+  { id: 'dune', adjective: plainName('morph', 'dune', 'Dune-bred'), biomes: ['dunesea', 'amberveldt'], hp: 0.9, dmg: 1, spd: 1.1, life: 1, arm: 0, grants: 'thirst-proof', palette: 'pal_sand' },
+  { id: 'fen', adjective: plainName('morph', 'fen', 'Fenland'), biomes: ['sodden_hollow', 'bambooveil'], hp: 1, dmg: 1, spd: 1, life: 1, arm: 1, grants: 'swim; venom-proof', palette: 'pal_mire' },
+  { id: 'gloom', adjective: plainName('morph', 'gloom', 'Gloomed'), biomes: ['blightmoor'], hp: 0.85, dmg: 1.2, spd: 1, life: 1, arm: 0, grants: 'night vision; dread on kill 20%', palette: 'pal_ash' },
+  { id: 'gleam', adjective: plainName('morph', 'gleam', 'Gleaming'), biomes: ['gleamwood', 'skyhaven'], hp: 1, dmg: 1, spd: 1.1, life: 1, arm: 0, grants: 'emits light; +luck', palette: 'pal_glow' },
+  { id: 'stonebound', adjective: plainName('morph', 'stonebound', 'Stonebound'), biomes: ['scree_flats', 'prism_hollow'], hp: 1, dmg: 1, spd: 0.9, life: 1, arm: 3, grants: 'climb crag', palette: 'pal_stone' },
+  { id: 'floral', adjective: plainName('morph', 'floral', 'Floral'), biomes: ['bloomfield', 'trefoil_lea'], hp: 1, dmg: 1, spd: 1, life: 1.2, arm: 0, grants: 'heal-on-rest', palette: 'pal_blossom' },
+  { id: 'fungal', adjective: plainName('morph', 'fungal', 'Fungal'), biomes: ['sporeglen', 'sugarvale'], hp: 1.1, dmg: 1, spd: 1, life: 1, arm: 0, grants: 'spore puff on hurt', palette: 'pal_fungal' },
+  { id: 'umbral', adjective: plainName('morph', 'umbral', 'Umbral'), biomes: ['voidscar', 'riftmeadow'], hp: 1, dmg: 1.1, spd: 1, life: 1, arm: 0, grants: 'blink 5 tiles every 12 s', palette: 'pal_void' },
+  { id: 'tide', adjective: plainName('morph', 'tide', 'Tidal'), biomes: ['strand', 'shoal', 'midmere'], hp: 1.05, dmg: 1, spd: 1, life: 1, arm: 0, grants: 'amphibious', palette: 'pal_tide' },
+  { id: 'thicket', adjective: plainName('morph', 'thicket', 'Thicket-bred'), biomes: ['steamthicket', 'heathermoor', 'russetwood'], hp: 1, dmg: 1, spd: 1.05, life: 1, arm: 0, grants: 'camouflage 3 tiles', palette: 'pal_leaf' },
 ];
 
 /** Morph index by id (0-based; a Being stores index plus one, 0 for none). */

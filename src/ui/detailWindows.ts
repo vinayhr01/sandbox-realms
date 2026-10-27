@@ -3,6 +3,7 @@
  * that opens from a list row. Lists and inspectors read the latest snapshot through deps.snapshot,
  * so they update while the sim runs or is paused. Inspectors keep a Back button to their list.
  */
+import { plainName } from '../content/plain-names.ts';
 import type { Snapshot } from '../shared/protocol.ts';
 import {
   campaignLine,
@@ -148,7 +149,7 @@ function cultureList(deps: WindowDeps, id: string): WindowBuild | null {
           (snap.detail?.customs ?? []).map((c, i) => ({
             id: i,
             title: `Custom ${i + 1}`,
-            detail: `${groupName(snap, c.group)} · ${c.traits.length ? c.traits.join(', ') : 'no traits'}`,
+            detail: `${groupName(snap, c.group)} · ${c.traits.length ? c.traits.map((t) => plainName('custom', t)).join(', ') : 'no traits'}`,
             inspector: 'win_custom',
             params: { id: i },
           })),
@@ -324,7 +325,7 @@ function inspectorView(snap: Snapshot, id: string, params: WindowParams): Inspec
           ['Group', groupName(snap, c.group)],
           ['Traits', String(c.traits.length)],
         ],
-        lists: [{ title: 'Traits', items: c.traits, empty: 'No traits.' }],
+        lists: [{ title: 'Traits', items: c.traits.map((t) => plainName('custom', t)), empty: 'No traits.' }],
         actions: [{ label: 'Customize banner', window: 'win_customize_custom', params: { id: key } }],
       };
     }

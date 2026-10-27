@@ -14,6 +14,7 @@
 import { BIOMES } from './biomes.ts';
 import { FOLK_ROWS } from './species-folk.ts';
 import { ROSTER_ROWS } from './species-roster.ts';
+import { plainName } from './plain-names.ts';
 
 export type SizeClass = 'T' | 'S' | 'M' | 'L' | 'H' | 'C';
 /** Order of size classes from smallest to largest. */
@@ -128,7 +129,7 @@ function hand(
   return {
     id,
     size,
-    name: titleCase(id),
+    name: plainName('species', id, titleCase(id)),
     diet,
     vitality,
     might,
@@ -171,7 +172,7 @@ function fromRoster(line: string): SpeciesDef {
   return {
     id,
     size: sz,
-    name: titleCase(id),
+    name: plainName('species', id, titleCase(id)),
     diet,
     vitality: Number(vit),
     might: Number(might),
@@ -204,7 +205,7 @@ function fromFolk(line: string): SpeciesDef {
   return {
     id,
     size: sz,
-    name: titleCase(id),
+    name: plainName('species', id, titleCase(id)),
     diet: DIET_TAG[(c[9] ?? 'omni').split(',')[0] ?? 'omni'] ?? 'omni',
     vitality: Number(c[2]),
     might: Number(c[3]),

@@ -8,6 +8,7 @@
  */
 import { ACHIEVEMENTS } from '../content/achievements.ts';
 import { SPECIES } from '../content/beasts.ts';
+import { speciesGroup } from '../content/species-group.ts';
 import { STRAIN_TRAIT_BY_ID } from '../content/traits.ts';
 import { BIOMES, biomeOfCover } from '../content/biomes.ts';
 import {
@@ -29,7 +30,6 @@ import {
   type MapBuilding,
   type MapIntrigue,
   type MapKind,
-  type MapKindGroup,
   type MapGroup,
   type MapLink,
   type MapMarks,
@@ -244,19 +244,6 @@ function mapPointsOf(sim: Sim): MapPoint[] {
   });
 }
 
-/** Species group letter (18a section 2) to the map sprite group; 'folk' is the Folk row group. */
-const MAP_GROUP_OF_LETTER: Record<string, MapKindGroup> = {
-  A: 'beast',
-  B: 'beast',
-  C: 'beast',
-  D: 'sea',
-  E: 'insect',
-  F: 'undead',
-  G: 'monster',
-  H: 'divine',
-  folk: 'folk',
-};
-
 /**
  * Sprite kind (group and size class) of each point in mapPoints, same ids and order. Read-only; capped at
  * MAP_POINT_CAP like mapPoints. Dropped first by fitSnapshot.
@@ -283,7 +270,7 @@ function mapKindsOf(sim: Sim): MapKind[] {
     const strain = s.strain[slot] ?? 0;
     return {
       id,
-      group: MAP_GROUP_OF_LETTER[def?.group ?? ''] ?? 'beast',
+      group: speciesGroup(s.species[slot] ?? 0),
       size: (def?.size ?? 'S') as MapSizeClass,
       mood: s.mood[slot] ?? 0,
       task: DECISION_ROWS[sim.beings.task[slot] ?? -1]?.id ?? '',

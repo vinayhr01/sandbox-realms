@@ -10,8 +10,10 @@
  *   uCursor = (tileX, tileY, radius, shape)  shape 0 circle, 1 square, 2 diamond, -1 hidden
  *   uDetail = (medium, close)           zoom-faded detail weights 0..1 (terrain-detail.ts)
  *   uTime   = seconds                   animates water ripples and crests
+ *   uDpr    = device px per CSS px      converts CSS-px thresholds (grid lines) to device px
  *
- * Palette texture: row 0 holds the ground colours; row 1 has R = 255 for water and sea grounds.
+ * Palette texture: row 0 holds the ground colours; row 1 has R = 255 for water and sea grounds,
+ * G = 255 for sea grounds only (lakes and rivers are water but not sea).
  */
 export const TERRAIN_VERT = /* glsl */ `#version 300 es
 in vec2 aPosition;
@@ -32,6 +34,7 @@ uniform vec2 uRes;
 uniform vec4 uCursor;
 uniform vec2 uDetail;
 uniform float uTime;
+uniform float uDpr;
 
 out vec4 fragColor;
 
@@ -64,6 +67,10 @@ vec3 groundColour(int ground) {
 
 float groundIsWater(int ground) {
   return texelFetch(uPalette, ivec2(ground, 1), 0).r > 0.5 ? 1.0 : 0.0;
+}
+
+float groundIsSea(int ground) {
+  return texelFetch(uPalette, ivec2(ground, 1), 0).g > 0.5 ? 1.0 : 0.0;
 }
 
 // Hash value noise (Dave Hoskins style hash, no sin, so it stays stable on mobile GPUs).
@@ -127,6 +134,7 @@ void main() {
   // The home tile (the one this pixel is in) decides the layer. Colour only blends with tiles of that layer.
   vec4 home = f.x >= 0.5 ? (f.y >= 0.5 ? tD : tB) : (f.y >= 0.5 ? tC : tA);
   float homeWater = groundIsWater(groundOf(home));
+  float homeSea = groundIsSea(groundOf(home));
 
   int gA = groundOf(tA);
   int gB = groundOf(tB);
@@ -158,8 +166,8 @@ void main() {
   if (homeWater < 0.5) {
     float shade = clamp(1.0 - HILL_K * (gx + gy) / 255.0, 0.65, 1.3);
     colour *= shade;
-  } else {
-    // Deep water is darker: elevation 0 is the deepest sea, shoal (75) the shallowest.
+  } else if (homeSea > 0.5) {
+    // Deep sea is darker: elevation 0 is the deepest sea, shoal (75) the shallowest. Lakes and rivers stay plain.
     float depth = clamp((80.0 - eSame) / 80.0, 0.0, 1.0);
     colour = mix(colour, DEEP_TINT, depth * 0.6);
   }
@@ -218,8 +226,8 @@ void main() {
     }
   }
 
-  // Grid lines only when tiles are large enough to read and close detail is off.
-  if (uView.z > 14.0 && uDetail.y < 0.5) {
+  // Grid lines only when tiles are large enough to read (14 CSS px, scaled to device px) and close detail is off.
+  if (uView.z > 14.0 * uDpr && uDetail.y < 0.5) {
     vec2 f2 = fract(tile);
     float edge = min(min(f2.x, f2.y), min(1.0 - f2.x, 1.0 - f2.y));
     float line = 1.0 - smoothstep(0.0, 1.5 / uView.z, edge);

@@ -8,7 +8,7 @@ import { TERRAIN_FRAG, TERRAIN_VERT } from './terrain-shader.ts';
 const SHAPE_CODE: Record<BrushShape, number> = { circle: 0, square: 1, diamond: 2 };
 /** One column per ground id. Ids run 0..GROUNDS.length-1 (33 kinds), so the row must hold at least that many. */
 const PALETTE_WIDTH = 64;
-/** Row 0: ground colours. Row 1: R = 255 for water and sea grounds, 0 for land. */
+/** Row 0: ground colours. Row 1: R = 255 for water and sea grounds, G = 255 for sea grounds only, 0 otherwise. */
 const PALETTE_HEIGHT = 2;
 /**
  * Largest grid side (Titan, 576; 01 section 1). The index texture is allocated once at this size
@@ -75,6 +75,7 @@ export class TerrainRenderer {
       palette[g.id * 4 + 2] = hex & 0xff;
       palette[g.id * 4 + 3] = 255;
       if (g.layer === 'water' || g.sea) palette[(PALETTE_WIDTH + g.id) * 4] = 255;
+      if (g.sea) palette[(PALETTE_WIDTH + g.id) * 4 + 1] = 255;
     }
     this.paletteSource = new BufferImageSource({
       resource: palette,
@@ -90,6 +91,7 @@ export class TerrainRenderer {
       uCursor: { value: this.uCursor, type: 'vec4<f32>' },
       uDetail: { value: this.uDetail, type: 'vec2<f32>' },
       uTime: { value: 0, type: 'f32' },
+      uDpr: { value: 1, type: 'f32' },
     });
   }
 
@@ -190,6 +192,7 @@ export class TerrainRenderer {
     const detail = detailWeights(this.uView[2]! / dpr);
     this.uDetail.set([detail.medium * (this.detailMedium ? 1 : 0), detail.close * (this.detailClose ? 1 : 0)]);
     this.uniforms.uniforms.uTime = (performance.now() - this.startedAt) / 1000;
+    this.uniforms.uniforms.uDpr = dpr;
     this.uniforms.update();
   }
 

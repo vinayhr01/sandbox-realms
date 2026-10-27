@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { SPECIES } from '../../src/content/beasts.ts';
 import { artFor, chunkOf, loadArt, type ArtChunk } from '../../src/art/load.ts';
 
@@ -25,9 +25,12 @@ describe('chunkOf', () => {
 });
 
 describe('art loading', () => {
-  it('returns null from artFor before its chunk has loaded', () => {
-    expect(artFor('thistlehart')).toBeNull();
-    expect(artFor('no-such-species')).toBeNull();
+  it('returns null from artFor before its chunk has loaded', async () => {
+    // Fresh module instance, so no other test's loadArt call can have filled the cache first.
+    vi.resetModules();
+    const fresh = await import('../../src/art/load.ts');
+    expect(fresh.artFor('thistlehart')).toBeNull();
+    expect(fresh.artFor('no-such-species')).toBeNull();
   });
 
   it('loads the beast chunk to an ART record', async () => {

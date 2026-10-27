@@ -92,6 +92,25 @@ describe('being feed', () => {
     expect(stateNow()).toBe(BeingState.Run);
   });
 
+  it('a reused slot reads Idle on its first encode, not Walk or Run', () => {
+    const sim = new Sim(1, 1);
+    const store = sim.beings.store;
+    putOnLand(sim, 5, 5);
+    putOnLand(sim, 6, 5);
+    putOnLand(sim, 9, 5);
+    const slot = store.spawn(2, 5, 5, 0, 10, 100, 0);
+    const data = bufferFor(sim);
+    const stateNow = (): number => readBeing(feedOf(sim, encodeBeings(sim, data), data), 0).state;
+
+    expect(stateNow()).toBe(BeingState.Idle);
+    store.x[slot] = 6;
+    expect(stateNow()).toBe(BeingState.Walk);
+    store.kill(slot);
+    // Respawned into the same slot, three tiles away from its last tile: without the generation check this is Run.
+    expect(store.spawn(2, 9, 5, 0, 10, 100, 0)).toBe(slot);
+    expect(stateNow()).toBe(BeingState.Idle);
+  });
+
   it('a Being that did not move since the last call is Idle', () => {
     const sim = new Sim(1, 1);
     putOnLand(sim, 5, 5);
@@ -117,6 +136,53 @@ describe('being feed', () => {
     expect(readBeing(feedOf(simA, encoder.encode(simA, dataA), dataA), 0).state).toBe(BeingState.Walk);
     // A second Sim with its own encoder has no history for its Being, so it is Idle on the first call.
     expect(readBeing(feedOf(simB, encodeBeings(simB, dataB), dataB), 0).state).toBe(BeingState.Idle);
+  });
+
+  it('encodeBeings keeps per-Sim history when two Sims share a slot number', () => {
+    const simA = new Sim(1, 1);
+    const simB = new Sim(2, 1);
+    putOnLand(simA, 5, 5);
+    putOnLand(simA, 6, 5);
+    putOnLand(simB, 9, 9);
+    const slotA = simA.beings.store.spawn(2, 5, 5, 0, 10, 100, 0);
+    const slotB = simB.beings.store.spawn(2, 9, 9, 0, 10, 100, 0);
+    expect(slotB).toBe(slotA);
+    const dataA = bufferFor(simA);
+    const dataB = bufferFor(simB);
+    encodeBeings(simA, dataA);
+    encodeBeings(simB, dataB);
+    simA.beings.store.x[slotA] = 6;
+    expect(readBeing(feedOf(simA, encodeBeings(simA, dataA), dataA), 0).state).toBe(BeingState.Walk);
+    // A shared encoder would see B's Being 3 tiles from A's last tile (Run); per-Sim history keeps it Idle.
+    expect(readBeing(feedOf(simB, encodeBeings(simB, dataB), dataB), 0).state).toBe(BeingState.Idle);
+  });
+
+  it('truncates to the buffer: writes only what fits and nothing past it', () => {
+    const sim = new Sim(1, 1);
+    const spots: [number, number][] = [
+      [5, 5],
+      [9, 4],
+      [12, 11],
+    ];
+    for (const [x, y] of spots) {
+      putOnLand(sim, x, y);
+      sim.beings.store.spawn(2, x, y, 0, 10, 100, 0);
+    }
+    // Room for two Beings plus a stray partial word: count is 2 and the tail keeps its sentinel.
+    const SENTINEL = 0xffff;
+    const data = new Uint16Array(2 * FEED_STRIDE + 2).fill(SENTINEL);
+    const count = encodeBeings(sim, data);
+    expect(count).toBe(2);
+    expect(data[2 * FEED_STRIDE]).toBe(SENTINEL);
+    expect(data[2 * FEED_STRIDE + 1]).toBe(SENTINEL);
+    const feed = feedOf(sim, count, data);
+    expect(readBeing(feed, 1).x).toBe(9);
+    expect(readBeing(feed, 1).y).toBe(4);
+
+    // A buffer too small for even one Being writes nothing.
+    const empty = new Uint16Array(FEED_STRIDE - 1).fill(SENTINEL);
+    expect(encodeBeings(sim, empty)).toBe(0);
+    expect(empty.every((w) => w === SENTINEL)).toBe(true);
   });
 
   it('does not touch the state hash', () => {

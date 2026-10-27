@@ -63,9 +63,20 @@ test('new world clears creatures', async ({ page }) => {
   await call('spawnMany', 'burrfleece', 200);
   await expect.poll(() => call<number>('creatureCount'), { timeout: 20_000 }).toBeGreaterThan(96);
   await call('newWorld');
-  // The new realm starts at tick 0 with its own beings; the spawned ones are gone.
+  // The new realm starts at tick 0. Stale tracks from the old realm would keep the 200 spawned Beings in the
+  // feed sample, so the sample must match the new realm's snapshot: its Beings only, the snapshot capped at 96.
+  // Keys are not compared across realms: generations restart, so an old key can recur in the new realm.
   await expect.poll(() => call<number>('tick'), { timeout: 30_000 }).toBeLessThan(200);
-  await expect.poll(() => call<number>('creatureCount'), { timeout: 20_000 }).toBeLessThan(96);
+  await expect
+    .poll(
+      async () => {
+        const sample = (await call<unknown[]>('beingPoints')).length;
+        const snap = await call<{ mapPoints?: unknown[] } | null>('snapshot');
+        return sample - (snap?.mapPoints?.length ?? -1);
+      },
+      { timeout: 30_000 },
+    )
+    .toBe(0);
 });
 
 test('follow a being beyond the old sample', async ({ page }) => {

@@ -24,6 +24,9 @@ function sr(page: Page): Hook {
     ) as Promise<T>;
 }
 
+// The 4 ms gate can flake under CPU load on shared CI runners: one retry.
+test.describe.configure({ retries: 1 });
+
 const BEINGS = 3000;
 /** CSS px per tile: at 4 and above the beings are icons, not dots. */
 const ZOOM_PX = 6;

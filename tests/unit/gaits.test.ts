@@ -70,3 +70,11 @@ describe('gait poses', () => {
     expect(GAITS.quad.pose('fin', 0.3, 'walk')).toEqual({ rot: 0, dx: 0, dy: 0 });
   });
 });
+
+describe('shared rest pose', () => {
+  it('is frozen, so a caller cannot change the pose every still part shares', () => {
+    const rest = GAITS.quad.pose('fin', 0.3, 'walk');
+    expect(Object.isFrozen(rest)).toBe(true);
+    expect(GAITS.quad.pose('leg-fl', 0.3, 'idle')).toBe(rest);
+  });
+});

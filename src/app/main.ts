@@ -377,9 +377,15 @@ async function boot(): Promise<void> {
   const creatures = new CreatureLayer(renderer.app);
   const marks = new MarkLayer(renderer.app);
   // The being feed (Ev.Beings), smoothed for drawing. The first beingCount entries of drawBeings are this frame's beings.
-  const interp = new FeedInterp();
+  const interp = new FeedInterp({ coalesce: true });
   const drawBeings: DrawBeing[] = [];
   let beingCount = 0;
+  /** Main-thread ms of the creature pipeline per frame (feed push + sample + draw, dust included), for the perf gate. */
+  const COST_RING = 600;
+  const costRing = new Float64Array(COST_RING);
+  let costWritten = 0;
+  /** Feed-push time since the last frame; it is charged to the next frame's sample. */
+  let pushCostMs = 0;
   /** True once a feed has arrived for the current realm, so a followed being missing from the feed is lost. */
   let beingsFed = false;
   /** Realm setups so far, counted by resetCreatureView; the e2e tests read it to see that a New World reached the layer. */
@@ -1492,14 +1498,17 @@ async function boot(): Promise<void> {
           notify(event.detail, CUE.error);
         }
         return;
-      case Ev.Beings:
-        interp.push(event.feed, performance.now());
+      case Ev.Beings: {
+        const pushT0 = performance.now();
+        interp.push(event.feed, pushT0);
+        pushCostMs += performance.now() - pushT0;
         beingsFed = true;
         // The building list comes only when it changed; the boats come with every feed.
         if (event.feed.buildings) creatures.setBuildings(event.feed.buildings);
         creatures.setBoats(event.feed.boats);
         client.returnBuffer(event.feed.data.buffer as ArrayBuffer, true);
         return;
+      }
       case Ev.Snapshot:
         noteCrashRun({ age: event.snap.age ?? null });
         if ((event.snap.age ?? null) !== lastAgeCrumb) {
@@ -1717,6 +1726,8 @@ async function boot(): Promise<void> {
     // The feed sample: every living Being, smoothed between worker frames (feed-interp.ts).
     const beingNowMs = performance.now();
     beingCount = interp.sample(beingNowMs, drawBeings);
+    let frameCostMs = pushCostMs + (performance.now() - beingNowMs);
+    pushCostMs = 0;
     // Follow: centre the camera on the followed being's sampled position. It is lost once it has left the feed.
     if (cam && followKey !== null) {
       let p: DrawBeing | undefined;
@@ -1772,7 +1783,10 @@ async function boot(): Promise<void> {
         dust: !degradedOff.has('map.dust'),
         creatureAnim: !degradedOff.has('map.creatureAnim'),
       });
+      const drawT0 = performance.now();
       creatures.draw(drawBeings, beingCount, view, beingNowMs);
+      frameCostMs += performance.now() - drawT0;
+      costRing[costWritten++ % COST_RING] = frameCostMs;
       marks.update(
         simView.current,
         {
@@ -1903,6 +1917,15 @@ async function boot(): Promise<void> {
     openWindow: () => windowHost.current,
     snapshot: () => simView.current,
     creatureCount: () => creatures.drawnCount(),
+    /** Beings in this frame's feed sample, in view or not. */
+    beingTotal: () => beingCount,
+    /** Recent per-frame ms of the creature pipeline (feed push + sample + draw + dust), oldest first, at most 600. */
+    creatureCost: () => {
+      const n = Math.min(costWritten, COST_RING);
+      const out: number[] = [];
+      for (let i = costWritten - n; i < costWritten; i++) out.push(costRing[i % COST_RING]!);
+      return out;
+    },
     /** The camera's zoom in CSS px per tile (0 before the camera exists). */
     zoom: () => camera?.zoom ?? 0,
     resets: () => creatureReset.resets,

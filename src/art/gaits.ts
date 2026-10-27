@@ -38,7 +38,8 @@ interface Limb {
 
 const RUN_GAIN = 1.6;
 const TAU = 2 * Math.PI;
-const ZERO: Pose = { rot: 0, dx: 0, dy: 0 };
+/** The shared rest pose, handed out for every part that holds still: frozen, so no caller can change it for all. */
+const ZERO: Pose = Object.freeze({ rot: 0, dx: 0, dy: 0 });
 
 function poseOf(limb: Limb | undefined, phase: number, mode: PoseMode): Pose {
   if (!limb) return ZERO;

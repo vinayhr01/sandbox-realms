@@ -27,6 +27,8 @@ interface Puff {
 export class DustPool {
   private readonly puffs: Puff[] = [];
   private next = 0;
+  /** Puffs now alive; update and clear do nothing at 0. */
+  private live = 0;
 
   /** `parent` holds the puff sprites; `texture` is stretched to a DUST_PX square and tinted. */
   constructor(
@@ -47,6 +49,7 @@ export class DustPool {
       this.puffs.push(p);
     }
     this.next = (this.next + 1) % DUST_MAX;
+    if (p.age >= DUST_LIFE_MS) this.live++;
     p.x = x;
     p.y = y;
     p.dir = facing;
@@ -58,11 +61,13 @@ export class DustPool {
 
   /** Ages the live puffs by dtMs, moving and fading them, and hides those past their life. */
   update(dtMs: number): void {
+    if (this.live === 0) return;
     for (const p of this.puffs) {
       if (p.age >= DUST_LIFE_MS) continue;
       p.age += dtMs;
       if (p.age >= DUST_LIFE_MS) {
         p.sprite.visible = false;
+        this.live--;
         continue;
       }
       const k = p.age / DUST_LIFE_MS;
@@ -71,8 +76,15 @@ export class DustPool {
     }
   }
 
+  /** Puffs alive now. */
+  liveCount(): number {
+    return this.live;
+  }
+
   /** Hides every puff at once, e.g. when the setting turns off. */
   clear(): void {
+    if (this.live === 0) return;
+    this.live = 0;
     for (const p of this.puffs) {
       p.age = DUST_LIFE_MS;
       p.sprite.visible = false;

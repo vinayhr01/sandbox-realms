@@ -10,13 +10,14 @@ import { Application, Container, Graphics, Rectangle, Sprite, Texture } from 'pi
 // Pixi is imported for the sprites and the shadow texture only; no sim state is read here.
 import { SPECIES } from '../content/beasts.ts';
 import { speciesGroup } from '../content/species-group.ts';
-import { SPECIES_GAIT, type PoseMode, type SpeciesGait } from '../art/gaits.ts';
+import { SPECIES_GAIT, type GaitId, type PoseMode, type SpeciesGait } from '../art/gaits.ts';
 import type { MapBoat, MapBuilding, MapSizeClass } from '../shared/protocol.ts';
 import type { DrawBeing, FeedInterp } from './feed-interp.ts';
 import type { MarkView } from './marks.ts';
 import { clamp } from './camera.ts';
 import { Atlas } from './atlas.ts';
-import { framesOf, frameIndex, gaitFor, PhaseByKey, RUN_SCREEN_TILES_PER_S, type Pose } from './anim.ts';
+import { framesOf, frameIndex, gaitFor, PhaseByKey, type PhaseEntry, type Pose } from './anim.ts';
+import { BeingState } from '../shared/being-feed.ts';
 import { DustPool } from './dust.ts';
 import { buildingKindOf, GROUP_COLOUR, SpriteFactory, type SpriteTex } from './sprites.ts';
 
@@ -83,17 +84,8 @@ export function animStep(rankFromCentre: number, onScreen: number, crowdAnim = t
   return share >= 2 / 3 ? 2 : 1;
 }
 
-/** The number of entries of `sorted` (the first n) below d2: a being's rank by distance. */
-function rankOf(sorted: Float64Array, n: number, d2: number): number {
-  let lo = 0;
-  let hi = n;
-  while (lo < hi) {
-    const mid = (lo + hi) >>> 1;
-    if (sorted[mid]! < d2) lo = mid + 1;
-    else hi = mid;
-  }
-  return lo;
-}
+/** Buckets of the squared-distance histogram that ranks the beings on screen. */
+const RANK_BUCKETS = 1024;
 
 /**
  * Supplies the baked frame of a being: its species, the gait and mode it plays (from gaits.ts), the frame index within
@@ -119,17 +111,28 @@ export interface CreatureToggles {
   creatureAnim: boolean;
 }
 
+/** A pooled sprite that remembers the anchor it was given, so placing it can skip the anchor's observable getters and setter. */
+class PooledSprite extends Sprite {
+  ax = Number.NaN;
+  ay = Number.NaN;
+}
+
 /** Places a sprite on (sx, sy) with its anchor at the feet, reusing it from the pool. */
-function placeSprite(pool: Sprite[], parent: Container, i: number, tex: Texture, anchorX: number, anchorY: number): Sprite {
+function placeSprite(pool: PooledSprite[], parent: Container, i: number, tex: Texture, anchorX: number, anchorY: number): PooledSprite {
   let sprite = pool[i];
   if (!sprite) {
-    sprite = new Sprite();
+    sprite = new PooledSprite();
     pool.push(sprite);
     parent.addChild(sprite);
   }
-  sprite.texture = tex;
-  sprite.anchor.set(anchorX, anchorY);
-  sprite.visible = true;
+  // Pixi marks a sprite dirty on every set, so only the changes are written.
+  if (sprite.texture !== tex) sprite.texture = tex;
+  if (sprite.ax !== anchorX || sprite.ay !== anchorY) {
+    sprite.ax = anchorX;
+    sprite.ay = anchorY;
+    sprite.anchor.set(anchorX, anchorY);
+  }
+  if (!sprite.visible) sprite.visible = true;
   return sprite;
 }
 
@@ -137,6 +140,19 @@ function placeSprite(pool: Sprite[], parent: Container, i: number, tex: Texture,
 function gaitOfSpecies(species: number): SpeciesGait | undefined {
   const id = SPECIES[species]?.id;
   return id === undefined ? undefined : SPECIES_GAIT[id];
+}
+
+/** Per-species facts the draw loop needs for every being, looked up once per species and not once per being per frame. */
+interface SpeciesDraw {
+  gait: SpeciesGait | undefined;
+  size: MapSizeClass;
+  /** True once the atlas has been asked to bake this species. */
+  requested: boolean;
+}
+
+/** Footfall dust is kicked up by walkers and runners on the ground: not by swimmers, flyers or static art. */
+function kicksDust(state: BeingState, gait: GaitId): boolean {
+  return (state === BeingState.Walk || state === BeingState.Run) && gait !== 'flyer' && gait !== 'static';
 }
 
 function inView(sx: number, sy: number, view: MarkView, margin: number): boolean {
@@ -151,20 +167,32 @@ export class CreatureLayer {
   private readonly iconLayer = new Container();
   private readonly dots = new Graphics();
   private readonly boatMarks = new Graphics();
-  private readonly shadowPool: Sprite[] = [];
-  private readonly iconPool: Sprite[] = [];
-  private readonly buildingPool: Sprite[] = [];
+  private readonly shadowPool: PooledSprite[] = [];
+  private readonly iconPool: PooledSprite[] = [];
+  private readonly buildingPool: PooledSprite[] = [];
   private readonly sprites: SpriteFactory;
   private readonly silhouettes = new Map<number, SpriteTex>();
+  private readonly speciesDraw: (SpeciesDraw | undefined)[] = [];
   private readonly shadowTexture: Texture;
   private readonly atlas: Atlas;
   private readonly phases = new PhaseByKey();
   private readonly dust: DustPool;
   private lastNowMs = -1;
   private frameNo = 0;
-  /** Squared distances from the view centre of the beings on screen, and the same sorted (for ranks). Grown, never shrunk. */
-  private dist2 = new Float64Array(0);
-  private sorted = new Float64Array(0);
+  /**
+   * The beings in view this frame (indices into the feed sample, screen position, squared distance from the view centre),
+   * filled by one pass over the sample. Grown, never shrunk.
+   */
+  private inIdx = new Int32Array(0);
+  private inX = new Float64Array(0);
+  private inY = new Float64Array(0);
+  private inD2 = new Float64Array(0);
+  /** Rank histogram: `below[b]` is the number of beings in view whose distance bucket is under b. */
+  private readonly below = new Int32Array(RANK_BUCKETS + 1);
+  private rankScale = 0;
+  /** Sprites shown by the last draw, so the next one hides only the stale tail of each pool. */
+  private shownIcons = 0;
+  private shownShadows = 0;
   private buildings: readonly MapBuilding[] = [];
   private boats: readonly MapBoat[] = [];
   private frameSource: FrameSource | null;
@@ -206,57 +234,57 @@ export class CreatureLayer {
     this.dots.clear();
     // Phases and crowd ranks only matter while icons show: with the dot level fully on, nothing steps.
     const iconsOn = lod.icons > 0;
-    const onScreen = iconsOn ? this.measureCrowd(beings, count, view, margin) : 0;
-    const ranked = this.crowdRanked(onScreen);
+    const visible = this.collectInView(beings, count, view, margin);
+    const ranked = iconsOn && this.crowdRanked(visible);
+    if (ranked) this.buildRanks(visible);
     const dustOn = this.toggles.particles && this.toggles.dust;
     let icons = 0;
     let shadows = 0;
-    let placed = 0;
-    for (let i = 0; i < count; i++) {
-      const b = beings[i];
-      if (!b) continue;
-      const sg = gaitOfSpecies(b.species);
-      const sx = view.offX + (b.x + 0.5) * zoom;
-      const sy = view.offY + (b.y + 0.5) * zoom;
-      if (!inView(sx, sy, view, margin)) {
-        // Off screen, a being still steps its phase so a being that comes back keeps its stride.
-        if (iconsOn && sg) this.phases.step(b.key, b.state, b.x, b.y, sg.strideTiles, dtMs);
-        continue;
-      }
-      placed++;
+    for (let k = 0; k < visible; k++) {
+      const b = beings[this.inIdx[k]!]!;
+      const sx = this.inX[k]!;
+      const sy = this.inY[k]!;
       if (lod.dots > 0 && b.alpha * lod.dots > 0) {
         this.dots.circle(sx, sy, DOT_RADIUS_PX).fill({ color: GROUP_COLOUR[speciesGroup(b.species)], alpha: b.alpha * lod.dots });
       }
       if (!iconsOn) continue;
-      const size = SPECIES[b.species]?.size ?? 'S';
+      const info = this.infoOf(b.species);
+      const sg = info.gait;
+      const size = info.size;
       const height = worldHeightPx(size, zoom, b.child);
       const alpha = b.alpha * lod.icons;
       let pose: Pose | null = null;
       let phase = 0;
       if (sg) {
-        // Speed is read before this frame's step: it is the speed of the last step.
-        const fast = this.phases.speedOf(b.key) >= RUN_SCREEN_TILES_PER_S;
-        const before = this.phases.phaseOf(b.key);
-        const rank = ranked ? rankOf(this.sorted, onScreen, this.distFromCentre(view, sx, sy)) : 0;
-        const stepped = this.stepIcon(b, sg, animStep(rank, onScreen, this.toggles.crowdAnim), dtMs);
-        // A footfall (the stride phase wrapped) of a fast being kicks up dust.
-        if (fast && dustOn && stepped < before) this.dust.emit(sx, sy, b.facing);
+        const entry = this.phases.entry(b.key, b.x, b.y);
+        // The run flag is as of the last step (with hysteresis, see anim.ts).
+        const fast = entry.fast;
+        const rank = ranked ? this.rankOf(this.inD2[k]!) : 0;
+        const stepped = this.stepIcon(entry, b, sg, animStep(rank, visible, this.toggles.crowdAnim), dtMs);
+        pose = gaitFor(sg, b.state, fast);
+        // A footfall (the stride phase wrapped) of a fast walker or runner kicks up dust. With creature animation off the
+        // frames hold still, so no dust either.
+        if (fast && dustOn && this.toggles.creatureAnim && entry.wrapped && kicksDust(b.state, pose.gait)) this.dust.emit(sx, sy, b.facing);
         // Creature animation off: frame 0 of the gait. The stride still ticks, so the gait choice keeps its speed.
         phase = this.toggles.creatureAnim ? stepped : 0;
-        pose = gaitFor(sg, b.state, fast);
       }
-      const silhouette = this.silhouette(b.species, size);
       const frame = pose && this.frameSource ? this.bakedFrame(b.species, pose, phase, framePxFor(height)) : null;
       if (frame) this.placeIcon(icons, frame, 0.5, 1, b.facing, height, sx, sy, alpha);
-      else this.placeIcon(icons, silhouette.texture, silhouette.anchorX, silhouette.anchorY, b.facing, height, sx, sy, alpha);
+      else {
+        const silhouette = this.silhouette(b.species, size);
+        this.placeIcon(icons, silhouette.texture, silhouette.anchorX, silhouette.anchorY, b.facing, height, sx, sy, alpha);
+      }
       icons++;
       if (this.toggles.shadows) this.placeShadow(shadows++, height, sx, sy, alpha);
     }
     this.phases.endFrame();
-    this.placed = placed;
-    this.hideFrom(this.iconPool, icons);
-    this.hideFrom(this.shadowPool, shadows);
+    this.placed = visible;
+    this.hideRange(this.iconPool, icons, this.shownIcons);
+    this.hideRange(this.shadowPool, shadows, this.shownShadows);
+    this.shownIcons = icons;
+    this.shownShadows = shadows;
     this.shadowLayer.visible = this.toggles.shadows;
+    // Both do nothing while no puff is alive.
     if (dustOn) this.dust.update(dtMs);
     else this.dust.clear();
     this.placeBuildings(view);
@@ -302,26 +330,56 @@ export class CreatureLayer {
     this.hideFrom(this.iconPool, 0);
     this.hideFrom(this.shadowPool, 0);
     this.hideFrom(this.buildingPool, 0);
+    this.shownIcons = 0;
+    this.shownShadows = 0;
   }
 
-  /** Counts the beings on screen and, when they are ranked (see crowdRanked), sorts their squared distances for ranks. */
-  private measureCrowd(beings: readonly DrawBeing[], count: number, view: MarkView, margin: number): number {
-    if (this.dist2.length < count) this.dist2 = new Float64Array(count * 2);
+  /**
+   * One pass over the sample: the beings in the view plus margin are listed with their screen position and squared distance
+   * from the view centre. Returns how many.
+   */
+  private collectInView(beings: readonly DrawBeing[], count: number, view: MarkView, margin: number): number {
+    if (this.inIdx.length < count) {
+      const cap = count * 2;
+      this.inIdx = new Int32Array(cap);
+      this.inX = new Float64Array(cap);
+      this.inY = new Float64Array(cap);
+      this.inD2 = new Float64Array(cap);
+    }
+    const zoom = view.zoom;
+    const lo = -margin;
+    const hiX = view.viewW + margin;
+    const hiY = view.viewH + margin;
     let n = 0;
     for (let i = 0; i < count; i++) {
       const b = beings[i];
       if (!b) continue;
-      const sx = view.offX + (b.x + 0.5) * view.zoom;
-      const sy = view.offY + (b.y + 0.5) * view.zoom;
-      if (!inView(sx, sy, view, margin)) continue;
-      this.dist2[n++] = this.distFromCentre(view, sx, sy);
-    }
-    if (this.crowdRanked(n)) {
-      if (this.sorted.length < n) this.sorted = new Float64Array(this.dist2.length);
-      this.sorted.set(this.dist2.subarray(0, n));
-      this.sorted.subarray(0, n).sort();
+      const sx = view.offX + (b.x + 0.5) * zoom;
+      const sy = view.offY + (b.y + 0.5) * zoom;
+      if (sx < lo || sy < lo || sx > hiX || sy > hiY) continue;
+      this.inIdx[n] = i;
+      this.inX[n] = sx;
+      this.inY[n] = sy;
+      this.inD2[n] = this.distFromCentre(view, sx, sy);
+      n++;
     }
     return n;
+  }
+
+  /** Fills the rank histogram from the first `n` squared distances: O(n), no sort. */
+  private buildRanks(n: number): void {
+    let max = 0;
+    for (let k = 0; k < n; k++) if (this.inD2[k]! > max) max = this.inD2[k]!;
+    this.rankScale = max > 0 ? (RANK_BUCKETS - 1) / max : 0;
+    const below = this.below;
+    below.fill(0);
+    for (let k = 0; k < n; k++) below[((this.inD2[k]! * this.rankScale) | 0) + 1]!++;
+    for (let b = 1; b <= RANK_BUCKETS; b++) below[b]! += below[b - 1]!;
+  }
+
+  /** A being's rank by distance from the view centre (0 is the nearest): the beings in the buckets nearer than its own. */
+  private rankOf(d2: number): number {
+    return this.below[(d2 * this.rankScale) | 0]!;
   }
 
   /** True when beings are ranked by distance: above CROWD_LIMIT, or always while the crowd LOD is degraded off. */
@@ -340,11 +398,22 @@ export class CreatureLayer {
    * Steps a being's stride phase for this frame at the crowd's rate. A held frame (rate 0) keeps the phase; a half rate
    * (2) steps every other frame, staggered by key, at twice the time.
    */
-  private stepIcon(b: DrawBeing, sg: SpeciesGait, rate: 1 | 2 | 0, dtMs: number): number {
+  private stepIcon(e: PhaseEntry, b: DrawBeing, sg: SpeciesGait, rate: 1 | 2 | 0, dtMs: number): number {
     if (rate === 0 || (rate === 2 && ((this.frameNo + b.key) & 1) !== 0)) {
-      return this.phases.hold(b.key, b.x, b.y, sg.strideTiles);
+      e.wrapped = false;
+      return e.phase;
     }
-    return this.phases.step(b.key, b.state, b.x, b.y, sg.strideTiles, dtMs * rate);
+    return this.phases.advance(e, b.state, b.x, b.y, sg.strideTiles, dtMs * rate);
+  }
+
+  /** The gait and size class of a species, cached by species index. */
+  private infoOf(species: number): SpeciesDraw {
+    let info = this.speciesDraw[species];
+    if (!info) {
+      info = { gait: gaitOfSpecies(species), size: SPECIES[species]?.size ?? 'S', requested: false };
+      this.speciesDraw[species] = info;
+    }
+    return info;
   }
 
   /** The group silhouette of a species at its size class, looked up once per species. */
@@ -361,7 +430,11 @@ export class CreatureLayer {
   private bakedFrame(species: number, pose: Pose, phase: number, px: 48 | 128): Texture | null {
     const src = this.frameSource;
     if (!src) return null;
-    this.atlas.request(species);
+    const info = this.infoOf(species);
+    if (!info.requested) {
+      info.requested = true;
+      this.atlas.request(species);
+    }
     return src.frame(species, pose.gait, pose.mode, frameIndex(phase, framesOf(pose.gait, pose.mode)), px);
   }
 
@@ -426,8 +499,13 @@ export class CreatureLayer {
     }
   }
 
+  /** Hides pool sprites from `from` up to `to` (those the last draw showed and this one did not). */
+  private hideRange(pool: PooledSprite[], from: number, to: number): void {
+    for (let i = from; i < to; i++) pool[i]!.visible = false;
+  }
+
   /** Hides pool sprites from index `from` on; they are kept for reuse. */
-  private hideFrom(pool: Sprite[], from: number): void {
+  private hideFrom(pool: PooledSprite[], from: number): void {
     for (let i = from; i < pool.length; i++) pool[i]!.visible = false;
   }
 }

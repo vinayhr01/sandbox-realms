@@ -6,6 +6,7 @@ import {
   MAX_STRIDES_PER_S,
   PhaseByKey,
   RUN_SCREEN_TILES_PER_S,
+  WALK_SCREEN_TILES_PER_S,
   advancePhase,
   frameIndex,
   framesOf,
@@ -164,5 +165,56 @@ describe('PhaseByKey', () => {
     phases.step(1, BeingState.Walk, 0, 0, 0.6, 1000);
     phases.endFrame();
     expect(phases.size()).toBe(1);
+  });
+});
+
+describe('advancePhase with no stride length', () => {
+  it('holds the phase for a stride of 0 tiles, below 0 or NaN, never NaN', () => {
+    for (const stride of [0, -1, Number.NaN]) {
+      const next = advancePhase(0.25, 3, stride, 1000);
+      expect(Number.isNaN(next)).toBe(false);
+      expect(next).toBeCloseTo(0.25, 10);
+    }
+  });
+});
+
+describe('run flag hysteresis', () => {
+  /** Steps key 1 at `speed` tiles per second for one second from x. */
+  function stepAt(phases: PhaseByKey, x: number, speed: number): number {
+    phases.step(1, BeingState.Walk, x + speed, 0, 0.6, 1000);
+    return x + speed;
+  }
+
+  it('enters at 4 tiles/s and leaves only below 3.5', () => {
+    const phases = new PhaseByKey();
+    let x = 0;
+    phases.step(1, BeingState.Walk, x, 0, 0.6, 1000);
+    expect(WALK_SCREEN_TILES_PER_S).toBe(3.5);
+    // Slow: 3.7 is under the enter speed, so it does not start running.
+    x = stepAt(phases, x, 3.7);
+    expect(phases.fastOf(1)).toBe(false);
+    x = stepAt(phases, x, 4);
+    expect(phases.fastOf(1)).toBe(true);
+    // Between the two speeds it keeps running.
+    x = stepAt(phases, x, 3.7);
+    expect(phases.fastOf(1)).toBe(true);
+    x = stepAt(phases, x, 3.5);
+    expect(phases.fastOf(1)).toBe(true);
+    x = stepAt(phases, x, 3.4);
+    expect(phases.fastOf(1)).toBe(false);
+    // And it needs the full enter speed again.
+    stepAt(phases, x, 3.9);
+    expect(phases.fastOf(1)).toBe(false);
+    expect(phases.fastOf(99)).toBe(false);
+  });
+
+  it('flags a footfall when the phase wraps and clears it on a hold', () => {
+    const phases = new PhaseByKey();
+    const e = phases.entry(5, 0, 0);
+    e.phase = 0.9;
+    phases.advance(e, BeingState.Walk, 0.6, 0, 0.6, 1000);
+    expect(e.wrapped).toBe(true);
+    phases.hold(5, 0.6, 0, 0.6);
+    expect(e.wrapped).toBe(false);
   });
 });

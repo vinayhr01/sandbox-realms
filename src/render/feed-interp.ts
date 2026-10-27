@@ -3,7 +3,7 @@
  * previous feed position to its current one, snapped when it is new, has jumped or the feeds are far apart,
  * and faded out for a moment after it disappears. Pure: time comes in as `nowMs`, so no clock is read here.
  */
-import { BeingState, readBeing, type BeingFeed } from '../shared/being-feed.ts';
+import { BeingState, FEED_STRIDE, type BeingFeed } from '../shared/being-feed.ts';
 
 /** A Being that moves more tiles than this between two feeds is snapped, not lerped (teleport, slot reuse). */
 export const SNAP_TILES = 3;
@@ -31,6 +31,10 @@ export interface DrawBeing {
 }
 
 interface Track {
+  /** slot << 16 | generation, the key of this track in the map. */
+  key: number;
+  /** Index of this track in `list`. */
+  at: number;
   /** Position in the previous feed (equal to x, y when there is nothing to lerp). */
   px: number;
   py: number;
@@ -47,65 +51,110 @@ interface Track {
   lastMoveState: BeingState;
   /** Time the Being was first missing from a feed, or -1 while it is present. */
   goneAt: number;
-  /** Set on each push when the Being is in that feed. */
-  present: boolean;
+  /** Number of the latest push whose feed held this Being. */
+  seenPush: number;
+}
+
+/** Options of a FeedInterp. */
+export interface FeedInterpOptions {
+  /**
+   * True: a feed is held until the next `sample`, and a feed that arrives while another is held replaces it. The worker may
+   * post several feeds between two frames (10x speed); only the latest matters for the frame, so the earlier ones cost
+   * nothing. Beings then lerp from where the last sampled feed had them. False (the default): every push is applied at once.
+   */
+  coalesce?: boolean;
 }
 
 export class FeedInterp {
   private readonly tracks = new Map<number, Track>();
+  /** The same tracks as a dense array, so a sample walks an array and not a map. Removal swaps the last track in. */
+  private readonly list: Track[] = [];
+  private pushNo = 0;
+  private readonly coalesce: boolean;
+  /** The held feed's words, copied: the caller may hand its buffer back to the worker as soon as push returns. */
+  private pendingData = new Uint16Array(0);
+  private pendingCount = 0;
+  private hasPending = false;
+  private pendingMs = 0;
   private hasFeed = false;
   private tPrev = 0;
   private tCurr = 0;
 
+  constructor(opts: FeedInterpOptions = {}) {
+    this.coalesce = opts.coalesce ?? false;
+  }
+
   /** Takes in a new feed, seen at `nowMs`. */
   push(feed: BeingFeed, nowMs: number): void {
+    if (this.coalesce) {
+      const words = feed.count * FEED_STRIDE;
+      if (this.pendingData.length < words) this.pendingData = new Uint16Array(words * 2);
+      this.pendingData.set(feed.data.subarray(0, words));
+      this.pendingCount = feed.count;
+      this.pendingMs = nowMs;
+      this.hasPending = true;
+      return;
+    }
+    this.apply(feed.data, feed.count, nowMs);
+  }
+
+  private apply(d: Uint16Array, count: number, nowMs: number): void {
     const snapAll = this.hasFeed && nowMs - this.tCurr > MAX_GAP_MS;
     this.tPrev = this.hasFeed ? this.tCurr : nowMs;
     this.tCurr = nowMs;
     this.hasFeed = true;
 
-    for (const t of this.tracks.values()) t.present = false;
-
-    for (let i = 0; i < feed.count; i++) {
-      const b = readBeing(feed, i);
-      const key = (b.slot << 16) | b.gen;
-      const child = b.child !== 0;
-      const moving = b.state === BeingState.Walk || b.state === BeingState.Run;
+    const pushNo = ++this.pushNo;
+    // The feed's words are read in place (layout: FEED_STRIDE words of slot, gen, x, y, species, state | child << 8), so a push allocates nothing for a known Being.
+    for (let i = 0; i < count; i++) {
+      const o = i * FEED_STRIDE;
+      const slot = d[o] ?? 0;
+      const gen = d[o + 1] ?? 0;
+      const bx = d[o + 2] ?? 0;
+      const by = d[o + 3] ?? 0;
+      const species = d[o + 4] ?? 0;
+      const packed = d[o + 5] ?? 0;
+      const bstate = (packed & 0xff) as BeingState;
+      const key = (slot << 16) | gen;
+      const child = packed >> 8 !== 0;
+      const moving = bstate === BeingState.Walk || bstate === BeingState.Run;
       let t = this.tracks.get(key);
       if (!t) {
-        t = { px: b.x, py: b.y, x: b.x, y: b.y, species: b.species, state: b.state, child, facing: 1, moved: 0, lastMoveMs: -1, lastMoveState: BeingState.Idle, goneAt: -1, present: true };
+        t = { key, at: this.list.length, px: bx, py: by, x: bx, y: by, species, state: bstate, child, facing: 1, moved: 0, lastMoveMs: -1, lastMoveState: BeingState.Idle, goneAt: -1, seenPush: pushNo };
         this.tracks.set(key, t);
+        this.list.push(t);
       } else if (t.goneAt >= 0) {
         // Back after a gap: no motion to lerp from.
-        t.px = b.x;
-        t.py = b.y;
+        t.px = bx;
+        t.py = by;
         t.moved = 0;
       } else {
-        const dx = b.x - t.x;
-        const dy = b.y - t.y;
+        const dx = bx - t.x;
+        const dy = by - t.y;
         const dist = Math.max(Math.abs(dx), Math.abs(dy));
         const snap = snapAll || dist > SNAP_TILES;
-        t.px = snap ? b.x : t.x;
-        t.py = snap ? b.y : t.y;
+        t.px = snap ? bx : t.x;
+        t.py = snap ? by : t.y;
         if (dx !== 0) t.facing = dx < 0 ? -1 : 1;
         // A snapped Being did not walk: it jumped, so it reports no movement.
         t.moved = snap ? 0 : dist;
       }
-      t.x = b.x;
-      t.y = b.y;
-      t.species = b.species;
-      t.state = b.state;
+      t.x = bx;
+      t.y = by;
+      t.species = species;
+      t.state = bstate;
       t.child = child;
       t.goneAt = -1;
-      t.present = true;
+      t.seenPush = pushNo;
       if (moving) {
         t.lastMoveMs = nowMs;
-        t.lastMoveState = b.state;
+        t.lastMoveState = bstate;
       }
     }
 
-    for (const t of this.tracks.values()) {
-      if (t.present || t.goneAt >= 0) continue;
+    for (let i = 0; i < this.list.length; i++) {
+      const t = this.list[i]!;
+      if (t.seenPush === pushNo || t.goneAt >= 0) continue;
       // Missing from this feed: hold the last position and start fading.
       t.goneAt = nowMs;
       t.px = t.x;
@@ -119,16 +168,24 @@ export class FeedInterp {
    * Entries past the returned count are stale and must be ignored.
    */
   sample(nowMs: number, out: DrawBeing[]): number {
+    if (this.hasPending) {
+      this.hasPending = false;
+      this.apply(this.pendingData, this.pendingCount, this.pendingMs);
+    }
     if (!this.hasFeed) return 0;
     const span = this.tCurr - this.tPrev;
     const f = span > 0 ? clamp01((nowMs - this.tCurr) / span) : 1;
     let n = 0;
-    for (const [key, t] of this.tracks) {
+    const list = this.list;
+    for (let i = 0; i < list.length; i++) {
+      const t = list[i]!;
       let alpha = 1;
       if (t.goneAt >= 0) {
         alpha = clamp01(1 - (nowMs - t.goneAt) / FADE_MS);
         if (alpha <= 0) {
-          this.tracks.delete(key);
+          // The last track now sits at i: look at i again.
+          this.drop(t);
+          i--;
           continue;
         }
       }
@@ -137,10 +194,10 @@ export class FeedInterp {
 
       let d = out[n];
       if (!d) {
-        d = { key, x: 0, y: 0, species: 0, state, child: false, facing: 1, alpha: 1, moved: 0 };
+        d = { key: t.key, x: 0, y: 0, species: 0, state, child: false, facing: 1, alpha: 1, moved: 0 };
         out[n] = d;
       }
-      d.key = key;
+      d.key = t.key;
       d.x = t.px + (t.x - t.px) * f;
       d.y = t.py + (t.y - t.py) * f;
       d.species = t.species;
@@ -154,9 +211,21 @@ export class FeedInterp {
     return n;
   }
 
+  /** Removes a track from the map and the list (swapping the last track into its place). */
+  private drop(t: Track): void {
+    this.tracks.delete(t.key);
+    const last = this.list.pop()!;
+    if (last !== t) {
+      this.list[t.at] = last;
+      last.at = t.at;
+    }
+  }
+
   /** Forgets every Being, e.g. when a new world starts. */
   reset(): void {
+    this.hasPending = false;
     this.tracks.clear();
+    this.list.length = 0;
     this.hasFeed = false;
     this.tPrev = 0;
     this.tCurr = 0;

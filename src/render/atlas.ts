@@ -21,6 +21,8 @@ import type { FrameSource } from './creatures.ts';
 
 export type FramePx = 48 | 128;
 const SIZES: readonly FramePx[] = [128, 48];
+/** Building stills are drawn from the silhouette's height (8 px or so), far under the 56 px where creatures.ts takes the 128 px frame. */
+const BUILDING_SIZES: readonly FramePx[] = [48];
 const PAGE = 2048;
 /** Transparent gutter around each frame, so mip levels do not bleed a neighbour's pixels in. */
 const PAD = 2;
@@ -28,6 +30,7 @@ const PAD = 2;
 const MAX_FRAMES = 8;
 const MODE_INDEX: Readonly<Record<PoseMode, number>> = { idle: 0, walk: 1, run: 2 };
 const GAIT_IDS = Object.keys(GAITS) as GaitId[];
+const GAIT_INDEX: ReadonlyMap<string, number> = new Map(GAIT_IDS.map((g, i) => [g, i]));
 const BUDGET_MS = 4;
 const MAX_INFLIGHT = 8;
 /** Pages are uploaded at most this often while the bake queue has work left. */
@@ -38,8 +41,7 @@ const STATES = [BeingState.Idle, BeingState.Walk, BeingState.Run, BeingState.Swi
 
 /** A frame's key: species index, gait, mode, frame and size, packed into one number. */
 function cellKey(species: number, gait: GaitId, mode: PoseMode, frame: number, px: FramePx): number {
-  const g = GAIT_IDS.indexOf(gait);
-  return (((species * GAIT_IDS.length + g) * 3 + MODE_INDEX[mode]) * MAX_FRAMES + frame) * 2 + (px === 128 ? 1 : 0);
+  return (((species * GAIT_IDS.length + GAIT_INDEX.get(gait)!) * 3 + MODE_INDEX[mode]) * MAX_FRAMES + frame) * 2 + (px === 128 ? 1 : 0);
 }
 
 /** The (gait, mode) pairs a species can be drawn in: one per state, plus the fast walk's run cycle, deduplicated. */
@@ -113,14 +115,6 @@ function defaultSchedule(work: () => void): void {
   else setTimeout(work, FALLBACK_DELAY_MS);
 }
 
-function parseOrWarn(svg: string, id: string): Rig | null {
-  try {
-    return parseRig(svg);
-  } catch (err) {
-    console.warn(`atlas: ${id} art rejected`, err);
-    return null;
-  }
-}
 
 /** Test seams: the decoder, the clock and the idle scheduler. The defaults are the browser's. */
 export interface AtlasOptions {
@@ -139,6 +133,8 @@ export class Atlas implements FrameSource {
   private readonly queue: Job[] = [];
   private readonly ready: { job: Job; img: HTMLImageElement }[] = [];
   private readonly dirty = new Set<Page>();
+  /** Species ids and building kinds already warned about: a failing species warns once, not once per frame or rebuild. */
+  private readonly warned = new Set<string>();
   private readonly decodeSvg: (svg: string) => Promise<HTMLImageElement>;
   private readonly now: () => number;
   private readonly schedule: (work: () => void) => void;
@@ -171,7 +167,7 @@ export class Atlas implements FrameSource {
   }
 
   frame(species: number, gait: string, mode: PoseMode, frameIndex: number, px: FramePx): Texture | null {
-    if (!GAIT_IDS.includes(gait as GaitId) || frameIndex < 0 || frameIndex >= MAX_FRAMES) return null;
+    if (!GAIT_INDEX.has(gait) || frameIndex < 0 || frameIndex >= MAX_FRAMES) return null;
     return this.cells.get(cellKey(species, gait as GaitId, mode, frameIndex, px)) ?? null;
   }
 
@@ -194,6 +190,22 @@ export class Atlas implements FrameSource {
     this.gen++;
     this.queue.length = 0;
     this.ready.length = 0;
+  }
+
+  /** Warns once per species or building kind, whatever the number of frames or rebuilds that fail. */
+  private warnOnce(id: string, message: string, err: unknown): void {
+    if (this.warned.has(id)) return;
+    this.warned.add(id);
+    console.warn(`atlas: ${id} ${message}`, err);
+  }
+
+  private parseOrWarn(svg: string, id: string): Rig | null {
+    try {
+      return parseRig(svg);
+    } catch (err) {
+      this.warnOnce(id, 'art rejected', err);
+      return null;
+    }
   }
 
   rebuild(): void {
@@ -227,7 +239,7 @@ export class Atlas implements FrameSource {
         if (gen === this.gen) this.bakeSpecies(species, id);
       },
       () => {
-        this.requestedSpecies.delete(species);
+        // A failed load stays requested, so a draw does not retry it every frame; a rebuild starts it again.
       },
     );
   }
@@ -243,7 +255,7 @@ export class Atlas implements FrameSource {
         if (gen === this.gen) this.bakeBuilding(kind);
       },
       () => {
-        this.requestedBuildings.delete(kind);
+        // As for species: retried on rebuild only.
       },
     );
   }
@@ -252,7 +264,7 @@ export class Atlas implements FrameSource {
     const svg = artFor(id);
     const sp = SPECIES_GAIT[id];
     if (svg === null || !sp) return;
-    const rig = parseOrWarn(svg, id);
+    const rig = this.parseOrWarn(svg, id);
     if (!rig) return;
     for (const { gait, mode } of bakePairs(sp)) {
       const n = framesOf(gait, mode);
@@ -267,7 +279,7 @@ export class Atlas implements FrameSource {
   private bakeBuilding(kind: string): void {
     const svg = artForBuilding(kind);
     if (svg === null) return;
-    const rig = parseOrWarn(svg, kind);
+    const rig = this.parseOrWarn(svg, kind);
     if (!rig) return;
     this.queue.push({ rig, gait: GAITS.static, mode: 'idle', phase: 0, target: { building: kind } });
     this.kick();
@@ -327,7 +339,8 @@ export class Atlas implements FrameSource {
           if (gen === this.gen) this.ready.push({ job, img });
         },
         (err: unknown) => {
-          console.warn('atlas: frame not decoded', err);
+          const t = job.target;
+          this.warnOnce('building' in t ? t.building : (SPECIES[t.species]?.id ?? String(t.species)), 'frame not decoded', err);
         },
       )
       .finally(() => {
@@ -338,7 +351,7 @@ export class Atlas implements FrameSource {
 
   /** Draws a decoded frame into a free slot of the 128 px page set and of the 48 px page set. */
   private place(job: Job, img: HTMLImageElement): void {
-    for (const px of SIZES) {
+    for (const px of 'building' in job.target ? BUILDING_SIZES : SIZES) {
       const { page, x, y } = this.alloc(px);
       page.ctx.drawImage(img, x, y, px, px);
       const tex = new Texture({ source: page.source, frame: new Rectangle(x, y, px, px) });

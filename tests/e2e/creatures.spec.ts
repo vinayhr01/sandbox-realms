@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { SPECIES } from '../../src/content/beasts.ts';
+import { plainName } from '../../src/content/plain-names.ts';
 
 /**
  * Creature layer (src/render/creatures.ts) in the real page: beings come from the being feed, not the
@@ -98,6 +100,64 @@ test('follow a being beyond the old sample', async ({ page }) => {
   await expect(page.locator('#status')).toContainText('Following that being');
   await page.waitForTimeout(3000);
   await expect(page.locator('#status')).not.toContainText('Lost sight');
+});
+
+test('hover names a being beyond the snapshot sample', async ({ page }) => {
+  const call = await openRealm(page);
+  // A grid of spawns around the first land Being near the centre; the sim refuses a spawn on water, so some are missed.
+  await call('spawnMany', 'burrfleece', 1);
+  const first = (await call<{ x: number; y: number }[]>('beingPoints'))[0];
+  expect(first).toBeDefined();
+  const cx = Math.round(first!.x);
+  const cy = Math.round(first!.y);
+  for (let dy = -8; dy <= 8; dy += 1) {
+    for (let dx = -8; dx <= 8; dx += 1) await call("spawnMany", "burrfleece", 1, cx + dx, cy + dy);
+  }
+  await expect.poll(() => call<number>('creatureCount'), { timeout: 20_000 }).toBeGreaterThan(96);
+  // Paused, the Beings hold still while the test zooms and hovers.
+  await page.locator('#pause').click();
+  // The snapshot holds at most 96 sampled rows: pick a Being whose sim id is not among them.
+  let target: { id: number; x: number; y: number; species: number } | undefined;
+  await expect
+    .poll(
+      async () => {
+        const snap = await call<{ mapPoints?: { id: number }[] } | null>('snapshot');
+        if (!snap?.mapPoints) return false;
+        const listed = new Set(snap.mapPoints.map((p) => p.id));
+        // Nearest the realm centre, so the zoomed view keeps it away from the edge pan. Alone on its tile (no other
+        // Being within half a tile), since a Being sharing the tile would be the one the hover names.
+        const mid = (await call<number>('side')) / 2;
+        const all = await call<{ id: number; x: number; y: number; alpha: number; species: number }[]>('beingPoints');
+        const alone = (b: { x: number; y: number }) => all.filter((o) => Math.hypot(o.x - b.x, o.y - b.y) < 0.5).length === 1;
+        const live = all.filter((b) => !listed.has(b.id) && b.alpha === 1 && alone(b));
+        const dist = (b: { x: number; y: number }) => (b.x - mid) ** 2 + (b.y - mid) ** 2;
+        target = live.reduce<(typeof live)[number] | undefined>((a, b) => (a === undefined || dist(b) < dist(a) ? b : a), undefined);
+        return target !== undefined;
+      },
+      { timeout: 20_000 },
+    )
+    .toBe(true);
+  const picked = target!;
+  // Zoom in on the Being so that its icon is clear of its neighbours.
+  const at = await call<{ x: number; y: number }>('tileToScreen', picked.x, picked.y);
+  await page.mouse.move(at.x, at.y);
+  for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -300);
+  // The Being keeps walking, so each poll reads its current tile and hovers it again.
+  const name = plainName('species', SPECIES[picked.species]?.id ?? '');
+  await expect
+    .poll(
+      async () => {
+        const now = (await call<{ id: number; x: number; y: number }[]>('beingPoints')).find((b) => b.id === picked.id);
+        if (!now) return 'gone';
+        const screen = await call<{ x: number; y: number }>('tileToScreen', now.x, now.y);
+        await page.mouse.move(screen.x, screen.y);
+        // The tooltip is drawn in the next frame after the pointer moves.
+        await page.waitForTimeout(150);
+        return (await page.locator('.insight-tip:not([hidden])').allTextContents()).join('|');
+      },
+      { timeout: 15_000 },
+    )
+    .toContain(name);
 });
 
 test('context loss rebuilds atlas', async ({ page }) => {

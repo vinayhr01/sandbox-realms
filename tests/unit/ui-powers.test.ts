@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { POWERS, POWER_BY_ID } from '../../src/content/powers.ts';
-import { SIM_HANDLERS, UI_HANDLERS, cooldownSecondsLeft, linePoints, powerStatus, strokeOp } from '../../src/ui/powerSupport.ts';
+import { SIM_HANDLERS, UI_HANDLERS, cooldownSecondsLeft, linePoints, nearestLivePoint, powerStatus, strokeOp } from '../../src/ui/powerSupport.ts';
 
 describe('power support', () => {
   it('SIM_HANDLERS matches the cases executePower switches on', () => {
@@ -72,5 +72,26 @@ describe('power support', () => {
     expect(cooldownSecondsLeft(0, 3000)).toBe(3);
     expect(cooldownSecondsLeft(2500, 3000)).toBe(1);
     expect(cooldownSecondsLeft(3000, 3000)).toBe(0);
+  });
+});
+
+describe('nearest live Being', () => {
+  const view = { offX: 0, offY: 0, zoom: 10 };
+  it('picks the nearest Being within the radius, skipping fading ones', () => {
+    // Tile centres at (x + 0.5) * 10: A at (55, 55), B at (55, 65) (B fades out), C at (305, 55).
+    const beings = [
+      { id: 'A', x: 5, y: 5, alpha: 1 },
+      { id: 'B', x: 5, y: 6, alpha: 0.5 },
+      { id: 'C', x: 30, y: 5, alpha: 1 },
+    ];
+    expect(nearestLivePoint(beings, beings.length, view, 56, 60, 10)?.id).toBe('A');
+    expect(nearestLivePoint(beings, beings.length, view, 56, 66, 4)).toBeNull();
+  });
+  it('reads only the first count entries', () => {
+    const beings = [
+      { id: 'A', x: 5, y: 5, alpha: 1 },
+      { id: 'B', x: 5, y: 5, alpha: 1 },
+    ];
+    expect(nearestLivePoint(beings, 1, view, 55, 55, 10)?.id).toBe('A');
   });
 });

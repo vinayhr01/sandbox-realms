@@ -18,12 +18,13 @@ import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOp
 import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
 import { mountPossessPad, possessActionOfCode, type PossessAction } from '../ui/panels/possessControls.ts';
 import { currentStep, parseTutorial, skipTutorial, TUTORIAL_TEXT, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
-import { cooldownSecondsLeft, dominionAtTile, hamletAtTile, linePoints, masterOfViewFlag, nearestMapPoint, nextOptionValue, powerStatus, strokeOp, toggleViewFlag, viewFlagsDefault } from '../ui/powerSupport.ts';
+import { cooldownSecondsLeft, dominionAtTile, hamletAtTile, linePoints, masterOfViewFlag, nearestLivePoint, nextOptionValue, powerStatus, strokeOp, toggleViewFlag, viewFlagsDefault } from '../ui/powerSupport.ts';
 import { HistoryTicker, TickerView } from '../ui/historyTicker.ts';
 import { WorldTip, beingTipLines, tileTipLines } from '../ui/worldTip.ts';
 import { WindowHost } from '../ui/windowHost.ts';
 import { windowFor, type ChronicleActions, type ChronicleOutcome, type WindowDeps, type WindowParams } from '../ui/windowContent.ts';
 import { SimView } from '../ui/sim-view.ts';
+import { SPECIES } from '../content/beasts.ts';
 import { POWER_BY_ID, POWERS, TABS, powersInTab, type PowerDef, type TabId } from '../content/powers.ts';
 import { plainName } from '../content/plain-names.ts';
 import { Ev, PING_LOST_MS, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
@@ -803,6 +804,16 @@ async function boot(): Promise<void> {
     updatePowerButtons();
   };
 
+  /** A Possess order the sim refused: the page drops its hold on the Being and says so. */
+  const refusePossession = (): void => {
+    possessedId = null;
+    possessPending = false;
+    attackHeld = false;
+    possessPad.setVisible(false);
+    setStatus("Can't take control of that being.");
+    updatePowerButtons();
+  };
+
   /**
    * Runs one possession control for the held Being (13 section 10 key or touch button; 07 section 13). Attack is held: each
    * change re-sends the order with the attack flag. An ability is one shot: a press sends the order with its flag set, on the
@@ -1242,14 +1253,19 @@ async function boot(): Promise<void> {
    * The being under a screen point in the latest feed sample (the snapshot holds only 96 beings): within 10 px, or 24 px
    * on touch. `key` is the feed key, `id` the sim's being id (generation * MAX_BEINGS + slot), `x` and `y` its tile.
    */
-  const pickBeing = (sx: number, sy: number): { key: number; id: number; x: number; y: number } | null => {
+  /** The sim's being id of a feed key. The feed's generation is 16 bits, so a Being past 65535 generations gets another id and the sim refuses it. */
+  const beingIdOf = (key: number): number => (key & 0xffff) * MAX_BEINGS + (key >>> 16);
+  /** The feed Being nearest a screen point (fading Beings excluded), or null. */
+  const beingAt = (sx: number, sy: number, radius: number): DrawBeing | null => {
     const cam = camera;
     if (!cam || beingCount === 0) return null;
+    return nearestLivePoint(drawBeings, beingCount, cam, sx, sy, radius);
+  };
+  const pickBeing = (sx: number, sy: number): { key: number; id: number; x: number; y: number } | null => {
     const radius = window.matchMedia('(pointer: coarse)').matches ? 24 : 10;
-    const hit = nearestMapPoint(drawBeings.slice(0, beingCount), cam, sx, sy, radius);
+    const hit = beingAt(sx, sy, radius);
     if (!hit) return null;
-    // The feed's generation is 16 bits; the sim checks the full generation, so a Being past 65535 generations is refused.
-    return { key: hit.key, id: (hit.key & 0xffff) * MAX_BEINGS + (hit.key >>> 16), x: Math.round(hit.x), y: Math.round(hit.y) };
+    return { key: hit.key, id: beingIdOf(hit.key), x: Math.round(hit.x), y: Math.round(hit.y) };
   };
 
   /** Reads one tile from the sim and reports it in the status line. Held presses say so. */
@@ -1479,6 +1495,8 @@ async function boot(): Promise<void> {
             });
           }
         }
+        // The sim refused a Possess order: the Being is stale or its generation is past the feed's 16 bits (pickBeing).
+        if (event.code === 'COMMAND_REFUSED' && event.detail === 'possess refused' && possessedId !== null) refusePossession();
         if (event.code === 'WORKER_RESPAWN') crumb('WORKER_RESTART', 'respawn');
         else journal(event.code, event.detail);
         if (event.severity === 'fatal') {
@@ -1802,11 +1820,8 @@ async function boot(): Promise<void> {
         },
         view,
       );
-      // Insight hover (desktop only): the Being under the pointer, where the cursor arrows start.
-      const hoverPoint =
-        simView.current && cursorScreen && canHover && !pressed
-          ? nearestMapPoint(simView.current.mapPoints ?? [], cam, cursorScreen.x, cursorScreen.y, 10)
-          : null;
+      // Insight hover (desktop only): the Being under the pointer, from the latest feed sample. Where the cursor arrows start.
+      const hoverBeing = cursorScreen && canHover && !pressed ? beingAt(cursorScreen.x, cursorScreen.y, 10) : null;
       insight.update(
         simView.current,
         {
@@ -1819,7 +1834,7 @@ async function boot(): Promise<void> {
           talkBubbles: boolOption(options, 'ui.talkBubbles'),
           // The arrow kinds only when the Settings master is on, and never on touch.
           arrows: boolOption(options, 'ui.cursorArrows') && canHover ? new Set([...viewFlags].filter((k) => k.startsWith('arrow.'))) : new Set<string>(),
-          hoverId: hoverPoint?.id ?? -1,
+          hoverId: hoverBeing ? beingIdOf(hoverBeing.key) : -1,
           moneyFlow: boolOption(options, 'ui.moneyFlow'),
           selectedDominion,
           accordDominion,
@@ -1829,10 +1844,14 @@ async function boot(): Promise<void> {
       // Cursor tooltip: the Being under the pointer (tip.beings), else the tile (tip.tiles). Settings master ui.worldTooltips.
       const snapNow = simView.current;
       let tip: string[] | null = null;
-      if (snapNow && cursorScreen && canHover && !pressed && boolOption(options, 'ui.worldTooltips')) {
-        if (hoverPoint) {
-          if (viewFlags.has('tip.beings')) tip = beingTipLines(hoverPoint, snapNow.mapKinds?.find((k) => k.id === hoverPoint.id));
-        } else if (viewFlags.has('tip.tiles')) {
+      if (cursorScreen && canHover && !pressed && boolOption(options, 'ui.worldTooltips')) {
+        if (hoverBeing) {
+          if (viewFlags.has('tip.beings')) {
+            const speciesId = SPECIES[hoverBeing.species]?.id;
+            const id = beingIdOf(hoverBeing.key);
+            tip = beingTipLines(speciesId ? plainName('species', speciesId) : 'Being', snapNow?.mapKinds?.find((k) => k.id === id));
+          }
+        } else if (snapNow && viewFlags.has('tip.tiles')) {
           const at = tileAt(cursorScreen.x, cursorScreen.y);
           tip = tileTipLines(snapNow, at.x, at.y);
         }
@@ -1933,8 +1952,8 @@ async function boot(): Promise<void> {
     creatureState: () => ({ resets: creatureReset.resets, sample: interp.sample(performance.now(), []), drawn: creatures.drawnCount() }),
     /** A new realm with a random seed, as the Realm tab's restart does. */
     newWorld: () => restartRealm?.(),
-    /** The feed sample this frame: each Being's feed key and interpolated tile, in feed order. */
-    beingPoints: () => drawBeings.slice(0, beingCount).map((d) => ({ key: d.key, x: d.x, y: d.y })),
+    /** The feed sample this frame: each Being's feed key, its sim id (generation * MAX_BEINGS + slot), and interpolated tile, in feed order. */
+    beingPoints: () => drawBeings.slice(0, beingCount).map((d) => ({ key: d.key, id: beingIdOf(d.key), x: d.x, y: d.y, alpha: d.alpha, species: d.species })),
     /**
      * Spawns n beings of one species through the Beings tab's spawn power. Without x and y they go on the tile of the
      * land Being nearest the realm centre (a spawn needs a walkable tile, and the centre may be water). With x and y they

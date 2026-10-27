@@ -5,7 +5,7 @@
  */
 import { plainName } from '../content/plain-names.ts';
 import { decodeParcels } from '../shared/parcel-codec.ts';
-import type { MapKind, MapKindGroup, MapPoint, Snapshot } from '../shared/protocol.ts';
+import type { MapKind, MapKindGroup, Snapshot } from '../shared/protocol.ts';
 import { hamletAtTile, parcelOfTile } from './powerSupport.ts';
 
 const GROUP_LABEL: Readonly<Record<MapKindGroup, string>> = {
@@ -30,11 +30,15 @@ export function tileTipLines(snap: Snapshot, x: number, y: number): string[] | n
   return [`Tile ${x}, ${y}`, name !== undefined ? `Dominion: ${name}` : 'No dominion', hamlet >= 0 ? `Hamlet ${hamlet + 1}` : 'No hamlet'];
 }
 
-/** Lines of the Being tooltip for a sampled Being and its kind (when the snapshot has one). Pure. */
-export function beingTipLines(point: MapPoint, kind: MapKind | undefined): string[] {
-  const lines = [kind ? `${GROUP_LABEL[kind.group]}, size ${kind.size}` : point.folk ? 'Folk' : 'Beast'];
-  if (kind?.mood !== undefined) lines.push(`Mood ${kind.mood}`);
-  lines.push(`Task: ${kind?.task ? plainName('decision', kind.task) : 'none'}`);
+/**
+ * Lines of the Being tooltip. With the Being's snapshot row: group, size, mood and task. Without one (the Being is
+ * beyond the snapshot's 96 sampled rows): the species' plain name alone. Pure.
+ */
+export function beingTipLines(speciesName: string, kind: MapKind | undefined): string[] {
+  if (!kind) return [speciesName];
+  const lines = [`${GROUP_LABEL[kind.group]}, size ${kind.size}`];
+  if (kind.mood !== undefined) lines.push(`Mood ${kind.mood}`);
+  lines.push(`Task: ${kind.task ? plainName('decision', kind.task) : 'none'}`);
   return lines;
 }
 

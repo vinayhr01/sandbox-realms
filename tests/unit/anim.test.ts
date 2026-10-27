@@ -4,10 +4,13 @@ import { SPECIES_GAIT, type SpeciesGait } from '../../src/art/gaits.ts';
 import {
   IDLE_CYCLES_PER_S,
   MAX_STRIDES_PER_S,
+  PhaseByKey,
   RUN_SCREEN_TILES_PER_S,
   advancePhase,
   frameIndex,
+  framesOf,
   gaitFor,
+  stepPhase,
 } from '../../src/render/anim.ts';
 
 const species = (id: string): SpeciesGait => SPECIES_GAIT[id] as SpeciesGait;
@@ -82,5 +85,56 @@ describe('gaitFor', () => {
     expect(gaitFor(dragon, BeingState.Idle)).toEqual({ gait: 'quad', mode: 'idle' });
     expect(gaitFor(dragon, BeingState.Sleep)).toEqual({ gait: 'quad', mode: 'idle' });
     expect(gaitFor(dragon, BeingState.Hit)).toEqual({ gait: 'quad', mode: 'idle' });
+  });
+});
+
+describe('stepPhase', () => {
+  it('breathes standing beings at IDLE_CYCLES_PER_S whatever they moved', () => {
+    expect(stepPhase(0, BeingState.Idle, 5, 0.5, 1000)).toBeCloseTo(IDLE_CYCLES_PER_S, 10);
+    expect(stepPhase(0, BeingState.Sleep, 0, 0.5, 1000)).toBeCloseTo(IDLE_CYCLES_PER_S, 10);
+  });
+
+  it('strides walking beings by the tiles moved', () => {
+    expect(stepPhase(0, BeingState.Walk, 0.3, 0.6, 1000)).toBeCloseTo(0.5, 10);
+  });
+});
+
+describe('framesOf', () => {
+  it('gives a static gait one frame and the others their table count', () => {
+    expect(framesOf('static', 'idle')).toBe(1);
+    expect(framesOf('quad', 'idle')).toBe(2);
+    expect(framesOf('quad', 'run')).toBe(4);
+  });
+});
+
+/** The forward distance from a to b on the phase circle. */
+const wrap = (d: number): number => d - Math.floor(d);
+
+describe('PhaseByKey', () => {
+  it('keeps each key on its own phase, striding by the distance its own position moved', () => {
+    const phases = new PhaseByKey();
+    const a1 = phases.step(1, BeingState.Walk, 0, 0, 0.6, 1000);
+    phases.step(2, BeingState.Walk, 10, 10, 0.6, 1000);
+    const a2 = phases.step(1, BeingState.Walk, 0.3, 0, 0.6, 1000);
+    expect(wrap(a2 - a1)).toBeCloseTo(0.5, 10);
+    expect(phases.phaseOf(1)).toBeCloseTo(a2, 10);
+    expect(phases.phaseOf(2)).not.toBeCloseTo(phases.phaseOf(1), 3);
+  });
+
+  it('breathes a standing key without any movement', () => {
+    const phases = new PhaseByKey();
+    const p1 = phases.step(7, BeingState.Idle, 0, 0, 0.6, 1000);
+    const p2 = phases.step(7, BeingState.Idle, 0, 0, 0.6, 1000);
+    expect(wrap(p2 - p1)).toBeCloseTo(IDLE_CYCLES_PER_S, 10);
+  });
+
+  it('drops keys not stepped this frame', () => {
+    const phases = new PhaseByKey();
+    phases.step(1, BeingState.Walk, 0, 0, 0.6, 1000);
+    phases.step(2, BeingState.Walk, 0, 0, 0.6, 1000);
+    phases.endFrame();
+    phases.step(1, BeingState.Walk, 0, 0, 0.6, 1000);
+    phases.endFrame();
+    expect(phases.size()).toBe(1);
   });
 });

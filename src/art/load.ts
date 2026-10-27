@@ -72,3 +72,8 @@ export function loadArt(chunk: ArtChunk): Promise<Record<string, string>> {
 export function artFor(id: string): string | null {
   return loaded.get(chunkOf(id))?.[id] ?? null;
 }
+
+/** The SVG source of a hamlet building kind, or null while the buildings chunk has not loaded (or has no art). */
+export function artForBuilding(id: string): string | null {
+  return loaded.get('buildings')?.[id] ?? null;
+}

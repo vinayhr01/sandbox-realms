@@ -3,7 +3,7 @@
  * phase advances. Pure: no Pixi, no DOM.
  */
 import { BeingState } from '../shared/being-feed.ts';
-import type { GaitId, PoseMode, SpeciesGait } from '../art/gaits.ts';
+import { GAITS, type GaitId, type PoseMode, type SpeciesGait } from '../art/gaits.ts';
 
 /** The standing breathing pose plays at this rate. */
 export const IDLE_CYCLES_PER_S = 0.5;
@@ -40,4 +40,68 @@ export function advancePhase(phase: number, movedTiles: number, strideTiles: num
   const strides = Math.min(movedTiles / strideTiles, (MAX_STRIDES_PER_S * dtMs) / 1000);
   const next = phase + strides;
   return next - Math.floor(next);
+}
+
+/** One being's stride phase after a frame: standing beings breathe at IDLE_CYCLES_PER_S, the moving ones stride by distance. */
+export function stepPhase(phase: number, state: BeingState, movedTiles: number, strideTiles: number, dtMs: number): number {
+  switch (state) {
+    case BeingState.Walk:
+    case BeingState.Run:
+    case BeingState.Swim:
+      return advancePhase(phase, movedTiles, strideTiles, dtMs);
+    default: {
+      const next = phase + (IDLE_CYCLES_PER_S * dtMs) / 1000;
+      return next - Math.floor(next);
+    }
+  }
+}
+
+/** Frame count of a gait's mode. A static gait bakes one frame whatever the mode. */
+export function framesOf(gait: GaitId, mode: PoseMode): number {
+  return gait === 'static' ? 1 : GAITS[gait].frames[mode];
+}
+
+interface PhaseEntry {
+  phase: number;
+  x: number;
+  y: number;
+  seen: number;
+}
+
+/**
+ * The stride phase of each being, kept per DrawBeing.key so two beings of one species do not march in step. Tiles moved
+ * are measured between this and the last step of the same key, so a stride follows the drawn (smoothed) position. A
+ * new key starts at a phase spread from the key itself. `endFrame` drops the keys that were not stepped this frame.
+ */
+export class PhaseByKey {
+  private readonly entries = new Map<number, PhaseEntry>();
+  private frame = 0;
+
+  step(key: number, state: BeingState, x: number, y: number, strideTiles: number, dtMs: number): number {
+    let e = this.entries.get(key);
+    if (!e) {
+      const spread = key * 0.6180339887;
+      e = { phase: spread - Math.floor(spread), x, y, seen: this.frame };
+      this.entries.set(key, e);
+    }
+    const moved = Math.max(Math.abs(x - e.x), Math.abs(y - e.y));
+    e.x = x;
+    e.y = y;
+    e.phase = stepPhase(e.phase, state, moved, strideTiles, dtMs);
+    e.seen = this.frame;
+    return e.phase;
+  }
+
+  phaseOf(key: number): number {
+    return this.entries.get(key)?.phase ?? 0;
+  }
+
+  size(): number {
+    return this.entries.size;
+  }
+
+  endFrame(): void {
+    for (const [key, e] of this.entries) if (e.seen !== this.frame) this.entries.delete(key);
+    this.frame++;
+  }
 }

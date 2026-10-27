@@ -2,7 +2,7 @@ import '../ui/styles.css';
 import type { Ticker } from 'pixi.js';
 import { TerrainRenderer, type CursorState } from '../render/terrain.ts';
 import { MarkLayer } from '../render/marks.ts';
-import { CreatureLayer } from '../render/creatures.ts';
+import { CreatureLayer, resetCreatureView } from '../render/creatures.ts';
 import { FeedInterp, type DrawBeing } from '../render/feed-interp.ts';
 import { BeingState } from '../shared/being-feed.ts';
 import { InsightLayer } from '../render/insight-layers.ts';
@@ -382,6 +382,8 @@ async function boot(): Promise<void> {
   let beingCount = 0;
   /** True once a feed has arrived for the current realm, so a followed being missing from the feed is lost. */
   let beingsFed = false;
+  /** Realm setups so far, counted by resetCreatureView; the e2e tests read it to see that a New World reached the layer. */
+  const creatureReset = { resets: 0 };
   // Insight layers and overlays: added after the marks, so the tints and icons draw over them.
   const insight = new InsightLayer(renderer.app);
   const client = new SimClient();
@@ -687,8 +689,7 @@ async function boot(): Promise<void> {
     followPending = false;
     followKey = null;
     // A new, loaded or respawned realm has new Beings and buildings: the feed of the old one is dropped.
-    interp.reset();
-    creatures.clear();
+    resetCreatureView(interp, creatures, creatureReset);
     beingCount = 0;
     beingsFed = false;
     // A new or loaded realm has new Beings: the held one is not carried over (control is not saved, 07 section 14).
@@ -1896,6 +1897,9 @@ async function boot(): Promise<void> {
     openWindow: () => windowHost.current,
     snapshot: () => simView.current,
     creatureCount: () => creatures.drawnCount(),
+    resets: () => creatureReset.resets,
+    /** The layer's state now: the realm resets so far, the feed sample's length, and the sprites drawn. */
+    creatureState: () => ({ resets: creatureReset.resets, sample: interp.sample(performance.now(), []), drawn: creatures.drawnCount() }),
     /** A new realm with a random seed, as the Realm tab's restart does. */
     newWorld: () => restartRealm?.(),
     /** The feed sample this frame: each Being's feed key and interpolated tile, in feed order. */

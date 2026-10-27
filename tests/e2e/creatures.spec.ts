@@ -62,7 +62,10 @@ test('new world clears creatures', async ({ page }) => {
   const call = await openRealm(page);
   await call('spawnMany', 'burrfleece', 200);
   await expect.poll(() => call<number>('creatureCount'), { timeout: 20_000 }).toBeGreaterThan(96);
+  // setRealmSide runs resetCreatureView once per realm: the New World must add exactly one reset.
+  const resetsBefore = await call<number>('resets');
   await call('newWorld');
+  await expect.poll(() => call<number>('resets'), { timeout: 30_000 }).toBe(resetsBefore + 1);
   // The new realm starts at tick 0. Stale tracks from the old realm would keep the 200 spawned Beings in the
   // feed sample, so the sample must match the new realm's snapshot: its Beings only, the snapshot capped at 96.
   // Keys are not compared across realms: generations restart, so an old key can recur in the new realm.

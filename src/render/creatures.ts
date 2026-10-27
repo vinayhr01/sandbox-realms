@@ -10,7 +10,7 @@ import { SPECIES } from '../content/beasts.ts';
 import { speciesGroup } from '../content/species-group.ts';
 import type { MapBoat, MapBuilding, MapSizeClass } from '../shared/protocol.ts';
 import { BeingState } from '../shared/being-feed.ts';
-import type { DrawBeing } from './feed-interp.ts';
+import type { DrawBeing, FeedInterp } from './feed-interp.ts';
 import type { MarkView } from './marks.ts';
 import { clamp } from './camera.ts';
 import { buildingKindOf, GROUP_COLOUR, SpriteFactory, type SpriteTex } from './sprites.ts';
@@ -43,6 +43,16 @@ const GAIT_OF_STATE: Readonly<Record<BeingState, string>> = {
   [BeingState.Sleep]: 'sleep',
   [BeingState.Hit]: 'hit',
 };
+
+/**
+ * Drops the feed sample and the creature sprites, and counts the reset in `count`. Called when a new, loaded or respawned
+ * realm replaces the old one.
+ */
+export function resetCreatureView(interp: Pick<FeedInterp, 'reset'>, layer: { clear(): void }, count: { resets: number }): void {
+  interp.reset();
+  layer.clear();
+  count.resets++;
+}
 
 /** Dot and icon weights for a zoom: 0 to 1 each. Dots fall to 0 at LOD_TO_PX, icons rise from 0 at LOD_FROM_PX. */
 export function lodOf(zoomPx: number): { dots: number; icons: number } {

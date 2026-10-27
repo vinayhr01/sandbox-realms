@@ -143,8 +143,9 @@ export class Atlas implements FrameSource {
   private readonly now: () => number;
   private readonly schedule: (work: () => void) => void;
   private inflight = 0;
-  /** Bumped by rebuild: decodes started before it are dropped when they land. */
+  /** Bumped by rebuild and dispose: loads and decodes started before it are dropped when they land. */
   private gen = 0;
+  private disposed = false;
   private scheduled = false;
   private lastFlush = Number.NEGATIVE_INFINITY;
 
@@ -157,14 +158,14 @@ export class Atlas implements FrameSource {
 
   /** Queues the bake of a species' frames. Idempotent; the art is loaded first when its chunk has not loaded. */
   request(species: number): void {
-    if (this.requestedSpecies.has(species)) return;
+    if (this.disposed || this.requestedSpecies.has(species)) return;
     this.requestedSpecies.add(species);
     this.startSpecies(species);
   }
 
   /** Queues the bake of a building's still frame (buildings have no gait). Idempotent. */
   requestBuilding(kind: string): void {
-    if (this.requestedBuildings.has(kind)) return;
+    if (this.disposed || this.requestedBuildings.has(kind)) return;
     this.requestedBuildings.add(kind);
     this.startBuilding(kind);
   }
@@ -184,6 +185,17 @@ export class Atlas implements FrameSource {
    * webglcontextrestored. The old textures are destroyed (a texture registers with its page source, so an undestroyed
    * one would be kept alive by the source) and the old pages' sources are destroyed; new frames start on new pages.
    */
+  /**
+   * Stops the atlas for good: queued and in-flight bakes are dropped, and a chunk load still pending when this is called
+   * does nothing when it lands (no bake, so no warning after the owner is gone). Requests after this are ignored.
+   */
+  dispose(): void {
+    this.disposed = true;
+    this.gen++;
+    this.queue.length = 0;
+    this.ready.length = 0;
+  }
+
   rebuild(): void {
     this.gen++;
     this.queue.length = 0;

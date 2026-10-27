@@ -39,5 +39,8 @@ describe('CreatureLayer.clear', () => {
     layer.clear();
     expect(layer.drawnCount()).toBe(0);
     expect(visibleSprites(stage)).toBe(0);
+    // draw() asked the atlas for the species' art, which loads asynchronously. Disposing stops that load from baking
+    // (and warning) after the test has ended.
+    layer.dispose();
   });
 });

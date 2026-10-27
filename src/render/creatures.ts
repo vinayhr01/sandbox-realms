@@ -286,6 +286,11 @@ export class CreatureLayer {
     return this.placed;
   }
 
+  /** Stops the baked-art pipeline for good (Atlas.dispose). Called when the layer's owner goes away. */
+  dispose(): void {
+    this.atlas.dispose();
+  }
+
   /** Forgets the buildings and boats and hides every sprite, e.g. when a new world starts. */
   clear(): void {
     this.buildings = [];

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="boneshambler-s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffbef"/><stop offset=".6" stop-color="#ebdfc1"/><stop offset="1" stop-color="#c2b088"/></linearGradient>
+<linearGradient id="boneshambler-r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7f0dc"/><stop offset="1" stop-color="#cdbd96"/></linearGradient>
+<linearGradient id="boneshambler-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a6a9c"/><stop offset="1" stop-color="#4f375e"/></linearGradient>
+<radialGradient id="boneshambler-e" cx=".45" cy=".45" r=".6"><stop offset="0" stop-color="#eafff8"/><stop offset=".45" stop-color="#8ff0d2"/><stop offset="1" stop-color="#2f9c86"/></radialGradient>
+<path id="boneshambler-ad" d="M64 43L62 57M61.6 60L59 71.5"/>
+<path id="boneshambler-ld" d="M64 80L63.2 97M63 101L62.5 112"/>
+<g id="boneshambler-arm"><use href="#boneshambler-ad" stroke-width="6.8"/><use href="#boneshambler-ad" stroke="currentColor" stroke-width="3.8"/><path d="M62.6 47.5l-1 7M60.6 62l-1.5 7.5" stroke-width=".8" opacity=".45"/><circle cx="64" cy="42.6" r="3.7" fill="currentColor"/><circle cx="61.8" cy="58.6" r="2.9" fill="currentColor"/><path d="M57 71.2C58.5 70 61 70.3 61.6 72.2L61.4 74.5C60 75.6 57.8 75.4 56.8 74Z" fill="currentColor"/><path d="M57.3 74.2l-2.4 5.4M59.2 75l-1 6.4M61.1 74.4l.4 5.8M57 71.8l-3.4 1.8" stroke-width="3.4"/><path d="M57.3 74.2l-2.4 5.4M59.2 75l-1 6.4M61.1 74.4l.4 5.8M57 71.8l-3.4 1.8" stroke="currentColor" stroke-width="1.5"/></g>
+<g id="boneshambler-leg"><use href="#boneshambler-ld" stroke-width="7.2"/><use href="#boneshambler-ld" stroke="currentColor" stroke-width="4.2"/><path d="M62.4 84l-.4 9M61.6 103.5l-.3 6.5" stroke-width=".8" opacity=".45"/><circle cx="63.2" cy="99" r="3.4" fill="currentColor"/><path d="M66 112C68.4 113 69 116.5 67.8 118.6C67.3 119.6 66.4 120 65.4 120H52.6C50.8 120 50.3 118.3 51.6 117.4C54 116.3 57 115.6 59.5 114.4C61.8 113.2 63.5 111.5 66 112Z" fill="currentColor"/><path d="M55.6 117.2V120M58.6 116.2V120M61.6 115V120" stroke-width=".9" opacity=".7"/><circle cx="64.4" cy="113.6" r="2.4" fill="currentColor"/></g>
+</defs>
+<g stroke="#6e6148" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<g id="leg-r" data-pivot="67 79"><use href="#boneshambler-leg" x="3" color="#b8a985" stroke="#5a4e38"/></g>
+<g id="leg-l" data-pivot="64 79"><use href="#boneshambler-leg" color="#f2e9d0"/></g>
+<g id="body" data-pivot="64 60">
+<g id="arm-r" data-pivot="67 42"><use href="#boneshambler-arm" x="3" color="#b8a985" stroke="#5a4e38"/></g>
+<path d="M66 33C68.5 42 70.5 50 69.6 60C69 66 67.5 71 66.5 77" stroke-width="7"/>
+<path d="M66 33C68.5 42 70.5 50 69.6 60C69 66 67.5 71 66.5 77" stroke="#e7dcbd" stroke-width="4" stroke-dasharray="3.2 1.1" stroke-linecap="butt"/>
+<path d="M68 39C60 38 53 41 50.8 47C49 53 50.8 60 55.6 64C59.6 66.6 65 66.8 69.2 64.6Z" fill="url(#boneshambler-r)"/>
+<path d="M67.4 44.6C61 43 56 44.5 54.4 48M68 50.6C61.5 49.4 56 50.6 54 54.4M68 56.8C62.5 56 58 57.4 56.4 60.2" stroke="#4a3e30" stroke-width="2.4"/>
+<path d="M53.6 42.8C51.4 46.5 51 52.5 52.8 58.4" stroke="#fffaea" stroke-width="1.2" opacity=".8"/>
+<path d="M58.4 70C61 66.4 69.6 66 72.6 69.6C73.6 72 72.6 75 70.6 77.6L67 80.6C64 81.6 60.4 81 59 79C57.3 76.4 57 73 58.4 70Z" fill="url(#boneshambler-s)"/>
+<ellipse cx="65" cy="74.6" rx="2" ry="2.6" fill="#4a3e30"/>
+<path d="M56.4 72C62 73.6 68.6 73.6 74 72L74.4 76.2C71 77.4 68 77.8 66.4 77.8L65.2 86.6L63.2 83.6L61 87.4L59.6 83.4L56.8 85.2L57.6 77.2C57 76.8 56.6 76.4 56.4 76Z" fill="url(#boneshambler-c)" stroke="#3a2846"/>
+<path d="M58 74.2q7 1.3 15 .1M61.4 79l-.6 5M64.6 78.6l-.4 4.6" stroke="#2e1f38" stroke-width=".9" opacity=".55"/>
+<g id="head" data-pivot="65 36">
+<path d="M53 30C50 28 49.6 25 51 22.6C49.6 18 51 11 56 7.6C61.6 4 70 4.6 75 9.6C79 13.6 79.6 21 76.6 26C75 28.6 73.6 30.2 73 32.6L71 34.2H62.6C60 34 58 33 57.6 31.6C56 32 54 31.6 53 30Z" fill="url(#boneshambler-s)"/>
+<path d="M76.4 12.6C78.8 17.6 78.4 23 75.6 27C74.2 29 73 31 72.6 33.4C70.4 30 70 25 71.6 20.4C72.6 17.4 74.4 14.6 76.4 12.6Z" fill="#b8a580" stroke="none" opacity=".55"/>
+<path d="M69.6 7.8l-2 4.2 2.6 1.4-1.6 3.6M64.6 21.4q3.4 3 7.6 1.6" stroke-width="1"/>
+<path d="M53.6 17.6C55 15 59.6 15 61 17.8C62 20.6 60 23.6 57 23.6C54.6 23.4 52.8 20.4 53.6 17.6Z" fill="#3a3026"/>
+<circle cx="57.4" cy="19.8" r="2.1" fill="url(#boneshambler-e)" stroke="none"/>
+<circle cx="56.6" cy="19" r=".65" fill="#fff" stroke="none"/>
+<path d="M52.6 15.6Q57 13.2 62 16" stroke-width="1.3"/>
+<path d="M50.6 23.6c1.2-.7 2.4-.5 3 .2l-1.6 3.4Z" fill="#3a3026" stroke-width="1"/>
+<path d="M55.4 26.6q3.6 1 7-.4" stroke-width="1" opacity=".55"/>
+<path d="M53.6 32.6H63C65 32.6 67 31.2 69 30.6C70.6 31.6 71 33.6 70 35.2C68 37.6 63 38.6 57.6 38.2C55 38 53.6 36.6 53.4 34.6Z" fill="url(#boneshambler-s)"/>
+<path d="M52.6 29H62.6V31.8H53.6C53 31 52.7 30 52.6 29ZM54 32.6H62.4V34.6H54.4Z" fill="#fffdf4" stroke-width="1"/>
+<path d="M53 32.2H63" stroke="#3a3026" stroke-width="1"/>
+<path d="M55.2 29v2.8M57.6 29v2.8M60 29v2.8M56.4 32.6v2M58.8 32.6v2M61 32.6v2" stroke-width=".8"/>
+</g>
+<g id="arm-l" data-pivot="64 42"><use href="#boneshambler-arm" color="#f2e9d0"/></g>
+</g>
+</g>
+</svg>

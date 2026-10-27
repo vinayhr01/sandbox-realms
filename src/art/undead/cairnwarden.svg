@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="cairnwarden-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6ecd2"/><stop offset=".6" stop-color="#e2d2ac"/><stop offset="1" stop-color="#c3ae84"/></linearGradient>
+<linearGradient id="cairnwarden-bf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdbd96"/><stop offset="1" stop-color="#9c875f"/></linearGradient>
+<radialGradient id="cairnwarden-hb" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#fbf4e0"/><stop offset=".6" stop-color="#e4d4ae"/><stop offset="1" stop-color="#bba67a"/></radialGradient>
+<linearGradient id="cairnwarden-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8d777"/><stop offset="1" stop-color="#b9862c"/></linearGradient>
+<radialGradient id="cairnwarden-e" cx=".45" cy=".45" r=".6"><stop offset="0" stop-color="#fff6c8"/><stop offset=".5" stop-color="#ffc640"/><stop offset="1" stop-color="#d9741a"/></radialGradient>
+<g id="cairnwarden-leg"><path d="M55 74H71C71 86 70.6 96 70 104L70 112H57L57 104C56.4 96 55 86 55 74Z"/><path d="M55.4 80.6l15.4-3M55.8 88.4l15-3.4M56.4 96.4l14.2-3M56.8 104l13.4-2.8M60 75l-1 4" fill="none" stroke-width="1" opacity=".5"/><path d="M57 110H70.4C71.4 113 71.6 117 70.6 119.2C70.2 119.8 69.6 120 68.8 120H51.6C49.6 120 49 118 50.6 117C53 115.6 55.6 114.4 57 112.6Z"/><path d="M52.8 117.4V120M55.6 116.6V120M58.4 115.6V120M60.4 113.2l9.8-1.6M63 117.6l7.6-2" fill="none" stroke-width=".9" opacity=".6"/></g>
+<g id="cairnwarden-arm"><path d="M61.6 38.6C64.6 36.6 68.6 37.6 69 41.4C69.2 44 68.4 46 66.4 47.4L44.4 59.4L39.6 50.6Z"/><path d="M58.6 40.4l3 5.8M53.4 43.2l2.8 5.8M48.2 46l2.8 5.8M43 48.8l2.6 5.4M64 39l2 6" fill="none" stroke-width="1" opacity=".5"/><path d="M47.6 52.8C47 57 47.8 61 46.4 65.4L48.8 64.4L50.4 66.6L51 51.2Z"/><path d="M40.6 50C37.6 49.4 34.6 51 33.8 53.6C33.2 55.6 34 57.6 35.6 58.4L38.6 59.4C41 60 43.6 59.6 44.6 58.4Z"/><path d="M34.4 55.6C32.6 56.8 32 58.6 32.4 60.2M36.4 57.8C35.2 59.2 35 60.8 35.6 62.2M38.8 58.8c-.6 1.4-.4 2.8.2 3.8" stroke-width="3.2"/><path d="M34.4 55.6C32.6 56.8 32 58.6 32.4 60.2M36.4 57.8C35.2 59.2 35 60.8 35.6 62.2M38.8 58.8c-.6 1.4-.4 2.8.2 3.8" stroke="currentColor" stroke-width="1.7"/><path d="M36 52l4 5.6" fill="none" stroke-width=".9" opacity=".5"/></g>
+</defs>
+<g stroke="#6e5a3a" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="67 77" stroke="#5a4830"><use href="#cairnwarden-leg" x="4" fill="url(#cairnwarden-bf)"/></g>
+<g id="leg-l" data-pivot="63 77"><use href="#cairnwarden-leg" fill="url(#cairnwarden-b)"/></g>
+<g id="body" data-pivot="64 60">
+<g id="arm-r" data-pivot="68 41" stroke="#5a4830"><use href="#cairnwarden-arm" x="4" y="-2" fill="url(#cairnwarden-bf)" color="#bba77f"/></g>
+<path d="M50 38C54 34 74 34 78 38C81 46 81 58 80 68C80 74 81 78 82.4 82.4L80 81.6L79 85.6L76.4 82.4L73.6 86.4L71 82.6H58L56 86L54 82.6L51.6 85L50.2 82.4L47.6 82.4C48.8 76 49 70 48.6 64C47.6 56 47.6 46 50 38Z" fill="url(#cairnwarden-b)"/>
+<path d="M48.6 47.6l31.6-4M48.4 55.6l32.4-3.6M48.8 63.6l31.6-3.4M49 71.6l31.6-3.2M49.2 79l32-3" fill="none" stroke-width="1.1" opacity=".55"/>
+<path d="M49 51.6l31.6-3.8M48.8 59.6l32-3.4M49 67.6l31.6-3.4M49.2 75.4l31.6-3" fill="none" stroke="#fffaea" stroke-width="1" opacity=".7"/>
+<path d="M77 39.6C80 46 80.4 58 79.4 68C79 74 79.8 78 81 81.6" fill="none" stroke-width="3.4" opacity=".2"/>
+<path d="M60 64.4l3.6 1.4-1 3.6-3.4-1.6Z" fill="#c3ae84" stroke-width="1"/>
+<g id="head" data-pivot="64 34">
+<path d="M50 20C50 11 56 6 64 6C72 6 78 11.6 78 20C78 27 75 32 70 34.6H58C53 32.6 50 27 50 20Z" fill="url(#cairnwarden-hb)"/>
+<path d="M50.6 13.6l26-4.4M50 25.6l27.4-5.2M51.6 29.6l24.6-4.6M54 8.6l18.6-1.6" fill="none" stroke-width="1" opacity=".55"/>
+<path d="M50.6 11.6l25.6-4.4M50.2 27.6l26.6-5" fill="none" stroke="#fffaea" stroke-width="1" opacity=".7"/>
+<path d="M49.4 16.6C54 15.4 61 15.2 65.4 16.4L65 21.6C60.4 22.6 53.6 22.6 49.6 21.4Z" fill="#3e2e1e" stroke="#4e3c26"/>
+<ellipse cx="54.4" cy="19" rx="2.4" ry="1.7" fill="url(#cairnwarden-e)" stroke="none"/>
+<circle cx="53.8" cy="18.5" r=".6" fill="#fff" stroke="none"/>
+<path d="M48.6 18.4C47 21.4 47 24.4 48.4 26.4L51.6 26.6" fill="url(#cairnwarden-hb)"/>
+<path d="M49.6 23.4q.9.6 1.6 0M50.2 29.2q2.4.8 4.6-.2" fill="none" stroke-width="1"/>
+<path d="M76 22C80 23.4 83 27.6 84.4 32.4L82.2 32.2L83.4 36.4C80.4 34 77.6 30 75.4 26.4Z" fill="url(#cairnwarden-hb)"/>
+<path d="M77.6 25.4l3.4 4.4" fill="none" stroke-width=".9" opacity=".5"/>
+</g>
+<path d="M51.6 34.4C58 38.8 70 38.8 77 34.4L78 40.4C71 45.6 57.6 45.6 50.6 40.4Z" fill="url(#cairnwarden-g)" stroke="#7a5418"/>
+<path d="M51.4 37.6C58 42 70.6 42 77.4 37.6" fill="none" stroke="#2f5ea8" stroke-width="1.8"/>
+<path d="M54 41.6v2.2M58 43v2.4M62.4 43.6v2.4M66.8 43.6v2.4M71 43v2.4M75 41.6v2.2" fill="none" stroke="#7a5418" stroke-width="1.6"/>
+<circle cx="64.4" cy="40.4" r="1.4" fill="#4f8fd8" stroke="#7a5418" stroke-width=".9"/>
+<g id="arm-l" data-pivot="64 42"><use href="#cairnwarden-arm" fill="url(#cairnwarden-b)" color="#eadcb8"/></g>
+</g>
+</g>
+</svg>

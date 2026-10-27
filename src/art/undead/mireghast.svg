@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="mireghast-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6f8590"/><stop offset=".55" stop-color="#4a5d68"/><stop offset="1" stop-color="#2f4a44"/></linearGradient>
+<linearGradient id="mireghast-cf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4c5f6a"/><stop offset="1" stop-color="#253a36"/></linearGradient>
+<radialGradient id="mireghast-v" cx=".4" cy=".5" r=".6"><stop offset="0" stop-color="#0f1a1c"/><stop offset="1" stop-color="#2a3a40"/></radialGradient>
+<radialGradient id="mireghast-e" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#f4ffe8"/><stop offset=".4" stop-color="#b6ff8e"/><stop offset="1" stop-color="#5fd06a" stop-opacity="0"/></radialGradient>
+<linearGradient id="mireghast-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dfe6da"/><stop offset="1" stop-color="#a8b4a4"/></linearGradient>
+<g id="mireghast-arm"><path d="M30 69.6L24 71.4L19.6 70.6M30.4 71.4L25.4 75.2L21.6 76M31.4 73L28 78.4L25 79.6M31 68.6L27.4 66.2" stroke-width="3.4"/><path d="M30 69.6L24 71.4L19.6 70.6M30.4 71.4L25.4 75.2L21.6 76M31.4 73L28 78.4L25 79.6M31 68.6L27.4 66.2" stroke="currentColor" stroke-width="1.8"/><path d="M19.8 70.6l-2 .8M21.8 76l-1.8 1.4M25.2 79.6l-1.2 1.8M27.4 66.2l-1.6-.8" stroke="#2a2f2a" stroke-width="1.3"/><path d="M54 53.6C48 55.6 40 59.6 34 63.6L28 69.6H32L30 74.6L35 71.6L36.4 76.6L40 71.8C46 69.6 52 65.6 58 63.6Z"/><path d="M48 58.6l-8 6M52 60l-6 5" fill="none" stroke-width="1" opacity=".4"/></g>
+</defs>
+<g stroke="#1f2b2e" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="body" data-pivot="60 66">
+<g id="tail" data-pivot="80 64">
+<path d="M76 54C88 56 98 63 106 73C110 79 114 85 119 89.6L111.4 89.6L114.4 96L106.6 93.6L106.4 100.6L99.4 94.6L96 100L93 91.6C88 88 83 83 79 77Z" fill="url(#mireghast-cf)"/>
+<path d="M86 66q8 6 14 16M84 74q6 6 10 12" fill="none" stroke="#8aa0a4" stroke-width="1" opacity=".5"/>
+<path d="M104 92.6l1.6 6.4M110 89l2.4 5" fill="none" stroke="#6f8f5a" stroke-width="1.2" opacity=".8"/>
+</g>
+<use href="#mireghast-arm" x="6" y="-4" fill="url(#mireghast-cf)" color="#9aa697"/>
+<path d="M42 50C35.6 61 33.6 76 34 90L35.6 104.6L40 98.6L43.6 109.6L48.4 100.6L53 111L57.4 101.6L62.4 109L66.4 99.6L71 105.6L73.6 94.6C78 84 82 72 81.6 60C81.6 54 80 50 76 47.6Z" fill="url(#mireghast-c)"/>
+<path d="M44 66q-2 16 1 32M54 64q-1 20 1 36M64 62q1 18 0 34M74 60q2 14-1 30" fill="none" stroke="#a6bcc0" stroke-width="1" opacity=".35"/>
+<path d="M78 50C81 60 80 76 74 92" fill="none" stroke-width="3.4" opacity=".25"/>
+<path d="M40.6 98.6l1-6M48.6 100l.4-7M57.6 101.6l-.4-6M66.6 99.6l.4-5" fill="none" stroke="#7da06a" stroke-width="1.4" opacity=".85"/>
+<path d="M38.6 76C48 80 66 79.6 79.4 74.6L79 79C66 84 48 84.6 38 80.6Z" fill="#3c4a3a" stroke="#1f2b22" stroke-width="1"/>
+<path d="M42 78.6a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0M48 79.6a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0M54 80a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0M60 79.8a1.6 1.6 0 1 0 3.2 0a1.6 1.6 0 1 0-3.2 0" fill="none" stroke="#9a8a6a" stroke-width="1"/>
+<path d="M37 44C36 30 42 18 54 13C62 10 70 12 76 18C80 22 84 22 88 20C86 26 82 30 80 34C82 42 80 50 76 56C66 60 52 60 44 58C40 54 37.4 50 37 44Z" fill="url(#mireghast-c)"/>
+<path d="M62 14C70 16 76 24 78 34M70 13.4q8 3 12 8" fill="none" stroke="#9ab0b6" stroke-width="1.2" opacity=".55"/>
+<path d="M40 44C40 34 45 26 52 24C58 24 61.6 30 61.6 38C61.6 46 58 52.6 52 54C46 55 41 51 40 44Z" fill="url(#mireghast-v)"/>
+<circle cx="45.6" cy="40" r="4.6" fill="url(#mireghast-e)" stroke="none"/>
+<circle cx="54.4" cy="40.4" r="4.6" fill="url(#mireghast-e)" stroke="none"/>
+<path d="M42.8 39.4L48.2 40.4C47.2 42.2 44.4 42.4 42.8 39.4ZM51.6 40.6L57 39.6C55.8 42.6 52.8 42.6 51.6 40.6Z" fill="#e8ffd8" stroke="#3a7a3e" stroke-width=".7"/>
+<circle cx="45.4" cy="40.8" r=".5" fill="#fff" stroke="none"/><circle cx="54.6" cy="41" r=".5" fill="#fff" stroke="none"/>
+<path d="M38.6 40C39 30 44 22 52 20" fill="none" stroke="#9ab0b6" stroke-width="1.2" opacity=".5"/>
+<use href="#mireghast-arm" fill="url(#mireghast-c)" color="#d6ddd0"/>
+</g>
+</g>
+</svg>

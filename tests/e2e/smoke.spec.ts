@@ -152,13 +152,13 @@ test('terrain shader compiles at all zoom levels', async ({ page }) => {
   expect(await pitch()).toBeGreaterThanOrEqual(12);
   expect(await sampleCentre()).not.toEqual(BACKDROP);
 
-  // Zoom in as far as the camera allows. A 256-tile realm stops near 8x fit (about 17 px), below the 96 px cap.
-  for (let i = 0; i < 40; i++) {
+  // Zoom in to the real maximum: 96 CSS px per tile on every realm.
+  for (let i = 0; i < 150 && (await pitch()) < 95.5; i++) {
     await page.mouse.wheel(0, -300);
     await page.waitForTimeout(30);
   }
   await page.waitForTimeout(300);
-  expect(await pitch()).toBeGreaterThan(12);
+  expect(await pitch()).toBeGreaterThanOrEqual(64);
   expect(await sampleCentre()).not.toEqual(BACKDROP);
 
   expect(shaderErrors).toEqual([]);

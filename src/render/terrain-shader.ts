@@ -40,9 +40,8 @@ const vec3 DEEP_TINT = vec3(0.055, 0.157, 0.353);
 const vec3 FOAM = vec3(0.96, 0.98, 0.99);
 const vec3 RIPPLE = vec3(0.75, 0.86, 0.94);
 const vec3 CREST = vec3(0.92, 0.96, 1.0);
-/** Slopes facing the north-west light get brighter: this is the direction of the downhill-facing normal. */
-const vec2 SLOPE_LIT = vec2(0.7071, 0.7071);
-const float HILL_K = 2.0;
+/** Hillshade strength per unit of elevation slope (elevation 0..1 per tile); matches the mockup's 3.2 over a half-tile step. */
+const float HILL_K = 1.6;
 /** Contour spacing: 0.1 of the full elevation range (0..255). */
 const float CONTOUR_STEP = 25.5;
 
@@ -145,11 +144,12 @@ void main() {
   float eSame = (kA * eA + kB * eB + kC * eC + kD * eD) / sameW;
   float rockiness = smoothstep(180.0, 200.0, eBilinear);
 
-  // Shading: north-west light from the bilinear gradient (raw elevation units per tile).
+  // Hillshade from the bilinear gradient (raw elevation units per tile, east and south positive).
+  // Sign matches the approved mockup and the previous shader: slopes rising east or south are darker.
   float gx = mix(eB - eA, eD - eC, f.y);
   float gy = mix(eC - eA, eD - eB, f.x);
   if (homeWater < 0.5) {
-    float shade = clamp(1.0 + HILL_K * dot(vec2(gx, gy) / 255.0, SLOPE_LIT), 0.72, 1.25);
+    float shade = clamp(1.0 - HILL_K * (gx + gy) / 255.0, 0.65, 1.3);
     colour *= shade;
   } else {
     // Deep water is darker: elevation 0 is the deepest sea, shoal (75) the shallowest.
@@ -185,22 +185,25 @@ void main() {
   if (uDetail.y > 0.0) {
     float cW = uDetail.y;
     if (homeWater > 0.5) {
+      // Crests: thin bright bands, about 1 to 2 device px wide at 64 px per tile.
       float crest = sin(tile.x * 19.0 + sin(tile.y * 5.0 + uTime * 1.3) * 2.5) * sin(tile.y * 13.0 - uTime * 1.1);
-      colour = mix(colour, CREST, smoothstep(0.93, 0.99, crest) * 0.5 * cW);
+      colour = mix(colour, CREST, smoothstep(0.85, 0.97, crest) * 0.6 * cW);
     } else {
-      vec2 tc = tile * 14.0;
+      // Tufts: one dark clump per 1/8 tile cell, on grass only.
+      vec2 tc = tile * 8.0;
       vec2 tq = fract(tc) - 0.5;
       float th = hash12(floor(tc));
-      vec2 to = (vec2(th, fract(th * 7.13)) - 0.5) * 0.4;
-      float tuft = 1.0 - smoothstep(0.12, 0.2, length(tq - to));
-      colour *= mix(1.0, 0.78, tuft * (1.0 - rockiness) * cW);
+      vec2 to = (vec2(th, fract(th * 7.13)) - 0.5) * 0.5;
+      float tuft = 1.0 - smoothstep(0.16, 0.26, length(tq - to));
+      colour *= mix(1.0, 0.7, tuft * (1.0 - rockiness) * cW);
 
-      vec2 pc = tile * 18.0;
+      // Pebbles: one light stone per 1/5 tile cell, on rock only.
+      vec2 pc = tile * 5.0;
       vec2 pq = fract(pc) - 0.5;
       float ph = hash12(floor(pc) + 17.0);
-      vec2 po = (vec2(ph, fract(ph * 5.7)) - 0.5) * 0.3;
-      float pebble = 1.0 - smoothstep(0.16, 0.2, length(pq - po));
-      colour = mix(colour, colour * (0.85 + ph * 0.3), pebble * rockiness * cW);
+      vec2 po = (vec2(ph, fract(ph * 5.7)) - 0.5) * 0.4;
+      float pebble = 1.0 - smoothstep(0.26, 0.32, length(pq - po));
+      colour = mix(colour, colour * (0.8 + ph * 0.4), pebble * rockiness * cW);
     }
   }
 

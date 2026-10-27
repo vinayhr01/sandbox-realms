@@ -74,9 +74,11 @@ export function framePxFor(drawnHeightPx: number): 48 | 128 {
  * of beings on screen. 1: every frame. 2: every other frame. 0: the frame is held. Up to CROWD_LIMIT all beings get 1; above
  * it the furthest third gets 2, and past twice the limit the furthest sixth holds.
  */
-export function animStep(rankFromCentre: number, onScreen: number): 1 | 2 | 0 {
-  if (onScreen <= CROWD_LIMIT) return 1;
+export function animStep(rankFromCentre: number, onScreen: number, crowdAnim = true): 1 | 2 | 0 {
   const share = rankFromCentre / onScreen;
+  // Crowd LOD off (degraded): the furthest third holds, whatever the count.
+  if (!crowdAnim) return share >= 2 / 3 ? 0 : 1;
+  if (onScreen <= CROWD_LIMIT) return 1;
   if (onScreen > 2 * CROWD_LIMIT && share >= 5 / 6) return 0;
   return share >= 2 / 3 ? 2 : 1;
 }
@@ -101,11 +103,20 @@ export interface FrameSource {
   frame(species: number, gait: string, mode: PoseMode, frameIndex: number, px: 48 | 128): Texture | null;
 }
 
-/** Shows or hides the layer's optional parts (settings `map.shadows`, `marks.boats`, `map.particles`). */
+/**
+ * Shows or hides the layer's optional parts (settings `map.shadows`, `marks.boats`, `map.particles`) and the
+ * runtime-only quality flags of the degradation ladder (`map.crowdAnim`, `map.dust`, `map.creatureAnim`).
+ */
 export interface CreatureToggles {
   shadows: boolean;
   boats: boolean;
   particles: boolean;
+  /** Off: beings beyond the crowding rank hold a frame, whatever the count. */
+  crowdAnim: boolean;
+  /** Off: no footfall dust. */
+  dust: boolean;
+  /** Off: every creature shows frame 0 of its current gait. */
+  creatureAnim: boolean;
 }
 
 /** Places a sprite on (sx, sy) with its anchor at the feet, reusing it from the pool. */
@@ -157,7 +168,7 @@ export class CreatureLayer {
   private buildings: readonly MapBuilding[] = [];
   private boats: readonly MapBoat[] = [];
   private frameSource: FrameSource | null;
-  private toggles: CreatureToggles = { shadows: true, boats: false, particles: true };
+  private toggles: CreatureToggles = { shadows: true, boats: false, particles: true, crowdAnim: true, dust: true, creatureAnim: true };
   private placed = 0;
 
   constructor(app: Application) {
@@ -196,6 +207,8 @@ export class CreatureLayer {
     // Phases and crowd ranks only matter while icons show: with the dot level fully on, nothing steps.
     const iconsOn = lod.icons > 0;
     const onScreen = iconsOn ? this.measureCrowd(beings, count, view, margin) : 0;
+    const ranked = this.crowdRanked(onScreen);
+    const dustOn = this.toggles.particles && this.toggles.dust;
     let icons = 0;
     let shadows = 0;
     let placed = 0;
@@ -224,11 +237,13 @@ export class CreatureLayer {
         // Speed is read before this frame's step: it is the speed of the last step.
         const fast = this.phases.speedOf(b.key) >= RUN_SCREEN_TILES_PER_S;
         const before = this.phases.phaseOf(b.key);
-        const rank = onScreen > CROWD_LIMIT ? rankOf(this.sorted, onScreen, this.distFromCentre(view, sx, sy)) : 0;
-        phase = this.stepIcon(b, sg, animStep(rank, onScreen), dtMs);
-        pose = gaitFor(sg, b.state, fast);
+        const rank = ranked ? rankOf(this.sorted, onScreen, this.distFromCentre(view, sx, sy)) : 0;
+        const stepped = this.stepIcon(b, sg, animStep(rank, onScreen, this.toggles.crowdAnim), dtMs);
         // A footfall (the stride phase wrapped) of a fast being kicks up dust.
-        if (fast && this.toggles.particles && phase < before) this.dust.emit(sx, sy, b.facing);
+        if (fast && dustOn && stepped < before) this.dust.emit(sx, sy, b.facing);
+        // Creature animation off: frame 0 of the gait. The stride still ticks, so the gait choice keeps its speed.
+        phase = this.toggles.creatureAnim ? stepped : 0;
+        pose = gaitFor(sg, b.state, fast);
       }
       const silhouette = this.silhouette(b.species, size);
       const frame = pose && this.frameSource ? this.bakedFrame(b.species, pose, phase, framePxFor(height)) : null;
@@ -242,7 +257,7 @@ export class CreatureLayer {
     this.hideFrom(this.iconPool, icons);
     this.hideFrom(this.shadowPool, shadows);
     this.shadowLayer.visible = this.toggles.shadows;
-    if (this.toggles.particles) this.dust.update(dtMs);
+    if (dustOn) this.dust.update(dtMs);
     else this.dust.clear();
     this.placeBuildings(view);
     this.drawBoats(view);
@@ -284,7 +299,7 @@ export class CreatureLayer {
     this.hideFrom(this.buildingPool, 0);
   }
 
-  /** Counts the beings on screen and, when there are more than CROWD_LIMIT, sorts their squared distances for ranks. */
+  /** Counts the beings on screen and, when they are ranked (see crowdRanked), sorts their squared distances for ranks. */
   private measureCrowd(beings: readonly DrawBeing[], count: number, view: MarkView, margin: number): number {
     if (this.dist2.length < count) this.dist2 = new Float64Array(count * 2);
     let n = 0;
@@ -296,12 +311,17 @@ export class CreatureLayer {
       if (!inView(sx, sy, view, margin)) continue;
       this.dist2[n++] = this.distFromCentre(view, sx, sy);
     }
-    if (n > CROWD_LIMIT) {
+    if (this.crowdRanked(n)) {
       if (this.sorted.length < n) this.sorted = new Float64Array(this.dist2.length);
       this.sorted.set(this.dist2.subarray(0, n));
       this.sorted.subarray(0, n).sort();
     }
     return n;
+  }
+
+  /** True when beings are ranked by distance: above CROWD_LIMIT, or always while the crowd LOD is degraded off. */
+  private crowdRanked(onScreen: number): boolean {
+    return onScreen > CROWD_LIMIT || !this.toggles.crowdAnim;
   }
 
   /** Squared screen distance of (sx, sy) from the view centre. */

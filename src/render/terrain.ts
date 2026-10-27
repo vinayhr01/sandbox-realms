@@ -52,6 +52,9 @@ export class TerrainRenderer {
   private readonly uniforms: UniformGroup;
   private pendingView: ViewState | null = null;
   private pendingCursor: CursorState | null = null;
+  /** Quality-ladder gates on the two detail ramps (map.terrainMedium, map.terrainClose): off drops that weight to 0. */
+  private detailMedium = true;
+  private detailClose = true;
 
   private constructor(app: Application) {
     this.app = app;
@@ -159,6 +162,12 @@ export class TerrainRenderer {
     this.indexSource.update();
   }
 
+  /** Turns the medium and close detail ramps on or off (the quality ladder). */
+  setDetailToggles(medium: boolean, close: boolean): void {
+    this.detailMedium = medium;
+    this.detailClose = close;
+  }
+
   /** Current camera and cursor state for the next draw. */
   setView(view: ViewState, cursor: CursorState): void {
     this.pendingView = view;
@@ -179,7 +188,7 @@ export class TerrainRenderer {
     }
     // The detail ramps take CSS px per tile; uView.z is in device px, so divide by dpr.
     const detail = detailWeights(this.uView[2]! / dpr);
-    this.uDetail.set([detail.medium, detail.close]);
+    this.uDetail.set([detail.medium * (this.detailMedium ? 1 : 0), detail.close * (this.detailClose ? 1 : 0)]);
     this.uniforms.uniforms.uTime = (performance.now() - this.startedAt) / 1000;
     this.uniforms.update();
   }

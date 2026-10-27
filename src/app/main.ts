@@ -548,6 +548,7 @@ async function boot(): Promise<void> {
     degradeLevel = level;
     degradedOff.clear();
     for (let k = 0; k < level && k < DEGRADE_OFF.length; k++) degradedOff.add(DEGRADE_OFF[k] ?? '');
+    renderer.setDetailToggles(!degradedOff.has('map.terrainMedium'), !degradedOff.has('map.terrainClose'));
     renderer.setRenderScale(effectiveRenderScale());
     journal('DEGRADE', `level ${level} at mean frame ${meanMs.toFixed(1)} ms; off: ${[...degradedOff].join(', ') || 'none'}; render scale ${effectiveRenderScale()}%`);
   };
@@ -1766,6 +1767,10 @@ async function boot(): Promise<void> {
         shadows: boolOption(options, 'map.shadows') && !degradedOff.has('map.shadows'),
         boats: boolOption(options, 'marks.boats'),
         particles: boolOption(options, 'map.particles') && !degradedOff.has('map.particles'),
+        // Runtime-only quality flags (not settings): the degradation ladder turns them off.
+        crowdAnim: !degradedOff.has('map.crowdAnim'),
+        dust: !degradedOff.has('map.dust'),
+        creatureAnim: !degradedOff.has('map.creatureAnim'),
       });
       creatures.draw(drawBeings, beingCount, view, beingNowMs);
       marks.update(

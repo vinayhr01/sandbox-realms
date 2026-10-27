@@ -33,6 +33,14 @@ describe('animStep (crowding LOD)', () => {
     expect(animStep(3000, 3600)).toBe(0);
     expect(animStep(2999, 3600)).toBe(2);
   });
+
+  it('holds the furthest third below the limit when the crowd LOD is degraded off', () => {
+    expect(animStep(0, 100, false)).toBe(1);
+    expect(animStep(66, 100, false)).toBe(1);
+    expect(animStep(67, 100, false)).toBe(0);
+    expect(animStep(99, 100, false)).toBe(0);
+    expect(animStep(2999, 3600, false)).toBe(0);
+  });
 });
 
 describe('DustPool', () => {

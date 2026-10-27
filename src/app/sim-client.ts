@@ -230,8 +230,9 @@ export class SimClient {
     return this.request({ kind: Cmd.Replay }) as Promise<ReplayRead>;
   }
 
-  returnBuffer(buffer: ArrayBuffer): void {
-    this.send({ kind: Cmd.ReturnBuffer, buffer }, [buffer]);
+  /** Hands a transferred buffer back to the worker's pool. `feed` marks a being-feed buffer (src/shared/being-feed.ts). */
+  returnBuffer(buffer: ArrayBuffer, feed = false): void {
+    this.send({ kind: Cmd.ReturnBuffer, buffer, feed }, [buffer]);
   }
 
   /** Encodes the live realm; null when there is no realm to save. */

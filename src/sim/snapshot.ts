@@ -364,18 +364,23 @@ function mapLinksOf(sim: Sim): MapLink[] {
 }
 
 /**
- * Buildings of every hamlet in hamlet order, with their tile positions, capped at MAP_BUILDING_CAP. Reads only.
- * The hamlet rows carry counts only, and the notable rows are capped at 16, so the map gets its own list.
+ * Buildings of every hamlet in hamlet order, with their tile positions, uncapped. Reads only. The map's being feed
+ * takes this whole list (src/shared/being-feed.ts), and the snapshot keeps the first MAP_BUILDING_CAP of it.
  */
-function mapBuildingsOf(sim: Sim): MapBuilding[] {
+export function allBuildingsOf(sim: Sim): MapBuilding[] {
   const out: MapBuilding[] = [];
   for (const h of hamletsOf(sim)) {
-    for (const b of h.buildings) {
-      if (out.length >= MAP_BUILDING_CAP) return out;
-      out.push({ id: b.y * 1024 + b.x, kind: b.def.id, x: b.x, y: b.y });
-    }
+    for (const b of h.buildings) out.push({ id: b.y * 1024 + b.x, kind: b.def.id, x: b.x, y: b.y });
   }
   return out;
+}
+
+/**
+ * Buildings for the map feed, capped at MAP_BUILDING_CAP. The hamlet rows carry counts only, and the notable rows are
+ * capped at 16, so the map gets its own list.
+ */
+function mapBuildingsOf(sim: Sim): MapBuilding[] {
+  return allBuildingsOf(sim).slice(0, MAP_BUILDING_CAP);
 }
 
 /**

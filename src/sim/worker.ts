@@ -8,10 +8,12 @@ import { PROTOCOL_VERSION, Cmd, Ev, type Command, type Event, type FrameRows, ty
 import type { PartGate, Sim } from './sim.ts';
 import { startGenerateJob, type GenOutcome, type WorldgenJob } from './worldgen.ts';
 import { SYS_DISABLE_CYCLES, SYS_DISABLE_TICKS, SysIsolation, heartbeatDue, mainPingLost, planPump, pumpFaultAction } from './scheduler.ts';
-import { snapshotDue } from './snapshot.ts';
+import { allBuildingsOf, snapshotDue } from './snapshot.ts';
+import { boatMarksOf } from './boats/boats.ts';
 import { decodeChronicle, encodeChronicle, MAX_SIZE_STEP, MIN_SIZE_STEP } from './chronicle.ts';
 import { contentHash } from '../content/content-hash.ts';
 import { ReplayRing, replayValue, type ReplayEntry, type ReplayValue } from '../shared/replay-ring.ts';
+import { FEED_STRIDE, buildingsFingerprint, encodeBeings, type BeingFeed } from '../shared/being-feed.ts';
 
 /** Sim time budget per pump in ms (17 section 3.1; 8 ms desktop, 6 ms phones TUNE). Desktop default. */
 const FRAME_BUDGET_MS = 8;
@@ -26,6 +28,8 @@ let avgTickMs = 0;
 let ticksThisPump = 0;
 let lastHash = 0;
 let lastPublishedTick = -1;
+/** Fingerprint of the building list in the last being feed, or null before the first one for a realm. */
+let lastBuildingsKey: number | null = null;
 let lastSnapshotTick = -1;
 /** Tick of the last Heartbeat posted (-1 before the first one for a realm) and pumps since then. */
 let lastHeartbeatTick = -1;
@@ -48,6 +52,8 @@ const partGate: PartGate = {
   fault: (part, tick, err) => partFault(part, 'SIM_SYSTEM', err instanceof Error ? err.message : String(err), tick),
 };
 const bufferPool: ArrayBuffer[] = [];
+/** Buffers of the being feed, returned by the page with Cmd.ReturnBuffer `feed` set. Kept apart from the row pool. */
+const feedPool: ArrayBuffer[] = [];
 
 /** Worldgen slice budget per pump, ms (03 section 10: slices of at most 12 ms). */
 const JOB_SLICE_MS = 12;
@@ -109,6 +115,7 @@ function finishJob(done: GenOutcome): void {
   replayRing.clear();
   accMs = 0;
   lastPublishedTick = -1;
+  lastBuildingsKey = null;
   lastSnapshotTick = -1;
   lastHeartbeatTick = -1;
   pumpsSinceHeartbeat = 0;
@@ -224,6 +231,33 @@ function publishFrame(force: boolean): void {
     stateHash: lastHash,
   };
   post({ kind: Ev.Frame, rows, stats }, transfer);
+  publishBeings();
+}
+
+/** Posts the being feed for the map, after the frame. The building list goes only when it changed since the last feed. */
+function publishBeings(): void {
+  if (!sim) return;
+  const buffer = takeFeedBuffer(sim.beings.store.capacity * FEED_STRIDE * 2);
+  const data = new Uint16Array(buffer);
+  const count = encodeBeings(sim, data);
+  const buildings = allBuildingsOf(sim);
+  const key = buildingsFingerprint(buildings);
+  const changed = key !== lastBuildingsKey;
+  lastBuildingsKey = key;
+  const feed: BeingFeed = { tick: sim.tick, count, data, buildings: changed ? buildings : null, boats: boatMarksOf(sim) };
+  post({ kind: Ev.Beings, feed }, [buffer]);
+}
+
+/** Reuses a pooled feed buffer that is large enough, otherwise allocates a fresh one. */
+function takeFeedBuffer(bytes: number): ArrayBuffer {
+  for (let k = 0; k < feedPool.length; k++) {
+    const candidate = feedPool[k];
+    if (candidate && candidate.byteLength >= bytes) {
+      feedPool.splice(k, 1);
+      return candidate;
+    }
+  }
+  return new ArrayBuffer(bytes);
 }
 
 /** Posts a read-only snapshot of the sim for the UI windows (src/sim/snapshot.ts). */
@@ -350,6 +384,7 @@ function handle(cmd: Command): void {
         replayRing.clear();
         accMs = 0;
         lastPublishedTick = -1;
+        lastBuildingsKey = null;
         lastSnapshotTick = -1;
         lastHeartbeatTick = -1;
         pumpsSinceHeartbeat = 0;
@@ -403,7 +438,11 @@ function handle(cmd: Command): void {
       return;
     }
     case Cmd.ReturnBuffer:
-      if (bufferPool.length < 4) bufferPool.push(cmd.buffer);
+      if (cmd.feed) {
+        if (feedPool.length < 2) feedPool.push(cmd.buffer);
+      } else if (bufferPool.length < 4) {
+        bufferPool.push(cmd.buffer);
+      }
       return;
     case Cmd.Ping:
       lastPingAt = performance.now();

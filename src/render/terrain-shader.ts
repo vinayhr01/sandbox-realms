@@ -73,6 +73,13 @@ float hash12(vec2 p) {
   return fract((p3.x + p3.y) * p3.z);
 }
 
+// Two-value hash for cell features (Dave Hoskins hash22, no sin). Components in [0, 1).
+vec2 hash22(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.xx + p3.yz) * p3.zy);
+}
+
 float valueNoise(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
@@ -189,20 +196,24 @@ void main() {
       float crest = sin(tile.x * 19.0 + sin(tile.y * 5.0 + uTime * 1.3) * 2.5) * sin(tile.y * 13.0 - uTime * 1.1);
       colour = mix(colour, CREST, smoothstep(0.85, 0.97, crest) * 0.6 * cW);
     } else {
-      // Tufts: one dark clump per 1/8 tile cell, on grass only.
+      // Tufts: one dark clump per 1/8 tile cell, on grass only. Each cell's clump is placed by its hash (kept inside the
+      // cell so it is not cut at the edge) and about 40% of cells have none, so no regular grid of clumps shows.
       vec2 tc = tile * 8.0;
+      vec2 tcell = floor(tc);
       vec2 tq = fract(tc) - 0.5;
-      float th = hash12(floor(tc));
-      vec2 to = (vec2(th, fract(th * 7.13)) - 0.5) * 0.5;
-      float tuft = 1.0 - smoothstep(0.16, 0.26, length(tq - to));
+      vec2 to = hash22(tcell) * 0.48 - 0.24;
+      float tKeep = step(0.4, hash12(tcell + vec2(31.7, 12.3)));
+      float tuft = (1.0 - smoothstep(0.16, 0.26, length(tq - to))) * tKeep;
       colour *= mix(1.0, 0.7, tuft * (1.0 - rockiness) * cW);
 
-      // Pebbles: one light stone per 1/5 tile cell, on rock only.
+      // Pebbles: one light stone per 1/5 tile cell, on rock only, jittered and thinned the same way.
       vec2 pc = tile * 5.0;
+      vec2 pcell = floor(pc);
       vec2 pq = fract(pc) - 0.5;
-      float ph = hash12(floor(pc) + 17.0);
-      vec2 po = (vec2(ph, fract(ph * 5.7)) - 0.5) * 0.4;
-      float pebble = 1.0 - smoothstep(0.26, 0.32, length(pq - po));
+      vec2 po = hash22(pcell + 17.0) * 0.36 - 0.18;
+      float pKeep = step(0.4, hash12(pcell + vec2(47.1, 5.9)));
+      float ph = hash12(pcell + 17.0);
+      float pebble = (1.0 - smoothstep(0.26, 0.32, length(pq - po))) * pKeep;
       colour = mix(colour, colour * (0.8 + ph * 0.4), pebble * rockiness * cW);
     }
   }

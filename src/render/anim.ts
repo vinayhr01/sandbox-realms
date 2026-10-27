@@ -12,8 +12,9 @@ export const RUN_SCREEN_TILES_PER_S = 4;
 /** High-speed strobe guard: a being never advances more than this many strides per second. */
 export const MAX_STRIDES_PER_S = 3;
 
-/** Idle, Sleep and Hit stand still and breathe on the land gait. Swim uses the water gait (or land). Flyers use
- *  their air gait whenever they move, walking or running. */
+/** Idle, Sleep and Hit stand still and breathe on the land gait. Swim uses the water gait (or land). Walk uses the
+ *  land gait, and Run uses the air gait when the species has one (dragon: walk on land, fly when running). A species
+ *  whose land gait is itself 'flyer' (bats, bees, moths) always flies. */
 export function gaitFor(sp: SpeciesGait, state: BeingState): { gait: GaitId; mode: PoseMode } {
   switch (state) {
     case BeingState.Swim:
@@ -21,7 +22,7 @@ export function gaitFor(sp: SpeciesGait, state: BeingState): { gait: GaitId; mod
     case BeingState.Run:
       return { gait: sp.air ?? sp.land, mode: 'run' };
     case BeingState.Walk:
-      return { gait: sp.air ?? sp.land, mode: 'walk' };
+      return { gait: sp.land, mode: 'walk' };
     default:
       return { gait: sp.land, mode: 'idle' };
   }

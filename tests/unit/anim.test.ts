@@ -57,9 +57,13 @@ describe('gaitFor', () => {
     expect(gaitFor(crocodile, BeingState.Walk)).toEqual({ gait: 'quad', mode: 'walk' });
   });
 
-  it('flyers use their air gait whenever moving, walking or running', () => {
-    expect(gaitFor(dragon, BeingState.Walk)).toEqual({ gait: 'flyer', mode: 'walk' });
+  it('walks a dragon on its land gait and flies it when running', () => {
+    expect(gaitFor(dragon, BeingState.Walk)).toEqual({ gait: 'quad', mode: 'walk' });
     expect(gaitFor(dragon, BeingState.Run)).toEqual({ gait: 'flyer', mode: 'run' });
+  });
+
+  it('keeps a land-flyer species (bee) flying when it walks', () => {
+    expect(gaitFor(species('nectarbuzz'), BeingState.Walk)).toEqual({ gait: 'flyer', mode: 'walk' });
   });
 
   it('runs on the land gait with run mode for a land-only species', () => {

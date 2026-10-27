@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="cluckling-b" cx=".38" cy=".3" r=".8"><stop offset="0" stop-color="#fffdf6"/><stop offset=".55" stop-color="#f3e7cc"/><stop offset="1" stop-color="#cdb487"/></radialGradient>
+<linearGradient id="cluckling-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6ecd6"/><stop offset="1" stop-color="#d4bd93"/></linearGradient>
+<linearGradient id="cluckling-t" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#e6d6b4"/><stop offset="1" stop-color="#b59c70"/></linearGradient>
+<radialGradient id="cluckling-r" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#f2604a"/><stop offset="1" stop-color="#b8231f"/></radialGradient>
+<linearGradient id="cluckling-k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7cd5a"/><stop offset="1" stop-color="#d98d1d"/></linearGradient>
+<path id="cluckling-leg" d="M60 92L60.5 104L59 117M59 117L48.5 118.6M59 117L52.5 119M59 117L65.5 118.4"/>
+</defs>
+<g stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="68 94"><use href="#cluckling-leg" x="8" fill="none" stroke="#86560f" stroke-width="5"/><use href="#cluckling-leg" x="8" fill="none" stroke="#d1951f" stroke-width="3"/></g>
+<g id="leg-l" data-pivot="60 94"><use href="#cluckling-leg" fill="none" stroke="#94600f" stroke-width="5.2"/><use href="#cluckling-leg" fill="none" stroke="url(#cluckling-k)" stroke-width="3.2"/><path d="M59.3 106.5h2.4M59.1 109.5h2.4M58.9 112.5h2.4" stroke="#a8701a" stroke-width=".8"/><path d="M48.5 118.6l-1.3.4M52.5 119l-1.2.3" stroke="#5a3a10" stroke-width="1.2"/></g>
+<g id="body" data-pivot="64 72" stroke="#8a7049" stroke-width="1.5">
+<g id="tail" data-pivot="95 62">
+<path d="M90 68C93 54 98 40 106 29C110 38 108 54 100 68Z" fill="url(#cluckling-t)"/>
+<path d="M93 70C98 58 105 46 114 38C116 48 112 60 103 71Z" fill="url(#cluckling-t)"/>
+<path d="M88 66C89 52 92 38 98 27C103 36 102 52 96 66Z" fill="url(#cluckling-w)"/>
+<path d="M94 58q4-12 8-24M99 62q5-10 11-20" fill="none" stroke-width=".9" opacity=".45"/>
+</g>
+<g id="wing-r" data-pivot="60 56"><path d="M56 51C66 44 82 45 93 53C88 57 79 56 70 55C64 54.5 59 53 56 51Z" fill="#c9b184"/></g>
+<path d="M30 62C30 50 38 45 48 46C56 47 62 50 70 50C82 50 94 54 100 64C106 74 104 88 94 94C86 99 72 100 60 98C44 96 32 86 30 72Z" fill="url(#cluckling-b)"/>
+<path d="M36 66q3 2.4 6 0M33 74q3 2.4 6 0M38 82q3 2.4 6 0M44 89q3 2.4 6 0M42 74q3 2.4 6 0M48 82q3 2.4 6 0M56 90q3 2.4 6 0M84 90q3 2.4 6 0M92 84q2 2 4-.5" fill="none" stroke="#c1a777" stroke-width="1"/>
+<path d="M64 93C68 99 74 100 80 96M50 92C54 98 58 98 62 95" fill="none" stroke-width="1.2"/>
+<g id="wing-l" data-pivot="56 60">
+<path d="M49 60C57 51 73 51 85 57C94 61 101 70 103 81C97 83 91 80 87 82.5C82 85 76 83 72 85C66 86 60 83 56 79C50 74 47 67 49 60Z" fill="url(#cluckling-w)"/>
+<path d="M57 67q4 3.5 8 1.5q4 3.5 8 1.5q4 3.5 8 1q4 3 8 0M56 74q3 3 6 3M64 77q4 3 8 3M74 78l22 3M78 74l19 4.5" fill="none" stroke="#b39a6e" stroke-width="1"/>
+<path d="M56 57C64 53 74 53 82 56.5" fill="none" stroke="#fffdf8" stroke-width="2" opacity=".8"/>
+</g>
+<g id="head" data-pivot="44 48">
+<path d="M27 36C25 28 30 20 38 20C45 20 49 26 48.5 33C48.5 38 50.5 42 54.5 46L52.5 49.5L49.5 47.5L47.5 51.5L44.5 48.5L41.5 52.5L38.5 49L35 52.5L33 48.5L30 50C28 46 27.5 41 27 36Z" fill="url(#cluckling-b)"/>
+<path d="M27 27C26 23 27 19 29.5 17C30.5 19 31 20.5 32 21C32 17.5 33.5 14.5 36 13C36.5 16 37 18 38 19.5C38.5 16 40.5 14 43 13.5C43 16.5 42.5 18.5 42 20.5C44 19 46.5 18.5 48.5 19.5C47 22 45 24 42 25.5C37 25 31 26 27 27Z" fill="url(#cluckling-r)" stroke="#7e1818"/>
+<path d="M27.5 26.5C31 25 37 25 40.5 27.5C42.5 30.5 42.3 35 40 38C36 39.5 31 38.5 27.6 36.5Z" fill="#e2564a" stroke="none" opacity=".9"/>
+<path d="M27 30C24 30 20 31.5 18 34C21 34.6 24.5 35 27.6 35.8Z" fill="url(#cluckling-k)" stroke="#94600f"/>
+<path d="M27.6 35.8C25 36.2 22 35.8 20 35.2C22 37 25 38 27.6 37.8Z" fill="#d98d1d" stroke="#94600f" stroke-width="1"/>
+<circle cx="25.5" cy="31.8" r=".55" fill="#7a4a10" stroke="none"/>
+<path d="M26.5 37.5C25 40.5 25 45 27.5 47.5C30 48.6 31.6 46 31.6 42.5C31.6 40 30.6 38 29 36.6Z" fill="url(#cluckling-r)" stroke="#7e1818" stroke-width="1.2"/>
+<ellipse cx="40.5" cy="36.2" rx="2" ry="2.6" fill="#d8463b" stroke="#7e1818" stroke-width=".8"/>
+<circle cx="34.2" cy="30.5" r="2.5" fill="#e98b1f" stroke="#6a3a0e" stroke-width="1"/>
+<circle cx="34" cy="30.6" r="1.25" fill="#1c120a" stroke="none"/>
+<circle cx="33.4" cy="29.8" r=".7" fill="#fff" stroke="none"/>
+<path d="M44 30q2 3 1.5 6M47 38q1.5 3 1 5" fill="none" stroke="#c1a777" stroke-width="1"/>
+</g>
+</g>
+</g>
+</svg>

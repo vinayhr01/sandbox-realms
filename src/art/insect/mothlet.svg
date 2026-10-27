@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="mothlet-b" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#fbf1dc"/><stop offset=".55" stop-color="#dcc39a"/><stop offset="1" stop-color="#a5875e"/></radialGradient>
+<linearGradient id="mothlet-w" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#f4e6c6"/><stop offset=".55" stop-color="#d9bb86"/><stop offset="1" stop-color="#ad8a58"/></linearGradient>
+<linearGradient id="mothlet-wf" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#cbb48a"/><stop offset="1" stop-color="#8a6c44"/></linearGradient>
+<radialGradient id="mothlet-e" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#5a4a6a"/><stop offset="1" stop-color="#140e1a"/></radialGradient>
+<radialGradient id="mothlet-s" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#2e2230"/><stop offset=".45" stop-color="#3e3040"/><stop offset=".6" stop-color="#f6ead0"/><stop offset=".8" stop-color="#8a5a34"/><stop offset="1" stop-color="#8a5a34" stop-opacity="0"/></radialGradient>
+<g id="mothlet-wg">
+<path d="M50 74C62 70 76 66 86 70C90 74 87 82 79 86C68 90 57 85 51 79Z"/>
+<path d="M46 72C50 56 60 38 74 26C78 23 82 24 84 28C88 38 93 48 96 58C88 64 72 70 54 74Z"/>
+<path d="M55 58C62 50 68 44 76 38M58 64C68 58 80 52 92 50M51 72C62 68 76 66 86 70" fill="none" stroke-width=".9" opacity=".45"/>
+<path d="M60 52C64 50 66 47 70 46C72 44 74 42 78 42M66 62C72 58 78 59 84 56C88 55 90 55 94 54" fill="none" stroke="#7a5430" stroke-width="1.3" opacity=".75"/>
+<path d="M84.5 30.5l2.2-1M87.5 37l2.3-.6M90.5 43.5l2.3-.2M93 50l2.4.3M86.5 72l2.2 .5M85 79l2 1.2" fill="none" stroke-width="1" opacity=".6"/>
+</g>
+<path id="mothlet-lg" d="M34 88L28 96L26 104l-2.4 1M26 104l.2 2.6M40 90L40 99L37 106l-2.4 1M37 106l.4 2.6M46 88L52 97L52 105l2.4 1M52 105l-.6 2.6"/>
+</defs>
+<g stroke="#6e5232" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g transform="matrix(1.1 0 0 1.1 -5.8 -7.2)">
+<g id="body" data-pivot="44 80">
+<g id="wing-r" data-pivot="54 68"><use href="#mothlet-wg" transform="rotate(16 54 68) matrix(.85 0 0 .85 14.9 6.8)" fill="url(#mothlet-wf)"/></g>
+<g transform="translate(4 -2)" fill="none"><use href="#mothlet-lg" stroke="#5a4028" stroke-width="3.8"/><use href="#mothlet-lg" stroke="#a88a5e" stroke-width="2.2"/></g>
+<path d="M27 72C27 62 26 54 22 46" fill="none" stroke="#5a4028" stroke-width="1.4"/>
+<path d="M26.5 66l2.6-1.2M26.3 62l2.6-1.4M25.6 58l2.6-1.6M24.6 54l2.4-1.8M23.4 50l2.2-2" fill="none" stroke="#5a4028" stroke-width="1"/>
+<g id="tail" data-pivot="50 80">
+<path d="M48 74C60 72 80 74 96 80C102 82 104 88 100 92C90 96 70 92 52 88C46 86 44 78 48 74Z" fill="url(#mothlet-b)"/>
+<path d="M60 74.5q-2 8 0 15.5M70 75q-2 8 0 16M80 77q-2 7 0 14M90 79.5q-1.5 6 0 11.5" fill="none" stroke-width="1" opacity=".4"/>
+<path d="M56 78C66 76 80 77 92 82" fill="none" stroke="#fffaf0" stroke-width="1.8" opacity=".6"/>
+<path d="M100 84l5-1.4M101 88l4.6 1.2M99 91l3.4 2.6" fill="none" stroke-width="1.2"/>
+</g>
+<path d="M28 78C28 70 33 65 40 65C47 65 52 70 52 78C52 86 47 91 40 91C33 91 28 86 28 78Z" fill="url(#mothlet-b)"/>
+<path d="M30 70l-2.5-2M35 66l-1-3M42 65l1-3M48 68l2.5-2M51 76h3M50 84l2.5 1.5M31 87l-2.5 1.5M38 91l-.5 2.5" fill="none" stroke-width="1.1"/>
+<path d="M34 72l2 1M41 70l1 2M46 75l-1 2M36 80l2 1M43 82l1 2" fill="none" stroke="#a5875e" stroke-width="1" opacity=".7"/>
+<path d="M16 80C16 75 19 71 24 71C29 71 32 75 32 80C32 85 29 89 24 89C19 89 16 85 16 80Z" fill="url(#mothlet-b)"/>
+<path d="M15.5 84C13 84 11.5 85.5 12 87.5C14 88 16 87 17 85.5Z" fill="#dcc39a"/>
+<circle cx="22" cy="79" r="4.6" fill="url(#mothlet-e)" stroke="#2a1e24" stroke-width="1"/>
+<circle cx="20.6" cy="77.4" r="1.3" fill="#fff" stroke="none"/>
+<circle cx="23.4" cy="80.6" r=".6" fill="#fff" stroke="none" opacity=".5"/>
+<path d="M19 87.5c-3.4.8-4.6 4.2-2.6 6.2 2 1.4 4.4-.4 3.6-2.6-.6-1-1.8-1-2.2 0" fill="none" stroke="#8a6a40" stroke-width="1.2"/>
+<path d="M22 72C20 64 16 56 10 50" fill="none" stroke="#5a4028" stroke-width="1.5"/>
+<path d="M20.8 67l-3 .6M20.8 67l2.4-1.6M19.5 63l-3 .2M19.5 63l2.2-2M17.8 59l-3-.2M17.8 59l2-2.2M15.8 55.5l-3-.6M15.8 55.5l1.6-2.4M13.4 52.5l-2.6-.8M13.4 52.5l1.2-2.4" fill="none" stroke="#5a4028" stroke-width="1"/>
+<g fill="none"><use href="#mothlet-lg" stroke="#6e5232" stroke-width="4"/><use href="#mothlet-lg" stroke="#d6bc8e" stroke-width="2.4"/></g>
+<g id="wing-l" data-pivot="46 72"><g transform="matrix(.85 0 0 .85 6.9 10.8)"><use href="#mothlet-wg" fill="url(#mothlet-w)"/><circle cx="79" cy="48" r="4.2" fill="url(#mothlet-s)" stroke="none"/><circle cx="71" cy="77" r="3.8" fill="url(#mothlet-s)" stroke="none"/><circle cx="64" cy="58" r="1.6" fill="#7a5430" stroke="none" opacity=".7"/></g></g>
+</g>
+</g>
+</g>
+</svg>

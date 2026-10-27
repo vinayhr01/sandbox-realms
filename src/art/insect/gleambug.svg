@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="gleambug-e" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#76644e"/><stop offset=".55" stop-color="#3e3226"/><stop offset="1" stop-color="#211a14"/></linearGradient>
+<linearGradient id="gleambug-ef" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4e4234"/><stop offset="1" stop-color="#18120e"/></linearGradient>
+<radialGradient id="gleambug-p" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#ffd8b4"/><stop offset=".55" stop-color="#f0915e"/><stop offset="1" stop-color="#b8502e"/></radialGradient>
+<linearGradient id="gleambug-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a7660"/><stop offset="1" stop-color="#43362a"/></linearGradient>
+<radialGradient id="gleambug-g" cx=".55" cy=".45" r=".7"><stop offset="0" stop-color="#fdffe0"/><stop offset=".45" stop-color="#ecfc78"/><stop offset="1" stop-color="#a8d63c"/></radialGradient>
+<radialGradient id="gleambug-h" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#f4ff9a" stop-opacity=".9"/><stop offset=".5" stop-color="#e8fb7a" stop-opacity=".45"/><stop offset="1" stop-color="#e8fb7a" stop-opacity="0"/></radialGradient>
+<linearGradient id="gleambug-w" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#eef0f2" stop-opacity=".85"/><stop offset="1" stop-color="#b4b8bc" stop-opacity=".55"/></linearGradient>
+<g id="gleambug-wg"><path d="M46 63C56 54 70 44 84 40C90 39 92 44 88 48C78 56 64 62 50 66Z" fill="url(#gleambug-w)" stroke="#5a5a58" stroke-width="1"/><path d="M50 64C62 56 74 48 86 43M56 62L66 54" fill="none" stroke="#5a5a58" stroke-width=".7" opacity=".5"/><path d="M44 62C46 50 54 38 66 30C70 28 74 30 73 34C70 44 62 54 52 64Z"/><path d="M46 60C49 49 56 38 66.5 31.5" fill="none" stroke="#e8d68a" stroke-width="1.6"/><path d="M54 56l4-6M58 50l3-5" fill="none" stroke="#8a7a62" stroke-width=".8" opacity=".6"/></g>
+<path id="gleambug-lg" d="M40 82L34 92L35 101L31 106l-2.2.6M31 106l-.2 2.4M46 84L46 94L50 102L49 108l-2.2.4M49 108l.4 2.4M52 82L60 91L59 101L63 106l2 1M63 106l-.4 2.4"/>
+</defs>
+<g stroke="#241a12" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="body" data-pivot="56 76">
+<g id="wing-r" data-pivot="51 60"><use href="#gleambug-wg" x="5" y="-2" fill="url(#gleambug-ef)"/></g>
+<g transform="translate(4 -2)" fill="none"><use href="#gleambug-lg" stroke="#16100c" stroke-width="3.6"/><use href="#gleambug-lg" stroke="#3a2e24" stroke-width="2"/></g>
+<path d="M25 67C20 60 18 52 18 44" fill="none" stroke="#2e2620" stroke-width="2"/>
+<g id="tail" data-pivot="56 76">
+<circle cx="99" cy="86" r="21" fill="url(#gleambug-h)" stroke="none"/>
+<path d="M54 70C66 68 84 70 98 74C108 77 112 84 110 90C106 96 92 96 78 92C66 89 58 86 54 82Z" fill="url(#gleambug-b)"/>
+<path d="M88 72.4C98 73.4 108 77.6 110 85C110.4 92 104 96 94.6 94.4C88.6 92 86.4 80 88 72.4Z" fill="url(#gleambug-g)" stroke="#6a7a2a"/>
+<path d="M96 74q-3 10 .4 20.4M103 77q-2.4 8 .4 16" fill="none" stroke="#b8d24a" stroke-width="1" opacity=".8"/>
+<path d="M66 70q-2 9 0 18M76 70.4q-2 9.6 0 19.4M84 71.4q-2 9.6-.4 19" fill="none" stroke-width="1" opacity=".45"/>
+<path d="M62 72C70 71 80 71.6 86 72.6" fill="none" stroke="#c8b49a" stroke-width="1.4" opacity=".55"/>
+<circle cx="101" cy="81" r="2.4" fill="#fff" stroke="none" opacity=".75"/>
+</g>
+<path d="M38 70C42 62 54 62 58 68C60 76 56 84 48 86C40 86 36 80 38 70Z" fill="url(#gleambug-b)"/>
+<path d="M18 70C16 74 18 80 24 82.4C30 82.6 34 78 34 72Z" fill="#3a2e24"/>
+<circle cx="23" cy="74.4" r="4.2" fill="#14100c" stroke="#0c0806" stroke-width="1"/>
+<circle cx="21.6" cy="72.8" r="1.3" fill="#fff" stroke="none"/>
+<circle cx="24" cy="76" r=".55" fill="#fff" stroke="none" opacity=".6"/>
+<path d="M18.6 80l-3.2 3M21 82l-1.6 4" fill="none" stroke="#2e2620" stroke-width="1.6"/>
+<path d="M17 78.6q1.6 1.4 3.6 1" fill="none" stroke-width="1"/>
+<path d="M20 66C22 56 34 52 46 56C52 58 54 64 52 70C44 72 30 72 20 70Z" fill="url(#gleambug-p)"/>
+<path d="M21.6 68C24 60 32 56 40 57" fill="none" stroke="#fff0c8" stroke-width="2" opacity=".6"/>
+<path d="M33 58.6C36.6 57.2 41 57.6 43.4 60.4C42 63.8 37 64.6 33.6 62.6Z" fill="#3a2a20" stroke="none" opacity=".85"/>
+<path d="M21 69C15 63 11 56 9 46" fill="none" stroke="#2e2620" stroke-width="2.2"/>
+<path d="M17.6 65l-1.8 1M14.6 61l-1.8.8M12.2 56.6l-1.8.6M10.4 51.6l-1.8.4" fill="none" stroke="#2e2620" stroke-width="1"/>
+<g fill="none"><use href="#gleambug-lg" stroke="#241a12" stroke-width="3.8"/><use href="#gleambug-lg" stroke="#5a4a3a" stroke-width="2.2"/></g>
+<g id="wing-l" data-pivot="46 62"><use href="#gleambug-wg" fill="url(#gleambug-e)"/></g>
+</g>
+</g>
+</svg>

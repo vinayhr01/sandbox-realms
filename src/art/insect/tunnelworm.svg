@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="tunnelworm-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8bfb3"/><stop offset=".5" stop-color="#dd8278"/><stop offset="1" stop-color="#a64c4c"/></linearGradient>
+<linearGradient id="tunnelworm-k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eda07e"/><stop offset=".5" stop-color="#d0705a"/><stop offset="1" stop-color="#9a4434"/></linearGradient>
+<g id="tunnelworm-s"><ellipse rx="17" ry="9.5" stroke="none"/><path d="M-14.7-4.75A17 9.5 0 0 1 14.7-4.75M14.7 4.75A17 9.5 0 0 1-14.7 4.75" fill="none"/><path d="M-9 -8.6q-2 8.6 0 17.2M-1 -9.4q-2 9.4 0 18.8M7 -9q-2 9 0 18" fill="none" stroke-width=".9" opacity=".4"/><path d="M-11 -5.8q11-3.6 22 0" fill="none" stroke="#fff3ee" stroke-width="1.8" opacity=".5"/></g>
+<path id="tunnelworm-st" d="M-6 9.4l-1 2M2 9.6l-1 2M10 9l-1 2" fill="none" stroke-width=".8" opacity=".5"/>
+</defs>
+<g stroke="#7a3236" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="tail" data-pivot="98 110.5"><g transform="translate(110 108) rotate(-12)">
+<path d="M-17 -9.3C-4 -9.6 8 -7 14 -3C17 -1 17 2 14 3.4C6 6 -6 8.6 -17 9.4C-19.5 6 -19.5 -6 -17 -9.3Z" fill="url(#tunnelworm-c)" stroke="none"/>
+<path d="M-14 -9.4C-4 -9.6 8 -7 14 -3C17 -1 17 2 14 3.4C6 6 -6 8.6 -14 9.2" fill="none"/>
+<path d="M-7 -8.8q-2 8.8 0 17.2M1 -7.8q-1.6 7.8 0 14.4M8 -5.4q-1.2 5.2 0 10" fill="none" stroke-width=".9" opacity=".4"/>
+<path d="M-12 -6q9-2.6 19 .4" fill="none" stroke="#fff3ee" stroke-width="1.6" opacity=".5"/>
+</g></g>
+<g id="seg-4" data-pivot="86 110.5"><g transform="translate(86 110.5)"><use href="#tunnelworm-s" fill="url(#tunnelworm-c)"/><use href="#tunnelworm-st"/></g></g>
+<g id="seg-3" data-pivot="63 107.2"><g transform="translate(63 107.2) rotate(16.5)"><use href="#tunnelworm-s" fill="url(#tunnelworm-c)"/><use href="#tunnelworm-st"/></g></g>
+<g id="seg-2" data-pivot="44 96"><g transform="translate(44 96) rotate(45)"><use href="#tunnelworm-s" fill="url(#tunnelworm-c)"/></g></g>
+<g id="seg-1" data-pivot="31 78"><g transform="translate(31 78) rotate(63.4)">
+<ellipse rx="16" ry="10.5" fill="url(#tunnelworm-k)" stroke="none"/>
+<path d="M-13.9-5.25A16 10.5 0 0 1 13.9-5.25M13.9 5.25A16 10.5 0 0 1-13.9 5.25" fill="none"/>
+<path d="M-11 -7.6q-2.2 7.6 0 15.2M11 -7.6q-2.2 7.6 0 15.2" fill="none" stroke-width="1.1" opacity=".55"/>
+<path d="M-4 -10.2q-2 10.2 0 20.4M4 -10.2q-2 10.2 0 20.4" fill="none" stroke-width=".8" opacity=".25"/>
+<path d="M-9 -6.6q9-3.4 18 0" fill="none" stroke="#ffe8dc" stroke-width="1.8" opacity=".5"/>
+</g></g>
+<g id="head" data-pivot="26 68"><g transform="translate(19 62) rotate(40.6)">
+<path d="M16 -9C6 -10.6 -6 -9.8 -11 -6C-15 -3 -15.4 3 -11 6C-6 9.8 6 10.6 16 9C19.5 6 19.5 -6 16 -9Z" fill="url(#tunnelworm-c)" stroke="none"/>
+<path d="M10 -9.9C2 -10.4 -6 -9.8 -11 -6C-15 -3 -15.4 3 -11 6C-6 9.8 2 10.4 10 9.9" fill="none"/>
+<path d="M-13.6 -2.6C-17 -1 -17 2.4 -13.4 3.4" fill="#e89a92"/>
+<path d="M7 -9.8q-2 9.8 0 19.6M-1 -9.8q-1.8 9.8 0 19.4" fill="none" stroke-width=".9" opacity=".4"/>
+<path d="M-8 -6.6q8-3 18-1.6" fill="none" stroke="#fff3ee" stroke-width="1.8" opacity=".55"/>
+<circle cx="-6.4" cy="-2.6" r="2.1" fill="#2a1414" stroke="#4a1e1e" stroke-width=".8"/>
+<circle cx="-7" cy="-3.3" r=".75" fill="#fff" stroke="none"/>
+<path d="M-12.6 4.6q2.6 2 5.4 1" fill="none" stroke="#5a1e22" stroke-width="1.2"/>
+</g></g>
+</g>
+</svg>

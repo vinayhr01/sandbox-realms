@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="gemshell-s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ddc9ab"/><stop offset=".55" stop-color="#ae9171"/><stop offset="1" stop-color="#7d644a"/></linearGradient>
+<radialGradient id="gemshell-h" cx=".34" cy=".3" r=".85"><stop offset="0" stop-color="#ffe3a8"/><stop offset=".45" stop-color="#e09a48"/><stop offset=".8" stop-color="#a95a22"/><stop offset="1" stop-color="#7a3a14"/></radialGradient>
+<radialGradient id="gemshell-e" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#4a3a2e"/><stop offset="1" stop-color="#140c08"/></radialGradient>
+<path id="gemshell-sp" d="M82 70a3 3 0 0 1 6 0a6 6 0 0 1-12 0a9 9 0 0 1 18 0a12 12 0 0 1-24 0a15 15 0 0 1 30 0a18 18 0 0 1-36 0a21 21 0 0 1 42 0c0 14-10 26-26 28"/>
+</defs>
+<g stroke="#5b4430" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="body" data-pivot="64 112">
+<path d="M26 79C26 70 27 60 29 51" fill="none" stroke="#5b4430" stroke-width="5"/>
+<path d="M26 79C26 70 27 60 29 51" fill="none" stroke="#9c8262" stroke-width="3.2"/>
+<circle cx="29.2" cy="49.5" r="3.4" fill="url(#gemshell-e)"/>
+<path d="M19 92C17 94 16 97 15.5 99.5" fill="none" stroke="#5b4430" stroke-width="4.4"/>
+<path d="M19 92C17 94 16 97 15.5 99.5" fill="none" stroke="#9c8262" stroke-width="2.8"/>
+<path d="M121 118C116 112 106 108 96 107L54 106C46 104 40 96 36 88C32 80 27 76 21 78C15 80 12 88 12 97C12 107 14 115 19 119C42 121 90 121 121 118Z" fill="url(#gemshell-s)"/>
+<path d="M21 116C48 114.5 90 114.5 116 116" fill="none" stroke="#5b4430" stroke-width="1" opacity=".35"/>
+<path d="M20 119.2C48 120.4 92 120.2 118 118.4" fill="none" stroke="#e8d8bf" stroke-width="1.2" opacity=".6"/>
+<path d="M22 80C18 82 15 88 15 95" fill="none" stroke="#f3e6d0" stroke-width="2" opacity=".6"/>
+<path d="M30 95l4 2M24 101l4 1M34 104l4 .5M44 110l4-1M58 112l4-1M74 112l4-1M90 112l4-1M104 113l4-1M28 89l3 2M18 106l3 1M38 112l3-.5" fill="none" stroke-width="1" opacity=".35"/>
+<path d="M14 105.5q3 2 6.5 .2" fill="none" stroke="#3e2c1e" stroke-width="1.1"/>
+<path d="M20 80C17 72 14 62 13 52" fill="none" stroke="#5b4430" stroke-width="5.4"/>
+<path d="M20 80C17 72 14 62 13 52" fill="none" stroke="#bda283" stroke-width="3.6"/>
+<circle cx="12.8" cy="50.6" r="4" fill="url(#gemshell-e)"/>
+<circle cx="11.6" cy="49.2" r="1.2" fill="#fff" stroke="none"/>
+<circle cx="13.8" cy="51.8" r=".5" fill="#fff" stroke="none" opacity=".6"/>
+<path d="M16 93C13.5 94.5 11.5 97 10.5 100" fill="none" stroke="#5b4430" stroke-width="4.6"/>
+<path d="M16 93C13.5 94.5 11.5 97 10.5 100" fill="none" stroke="#bda283" stroke-width="3"/>
+<path d="M46 96C38 82 40 58 56 46C70 35 94 34 107 46C120 58 120 84 106 98C94 108 74 112 58 108C52 106 48 102 46 96Z" fill="url(#gemshell-h)"/>
+<g transform="matrix(1.3 0 0 1.3 -25 -21)" fill="none"><use href="#gemshell-sp" stroke="#7a3a14" stroke-width="4.4" opacity=".35"/>
+<use href="#gemshell-sp" stroke="#5e2c0e" stroke-width="1.3"/>
+<use href="#gemshell-sp" stroke="#ffe0a8" stroke-width=".7" opacity=".7" transform="translate(-.7 -.8)"/></g>
+<path d="M52 56l4 3M60 45l2 4M74 39l1 4M90 39l-1 4M104 47l-3 3M112 62l-4 1M113 80l-4-1M106 94l-3-3M92 103l-1-4M74 106l1-4M60 102l2-3M50 88l4-2M47 72l4 0" fill="none" stroke="#6a3410" stroke-width="1.1" opacity=".45"/>
+<path d="M54 54C62 44 74 40 86 40" fill="none" stroke="#fff6e0" stroke-width="3.2" opacity=".55"/>
+<circle cx="60" cy="58" r="1.8" fill="#fff" stroke="none" opacity=".7"/>
+<path d="M46 96C50 104 57 108 66 108.5" fill="none" stroke="#ffe9c2" stroke-width="2" opacity=".75"/>
+</g>
+</g>
+</svg>

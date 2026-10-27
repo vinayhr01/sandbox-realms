@@ -99,3 +99,22 @@ test('follow a being beyond the old sample', async ({ page }) => {
   await page.waitForTimeout(3000);
   await expect(page.locator('#status')).not.toContainText('Lost sight');
 });
+
+test('context loss rebuilds atlas', async ({ page }) => {
+  const call = await openRealm(page);
+  await call('spawnMany', 'burrfleece', 20);
+  await expect.poll(() => call<number>('creatureCount'), { timeout: 20_000 }).toBeGreaterThan(0);
+  // Lose and restore the WebGL context. The atlas rebuilds on webglcontextrestored; with no art yet the creatures
+  // keep their group silhouettes, so the count must hold and no error may reach the console.
+  await page.evaluate(async () => {
+    const canvas = document.querySelector<HTMLCanvasElement>('#map canvas');
+    const gl = canvas?.getContext('webgl2');
+    const ext = gl?.getExtension('WEBGL_lose_context');
+    if (!ext) throw new Error('WEBGL_lose_context is not available');
+    ext.loseContext();
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    ext.restoreContext();
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+  });
+  expect(await call<number>('creatureCount')).toBeGreaterThanOrEqual(1);
+});

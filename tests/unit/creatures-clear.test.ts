@@ -7,7 +7,7 @@ import type { DrawBeing } from '../../src/render/feed-interp.ts';
 /** A Pixi-free stand-in for the application: a stage and a texture generator that returns the empty texture. */
 function fakeApp(): { app: Application; stage: Container } {
   const stage = new Container();
-  const app = { stage, renderer: { textureGenerator: { generateTexture: () => Texture.EMPTY } } } as unknown as Application;
+  const app = { stage, renderer: { canvas: new EventTarget(), textureGenerator: { generateTexture: () => Texture.EMPTY } } } as unknown as Application;
   return { app, stage };
 }
 

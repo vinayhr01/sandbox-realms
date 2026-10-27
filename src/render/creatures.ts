@@ -2,17 +2,20 @@
  * Creature layer: draws the beings of the feed (feed-interp.ts), the hamlet buildings and the
  * boats, at world scale. A being's icon is as tall as its size class in tiles times the zoom, so it grows with the map.
  * Zoomed out, the beings become dots in their group colour; zoomed in, icons. Between 3 and 5 px per tile the two
- * cross over. Sprites are pooled, and only what is in the view plus a margin is placed.
+ * cross over. Sprites are pooled, and only what is in the view plus a margin is placed. Icons are baked rig frames
+ * (atlas.ts) when they exist, else the group silhouette.
  */
 import { Application, Container, Graphics, Rectangle, Sprite, type Texture } from 'pixi.js';
 // Pixi is imported for the sprites and the shadow texture only; no sim state is read here.
 import { SPECIES } from '../content/beasts.ts';
 import { speciesGroup } from '../content/species-group.ts';
+import { SPECIES_GAIT, type GaitId, type PoseMode, type SpeciesGait } from '../art/gaits.ts';
 import type { MapBoat, MapBuilding, MapSizeClass } from '../shared/protocol.ts';
-import { BeingState } from '../shared/being-feed.ts';
 import type { DrawBeing, FeedInterp } from './feed-interp.ts';
 import type { MarkView } from './marks.ts';
 import { clamp } from './camera.ts';
+import { Atlas } from './atlas.ts';
+import { framesOf, frameIndex, gaitFor, PhaseByKey } from './anim.ts';
 import { buildingKindOf, GROUP_COLOUR, SpriteFactory, type SpriteTex } from './sprites.ts';
 
 /** Zoom (CSS px per tile) where dots give way to icons: dots fade out from LOD_TO_PX down, icons fade in from LOD_FROM_PX. */
@@ -28,21 +31,13 @@ const BOAT_RADIUS_PX = 3;
 const TILES_BY_SIZE: Readonly<Record<MapSizeClass, number>> = { T: 0.5, S: 0.7, M: 1.0, L: 1.4, H: 2.0, C: 3.0 };
 /** A young being is drawn at this fraction of its size. */
 const CHILD_SCALE = 0.6;
+/** From this zoom (CSS px per tile) the 128 px frames are drawn; below it the 48 px frames. */
+const FULL_FRAME_ZOOM_PX = 48;
 /** Shadow ellipse texture size in px; its sprite is scaled to the being's width and a fifth of its height. */
 const SHADOW_W = 16;
 const SHADOW_H = 8;
 const SHADOW_ALPHA = 0.35;
 const BOAT_COLOUR: Readonly<Record<MapBoat['kind'], number>> = { trading: 0x7fd3ff, fishing: 0xa8e6a1, transport: 0xffd27f };
-
-/** Gait name of each drawn state, for the frame source. */
-const GAIT_OF_STATE: Readonly<Record<BeingState, string>> = {
-  [BeingState.Idle]: 'idle',
-  [BeingState.Walk]: 'walk',
-  [BeingState.Run]: 'run',
-  [BeingState.Swim]: 'swim',
-  [BeingState.Sleep]: 'sleep',
-  [BeingState.Hit]: 'hit',
-};
 
 /**
  * Drops the feed sample and the creature sprites, and counts the reset in `count`. Called when a new, loaded or respawned
@@ -66,11 +61,11 @@ export function worldHeightPx(size: MapSizeClass, zoomPx: number, child: boolean
 }
 
 /**
- * Supplies the animated frame of a being (Task 7 implements it). Until one is set, the layer draws the group silhouette.
- * `gait` is a GaitId from Task 5, typed as a string here.
+ * Supplies the baked frame of a being: its species, the gait and mode it plays (from gaits.ts), the frame index within
+ * that mode, and the frame size. Null until the frame is baked; the layer then draws the group silhouette.
  */
 export interface FrameSource {
-  frame(species: number, gait: string, frameIndex: number, px: 48 | 128): Texture | null;
+  frame(species: number, gait: string, mode: PoseMode, frameIndex: number, px: 48 | 128): Texture | null;
 }
 
 /** Shows or hides the layer's optional parts (settings `map.shadows`, `marks.boats`). */
@@ -93,6 +88,12 @@ function placeSprite(pool: Sprite[], parent: Container, i: number, tex: Texture,
   return sprite;
 }
 
+/** The species' gait table entry, or undefined for an id the table does not know. */
+function gaitOfSpecies(species: number): SpeciesGait | undefined {
+  const id = SPECIES[species]?.id;
+  return id === undefined ? undefined : SPECIES_GAIT[id];
+}
+
 export class CreatureLayer {
   private readonly root = new Container();
   private readonly shadowLayer = new Container();
@@ -105,9 +106,12 @@ export class CreatureLayer {
   private readonly buildingPool: Sprite[] = [];
   private readonly sprites: SpriteFactory;
   private readonly shadowTexture: Texture;
+  private readonly atlas: Atlas;
+  private readonly phases = new PhaseByKey();
+  private lastNowMs = -1;
   private buildings: readonly MapBuilding[] = [];
   private boats: readonly MapBoat[] = [];
-  private frameSource: FrameSource | null = null;
+  private frameSource: FrameSource | null;
   private toggles: CreatureToggles = { shadows: true, boats: false };
   private placed = 0;
 
@@ -120,6 +124,8 @@ export class CreatureLayer {
     this.root.addChild(this.boatMarks);
     app.stage.addChild(this.root);
     this.sprites = new SpriteFactory(app.renderer);
+    this.atlas = new Atlas(app.renderer);
+    this.frameSource = this.atlas;
     const shadow = new Graphics().ellipse(SHADOW_W / 2, SHADOW_H / 2, SHADOW_W / 2, SHADOW_H / 2).fill({ color: 0x000000, alpha: SHADOW_ALPHA });
     this.shadowTexture = app.renderer.textureGenerator.generateTexture({
       target: shadow,
@@ -132,10 +138,13 @@ export class CreatureLayer {
   }
 
   /** Draws the first `count` beings of `beings` on the view, plus the buildings and boats. */
-  draw(beings: readonly DrawBeing[], count: number, view: MarkView, _nowMs: number): void {
+  draw(beings: readonly DrawBeing[], count: number, view: MarkView, nowMs: number): void {
     const zoom = view.zoom;
     const lod = lodOf(zoom);
     const margin = VIEW_MARGIN_TILES * zoom;
+    const dtMs = this.lastNowMs < 0 ? 0 : nowMs - this.lastNowMs;
+    this.lastNowMs = nowMs;
+    const px: 48 | 128 = zoom >= FULL_FRAME_ZOOM_PX ? 128 : 48;
     this.dots.clear();
     let icons = 0;
     let shadows = 0;
@@ -143,6 +152,9 @@ export class CreatureLayer {
     for (let i = 0; i < count; i++) {
       const b = beings[i];
       if (!b) continue;
+      const sg = gaitOfSpecies(b.species);
+      // Every being steps its phase, on screen or not, so a being that comes back keeps its stride.
+      const phase = sg ? this.phases.step(b.key, b.state, b.x, b.y, sg.strideTiles, dtMs) : 0;
       const sx = view.offX + (b.x + 0.5) * zoom;
       const sy = view.offY + (b.y + 0.5) * zoom;
       if (sx < -margin || sy < -margin || sx > view.viewW + margin || sy > view.viewH + margin) continue;
@@ -153,15 +165,19 @@ export class CreatureLayer {
       if (lod.icons > 0) {
         const size = SPECIES[b.species]?.size ?? 'S';
         const height = worldHeightPx(size, zoom, b.child);
-        this.placeIcon(icons++, b, size, height, sx, sy, b.alpha * lod.icons);
+        const pose = sg ? gaitFor(sg, b.state) : null;
+        if (pose) this.atlas.request(b.species);
+        const tex = this.iconTexture(b.species, size, pose, phase, px);
+        this.placeIcon(icons++, tex, b.facing, height, sx, sy, b.alpha * lod.icons);
         if (this.toggles.shadows) this.placeShadow(shadows++, height, sx, sy, b.alpha * lod.icons);
       }
     }
+    this.phases.endFrame();
     this.placed = placed;
     this.hideFrom(this.iconPool, icons);
     this.hideFrom(this.shadowPool, shadows);
     this.shadowLayer.visible = this.toggles.shadows;
-    this.placeBuildings(view);
+    this.placeBuildings(view, px);
     this.drawBoats(view);
   }
 
@@ -201,11 +217,10 @@ export class CreatureLayer {
   }
 
   /** A being's icon, scaled so it is `height` CSS px tall and faces its direction of travel. */
-  private placeIcon(i: number, b: DrawBeing, size: MapSizeClass, height: number, sx: number, sy: number, alpha: number): void {
-    const tex = this.textureOf(b, size);
+  private placeIcon(i: number, tex: SpriteTex, facing: -1 | 1, height: number, sx: number, sy: number, alpha: number): void {
     const sprite = placeSprite(this.iconPool, this.iconLayer, i, tex.texture, tex.anchorX, tex.anchorY);
     const k = height / tex.texture.height;
-    sprite.scale.set(b.facing * k, k);
+    sprite.scale.set(facing * k, k);
     sprite.position.set(sx, sy);
     sprite.alpha = alpha;
   }
@@ -218,24 +233,32 @@ export class CreatureLayer {
     sprite.alpha = alpha;
   }
 
-  /** The frame from the frame source when there is one, else the group silhouette. */
-  private textureOf(b: DrawBeing, size: MapSizeClass): SpriteTex {
-    const silhouette = this.sprites.being(speciesGroup(b.species), size);
+  /** The baked frame for the being's pose when there is one, else the group silhouette of its size. */
+  private iconTexture(species: number, size: MapSizeClass, pose: { gait: GaitId; mode: PoseMode } | null, phase: number, px: 48 | 128): SpriteTex {
+    const silhouette = this.sprites.being(speciesGroup(species), size);
     const src = this.frameSource;
-    if (!src) return silhouette;
-    const frame = src.frame(b.species, GAIT_OF_STATE[b.state] ?? 'idle', 0, 48);
+    if (!src || !pose) return silhouette;
+    const frame = src.frame(species, pose.gait, pose.mode, frameIndex(phase, framesOf(pose.gait, pose.mode)), px);
     return frame ? { texture: frame, anchorX: 0.5, anchorY: 1 } : silhouette;
   }
 
-  /** Buildings as their sprite at the tile centre, culled to the view. */
-  private placeBuildings(view: MarkView): void {
+  /**
+   * Buildings as their baked still when there is one, else their sprite, at the tile centre, culled to the view. A baked
+   * still is scaled to the silhouette's height so the building keeps its footprint.
+   */
+  private placeBuildings(view: MarkView, px: 48 | 128): void {
     let n = 0;
     for (const b of this.buildings) {
       const sx = view.offX + (b.x + 0.5) * view.zoom;
       const sy = view.offY + (b.y + 0.5) * view.zoom;
       if (!inView(sx, sy, view, SPRITE_MARGIN_PX)) continue;
-      const tex = this.sprites.building(buildingKindOf(b.kind));
-      placeSprite(this.buildingPool, this.buildingLayer, n++, tex.texture, tex.anchorX, tex.anchorY).position.set(sx, sy);
+      this.atlas.requestBuilding(b.kind);
+      const silhouette = this.sprites.building(buildingKindOf(b.kind));
+      const baked = this.atlas.building(b.kind, px);
+      const tex = baked ? { texture: baked, anchorX: 0.5, anchorY: 1 } : silhouette;
+      const sprite = placeSprite(this.buildingPool, this.buildingLayer, n++, tex.texture, tex.anchorX, tex.anchorY);
+      sprite.position.set(sx, sy);
+      sprite.scale.set(baked ? silhouette.texture.height / baked.height : 1);
     }
     this.hideFrom(this.buildingPool, n);
   }

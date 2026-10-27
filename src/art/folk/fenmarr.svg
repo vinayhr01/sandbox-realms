@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="fenmarr-s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dcb688"/><stop offset="1" stop-color="#ae8456"/></linearGradient>
+<linearGradient id="fenmarr-t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#62a69c"/><stop offset="1" stop-color="#2e6a64"/></linearGradient>
+<linearGradient id="fenmarr-tf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#47827a"/><stop offset="1" stop-color="#1f4a46"/></linearGradient>
+<linearGradient id="fenmarr-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a3a40"/><stop offset="1" stop-color="#16161a"/></linearGradient>
+<linearGradient id="fenmarr-p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b0a27c"/><stop offset="1" stop-color="#7e7052"/></linearGradient>
+<linearGradient id="fenmarr-r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ead690"/><stop offset="1" stop-color="#b8944c"/></linearGradient>
+<g id="fenmarr-leg"><path d="M56 74H70C70 84 69.6 90 69.2 95H57C56.6 90 56 84 56 74Z"/><path d="M56.6 93.4H69.6L69.4 98.4H56.9Z" fill="#cbbd92" stroke-width="1"/><path d="M58 98.2H68.6C68.3 103 68 108 68.2 112.6H58.6C58.8 108 58.4 103 58 98.2Z" fill="url(#fenmarr-s)" stroke="#7a5a36"/><path d="M58.3 104.6h10M58.5 107.6h9.8" stroke="#8a7440" stroke-width="1.2"/><path d="M58.4 111.6C61.5 112.6 65.5 112.6 68.4 111.8C69.6 114 70 117 69.4 119.4L68.6 120H50.8C49.4 120 48.9 118.6 49.6 117.6C51 116 54.5 114.8 58.4 111.6Z" fill="url(#fenmarr-s)" stroke="#7a5a36"/><path d="M52.8 117.9v2M55.2 117.2v2.7M57.6 116.4v3.4" stroke="#8e6a44" stroke-width=".8"/><path d="M50.4 119.6H69" stroke="#5e4428" stroke-width="1.2"/></g>
+<g id="fenmarr-arm"><path d="M58 39C60 36 66 36 68 39.5C69.5 45 69.3 50 68.6 55H58.4C57.6 50 57.2 44 58 39Z"/><path d="M58.8 54.4H68.5C68.1 61 67.8 67 67.6 74.4H60.2C59.8 67 59.3 61 58.8 54.4Z" fill="url(#fenmarr-s)" stroke="#7a5a36"/><path d="M58.3 53.4H68.7L68.5 56.6H58.6Z" fill="#cbbd92" stroke-width="1"/><path d="M60 68.4h7.6M60 70.6h7.6" stroke="#8a7440" stroke-width="1"/><path d="M60.2 74C59 76.5 59 79 60.5 81.2C62.5 82.7 65.5 82.2 66.5 79.7C67.3 77.7 67 75.7 66.6 74Z" fill="url(#fenmarr-s)" stroke="#7a5a36" stroke-width="1.2"/><path d="M60.4 75.6C58.6 76 58 78 58.8 79.3C59.6 79.7 60.3 79.1 60.6 78.1" fill="url(#fenmarr-s)" stroke="#7a5a36" stroke-width="1"/><path d="M62.3 80.7l.2-2.4M64.4 80.9l.1-2.4" stroke="#96704c" stroke-width=".8"/></g>
+</defs>
+<g stroke="#1f4440" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="66 77" stroke="#4e4430"><use href="#fenmarr-leg" x="3" fill="#7a6c4e"/></g>
+<g id="leg-l" data-pivot="63 77" stroke="#5c5038"><use href="#fenmarr-leg" fill="url(#fenmarr-p)"/></g>
+<g id="body" data-pivot="63 60">
+<g id="arm-r" data-pivot="66 40"><use href="#fenmarr-arm" x="3" fill="url(#fenmarr-tf)"/></g>
+<path d="M53 38C56 35 67 34.5 72 37C75.5 40 76.5 46 75.5 54C75 60 76 70 79 80.5C71 83.5 57 83.5 48.5 80.5C51 72 52 62 51 54C50.5 46 51 41 53 38Z" fill="url(#fenmarr-t)"/>
+<path d="M57.5 37.6C60 46 64.5 55 70.5 63.4M57 70.5l-1.5 10M66 70.5l.5 11M72 69.5l2 10" fill="none" stroke-width="1" opacity=".5"/>
+<path d="M54 44h20M53.5 50h21.5M53 56h22" fill="none" stroke="#a6d8cc" stroke-width=".8" stroke-dasharray="1.5 2" opacity=".55"/>
+<path d="M71 38.5C74.5 42 75.4 50 74.8 56C74.5 66 75.5 74 78 80" fill="none" stroke-width="3" opacity=".25"/>
+<path d="M51.2 62.5C59 64 68 64 75.6 62.5L75.9 68C68 69.5 59 69.5 51.4 68Z" fill="url(#fenmarr-r)" stroke="#7a6230" stroke-width="1.2"/>
+<path d="M54 63.3l2.5 5M58.5 63.8l2.5 5M63 64l2.5 5M67.5 63.8l2.5 5M72 63.3l2.5 4.8" stroke="#9a7c3c" stroke-width=".8"/>
+<path d="M53.6 65.4C51 66 50 68 50.6 69.8L49 77.6H52.2L53 70.4L54.6 77.2H57.4L55.8 69.6C56.6 67.6 56 66 53.6 65.4Z" fill="url(#fenmarr-r)" stroke="#7a6230" stroke-width="1"/>
+<g id="head" data-pivot="62 34">
+<path d="M58 30.5L58.5 37.5H66.2L66 29.5Z" fill="#b8905e" stroke="#7a5a36"/>
+<path d="M56.6 36.4C59 39.6 61 41 62.6 41C64.2 40 65.7 38 66.8 35.8Z" fill="#cbbd92" stroke="#7a6c4e" stroke-width="1"/>
+<g transform="matrix(.9 0 0 .9 6.2 3.3)" stroke="#7a5a36">
+<path d="M71 21C76 21.5 79 25 78 29.5C77 32.5 74 33.5 72 32Z" fill="url(#fenmarr-h)" stroke="#0e0e12"/>
+<path d="M54 10C58 6 66 6 70 10C73 14 74 20 72 26C70 30 66 33 61 33C57 33 54 32 52.5 31C51.5 30 52 29 51.5 28.3C50.5 27.6 50.6 26.8 51.3 26.3C50.6 25.8 50.8 25 51.4 24.6C50 24 48.5 23.6 48.6 22.6C49 21.5 50.5 20 51.6 18.5C51.6 15.5 52 12.5 54 10Z" fill="url(#fenmarr-s)"/>
+<circle cx="57.5" cy="25" r="2.6" fill="#d88a6c" stroke="none" opacity=".4"/>
+<path d="M50.4 23.4q.9.7 1.8.2" fill="none" stroke-width="1"/>
+<path d="M51.6 26.7q1.2.5 2.4.2" fill="none" stroke="#94503a" stroke-width="1.2"/>
+<path d="M53.2 19.5C54.5 18.4 56.6 18.5 57.7 19.7C56.6 20.7 54.5 20.9 53.2 19.5Z" fill="#fff" stroke-width=".8"/>
+<circle cx="55" cy="19.6" r="1.25" fill="#2a1c10" stroke="none"/>
+<circle cx="54.6" cy="19.1" r=".45" fill="#fff" stroke="none"/>
+<path d="M53 19.1C54.5 18 56.7 18.1 57.9 19.4" fill="none" stroke="#16161a" stroke-width="1"/>
+<path d="M52.7 16.8Q55.5 15.6 58.2 16.6" fill="none" stroke="#16161a" stroke-width="1.5"/>
+<path d="M60 31q4 0 7-3" fill="none" stroke-width="1" opacity=".45"/>
+<path d="M51.6 16.5C51 12 55 9 62 9C69 9 74 12 74.6 18.5C74.4 23 73.5 27.5 71 31C70.8 28.5 70 26 68.6 24C67.5 21 66 18.8 64 17.6C61 18 57 17.6 54 17.4C53 17.4 52.2 17.2 51.6 16.5Z" fill="url(#fenmarr-h)" stroke="#0e0e12"/>
+<path d="M64.6 19.6C66.6 18.6 68.6 20.1 68.4 22.6C68.3 25.1 66.6 26.6 64.6 25.6Z" fill="url(#fenmarr-s)"/>
+<path d="M65.8 21.3q1.4.9.8 2.6" fill="none" stroke-width=".9"/>
+<path d="M67 22.5Q64 30 57 32.5" fill="none" stroke="#6a5228" stroke-width="1"/>
+<g transform="matrix(1 0 0 .8 0 .4)">
+<path d="M39.5 14.6L62 1.8L86 13.6C81 16.6 72.5 17.4 62 17.2C51.5 17 43.5 16.4 39.5 14.6Z" fill="url(#fenmarr-r)" stroke="#7a6230"/>
+<path d="M62 2.4L46 15.4M62 2.4L54 16.4M62 2.4V17M62 2.4L70.5 16.8M62 2.4L79 15.6" fill="none" stroke="#9a7c3c" stroke-width=".9"/>
+<path d="M44.5 11.6Q62 15.4 81.5 11" fill="none" stroke="#9a7c3c" stroke-width=".9"/>
+<path d="M41 15.2C48 16.8 56 17.4 62 17.4C70 17.4 79 16.6 85 14.2" fill="none" stroke="#5c4a22" stroke-width="1.2" opacity=".6"/>
+</g>
+</g>
+</g>
+<g id="arm-l" data-pivot="63 40"><use href="#fenmarr-arm" fill="url(#fenmarr-t)"/></g>
+</g>
+</g>
+</svg>

@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="thornling-s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0c896"/><stop offset="1" stop-color="#cc9666"/></linearGradient>
+<linearGradient id="thornling-sf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d0a476"/><stop offset="1" stop-color="#a6744a"/></linearGradient>
+<linearGradient id="thornling-v" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9c7448"/><stop offset="1" stop-color="#5c3e22"/></linearGradient>
+<linearGradient id="thornling-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cc456"/><stop offset="1" stop-color="#2e7a3a"/></linearGradient>
+<linearGradient id="thornling-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8783a"/><stop offset="1" stop-color="#8a3a18"/></linearGradient>
+<linearGradient id="thornling-p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a6a46"/><stop offset="1" stop-color="#5a4228"/></linearGradient>
+<g id="thornling-leg"><path d="M57 74H69C69 86 68.6 94 68.2 100C67.9 105 67.8 108 67.8 111H59C59 108 58.6 104 58.2 100C57.8 94 57 86 57 74Z"/><path d="M57.6 88l11-3M58 94l10.6-3M58.4 100l9.8-3M58.8 106l9.2-3" fill="none" stroke="#3a2a18" stroke-width=".9" opacity=".55"/><path d="M58.6 109.6H68L68.6 117C68.6 119 67.6 120 66.2 120H52.4C50.6 120 50.2 118.2 51 116.8C52.4 115.4 55.4 114.6 58.6 113Z" fill="#c8a070" stroke="#5e4226"/><path d="M58.4 113.4C60 115 60.4 117.4 59.8 120" fill="none" stroke="#7a5a36" stroke-width=".9"/><path d="M53.4 115.8q2 1 2.8 4" fill="none" stroke="#7a5a36" stroke-width=".8"/><path d="M50.8 118.8H68.4" stroke="#4a321c" stroke-width="1.2"/></g>
+<g id="thornling-arm"><path d="M58.6 39C60.6 36.4 65.6 36.4 67.4 39.6C68.6 46 68.2 53 67.2 58.5L67 72.5H60.4C60 67 59.6 63 59.6 58.5C58.2 52 57.8 45 58.6 39Z"/><path d="M60.2 58q3.4 1 6.6 0" fill="none" stroke-width=".9" opacity=".45"/><path d="M60 67.4q3.6 1.6 7.2-.2M60.2 69.6q3.4 1.4 6.8-.2" fill="none" stroke="#3e8a3a" stroke-width="1.1"/><path d="M66.8 67.4c2.4-1 4 0 4.4 1.8-2 .8-3.6.4-4.4-1.8Z" fill="#6ab84a" stroke="#2a5a26" stroke-width=".7"/><path d="M60.4 74C59.2 76.5 59.2 79 60.7 81.2C62.7 82.7 65.5 82.2 66.5 79.7C67.3 77.7 67 75.7 66.6 74Z" fill="url(#thornling-s)" stroke="#8a5e36" stroke-width="1.2"/><path d="M60.6 75.6C58.8 76 58.2 78 59 79.3C59.8 79.7 60.5 79.1 60.8 78.1" fill="url(#thornling-s)" stroke="#8a5e36" stroke-width="1"/><path d="M62.5 80.7l.2-2.4M64.6 80.9l.1-2.4" stroke="#a87650" stroke-width=".8"/><path d="M57.6 40.4C58.6 35.4 66.6 35 68.6 40.2L67.2 46L64.8 42.8L63 47.4L61 43L58.8 45.8Z" fill="url(#thornling-g)" stroke="#1e5a2a" stroke-width="1.1"/><path d="M63 39l0 7.4" stroke="#a8e07a" stroke-width=".7"/></g>
+</defs>
+<g stroke="#3e2a16" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="66 77" stroke="#2e2010"><use href="#thornling-leg" x="3" fill="#4a3620"/></g>
+<g id="leg-l" data-pivot="63 77" stroke="#3a2a16"><use href="#thornling-leg" fill="url(#thornling-p)"/></g>
+<g id="body" data-pivot="63 60">
+<g id="arm-r" data-pivot="66 40" stroke="#6e4a2a"><use href="#thornling-arm" x="3" fill="url(#thornling-sf)"/></g>
+<path d="M51 69C58 70.6 69 70.6 76.6 69L78.6 80L75.6 77.6L74.4 85.4L71.2 79.6L68.4 87L65.6 80.2L62.6 87.4L60 80.4L57 86.8L55 79.8L51.4 85.2L51.2 78.2L48.2 81Z" fill="url(#thornling-g)" stroke="#1e5a2a"/>
+<path d="M53.4 72l-1.4 9.6M58 72.4l-.6 11.6M62.8 72.6l-.2 12M67.4 72.6l.6 11.6M72 72.2l2 10.4" fill="none" stroke="#a8e07a" stroke-width=".7" opacity=".8"/>
+<path d="M54 38.5C57 35.6 66.6 35.2 71 37.4C74.2 40.4 75 46 74.2 54C73.8 60 74.6 66 75.6 72C70 73.6 58 73.6 51.8 72C52.8 66 53.4 60 52.6 54C52.2 46 52.4 41.4 54 38.5Z" fill="url(#thornling-v)"/>
+<path d="M56 47l.6 10M59.4 44l-.4 12M63 48v12M67 45l.6 11M70.6 47l.4 9M57 61l.4 9M65 62l.4 8.6M71 60l.6 10" fill="none" stroke="#3a2614" stroke-width=".9" opacity=".55"/>
+<path d="M72.2 39.6C74.6 43 74.8 50 74.2 56C74 62 74.6 67 75.4 71.6" fill="none" stroke-width="3" opacity=".25"/>
+<path d="M52.2 63.2C59 64.6 68 64.6 75 63.2" fill="none" stroke="#2e6a2a" stroke-width="2.4"/>
+<path d="M52.2 63.2C59 64.6 68 64.6 75 63.2" fill="none" stroke="#7cc456" stroke-width="1" stroke-dasharray="2 2.4"/>
+<circle cx="54.4" cy="63.6" r="1.8" fill="#f4a6c8" stroke="#a04a74" stroke-width=".8"/><circle cx="54.4" cy="63.6" r=".6" fill="#ffe27a" stroke="none"/>
+<path d="M52.6 41C52 36 57 33.6 62.6 33.6C68.6 33.6 73.4 35.6 74 40L72 46L69.6 42.6L67.4 48L65 43L62.4 48.4L60 43L57.4 47.6L55.6 42.6L53.2 46Z" fill="url(#thornling-g)" stroke="#1e5a2a"/>
+<path d="M57.4 38.6v8M62.4 39.4v8.4M67.4 39v8.4" fill="none" stroke="#a8e07a" stroke-width=".7"/>
+<g id="head" data-pivot="62 34">
+<path d="M58.6 32.5L58.8 37H65.8L65.6 31.5Z" fill="#cc9a6c" stroke="#8a5e36"/>
+<g transform="matrix(.96 0 0 .96 2.5 3.5)" stroke="#8a5e36">
+<path d="M54 10C58 6 66 6 70 10C73 14 74 20 72 26C70 30 66 33 61 33C57 33 54 32 52.5 31C51.5 30 52 29 51.5 28.3C50.5 27.6 50.6 26.8 51.3 26.3C50.6 25.8 50.8 25 51.4 24.6C50 24 48.5 23.6 48.6 22.6C49 21.5 50.5 20 51.6 18.5C51.6 15.5 52 12.5 54 10Z" fill="url(#thornling-s)"/>
+<circle cx="57.5" cy="25" r="2.6" fill="#ec8a72" stroke="none" opacity=".45"/>
+<path d="M55.6 23.2h.1M57.4 22.6h.1M59 23.4h.1M56.4 24.8h.1" stroke="#a8603a" stroke-width="1"/>
+<path d="M50.4 23.4q.9.7 1.8.2" fill="none" stroke-width="1"/>
+<path d="M51.6 26.6q1.4.9 2.8-.1" fill="none" stroke="#a5523e" stroke-width="1.2"/>
+<path d="M53 19.3C54.4 17.8 56.8 17.9 58 19.5C56.8 20.9 54.4 21 53 19.3Z" fill="#fff" stroke-width=".8"/>
+<circle cx="55" cy="19.4" r="1.45" fill="#3e7a2e" stroke="none"/>
+<circle cx="54.5" cy="18.8" r=".5" fill="#fff" stroke="none"/>
+<path d="M52.8 18.9C54.4 17.4 56.8 17.5 58.1 19.2" fill="none" stroke="#6a2a10" stroke-width="1"/>
+<path d="M52.7 16.2Q55.5 14.6 58.2 15.8" fill="none" stroke="#8a3a18" stroke-width="1.4"/>
+<path d="M60 31q4 0 7-3" fill="none" stroke-width="1" opacity=".45"/>
+<path d="M51.5 15.5C50.5 8 56.5 3.5 64 4C71.5 4.5 76 10.5 75 18.5C74.6 23 74.6 27.5 73.6 31.6L71.6 28.6L70.6 32L69.4 26.4C68.4 22 66.4 19 64 17.3C62.5 18.6 60.5 18.4 59.5 16.6L57.4 18.4L56.4 16.4C55 17.8 53.4 17.6 52.6 16.4L50.2 17.4Z" fill="url(#thornling-h)" stroke="#5a2410"/>
+<path d="M58 8.4q6-1 11 4M56 11.4q6 0 10 5M68 9q5 4 5 11" fill="none" stroke="#f0a060" stroke-width="1" opacity=".7"/>
+<path d="M50.6 12c1.2-3.4 4.6-4.4 7-3.2-1.2 3.2-4.6 4.4-7 3.2Z" fill="url(#thornling-g)" stroke="#1e5a2a" stroke-width="1"/>
+<path d="M56.6 8.2c1.6-3 5.2-3.4 7.2-1.8-1.6 2.8-5.2 3.4-7.2 1.8Z" fill="url(#thornling-g)" stroke="#1e5a2a" stroke-width="1"/>
+<path d="M63.6 6.6c2.4-2.4 6-2 7.6 0-2.4 2.2-5.8 2-7.6 0Z" fill="url(#thornling-g)" stroke="#1e5a2a" stroke-width="1"/>
+<path d="M70.4 8c3-1.4 6.2-.2 7 2.4-3 1.2-6 .2-7-2.4Z" fill="url(#thornling-g)" stroke="#1e5a2a" stroke-width="1"/>
+<path d="M74.6 13.2c3.2-.4 5.6 1.8 5.4 4.6-3.2.2-5.4-1.8-5.4-4.6Z" fill="url(#thornling-g)" stroke="#1e5a2a" stroke-width="1"/>
+<path d="M51 12.4C57 8 67 6.4 77 12" fill="none" stroke="#5a3a1a" stroke-width="1.2"/>
+<circle cx="60.6" cy="8.6" r="1.3" fill="#d83a4a" stroke="#7a1a24" stroke-width=".7"/>
+<circle cx="62.6" cy="9.6" r="1.1" fill="#d83a4a" stroke="#7a1a24" stroke-width=".7"/>
+<path d="M64.6 19.6C66.6 18.6 68.6 20.1 68.4 22.6C68.3 25.1 66.6 26.6 64.6 25.6Z" fill="url(#thornling-s)"/>
+<path d="M65.8 21.3q1.4.9.8 2.6" fill="none" stroke-width=".9"/>
+</g>
+</g>
+<g id="arm-l" data-pivot="63 40" stroke="#8a5e36"><use href="#thornling-arm" fill="url(#thornling-s)"/></g>
+</g>
+</g>
+</svg>

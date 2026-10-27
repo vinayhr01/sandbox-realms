@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="rimeborn-s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbe4da"/><stop offset="1" stop-color="#e6bba6"/></linearGradient>
+<linearGradient id="rimeborn-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f1ea"/><stop offset="1" stop-color="#bdb5a6"/></linearGradient>
+<linearGradient id="rimeborn-cf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d0cabe"/><stop offset="1" stop-color="#958c7e"/></linearGradient>
+<linearGradient id="rimeborn-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a7cc0"/><stop offset="1" stop-color="#2c4680"/></linearGradient>
+<linearGradient id="rimeborn-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6e7b4"/><stop offset="1" stop-color="#c9a85e"/></linearGradient>
+<linearGradient id="rimeborn-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a7a58"/><stop offset="1" stop-color="#5e4430"/></linearGradient>
+<linearGradient id="rimeborn-p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4e5e80"/><stop offset="1" stop-color="#2e3a56"/></linearGradient>
+<g id="rimeborn-leg"><path d="M55.5 74H70.5C70.6 84 70.4 92 70.2 99H56C55.8 92 55.5 84 55.5 74Z"/><path d="M56 98H70.6C71.4 104 71.4 110 71 114C71 117.6 70 120 68 120H51C49 120 48.4 118 49.4 116.4C50.8 114.6 53.6 113.6 56 112.6C55.4 108 55.4 103 56 98Z" fill="url(#rimeborn-c)" stroke="#6e665a"/><path d="M55.2 98.8c1-2 2.4-1.2 3.2-2.4 1 1.2 2 .4 3-.8 1 1.2 2.2.8 3-.6 1 1.4 2.4.8 3.2-.6 1 1 2 1.6 3.6.8l.2 4.6H55.4Z" fill="url(#rimeborn-f)" stroke="#3e2c1e" stroke-width="1"/><path d="M58 106.5l2 2.4M62 106l1.6 2.8M66 106.6l1.4 2.2M53.6 115.2l1.6 1.8M57.4 114.4l1.4 2" fill="none" stroke="#9a9080" stroke-width=".9"/><path d="M50 118.8H70.6" stroke="#3e2c1e" stroke-width="1.6"/></g>
+<g id="rimeborn-arm"><path d="M56.8 39C59.5 35 68 35 70 39.5C71.8 46 71.2 53 69.8 58.5L69.2 70H58.8C58.3 66 57.8 62 57.6 58.5C55.8 52 55.4 45 56.8 39Z"/><path d="M59.6 44.6l1 3M65 43l1 3.4M60.4 54l.8 3M66.2 52.6l.6 3.2" fill="none" stroke="#9a9080" stroke-width=".9"/><path d="M57.8 68.4C61.6 67.2 66 67.2 70 68.4L69.8 73.6C66 74.8 61.6 74.8 58 73.6Z" fill="url(#rimeborn-f)" stroke="#3e2c1e" stroke-width="1.2"/><path d="M60 73.6C58.6 76.2 58.6 79.2 60.2 81.6C62.4 83.2 66 82.8 67 80C67.9 77.8 67.6 75.6 67.2 73.8Z" fill="#7a5034" stroke="#3e2414" stroke-width="1.2"/><path d="M60.2 75.4C58.2 75.8 57.4 78 58.3 79.4C59.2 79.9 60 79.2 60.4 78.2" fill="#7a5034" stroke="#3e2414" stroke-width="1"/><path d="M62.4 81.4l.2-2.6M64.8 81.4l.1-2.6" stroke="#3e2414" stroke-width=".8"/></g>
+</defs>
+<g stroke="#5e564a" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="66 77" stroke="#1e2638"><use href="#rimeborn-leg" x="3" fill="#2c364e"/></g>
+<g id="leg-l" data-pivot="63 77" stroke="#222c42"><use href="#rimeborn-leg" fill="url(#rimeborn-p)"/></g>
+<g id="body" data-pivot="63 60">
+<g id="arm-r" data-pivot="66 40" stroke="#4e483e"><use href="#rimeborn-arm" x="3" fill="url(#rimeborn-cf)"/></g>
+<path d="M50.5 38C54 34 70 33.5 75 36.5C79 40 80 46 79 54C78.6 62 80 76 83.5 92C73 95.5 55 95.5 44 92C47.5 76 49 62 48.5 54C48 46 48.5 41 50.5 38Z" fill="url(#rimeborn-c)"/>
+<path d="M74.6 39C78 43 78.6 50 78 56C77.8 66 79 78 82 90" fill="none" stroke-width="3" opacity=".22"/>
+<path d="M55 47l1.4 3M70 46l1 3.4M73 56l1 3M54 74l1 3.2M71 74l1.2 3.4M76 80l1 3M60 80l.6 3.4" fill="none" stroke="#9a9080" stroke-width=".9"/>
+<path d="M49 40C51 52 49.6 70 44.6 91.6L49 92.4C53 72 54.4 54 52.8 40Z" fill="url(#rimeborn-f)" stroke="#3e2c1e" stroke-width="1"/>
+<path d="M43.6 88.6C55 92.2 73 92.2 84 88.6L84.8 94.6C73 98.4 55 98.4 42.8 94.6Z" fill="url(#rimeborn-b)" stroke="#1e2e58" stroke-width="1.2"/>
+<path d="M46 92.4l2.4-2.4 2.4 2.6 2.4-2.4 2.4 2.6 2.4-2.4 2.4 2.6 2.4-2.4 2.4 2.6 2.4-2.4 2.4 2.6 2.4-2.4 2.4 2.6 2.4-2.4 2.4 2.4 2.4-2.4 2.4 2.4" fill="none" stroke="#e8eef8" stroke-width=".9"/>
+<path d="M48.6 62.4C58 64 69 64 79.4 62.2L79.8 67.6C69 69.4 58 69.4 48.9 67.8Z" fill="#4a3424" stroke="#24180e" stroke-width="1.2"/>
+<path d="M53.4 62.6h5v5.6h-5Z" fill="#ece4cc" stroke="#7a6e54" stroke-width="1"/>
+<path d="M50.2 40.6C50 35.6 56 32.4 63 32.6C70 32.6 76.4 35 77 39.4C74 42.6 68 43.4 63.4 42.6C58 43.6 52.6 43 50.2 40.6Z" fill="url(#rimeborn-f)" stroke="#3e2c1e"/>
+<path d="M53 40l1-2.4M57 41.4l.6-2.8M61.4 41.8l.4-2.6M66 41.6l.2-2.8M70.4 41l-.2-2.6M74.2 39.4l-.6-2.2" fill="none" stroke="#c8aa84" stroke-width=".9"/>
+<g id="head" data-pivot="62 34">
+<path d="M58.4 31L58.8 36.4H66L65.8 30Z" fill="#e2b8a2" stroke="#9a6a5a"/>
+<g transform="matrix(.84 0 0 .84 10.2 5.3)" stroke="#9a6a5a">
+<path d="M70 22C73.4 26 74.4 32 73.2 40.2C72.6 42 70.6 42.6 69.6 41.2C70.2 34 69.4 28 67.4 24Z" fill="url(#rimeborn-h)" stroke="#8a6a2a"/>
+<path d="M69.6 27.6q2 1 3.6.4M69.8 31.6q2 1 3.6.4M69.8 35.6q2 1 3.4.4" fill="none" stroke="#a8863e" stroke-width=".9"/>
+<path d="M54 10C58 6 66 6 70 10C73 14 74 20 72 26C70 30 66 33 61 33C57 33 54 32 52.5 31C51.5 30 52 29 51.5 28.3C50.5 27.6 50.6 26.8 51.3 26.3C50.6 25.8 50.8 25 51.4 24.6C50 24 48.5 23.6 48.6 22.6C49 21.5 50.5 20 51.6 18.5C51.6 15.5 52 12.5 54 10Z" fill="url(#rimeborn-s)"/>
+<circle cx="57.6" cy="25" r="2.9" fill="#f08a80" stroke="none" opacity=".55"/>
+<circle cx="49.6" cy="22.6" r="1.3" fill="#f08a80" stroke="none" opacity=".6"/>
+<path d="M50.4 23.4q.9.7 1.8.2" fill="none" stroke-width="1"/>
+<path d="M51.6 26.7q1.2.5 2.4.2" fill="none" stroke="#b0503e" stroke-width="1.2"/>
+<path d="M53.2 19.3C54.5 18 56.6 18.1 57.7 19.5C56.6 20.7 54.5 20.9 53.2 19.3Z" fill="#fff" stroke-width=".8"/>
+<circle cx="55" cy="19.4" r="1.3" fill="#3a6ab0" stroke="none"/>
+<circle cx="54.6" cy="18.9" r=".45" fill="#fff" stroke="none"/>
+<path d="M53 18.9C54.5 17.6 56.7 17.7 57.9 19.2" fill="none" stroke="#8a6a2a" stroke-width="1"/>
+<path d="M52.7 16.6Q55.5 15.4 58.2 16.4" fill="none" stroke="#c9a85e" stroke-width="1.5"/>
+<path d="M60 31q4 0 7-3" fill="none" stroke-width="1" opacity=".45"/>
+<path d="M58 16.6C60 20 61 22 60.4 25.6C62.6 22.6 63.6 19.6 63 16.4Z" fill="url(#rimeborn-h)" stroke="#8a6a2a" stroke-width="1"/>
+<path d="M51 14C50.4 6.4 56 1.8 63.4 1.8C71 1.8 77 6.4 76.4 14Z" fill="url(#rimeborn-b)" stroke="#1e2e58"/>
+<path d="M57 4.6q-2 4-1.6 8.6M64 3q0 5 .6 10M70.6 4.6q2 4 1.8 8.6" fill="none" stroke="#8aa4dc" stroke-width="1" opacity=".7"/>
+<path d="M49.6 13.2C49 11.4 50.4 10.6 52 11.4C53.4 10 55 10.4 55.6 11.2C57 9.8 59 10 59.8 11C61.4 9.6 63.4 9.8 64.4 11C66 9.8 68 10 68.8 11.2C70.4 10 72.4 10.4 73 11.6C74.8 10.8 77 11.6 77.4 13.4C78.2 15.6 77.6 18 75.6 18.4C70 17 64 16.4 58 16.6C55 16.8 52.8 17.2 51.4 17.4C49.6 17 48.8 15 49.6 13.2Z" fill="url(#rimeborn-c)" stroke="#6e665a"/>
+<path d="M53 13.4l.6 2.4M57.4 13l.4 2.6M62 12.8v2.6M66.6 13l-.2 2.6M71.2 13.4l-.4 2.6M75 14.2l-.6 2.4" fill="none" stroke="#a69c8c" stroke-width=".9"/>
+<path d="M66.4 17.6C70.4 16.8 74 18 75.2 21.4C76 25.6 74.6 29.4 71.6 30.6C68.6 29.6 67 26.4 66.6 22.4Z" fill="url(#rimeborn-c)" stroke="#6e665a"/>
+<path d="M68.6 21.6l1.4 1.6M68.8 25.4l1.6 1.4M72.4 20.6l.8 2M72.6 25.6l.6 1.8" fill="none" stroke="#a69c8c" stroke-width=".9"/>
+</g>
+</g>
+<g id="arm-l" data-pivot="63 40"><use href="#rimeborn-arm" fill="url(#rimeborn-c)"/></g>
+</g>
+</g>
+</svg>

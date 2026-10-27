@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="dunari-s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8905e"/><stop offset="1" stop-color="#9a6238"/></linearGradient>
+<linearGradient id="dunari-r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6ebcf"/><stop offset="1" stop-color="#cdb487"/></linearGradient>
+<linearGradient id="dunari-rf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d6c6a2"/><stop offset="1" stop-color="#a48c62"/></linearGradient>
+<linearGradient id="dunari-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4e70b8"/><stop offset="1" stop-color="#24397a"/></linearGradient>
+<linearGradient id="dunari-p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8c69a"/><stop offset="1" stop-color="#a8946a"/></linearGradient>
+<linearGradient id="dunari-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a06a3a"/><stop offset="1" stop-color="#5e3a1c"/></linearGradient>
+<g id="dunari-leg"><path d="M55.4 74H70.4C71 86 70.6 96 70 107.6H57C56.6 96 55.4 86 55.4 74Z"/><path d="M57.8 96q5.5 2 11.6 0M57.4 101q5.6 2 12 0" fill="none" stroke-width="1" opacity=".45"/><path d="M56.8 105.6H70.2L70 109.8H57Z" fill="#2e4a8e" stroke="#1a2a58" stroke-width="1"/><path d="M58.4 109.6H68.6C69.6 113 70 116 69.4 118.6H50.8C49.4 118.6 48.9 117.4 49.6 116.4C51 115 54.5 114 58.4 109.6Z" fill="url(#dunari-s)" stroke="#5e3a1e"/><path d="M52.8 116.6v2M55.2 115.8v2.8M57.6 115v3.6" stroke="#7a4a28" stroke-width=".8"/><path d="M49.4 118.4H70.2L70 120.4H50Z" fill="url(#dunari-l)" stroke="#3a220e" stroke-width="1"/><path d="M57 114.4L64 111.6M58.6 117L66.4 113.4M66.2 110.4l1.6 8" stroke="#6e4220" stroke-width="1.3"/></g>
+<g id="dunari-arm"><path d="M57.6 39C60 35.5 66.5 35.5 68.4 39.5C70 46 70 54 70.4 62L71.6 70.4C68 72.4 61.6 72.8 58 71L58.6 60C57.4 52 56.8 45 57.6 39Z"/><path d="M60.4 46q1 9 .4 18M65.4 48q1.4 8 1.6 16" fill="none" stroke-width=".9" opacity=".4"/><path d="M58 69.2C61.6 70.8 68 70.6 71.4 68.8L71.6 70.6C68 72.6 61.6 72.8 58 71Z" fill="#2e4a8e" stroke="#1a2a58" stroke-width="1"/><path d="M60.2 72C59 74.5 59 77 60.5 79.2C62.5 80.7 65.5 80.2 66.5 77.7C67.3 75.7 67 73.7 66.6 72Z" fill="url(#dunari-s)" stroke="#5e3a1e" stroke-width="1.2"/><path d="M60.4 73.6C58.6 74 58 76 58.8 77.3C59.6 77.7 60.3 77.1 60.6 76.1" fill="url(#dunari-s)" stroke="#5e3a1e" stroke-width="1"/><path d="M62.3 78.7l.2-2.4M64.4 78.9l.1-2.4" stroke="#7a4a28" stroke-width=".8"/></g>
+</defs>
+<g stroke="#7a6440" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="66 77" stroke="#5e4c30"><use href="#dunari-leg" x="3" fill="#9a8660"/></g>
+<g id="leg-l" data-pivot="63 77" stroke="#6e5a3a"><use href="#dunari-leg" fill="url(#dunari-p)"/></g>
+<g id="body" data-pivot="63 60">
+<g id="arm-r" data-pivot="66 40" stroke="#5e4c30"><use href="#dunari-arm" x="3" fill="url(#dunari-rf)"/></g>
+<path d="M74 60.6C79.6 60 82.4 64 82 70C81.6 75 78.6 78 75 77.6C72 77 71 73 71.4 68C71.6 63.6 72 61 74 60.6Z" fill="url(#dunari-l)" stroke="#3a220e"/>
+<path d="M73.4 62.6q4-1.4 7 1M73 72.6q4 2 8-.4" fill="none" stroke="#c89a5a" stroke-width="1"/>
+<path d="M52.5 38C56 34.5 67.5 34 72.5 36.5C76 40 77 46 76 54C75.6 62 77.4 80 81.5 101C71 104.5 56 104.5 45.5 101C48.5 80 51.5 62 51 54C50.5 46 50.5 41 52.5 38Z" fill="url(#dunari-r)"/>
+<path d="M55 72l-3 26M62 72.6l-.4 29M69 72l2.4 28.6M72.6 41C75.6 46 75.4 52 74.8 58C74.6 70 77 86 80 100" fill="none" stroke-width="1" opacity=".4"/>
+<path d="M45.2 98.6C56 102 71 102 81.8 98.6L82.4 101.6C71 105.4 56 105.4 44.6 101.6Z" fill="url(#dunari-w)" stroke="#1a2a58" stroke-width="1"/>
+<path d="M47 100.6l2-1.4 2 1.6 2-1.4 2 1.6 2-1.4 2 1.6 2-1.4 2 1.6 2-1.4 2 1.6 2-1.4 2 1.6 2-1.4 2 1.6 2-1.4 2 1.6 2-1.4 2 1.4" fill="none" stroke="#e8b44e" stroke-width=".9"/>
+<path d="M58 38.6C58.8 46 58.4 54 57.6 62" fill="none" stroke="#2e4a8e" stroke-width="1.6"/>
+<path d="M50.8 61.8C59 63.4 68 63.4 76.2 61.8L76.6 68.2C68 69.8 59 69.8 51 68.2Z" fill="url(#dunari-w)" stroke="#1a2a58" stroke-width="1.2"/>
+<path d="M51 64.2C59 65.6 68 65.6 76.4 64.2M51 66.2C59 67.6 68 67.6 76.5 66.2" fill="none" stroke="#e8b44e" stroke-width=".8"/>
+<path d="M76 64.6C79 67 79.6 72 79 77.6L76.4 78.4C76.8 73.6 76.2 69.6 74.6 67Z" fill="url(#dunari-w)" stroke="#1a2a58" stroke-width="1"/>
+<path d="M54.6 36.6C58 41.6 66 42 70 36.4C68.6 34.4 65.6 33.6 62.6 33.6C59 33.6 56 34.8 54.6 36.6Z" fill="url(#dunari-w)" stroke="#1a2a58" stroke-width="1.2"/>
+<g id="head" data-pivot="62 34">
+<path d="M58 30.5L58.5 36.5H66.2L66 29.5Z" fill="#a8703e" stroke="#5e3a1e"/>
+<g transform="matrix(.9 0 0 .9 6.2 3.3)" stroke="#5e3a1e">
+<path d="M73.6 26.6C78.4 30.6 81 37 80 43.6C78.8 45.6 76.4 45.6 75.6 44C76.4 39 75.2 34 71.6 30.4Z" fill="url(#dunari-w)" stroke="#1a2a58"/>
+<path d="M54 10C58 6 66 6 70 10C73 14 74 20 72 26C70 30 66 33 61 33C57 33 54 32 52.5 31C51.5 30 52 29 51.5 28.3C50.5 27.6 50.6 26.8 51.3 26.3C50.6 25.8 50.8 25 51.4 24.6C50 24 48.5 23.6 48.6 22.6C49 21.5 50.5 20 51.6 18.5C51.6 15.5 52 12.5 54 10Z" fill="url(#dunari-s)"/>
+<circle cx="57.5" cy="25" r="2.6" fill="#c0604a" stroke="none" opacity=".3"/>
+<path d="M50.4 23.4q.9.7 1.8.2" fill="none" stroke-width="1"/>
+<path d="M51.6 26.7q1.2.5 2.4.2" fill="none" stroke="#7a3424" stroke-width="1.2"/>
+<path d="M53.2 19.5C54.5 18.4 56.6 18.5 57.7 19.7C56.6 20.7 54.5 20.9 53.2 19.5Z" fill="#fff" stroke-width=".8"/>
+<circle cx="55" cy="19.6" r="1.3" fill="#3a2410" stroke="none"/>
+<circle cx="54.6" cy="19.1" r=".45" fill="#fff" stroke="none"/>
+<path d="M52.6 19.3C54.2 17.8 56.8 17.8 58.2 19.4L59.2 19" fill="none" stroke="#1e120a" stroke-width="1.3"/>
+<path d="M52.7 16.4Q55.5 15 58.2 16.2" fill="none" stroke="#2a1a10" stroke-width="1.5"/>
+<path d="M60 31q4 0 7-3" fill="none" stroke-width="1" opacity=".45"/>
+<path d="M50.8 16.8C49.6 8 56 2.6 63.4 2.6C72 2.6 77.6 8.6 77 17C76.8 22 76 27 74 31.4C72.6 34 70 35.6 67 36.2C67.6 30 67.6 24 66 20C61 18.2 55.6 17.4 50.8 16.8Z" fill="url(#dunari-w)" stroke="#1a2a58"/>
+<path d="M51.4 13.6C58 10.6 68 10.6 76.6 14M52.6 9C59 6.4 68 7 75 10.6M57 4.6C63 3.6 70 4.6 73.6 7M68.6 20.6C72 22 74.6 25 75.4 28.6M67.6 26.4C70.4 27.6 72.4 30 73.2 32.4" fill="none" stroke="#7e9ad4" stroke-width="1" opacity=".75"/>
+<path d="M51 15.8C58 15 64 15.6 69.4 17.4" fill="none" stroke="#e8b44e" stroke-width="1"/>
+</g>
+</g>
+<g id="arm-l" data-pivot="63 40"><use href="#dunari-arm" fill="url(#dunari-r)"/></g>
+</g>
+</g>
+</svg>

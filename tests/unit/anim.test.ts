@@ -65,6 +65,16 @@ describe('gaitFor', () => {
     expect(gaitFor(dragon, BeingState.Run)).toEqual({ gait: 'flyer', mode: 'run' });
   });
 
+  it('plays the run cycle for a walk at speed (fast), as a Run does', () => {
+    expect(gaitFor(crocodile, BeingState.Walk, true)).toEqual({ gait: 'quad', mode: 'run' });
+    expect(gaitFor(dragon, BeingState.Walk, true)).toEqual({ gait: 'flyer', mode: 'run' });
+    expect(gaitFor(crocodile, BeingState.Walk, false)).toEqual({ gait: 'quad', mode: 'walk' });
+  });
+
+  it('returns the same cached pose for the same species, state and speed', () => {
+    expect(gaitFor(crocodile, BeingState.Walk)).toBe(gaitFor(crocodile, BeingState.Walk));
+  });
+
   it('keeps a land-flyer species (bee) flying when it walks', () => {
     expect(gaitFor(species('nectarbuzz'), BeingState.Walk)).toEqual({ gait: 'flyer', mode: 'walk' });
   });
@@ -126,6 +136,24 @@ describe('PhaseByKey', () => {
     const p1 = phases.step(7, BeingState.Idle, 0, 0, 0.6, 1000);
     const p2 = phases.step(7, BeingState.Idle, 0, 0, 0.6, 1000);
     expect(wrap(p2 - p1)).toBeCloseTo(IDLE_CYCLES_PER_S, 10);
+  });
+
+  it('holds a key on the same phase and keeps the movement for its next step', () => {
+    const phases = new PhaseByKey();
+    const a = phases.step(1, BeingState.Walk, 0, 0, 0.6, 1000);
+    phases.endFrame();
+    expect(phases.hold(1, 0.3, 0, 0.6)).toBeCloseTo(a, 10);
+    phases.endFrame();
+    const b = phases.step(1, BeingState.Walk, 0.3, 0, 0.6, 1000);
+    expect(wrap(b - a)).toBeCloseTo(0.5, 10);
+  });
+
+  it('reports the screen speed of a key at its latest step', () => {
+    const phases = new PhaseByKey();
+    phases.step(1, BeingState.Walk, 0, 0, 0.6, 500);
+    phases.step(1, BeingState.Walk, 2, 0, 0.6, 500);
+    expect(phases.speedOf(1)).toBeCloseTo(4, 10);
+    expect(phases.speedOf(99)).toBe(0);
   });
 
   it('drops keys not stepped this frame', () => {

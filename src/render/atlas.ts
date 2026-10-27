@@ -42,12 +42,14 @@ function cellKey(species: number, gait: GaitId, mode: PoseMode, frame: number, p
   return (((species * GAIT_IDS.length + g) * 3 + MODE_INDEX[mode]) * MAX_FRAMES + frame) * 2 + (px === 128 ? 1 : 0);
 }
 
-/** The (gait, mode) pairs a species can be drawn in: one per state, deduplicated. */
+/** The (gait, mode) pairs a species can be drawn in: one per state, plus the fast walk's run cycle, deduplicated. */
 function bakePairs(sp: SpeciesGait): { gait: GaitId; mode: PoseMode }[] {
   const seen = new Map<string, { gait: GaitId; mode: PoseMode }>();
   for (const state of STATES) {
-    const p = gaitFor(sp, state);
-    seen.set(`${p.gait}:${p.mode}`, p);
+    for (const fast of [false, true]) {
+      const p = gaitFor(sp, state, fast);
+      seen.set(`${p.gait}:${p.mode}`, p);
+    }
   }
   return [...seen.values()];
 }

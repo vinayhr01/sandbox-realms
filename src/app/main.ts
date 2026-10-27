@@ -1765,6 +1765,7 @@ async function boot(): Promise<void> {
       creatures.setToggles({
         shadows: boolOption(options, 'map.shadows') && !degradedOff.has('map.shadows'),
         boats: boolOption(options, 'marks.boats'),
+        particles: boolOption(options, 'map.particles') && !degradedOff.has('map.particles'),
       });
       creatures.draw(drawBeings, beingCount, view, beingNowMs);
       marks.update(

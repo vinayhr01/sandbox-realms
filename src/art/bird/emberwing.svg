@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="emberwing-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f78c4"/><stop offset=".6" stop-color="#2b4588"/><stop offset="1" stop-color="#1a2a5c"/></linearGradient>
+<linearGradient id="emberwing-u" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fdf4e2"/><stop offset="1" stop-color="#e6c49a"/></linearGradient>
+<radialGradient id="emberwing-r" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#ea7044"/><stop offset="1" stop-color="#a42e1a"/></radialGradient>
+<linearGradient id="emberwing-w" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3d62aa"/><stop offset="1" stop-color="#111b3a"/></linearGradient>
+<linearGradient id="emberwing-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22346a"/><stop offset="1" stop-color="#0e1630"/></linearGradient>
+<path id="emberwing-leg" d="M58 96L58 109L57 116.5M57 116.5L48 118.8M57 116.5L51.5 119.4M57 116.5L63.5 118.6"/>
+</defs>
+<g stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="66 97"><use href="#emberwing-leg" x="8" fill="none" stroke="#2e2220" stroke-width="4.6"/><use href="#emberwing-leg" x="8" fill="none" stroke="#5a4440" stroke-width="2.8"/><path d="M61 92C60 97 62 100 64 101L66 99.5L68 101L70 99.5L71 100C72 97 72 94 71 92Z" fill="#d8b68c" stroke="#7e5c3a" stroke-width="1.3"/></g>
+<g id="body" data-pivot="60 84" stroke="#13204a" stroke-width="1.5">
+<g id="tail" data-pivot="88 88">
+<path d="M84 81C96 85 110 91 125 96C123 98.5 119 98.5 115 98C107 96.5 98 94.5 89 92Z" fill="url(#emberwing-f)"/>
+<path d="M86 88C98 95 110 104 121 114C117 115.5 113 113.5 109 110.5C101 104 94 99.5 86 97Z" fill="url(#emberwing-b)"/>
+<ellipse cx="99" cy="93.3" rx="2.2" ry="1" fill="#f4f1ea" stroke="none" transform="rotate(14 99 93.3)"/>
+<ellipse cx="98" cy="99" rx="2.2" ry="1" fill="#f4f1ea" stroke="none" transform="rotate(34 98 99)"/>
+<path d="M94 92l22 4.5M96 98l18 13" fill="none" stroke="#7fa2e0" stroke-width=".9" opacity=".5"/>
+</g>
+<g id="wing-r" data-pivot="64 71"><path d="M54 71C62 64 76 62 88 64.5C98 66.5 105 69.5 110 73C101 76 92 76.5 82 76C70 75 60 74 54 71Z" fill="url(#emberwing-f)"/></g>
+<path d="M30 70C32 60 42 56 52 58C66 60 82 66 92 76C98 82 98 90 92 94C82 100 64 102 50 100C40 98 32 90 30 80Z" fill="url(#emberwing-b)"/>
+<path d="M32 80C36 89 43 96 52 98.6C65 100.6 80 98.6 90 94C82 90.5 69 88.5 57 86.5C46 85 38 82.5 32 80Z" fill="url(#emberwing-u)" stroke="none"/>
+<path d="M44 90q3 2 6 0M54 92q3 2 6 0M64 94q3 2 6 0M50 96q3 2 6 0M60 97q3 2 6 0M74 95q3 1.6 6 0" fill="none" stroke="#cfa978" stroke-width="1"/>
+<path d="M44 60C56 58 70 61 82 68" fill="none" stroke="#86aee8" stroke-width="2" opacity=".55"/>
+<g id="wing-l" data-pivot="60 73">
+<path d="M49 76C55 67 68 64 80 66.5C90 68.5 99 72 108 77C99 80.5 88 81.5 79 81.5C68 81.5 58 81 52 79.5C50 78.5 49 77.5 49 76Z" fill="url(#emberwing-w)"/>
+<path d="M56 74q4 2.6 8 1q4 2.6 8 1M58 78.5q4 2 8 .4" fill="none" stroke="#7fa2e0" stroke-width="1" opacity=".6"/>
+<path d="M76 78.5l29-1M79 75l25 2.5M70 80.5l22 .5" fill="none" stroke="#0a1230" stroke-width="1"/>
+<path d="M55 70.5C63 67 72 67 81 70" fill="none" stroke="#a8c4f0" stroke-width="1.8" opacity=".6"/>
+</g>
+<g id="head" data-pivot="42 72">
+<path d="M46 74C51 68 51 59 47 54C43 50 37 49 31 51C26 53 23 58 23 63C23 69 26 73 31 76Z" fill="url(#emberwing-b)"/>
+<path d="M23.5 64C24 70 28 75 34 77.5C39 79 43 78 46 75.5C41 73 37 70.5 33 68.5C29 66.5 26 65 23.5 64Z" fill="url(#emberwing-r)" stroke="#7a2412" stroke-width="1"/>
+<path d="M24 59.5C24 56 26.5 53 30 52.3C30.5 55 29.5 57.5 27.5 59.5Z" fill="url(#emberwing-r)" stroke="#7a2412" stroke-width="1"/>
+<path d="M33 78.5C38 80.5 45 80 50 76" fill="none" stroke="#1a2a5c" stroke-width="3"/>
+<path d="M24.3 60.6L16.5 63L24.3 65.6Z" fill="#2a2a33" stroke="#13141c" stroke-width="1"/>
+<path d="M24.3 63.1l-5.6 .1" fill="none" stroke="#13141c" stroke-width=".9"/>
+<path d="M30 53C36 51 42 53 46 58" fill="none" stroke="#86aee8" stroke-width="1.4" opacity=".6"/>
+<path d="M36 60q2.5 1.6 5 0M38 66q2.5 1.6 5 0" fill="none" stroke="#7fa2e0" stroke-width=".9" opacity=".6"/>
+<circle cx="30.5" cy="60" r="2.3" fill="#24160c" stroke="#13204a" stroke-width=".8"/>
+<circle cx="29.8" cy="59.2" r=".7" fill="#fff" stroke="none"/>
+</g>
+</g>
+<g id="leg-l" data-pivot="58 97"><use href="#emberwing-leg" fill="none" stroke="#2e2220" stroke-width="4.8"/><use href="#emberwing-leg" fill="none" stroke="#7a6058" stroke-width="3"/><path d="M57.2 108h2M57 112h2" stroke="#9a8078" stroke-width=".8"/><path d="M48 118.8l-1.3.3M51.5 119.4l-1.2.2M63.5 118.6l1.2.3" stroke="#1a1210" stroke-width="1.2"/><path d="M53 92C52 97 54 100 56 101L58 99.5L60 101L62 99.5L63 100C64 97 64 94 63 92Z" fill="url(#emberwing-u)" stroke="#9a7650" stroke-width="1.3"/></g>
+</g>
+</svg>

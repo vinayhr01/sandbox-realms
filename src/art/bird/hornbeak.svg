@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="hornbeak-b" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#4c4c58"/><stop offset=".5" stop-color="#26262e"/><stop offset="1" stop-color="#121216"/></radialGradient>
+<linearGradient id="hornbeak-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2a32"/><stop offset="1" stop-color="#0e0e12"/></linearGradient>
+<linearGradient id="hornbeak-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6d4"/><stop offset="1" stop-color="#e6c574"/></linearGradient>
+<linearGradient id="hornbeak-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff7f0"/><stop offset="1" stop-color="#d8d0bc"/></linearGradient>
+<linearGradient id="hornbeak-k" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27c"/><stop offset=".55" stop-color="#f5a22c"/><stop offset="1" stop-color="#d0601a"/></linearGradient>
+<linearGradient id="hornbeak-q" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0a0"/><stop offset="1" stop-color="#f0b43a"/></linearGradient>
+<path id="hornbeak-leg" d="M66 86L65.5 103L63.5 116.5M63.5 116.5L53 118.6M63.5 116.5L56.5 119.3M63.5 116.5L71 118.6"/>
+</defs>
+<g stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="74 87"><use href="#hornbeak-leg" x="8" fill="none" stroke="#1e1e24" stroke-width="5"/><use href="#hornbeak-leg" x="8" fill="none" stroke="#45454f" stroke-width="3"/><path d="M68 81C67 87 69 90.5 71 91.5L73 89.5L75 92L77 89.5L79 91C81 88 81 84 80 81Z" fill="url(#hornbeak-f)" stroke="#15151d" stroke-width="1.5"/></g>
+<g id="body" data-pivot="68 72" stroke="#15151d" stroke-width="1.5">
+<g id="tail" data-pivot="92 76">
+<path d="M88 70C98 76 110 86 120 98C121.5 102 119 105.5 114.5 104.5C104 100 94 92 85 84Z" fill="url(#hornbeak-c)"/>
+<path d="M89.5 72.5C95 76 100 80 104.5 84.5L97.5 92.5C93.5 89.5 89.5 86 85.5 83Z" fill="url(#hornbeak-f)"/>
+<path d="M106 88l12 12M104 92l12 11" fill="none" stroke="#b9b09a" stroke-width="1"/>
+</g>
+<g id="wing-r" data-pivot="66 54"><path d="M58 52C68 46 82 48 92 54C100 60 104 68 108 78C100 76 92 72 84 68C74 62 64 58 58 52Z" fill="url(#hornbeak-f)"/></g>
+<path d="M42 56C46 47 58 44 70 46C84 48 96 56 100 66C104 76 98 86 88 90C76 94 60 93 50 88C42 82 39 68 42 56Z" fill="url(#hornbeak-b)"/>
+<path d="M45 80C50 88 60 92 72 92.5C80 92.5 87 90.5 92 87C84 84.5 72 82.5 62 80.5C54 79 49 78.5 45 80Z" fill="url(#hornbeak-c)" stroke="none"/>
+<path d="M54 86q3 2 6 0M64 88q3 2 6 0M74 88.5q3 2 6 0M84 87q2.4 1.6 5 0" fill="none" stroke="#bdb49c" stroke-width="1"/>
+<path d="M46 66q3 2.4 6 0M50 74q3 2.4 6 0M58 78q3 2 6 0" fill="none" stroke="#5c5c6a" stroke-width="1" opacity=".8"/>
+<g id="wing-l" data-pivot="62 56">
+<path d="M54 58C60 50 74 49 86 55C96 60 102 70 106 84C98 84 90 80 84 78C74 74 66 72 60 68C55 65 53 62 54 58Z" fill="url(#hornbeak-b)"/>
+<path d="M60.5 62C70 60 81 62.5 90 67.5L93 72.5C84 69 73 67 62.5 67.5Z" fill="url(#hornbeak-c)" stroke-width="1.2"/>
+<path d="M60 58q4 2.5 8 1q4 2.5 8 1M80 74l23 9M84 71l19 8.5" fill="none" stroke="#5c5c6a" stroke-width="1"/>
+<path d="M60 54C67 51 76 51 84 54" fill="none" stroke="#7c7c8e" stroke-width="1.8" opacity=".6"/>
+</g>
+<g id="head" data-pivot="46 54">
+<path d="M53 52C58 46 59 37 55 30C51 25 44 23 38 24C33 25 30 28.5 29 33L29 44C31 49 36 53 42 55C46 56 50 55 53 52Z" fill="url(#hornbeak-n)" stroke="#8a6a2a"/>
+<path d="M29.3 31.5C32 27.5 38 26.5 42.5 29C45 33 44.5 38.5 41 41.5C36.5 43 31.5 42 29.3 39Z" fill="#202028" stroke="none"/>
+<path d="M44 46q3 2 6 0M48 40q2.4 2 5 0M42 50q3 2 6 0" fill="none" stroke="#c9a456" stroke-width="1"/>
+<path d="M31.5 31.5C32 26 28 21.5 21 21C15.5 20.8 12 23 11.5 26.5C11.2 29 12.5 31.5 14.5 34C19.5 32 25.5 31 31.5 31.5Z" fill="url(#hornbeak-q)" stroke="#8a4a10"/>
+<path d="M13.5 23.5C17 22.4 21 22.6 24 24" fill="none" stroke="#fff8d8" stroke-width="1.3" opacity=".8"/>
+<path d="M31 31C23 31 15 35 10 40.5C7.5 43.5 5.5 47.5 4.5 51.5C10.5 47.5 18.5 44 30.5 41.5Z" fill="url(#hornbeak-k)" stroke="#8a4a10"/>
+<path d="M30.5 41.5C20.5 43.5 12 47.5 4.5 51.5C12.5 51 20.5 48.5 31 45.5Z" fill="#e08a24" stroke="#8a4a10"/>
+<path d="M30.5 41.5l2 .4" fill="none" stroke="#8a4a10" stroke-width="1.2"/>
+<path d="M14 40q1.5-1.2 3-1.4M22 35.5l-1 2.5M18 37.5l-.8 2.4" fill="none" stroke="#c8721c" stroke-width=".9"/>
+<path d="M28.5 33.5l.4 1.2" fill="none" stroke="#5a3010" stroke-width="1.1"/>
+<circle cx="37" cy="34" r="2.7" fill="#c8321e" stroke="#0e0e12" stroke-width="1"/>
+<circle cx="37" cy="34.1" r="1.3" fill="#140808" stroke="none"/>
+<circle cx="36.3" cy="33.3" r=".7" fill="#fff" stroke="none"/>
+<path d="M34 31.4l-1.2-1.6M36 30.8l-.4-1.9M38.2 30.9l.4-1.8M40 31.6l1-1.5" fill="none" stroke="#0e0e12" stroke-width=".8"/>
+</g>
+</g>
+<g id="leg-l" data-pivot="66 87"><use href="#hornbeak-leg" fill="none" stroke="#1e1e24" stroke-width="5.2"/><use href="#hornbeak-leg" fill="none" stroke="#5a5a66" stroke-width="3.2"/><path d="M64.9 100h2.4M64.6 104h2.4M64.2 108h2.4M63.8 112h2.4" stroke="#7a7a88" stroke-width=".8"/><path d="M53 118.6l-1.4.3M56.5 119.3l-1.3.2M71 118.6l1.3.3" stroke="#0a0a0e" stroke-width="1.3"/><path d="M60 81C59 87 61 90.5 63 91.5L65 89.5L67 92L69 89.5L71 91C73 88 73 84 72 81Z" fill="url(#hornbeak-c)" stroke="#8a826c" stroke-width="1.5"/></g>
+</g>
+</svg>

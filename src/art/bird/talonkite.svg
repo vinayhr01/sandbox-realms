@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="talonkite-b" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#9a6638"/><stop offset=".55" stop-color="#5e3618"/><stop offset="1" stop-color="#36200e"/></radialGradient>
+<linearGradient id="talonkite-w" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8a5a32"/><stop offset="1" stop-color="#2e1a0c"/></linearGradient>
+<linearGradient id="talonkite-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a2c14"/><stop offset="1" stop-color="#22140a"/></linearGradient>
+<radialGradient id="talonkite-h" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".7" stop-color="#f0ede4"/><stop offset="1" stop-color="#cfc9ba"/></radialGradient>
+<linearGradient id="talonkite-t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf9f2"/><stop offset="1" stop-color="#d2ccbc"/></linearGradient>
+<linearGradient id="talonkite-k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe070"/><stop offset="1" stop-color="#e09a1c"/></linearGradient>
+<g id="talonkite-leg"><path d="M50 86C47 93 48.5 101 52.5 104.5L54.5 102.5L56.5 105L58.5 102.5L60.5 104.5C63 99 63 91 61 86Z"/><path d="M53 104H59L58.6 112.5H53.4Z" fill="url(#talonkite-k)" stroke="#8a5a14"/><path d="M53.4 107h5.2M53.4 110h5.2" fill="none" stroke="#b07a1e" stroke-width=".8"/><path d="M55.5 112.5L45 117.2M56 113L48.6 118.6M57 113L64.5 117.4" fill="none" stroke="#8a5a14" stroke-width="4.4"/><path d="M55.5 112.5L45 117.2M56 113L48.6 118.6M57 113L64.5 117.4" fill="none" stroke="url(#talonkite-k)" stroke-width="2.8"/><path d="M45 117.2q-3.2 .2-3.6 2.8M48.6 118.6q-2.6 0-3 1.4M64.5 117.4q3 .4 3.4 2.6" fill="none" stroke="#24180e" stroke-width="1.8"/></g>
+</defs>
+<g stroke-linejoin="round" stroke-linecap="round" stroke="#24140a" stroke-width="1.5">
+<g id="leg-r" data-pivot="64 90"><use href="#talonkite-leg" x="8" fill="url(#talonkite-f)"/></g>
+<g id="body" data-pivot="62 70">
+<g id="tail" data-pivot="80 94">
+<path d="M76 89C83 95 93 103 105 110C107.5 112.5 106.5 116.5 102 117C93 115.5 84 110 73 100Z" fill="url(#talonkite-t)" stroke="#7a7262"/>
+<path d="M82 99l18 13M80 103l16 11" fill="none" stroke="#b6ae9a" stroke-width="1"/>
+</g>
+<g id="wing-r" data-pivot="68 46"><path d="M62 46C70 40 82 42 88 50C94 60 98 74 100 90C94 86 88 80 84 74C76 64 68 54 62 46Z" fill="url(#talonkite-f)"/></g>
+<path d="M40 46C46 40 60 38 70 42C80 46 86 58 86 72C86 86 80 96 70 100C60 102 50 98 44 90C38 80 36 60 40 46Z" fill="url(#talonkite-b)"/>
+<path d="M42 58q3 2.4 6 0M40 66q3 2.4 6 0M44 74q3 2.4 6 0M42 82q3 2.4 6 0M50 82q3 2.4 6 0M48 90q3 2.4 6 0M56 94q3 2.4 6 0M52 66q3 2.4 6 0" fill="none" stroke="#b07a48" stroke-width="1" opacity=".7"/>
+<g id="wing-l" data-pivot="64 48">
+<path d="M56 50C64 42 76 44 84 52C91 61 95 76 96 94C90 92 85 88 80 84C72 78 64 70 60 63C56 58 55 54 56 50Z" fill="url(#talonkite-w)"/>
+<path d="M62 54q4 3 8 1q4 3 7 1M62 61q4 3 8 1q4 3 7 1M67 68q4 3 7 1" fill="none" stroke="#b88452" stroke-width="1" opacity=".75"/>
+<path d="M78 76l16 16M82 72l13 15M74 79l12 10" fill="none" stroke="#1c1006" stroke-width="1"/>
+<path d="M60 47C66 44 74 45 80 49" fill="none" stroke="#c49060" stroke-width="1.8" opacity=".6"/>
+</g>
+<g id="head" data-pivot="46 46">
+<path d="M58 44C60 36 58 26 50 19C44 15 36 14 30 17C25 20 22.5 25 22.5 29.5L24 37C27 43 32 47 38 49L40 46.5L42.5 50L45 47L48 51L50.5 47.5L53.5 50.5L55.5 46.5Z" fill="url(#talonkite-h)" stroke="#6e6656"/>
+<path d="M44 23q3 2 6 1M47 31q3 2 5 0M40 41q3 2 6 0M49 39q2 2 5 0M36 20q3 1.6 6 .5" fill="none" stroke="#c8c2b0" stroke-width="1"/>
+<path d="M28.5 24.5C22 23.5 16 25.5 12.8 30.5C10.8 34 10.8 38 12.8 41.5C13.6 38.5 15.6 36.5 18 36.2C21.5 35.8 25 36 28.5 36.6Z" fill="url(#talonkite-k)" stroke="#7a4a0e"/>
+<path d="M28 36.6C24 36.6 20 37 17.6 38.2C19.4 40.4 23 41.4 28 40.4Z" fill="#e8a628" stroke="#7a4a0e" stroke-width="1.2"/>
+<path d="M28.5 24.5C27.6 28.5 27.6 32.5 28.5 36.6" fill="none" stroke="#c4881c" stroke-width="1.6"/>
+<path d="M28.5 36.6l2 .6" fill="none" stroke="#7a4a0e" stroke-width="1.1"/>
+<ellipse cx="23.6" cy="29.8" rx="1.3" ry=".8" fill="#5a3410" stroke="none"/>
+<path d="M14 33q1-1.4 2.6-2" fill="none" stroke="#fff3b8" stroke-width="1" opacity=".8"/>
+<circle cx="34.2" cy="27.6" r="2.6" fill="#f4d44c" stroke="#3e3424" stroke-width="1"/>
+<circle cx="33.9" cy="27.7" r="1.3" fill="#120c06" stroke="none"/>
+<circle cx="33.3" cy="27" r=".65" fill="#fff" stroke="none"/>
+<path d="M29.5 24.8C32.5 23 37 22.8 40.5 24.4" fill="none" stroke="#6e6656" stroke-width="2.2"/>
+</g>
+</g>
+<g id="leg-l" data-pivot="56 90"><use href="#talonkite-leg" fill="url(#talonkite-b)"/><path d="M51 92q3 2 7 1M51 98q3 2 7 0" fill="none" stroke="#b07a48" stroke-width="1" opacity=".7"/></g>
+</g>
+</svg>

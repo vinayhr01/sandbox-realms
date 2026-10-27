@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="cloudrook-b" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#5f6890"/><stop offset=".5" stop-color="#30364f"/><stop offset="1" stop-color="#171a2a"/></radialGradient>
+<linearGradient id="cloudrook-w" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a5274"/><stop offset="1" stop-color="#161828"/></linearGradient>
+<linearGradient id="cloudrook-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c3048"/><stop offset="1" stop-color="#11131f"/></linearGradient>
+<linearGradient id="cloudrook-k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#555a6c"/><stop offset="1" stop-color="#1a1b24"/></linearGradient>
+<path id="cloudrook-leg" d="M62 86L61.5 103L59.5 116.5M59.5 116.5L48.5 118.6M59.5 116.5L52.5 119.3M59.5 116.5L67 118.6"/>
+</defs>
+<g stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="70 86"><use href="#cloudrook-leg" x="8" fill="none" stroke="#0c0d16" stroke-width="5"/><use href="#cloudrook-leg" x="8" fill="none" stroke="#24263a" stroke-width="3"/><path d="M64 80C63 86 65 90 67 91L69 89L71 91.5L73 89L75 90.5C77 87 77 83 76 80Z" fill="url(#cloudrook-f)" stroke="#10121f" stroke-width="1.5"/></g>
+<g id="body" data-pivot="64 70" stroke="#10121f" stroke-width="1.5">
+<g id="tail" data-pivot="90 76">
+<path d="M86 69L114 87C118 90 119.5 94.5 116.5 97C112.5 99 106 97.5 100 94.5L83 85Z" fill="url(#cloudrook-f)"/>
+<path d="M90 77L114 93M93 73L115 88" fill="none" stroke="#5a6288" stroke-width="1" opacity=".55"/>
+</g>
+<g id="wing-r" data-pivot="60 58"><path d="M54 54C64 47 80 49 92 58C100 64 106 72 110 80C100 78 90 73 80 68C70 64 60 60 54 54Z" fill="url(#cloudrook-f)"/></g>
+<path d="M34 60C36 50 46 45 58 46C72 47 86 53 95 62C102 70 101 82 92 88C82 94 68 94 56 91C44 88 35 78 34 66Z" fill="url(#cloudrook-b)"/>
+<path d="M41 71q3 2.4 6 0M39 79q3 2.4 6 0M47 85q3 2.4 6 0M49 77q3 2.4 6 0M57 86q3 2.4 6 0M69 88q3 2.4 6 0M81 86q3 2 6-.5" fill="none" stroke="#5f6890" stroke-width="1" opacity=".7"/>
+<g id="wing-l" data-pivot="56 58">
+<path d="M48 60C54 50 70 49 84 56C96 62 105 71 111 82C105 85 98 84 92 82C82 80 72 78 64 74C54 70 47 66 48 60Z" fill="url(#cloudrook-w)"/>
+<path d="M56 62q4 3 8 1q4 3 8 1q4 3 8 0M58 68q4 3 8 1q4 3 8 1" fill="none" stroke="#6c76a4" stroke-width="1" opacity=".6"/>
+<path d="M75 74l32 8M80 70l27 10M70 77l24 6" fill="none" stroke="#0a0c16" stroke-width="1"/>
+<path d="M54 56C62 52 72 52 82 56" fill="none" stroke="#8d97c6" stroke-width="2" opacity=".6"/>
+</g>
+<g id="head" data-pivot="44 54">
+<path d="M48 58C54 54 56 46 54 38C52 30 46 25 38 25C30 25 24 30 22.5 37C21.5 42 23 48 26 52L28 57L31 54L33 59L36 55L39 60L42 56L45 60Z" fill="url(#cloudrook-b)"/>
+<path d="M25 33C19 33 13 36 7.5 41.5C13.5 41.2 20 41.5 25.5 42.5Z" fill="url(#cloudrook-k)" stroke="#0d0e16"/>
+<path d="M25.5 42.5C20 42.3 14 42.3 9 42C14 45 20 46.5 26.5 46Z" fill="#23242f" stroke="#0d0e16"/>
+<path d="M25.5 42.5l2.5.8" fill="none" stroke="#0d0e16" stroke-width="1.2"/>
+<path d="M25.5 33.5l-6 2.4M26.5 35.5l-6 1.8M26.5 37.5l-4.5 1" fill="none" stroke="#3a3f58" stroke-width="1"/>
+<path d="M14 38.5q1.2-.6 2.2-.4" fill="none" stroke="#7a7e90" stroke-width=".8"/>
+<path d="M40 31q3 2 6 1M42 39q3 2 5 0M30 47q3 2 6 0M38 49q3 2 6 0M45 46q2 2 5 0" fill="none" stroke="#5f6890" stroke-width="1" opacity=".7"/>
+<path d="M30 28C36 25 44 26 49 31" fill="none" stroke="#8d97c6" stroke-width="1.6" opacity=".55"/>
+<circle cx="34" cy="35.5" r="2.7" fill="#3b2416" stroke="#0d0e16" stroke-width="1"/>
+<circle cx="34" cy="35.6" r="1.4" fill="#0e0806" stroke="none"/>
+<circle cx="33.2" cy="34.7" r=".75" fill="#fff" stroke="none"/>
+</g>
+</g>
+<g id="leg-l" data-pivot="62 86"><use href="#cloudrook-leg" fill="none" stroke="#0c0d16" stroke-width="5.2"/><use href="#cloudrook-leg" fill="none" stroke="#33364a" stroke-width="3.2"/><path d="M60.9 100h2.4M60.6 104h2.4M60.2 108h2.4M59.8 112h2.4" stroke="#5a5e76" stroke-width=".8"/><path d="M48.5 118.6l-1.4.3M52.5 119.3l-1.3.2M67 118.6l1.3.3" stroke="#06070c" stroke-width="1.3"/><path d="M56 80C55 86 57 90 59 91L61 89L63 91.5L65 89L67 90.5C69 87 69 83 68 80Z" fill="url(#cloudrook-b)" stroke="#10121f" stroke-width="1.5"/><path d="M58 85q2.5 2 5 0M60 89q2 1.5 4 0" fill="none" stroke="#5f6890" stroke-width=".9" opacity=".7"/></g>
+</g>
+</svg>

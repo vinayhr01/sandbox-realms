@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="rootwarden-b" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b98456"/><stop offset=".55" stop-color="#7e5230"/><stop offset="1" stop-color="#4e3018"/></linearGradient>
+<linearGradient id="rootwarden-bd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a5030"/><stop offset="1" stop-color="#4a2c16"/></linearGradient>
+<radialGradient id="rootwarden-l" cx=".38" cy=".3" r=".75"><stop offset="0" stop-color="#a6dc6a"/><stop offset=".55" stop-color="#5c9e36"/><stop offset="1" stop-color="#2e6420"/></radialGradient>
+<radialGradient id="rootwarden-ld" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#6aa83e"/><stop offset="1" stop-color="#25521a"/></radialGradient>
+<radialGradient id="rootwarden-e" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fffbd0"/><stop offset=".6" stop-color="#f0d84a"/><stop offset="1" stop-color="#b08a1a"/></radialGradient>
+</defs>
+<g stroke="#3a2210" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="body" data-pivot="64 120">
+<g stroke="#1e4212" fill="url(#rootwarden-ld)">
+<circle cx="96" cy="34" r="18"/><circle cx="74" cy="20" r="16"/><circle cx="104" cy="52" r="13"/>
+</g>
+<path d="M88 66C96 60 104 58 112 52M104 58l6 4M100 60.5l1-6" fill="none" stroke="#3a2210" stroke-width="5"/>
+<path d="M88 66C96 60 104 58 112 52M104 58l6 4M100 60.5l1-6" fill="none" stroke="#7e5230" stroke-width="2.6"/>
+<path d="M44 120C47 116 48 112 48 106C48 94 44 80 44 66C44 58 46 52 50 48H82C86 54 86 62 86 70C86 84 82 98 82 108C82 113 84 117 88 120Z" fill="url(#rootwarden-b)"/>
+<path d="M50 118C46 114 40 113 32 115C28 116 24 119 23 120H50ZM80 118C86 113 94 112 102 114C106 115 109 118 110 120H78ZM62 118C62 114 66 112 70 112C68 115 68 118 69 120H61Z" fill="url(#rootwarden-bd)"/>
+<path d="M30 118.5q4-2 8-1.5M96 116q4 0 7 2" fill="none" stroke-width="1" opacity=".5"/>
+<path d="M76 52C78 62 79 76 77 90M71 98C72 106 72 112 74 118M54 100C53 106 53 112 51 117M80 96l-4 6" fill="none" stroke-width="1.1" opacity=".55"/>
+<path d="M78 64q3 4 2 9M74 80q2 4 1 8" fill="none" stroke="#4e3018" stroke-width="1.1" opacity=".6"/>
+<path d="M50 50C54 49 60 49 64 50" fill="none" stroke="#d8a876" stroke-width="2" opacity=".5"/>
+<path d="M46 72C38 70 30 64 22 64M30 64.5C27 60 25 58 22 57M30 65C27 68 24 70 20 70M22 64l-4-1.5" fill="none" stroke="#3a2210" stroke-width="6"/>
+<path d="M46 72C38 70 30 64 22 64M30 64.5C27 60 25 58 22 57M30 65C27 68 24 70 20 70M22 64l-4-1.5" fill="none" stroke="url(#rootwarden-b)" stroke-width="3.4"/>
+<path d="M48 84C46 86 46 90 48 92C52 95 60 95 64 92C66 90 66 87 64 85C60 87 52 87 48 84Z" fill="#3a1e10" stroke-width="1.3"/>
+<path d="M50 86.2l1.4 2.2 1.4-1.8M56 87.2l1.4 2.2 1.4-2" fill="#f0e2b8" stroke="none"/>
+<path d="M50.5 74C48 74 44.5 76 44 79C45 81.5 48.5 82 51.5 80.5Z" fill="url(#rootwarden-b)"/>
+<path d="M45.5 78.6q1.5.6 3 0" fill="none" stroke-width="1"/>
+<path d="M45 64C47.5 62 52 62 54 64.5C53 68.5 48 69.5 45.5 67Z" fill="#2e1a0c" stroke-width="1"/>
+<path d="M58 64C60.5 62 65.5 62 67.5 64.5C66.5 68.5 61 69.5 58.5 67Z" fill="#2e1a0c" stroke-width="1"/>
+<circle cx="49.6" cy="65.4" r="2.1" fill="url(#rootwarden-e)" stroke="none"/><circle cx="62.8" cy="65.4" r="2.2" fill="url(#rootwarden-e)" stroke="none"/>
+<circle cx="49" cy="64.8" r=".7" fill="#fff" stroke="none"/><circle cx="62.2" cy="64.8" r=".7" fill="#fff" stroke="none"/>
+<path d="M43.5 61C47 58.5 52 58.5 55 60.5M57.5 60.5C61 58.5 66 58.5 69 61" fill="none" stroke="#3a2210" stroke-width="2.4"/>
+<path d="M47 96C52 99 60 99 64 96C63 102 58 106 54 106C50 104 47 100 47 96Z" fill="#6ea83e" stroke="#2e5a1a" stroke-width="1"/>
+<path d="M51 99l1 5M56 100v5M60 99l-1 4" fill="none" stroke="#2e5a1a" stroke-width=".8"/>
+<g stroke="#24501a" fill="url(#rootwarden-l)">
+<circle cx="40" cy="30" r="18"/><circle cx="60" cy="17.5" r="13.5"/><circle cx="84" cy="30" r="17"/><circle cx="24" cy="46" r="12"/><circle cx="58" cy="38" r="15"/><circle cx="88" cy="46" r="11"/>
+</g>
+<path d="M26 26q4-6 10-7M50 10q5-4 11-3M72 22q4-4 10-4M18 42q2-4 6-5M50 32q4-4 9-4" fill="none" stroke="#d2f0a0" stroke-width="1.6" opacity=".7"/>
+<path d="M32 40l2-3 2 3M44 24l2-3 2 3M66 30l2-3 2 3M80 42l2-3 2 3M52 48l2-3 2 3M20 54l2-3 2 3M88 28l2-3 2 3M38 44l1.6-2.4 1.6 2.4M70 46l1.6-2.4 1.6 2.4" fill="none" stroke="#2e6420" stroke-width="1" opacity=".7"/>
+<circle cx="34" cy="20" r="2.2" fill="#f2a0c0" stroke="#a0406a" stroke-width=".8"/><circle cx="72" cy="12" r="2.2" fill="#f2a0c0" stroke="#a0406a" stroke-width=".8"/><circle cx="92" cy="40" r="2" fill="#f2a0c0" stroke="#a0406a" stroke-width=".8"/><circle cx="22" cy="48" r="1.8" fill="#f2a0c0" stroke="#a0406a" stroke-width=".8"/>
+</g>
+</g>
+</svg>

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="voidmoth-w" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6e5aa8"/><stop offset=".55" stop-color="#43347a"/><stop offset="1" stop-color="#241a48"/></linearGradient>
+<linearGradient id="voidmoth-wf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a3c7c"/><stop offset="1" stop-color="#18102e"/></linearGradient>
+<linearGradient id="voidmoth-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a5a92"/><stop offset=".55" stop-color="#3e3062"/><stop offset="1" stop-color="#20163a"/></linearGradient>
+<radialGradient id="voidmoth-s" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#f4e8ff"/><stop offset=".35" stop-color="#c08cff"/><stop offset=".75" stop-color="#7a3ad8"/><stop offset="1" stop-color="#3a1a78"/></radialGradient>
+<radialGradient id="voidmoth-e" cx=".4" cy=".4" r=".6"><stop offset="0" stop-color="#d8fbff"/><stop offset=".5" stop-color="#6ad8f0"/><stop offset="1" stop-color="#2a6a9a"/></radialGradient>
+<g id="voidmoth-wg"><path d="M64 76C72 68 82 62 94 60C102 60 106 66 102 74C96 82 82 84 68 80Z"/><path d="M62 72C56 60 50 44 48 30C47 21 50 15 56 13C66 10 80 14 88 22C92.5 28 91 36 85 42C78 50 70 60 62 72Z"/><path d="M56 15C66 12 79 15.5 87 23C91 28 90 35 85 41" fill="none" stroke="#a890e0" stroke-width="2.4" stroke-dasharray="1.2 2.4"/><path d="M62 70L54 30M62 70L66 18M62 70L80 26M62 70L84 40M66 78L92 64M66 78L98 74" fill="none" stroke="#1e1438" stroke-width=".9" opacity=".7"/><path d="M51 42C58 38 70 38 82 44" fill="none" stroke="#b8a8e8" stroke-width="1.8" opacity=".6"/><circle cx="66" cy="28" r="6" fill="url(#voidmoth-s)" stroke="#1e1438" stroke-width="1"/><circle cx="66" cy="28" r="2.4" fill="#1a0e30" stroke="none"/><circle cx="64.8" cy="26.8" r=".9" fill="#fff" stroke="none"/><circle cx="90" cy="68" r="4" fill="url(#voidmoth-s)" stroke="#1e1438" stroke-width="1"/><circle cx="90" cy="68" r="1.5" fill="#1a0e30" stroke="none"/></g>
+</defs>
+<g stroke="#160e28" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="body" data-pivot="64 80">
+<g id="wing-r" data-pivot="66 72"><use href="#voidmoth-wg" transform="matrix(.9 0 0 .9 10.6 5.2)" fill="url(#voidmoth-wf)"/></g>
+<path d="M52 86L46 96L44 104M58 88L56 98L58 106M64 87L68 97L72 103" fill="none" stroke="#160e28" stroke-width="2.6"/>
+<path d="M52 86L46 96L44 104M58 88L56 98L58 106M64 87L68 97L72 103" fill="none" stroke="#5a4a82" stroke-width="1.2"/>
+<g id="tail" data-pivot="68 82">
+<path d="M64 78C74 74 90 76 100 82C104 85 104 90 100 92C90 96 74 94 64 88Z" fill="url(#voidmoth-c)"/>
+<path d="M74 77q-2 8 0 16M82 77.5q-2 8 0 16.5M90 79q-2 7 0 14.5M97 81.5q-1.5 5 0 10" fill="none" stroke="#a890e0" stroke-width="1" opacity=".6"/>
+</g>
+<path d="M50 80C50 72 56 68 63 69C70 70 73 76 72 82C71 88 64 91 58 90C53 89 50 85 50 80Z" fill="url(#voidmoth-c)"/>
+<path d="M52 76l-2-2M55 72l-1-3M60 70l0-3M66 70.5l1-3M70 74l2-2M51 82l-2 1M53 87l-2 2" fill="none" stroke="#7a68b0" stroke-width="1.2"/>
+<path d="M44 76C38 64 36 54 40 46M41 70l-4 1M39.5 64l-4 0M38.6 58l-4-1M39 52l-3.6-2M48 75C48 64 50 56 56 50M48.5 68l-3.6-1M50 62l-3.2-2M52.4 56l-2.8-2.6" fill="none" stroke="#2a1e44" stroke-width="1.1"/>
+<path d="M51 80C51 74 47 71 42 72C37 73 34 77 35 82C36 86 40 88 44 87C48 86 51 84 51 80Z" fill="url(#voidmoth-c)"/>
+<circle cx="40.5" cy="78.5" r="4.2" fill="url(#voidmoth-e)" stroke="#1a3a5a" stroke-width="1"/>
+<circle cx="39.3" cy="77.2" r="1.2" fill="#fff" stroke="none"/>
+<path d="M36 84C37 86 39 87 41 86.5" fill="none" stroke="#9a88c8" stroke-width="1.1"/>
+<path d="M36.8 83.6l-1.8 3.4" fill="none" stroke="#2a1e44" stroke-width="1.1"/>
+<g id="wing-l" data-pivot="62 72"><use href="#voidmoth-wg" fill="url(#voidmoth-w)"/></g>
+</g>
+</g>
+</svg>

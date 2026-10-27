@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="cairnbrute-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b9bfbf"/><stop offset=".55" stop-color="#8b9293"/><stop offset="1" stop-color="#5f6668"/></linearGradient>
+<linearGradient id="cairnbrute-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7b8283"/><stop offset="1" stop-color="#474d50"/></linearGradient>
+<linearGradient id="cairnbrute-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#959c9c"/><stop offset="1" stop-color="#5a6163"/></linearGradient>
+<linearGradient id="cairnbrute-m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9cc35f"/><stop offset="1" stop-color="#5b8a36"/></linearGradient>
+<radialGradient id="cairnbrute-g" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#e6fbff"/><stop offset=".5" stop-color="#7fe3ff"/><stop offset="1" stop-color="#2aa6d6"/></radialGradient>
+<g id="cairnbrute-leg"><path d="M49 80H71C73.5 88 74 97 72 106H50.5C48.5 97 47.5 88 49 80Z"/><path d="M52 92q9 2 18 0" fill="none" stroke-width="1" opacity=".5"/><path d="M47 104H74C76 108 76.5 114 76 120H41.5C40.5 114.5 42.5 108.5 47 104Z" fill="url(#cairnbrute-d)"/><path d="M41.6 114.5C43 112 46 112 47.5 114.5M47.5 114.5C49 112 52 112 53.5 114.5M53.5 114.5C55 112.3 57.8 112.3 59.3 114.5M47.5 114.5V120M53.5 114.5V120M59.3 114.5V120" fill="none" stroke-width="1.1"/><path d="M62 107.5l4 4M68 109l-2 3" fill="none" stroke-width=".9" opacity=".5"/></g>
+<g id="cairnbrute-arm"><path d="M45.5 68C43 75 41 83 41 91H62C63 83 63.5 75 62.5 68Z"/><path d="M44 79q9 2.5 18.5 0" fill="none" stroke-width="1" opacity=".5"/><path d="M50 46C49 54 47.5 61 46.5 70H63C65 62 67 54 67.5 46Z"/><path d="M47.5 43C47 33 56 28.5 63.5 30C71 31.5 74 39 71 46C66.5 52 52.5 52 47.5 43Z"/><path d="M52 34C56 31.5 62 31 66 33" fill="none" stroke="#e1e6e4" stroke-width="1.6" opacity=".45"/><path d="M38.5 89C35.5 93 35 100 38 104C42 107.5 56 107.5 61 104.5C64.5 100 64.5 93 62 89Z" fill="url(#cairnbrute-d)"/><path d="M38 96.5C35 95 32.5 97 33.5 100C34.5 102.5 37 103 39 102" fill="url(#cairnbrute-d)" stroke-width="1.2"/><path d="M43.5 99v6.5M49 99.5v6.8M54.5 99.5v6.5M40 98q11 2.5 22 0" fill="none" stroke-width="1"/></g>
+</defs>
+<g stroke="#3a4043" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="74 84"><use href="#cairnbrute-leg" x="13" fill="url(#cairnbrute-f)"/></g>
+<g id="leg-l" data-pivot="61 84"><use href="#cairnbrute-leg" fill="url(#cairnbrute-c)"/></g>
+<g id="body" data-pivot="66 70">
+<g id="arm-r" data-pivot="76 42"><use href="#cairnbrute-arm" x="15" y="-2" fill="url(#cairnbrute-f)"/></g>
+<path d="M42 54C40 40 48 28 62 25C78 22 92 30 95 45C98 60 95 75 88 86C80 93 56 93 47 87C42 79 42.5 66 42 54Z" fill="url(#cairnbrute-c)"/>
+<path d="M51 30C60 26 76 25 86 31C82 33 76 34 70 33.5C62 33 56 33 51 30Z" fill="url(#cairnbrute-m)" stroke="#466b28" stroke-width="1"/>
+<path d="M54 33.5q2 3 0 5M63 34q1.5 2.5 0 4.5M75 34.5q2 3 0 5M83 33q1 2 0 4" fill="none" stroke="#5b8a36" stroke-width="1.2"/>
+<path d="M44 62C54 60 62 63 70 61C78 59 86 62 94 60M46 78C56 76 66 79 76 77C82 76 87 78 90 79M70 61l-3 16M58 40l3 21M85 46l-4 14" fill="none" stroke-width="1.1" opacity=".55"/>
+<path d="M88 40l3-3M90 68l3 2M52 70l3 3M78 83l2 3" fill="none" stroke-width="1" opacity=".5"/>
+<path d="M75 44L81 50L77 56L83 62M81 50h5" fill="none" stroke="#2aa6d6" stroke-width="3" opacity=".6"/>
+<path d="M75 44L81 50L77 56L83 62M81 50h5" fill="none" stroke="#b9f3ff" stroke-width="1.3"/>
+<path d="M49 31C60 27 76 26 86 30" fill="none" stroke="#e1e6e4" stroke-width="2" opacity=".45"/>
+<g id="head" data-pivot="54 42">
+<path d="M33 31C33 22 39 16 48 16C56 16 61 21 61 29V40C57 46 46 47 39 45C35 43 33 38 33 31Z" fill="url(#cairnbrute-c)"/>
+<path d="M44 16.5C50 15 57 17 60 22C56 22 51 20.5 47 21Z" fill="url(#cairnbrute-m)" stroke="#466b28" stroke-width="1"/>
+<path d="M36 41.5C42 44.5 51 45 59 41.5L59.5 46C52 50 42 49.5 36.5 46Z" fill="url(#cairnbrute-d)"/>
+<path d="M38 43.5h6M47 44.5h5" fill="none" stroke="#2a2f32" stroke-width="1.3"/>
+<path d="M34 33.5C31 34 29 36 29.5 38.5C31 39.5 33.5 39.3 35 38Z" fill="url(#cairnbrute-d)"/>
+<path d="M31 36.5h1.5" fill="none" stroke="#2a2f32" stroke-width="1"/>
+<ellipse cx="41" cy="30.5" rx="3.6" ry="2.4" fill="#283034" stroke="none"/>
+<ellipse cx="41" cy="30.6" rx="2.6" ry="1.7" fill="url(#cairnbrute-g)" stroke="#1f7aa3" stroke-width=".7"/>
+<circle cx="40.1" cy="30" r=".6" fill="#fff" stroke="none"/>
+<path d="M33 27.5C38 25 45 25 50 27.5" fill="none" stroke="#3a4043" stroke-width="2.6"/>
+<path d="M50 34l4 2M53 28l3-1M45 38l3 1" fill="none" stroke-width="1" opacity=".5"/>
+</g>
+<g id="arm-l" data-pivot="61 42"><use href="#cairnbrute-arm" fill="url(#cairnbrute-c)"/><path d="M55 37l4 4-2 4" fill="none" stroke="#b9f3ff" stroke-width="1.1" opacity=".9"/></g>
+</g>
+</g>
+</svg>

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="lootmaw-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d59a58"/><stop offset=".55" stop-color="#a86a32"/><stop offset="1" stop-color="#6e4019"/></linearGradient>
+<linearGradient id="lootmaw-wf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a26834"/><stop offset="1" stop-color="#5a3313"/></linearGradient>
+<linearGradient id="lootmaw-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0a8"/><stop offset=".5" stop-color="#f0c24a"/><stop offset="1" stop-color="#b8821e"/></linearGradient>
+<linearGradient id="lootmaw-m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6e1428"/><stop offset="1" stop-color="#2e0612"/></linearGradient>
+<linearGradient id="lootmaw-t" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f58aa6"/><stop offset="1" stop-color="#b83a62"/></linearGradient>
+<linearGradient id="lootmaw-k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8c5a8c"/><stop offset="1" stop-color="#4e2a52"/></linearGradient>
+<g id="lootmaw-leg"><path d="M45.5 100C44.5 106 44.5 110 45.5 114L42 116.5C40.5 118 41 120 43 120H55C56.5 119.5 56.8 117.5 55.5 116L54.5 113C55.5 108 56 104 56 100Z"/><path d="M41.4 117.6L38.8 120H42.6ZM46 118L44.2 120.4H47.8ZM50.4 118L49 120.4H52.4Z" fill="#f4ead0" stroke="#6b5a48" stroke-width=".9"/><path d="M46 106q4.5 1.5 9 0" fill="none" stroke-width="1" opacity=".5"/></g>
+</defs>
+<g stroke="#3e220e" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="85 102" stroke="#2e1830"><use href="#lootmaw-leg" x="34" fill="#4a2a4c"/></g>
+<g id="body" data-pivot="64 106">
+<path d="M24 52L100 62V70L24 66Z" fill="url(#lootmaw-m)"/>
+<path d="M34 66H100V103C100 105 99 106 97.5 106H36.5C35 106 34 105 34 103Z" fill="url(#lootmaw-w)"/>
+<path d="M24 62L34 66V106L25.5 101.5C24.5 101 24 100 24 99Z" fill="url(#lootmaw-wf)"/>
+<path d="M35 78H99M35 91H99M24.5 74.5L33.5 78.5M24.5 87.5L33.5 91.5" fill="none" stroke="#6e4019" stroke-width="1"/>
+<path d="M58 70l3 6M70 82l4 5M62 95l3 6M80 70l2 5" fill="none" stroke="#8a5426" stroke-width=".9" opacity=".7"/>
+<path d="M46 66.5V105.5M88 66.5V105.5" fill="none" stroke="#5c3c10" stroke-width="7"/>
+<path d="M46 66.5V105.5M88 66.5V105.5" fill="none" stroke="url(#lootmaw-g)" stroke-width="4.5"/>
+<circle cx="46" cy="72" r=".9" fill="#5c3c10" stroke="none"/><circle cx="46" cy="99" r=".9" fill="#5c3c10" stroke="none"/><circle cx="88" cy="72" r=".9" fill="#5c3c10" stroke="none"/><circle cx="88" cy="99" r=".9" fill="#5c3c10" stroke="none"/>
+<path d="M25.5 76L32.5 79V89L25.5 86Z" fill="url(#lootmaw-g)" stroke="#6a4a12" stroke-width="1"/>
+<path d="M29 80.5a1.3 1.3 0 1 0 .1 0M29 81.5V85" fill="#3a2410" stroke="#3a2410" stroke-width="1"/>
+<path d="M34.5 66L36.5 61L38.5 66.3ZM40.5 66.5L42.5 61.5L44.5 66.5ZM50 66.5L52 62L54 66.5ZM56 66.5L58 62.5L60 66.5ZM62 66.5L63.8 63L65.6 66.5ZM25 62.4L26.6 57.5L28.6 63.8Z" fill="#fffbe8" stroke="#8a7a5a" stroke-width=".9"/>
+<path d="M36 61C30 62 24 66 21 72C18 78 17 85 19 90C20.5 93.5 24 94 26 91.5C27 89 26 86 24 85.5C23 82 24 77 27 73C30 69 34 67 39 66Z" fill="url(#lootmaw-t)" stroke="#7a1e3c" stroke-width="1.3"/>
+<path d="M33 64C28 67 25 71 23.5 76" fill="none" stroke="#7a1e3c" stroke-width="1" opacity=".6"/>
+<path d="M22 86q1.5-1 2.5.5" fill="none" stroke="#fbc6d4" stroke-width="1" opacity=".8"/>
+<g id="cap" data-pivot="64 58">
+<path d="M24 52C23 39 36 30 60 30C86 30 102 38 102 52V65L24 53Z" fill="url(#lootmaw-w)"/>
+<path d="M30 40C40 33 60 32 80 34C88 35 95 38 99 43" fill="none" stroke="#f2c48a" stroke-width="2" opacity=".55"/>
+<path d="M25 47H101M25.5 41C40 40 70 40 99 42" fill="none" stroke="#6e4019" stroke-width="1"/>
+<path d="M46 31.5V55.5M88 32V61.5" fill="none" stroke="#5c3c10" stroke-width="7"/>
+<path d="M46 31.5V55.5M88 32V61.5" fill="none" stroke="url(#lootmaw-g)" stroke-width="4.5"/>
+<path d="M24 52L102 65" fill="none" stroke="#5c3c10" stroke-width="3.6"/>
+<path d="M24 52L102 65" fill="none" stroke="url(#lootmaw-g)" stroke-width="1.6"/>
+<path d="M27 52.6L29 58.2L31 53.1ZM33 53.6L35 59.6L37 54.2ZM39.5 54.7L41.4 60.3L43.4 55.4ZM49.5 56.4L51.2 61.2L53 57ZM55.5 57.4L57 61.6L58.6 58ZM61.5 58.4L62.8 62L64.2 58.9Z" fill="#fffbe8" stroke="#8a7a5a" stroke-width=".9"/>
+<path d="M30 38C30 34 34 31.5 38 32C41 33 42 36 41 39.5C38 42 33 42 30 38Z" fill="url(#lootmaw-k)" stroke="#2e1830" stroke-width="1.2"/>
+<ellipse cx="35.5" cy="37.2" rx="3.5" ry="3" fill="#ffe14a" stroke="#6a4a12" stroke-width="1"/>
+<ellipse cx="35.6" cy="37.2" rx=".9" ry="2.4" fill="#1e0e06" stroke="none"/>
+<circle cx="34.4" cy="36.2" r=".75" fill="#fff" stroke="none"/>
+<path d="M30.5 33.5Q35.5 30.5 41 34" fill="none" stroke="#2e1830" stroke-width="1.6"/>
+</g>
+</g>
+<g id="leg-l" data-pivot="51 102" stroke="#2e1830"><use href="#lootmaw-leg" fill="url(#lootmaw-k)"/></g>
+</g>
+</svg>

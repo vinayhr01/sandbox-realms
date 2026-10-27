@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="stormroc-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a6a3e"/><stop offset=".55" stop-color="#6e4626"/><stop offset="1" stop-color="#462a14"/></linearGradient>
+<linearGradient id="stormroc-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a4426"/><stop offset="1" stop-color="#341e0e"/></linearGradient>
+<linearGradient id="stormroc-w" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#5e3c20"/><stop offset=".6" stop-color="#8a5c34"/><stop offset="1" stop-color="#b6844e"/></linearGradient>
+<linearGradient id="stormroc-wf" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#3e2612"/><stop offset="1" stop-color="#7a5230"/></linearGradient>
+<linearGradient id="stormroc-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d8d2c4"/></linearGradient>
+<linearGradient id="stormroc-k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd85a"/><stop offset="1" stop-color="#e09a1a"/></linearGradient>
+<g id="stormroc-wg"><path d="M60 62C62 48 70 35 82 25C90 19 100 14 110 12L106 18.5L112 20.5L103.5 26L109 30.5L99.5 34L103 40.5L93.5 42L95 50L86 51.5L84 59C78 64 68 66 60 62Z"/><path d="M64 58C68 50 74 44 82 38M86 30L106 18.5M90 34L103.5 26M92 38.5L99.5 34M88 44L93.5 42M84 50L86 51.5" fill="none" stroke-width="1"/><path d="M68 52q4-1 6 2M72 46q4-1 6 2M77 40q4-1 6 2M70 58q4-1 6 2" fill="none" stroke-width=".9" opacity=".6"/><path d="M62 56C65 44 74 32 86 23C94 18 102 14.5 109 12.5" fill="none" stroke="#d8a874" stroke-width="1.6" opacity=".6"/></g>
+<path id="stormroc-lg" d="M60 94L60.5 106L58.5 116M58.5 116L47 118.5M58.5 116L52 119.5M58.5 116L67 118.6"/>
+</defs>
+<g stroke="#2e1a0c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="70 92"><use href="#stormroc-lg" x="9" fill="none" stroke="#7a4a10" stroke-width="6"/><use href="#stormroc-lg" x="9" fill="none" stroke="#c8861c" stroke-width="3.8"/><path d="M56 118.4l-1.8.9M61 119.4l-1.6.8M76 118.6l1.8.7" fill="none" stroke="#2a1a10" stroke-width="2"/></g>
+<g id="leg-l" data-pivot="61 92"><use href="#stormroc-lg" fill="none" stroke="#8a5410" stroke-width="6.4"/><use href="#stormroc-lg" fill="none" stroke="url(#stormroc-k)" stroke-width="4.2"/><path d="M59 103.5h3M59 107h3M58.8 110.5h3" stroke="#a86a14" stroke-width=".8"/><path d="M47 118.5l-2.4 1.3M52 119.5l-2.2 1M67 118.6l2.4.9" fill="none" stroke="#2a1a10" stroke-width="2.2"/></g>
+<g id="body" data-pivot="70 80">
+<g id="wing-r" data-pivot="72 56"><use href="#stormroc-wg" transform="matrix(.68 0 0 .68 28.7 14.6)" fill="url(#stormroc-wf)"/></g>
+<g id="tail" data-pivot="94 90">
+<path d="M90 86L114 98L112 104L118 106.5L110 110.5L112.5 115.5L101 112L86 100Z" fill="url(#stormroc-h)" stroke="#6e6658"/>
+<path d="M92 92L112 104M92 96L110 110.5M92 99L101 112" fill="none" stroke="#a8a090" stroke-width="1"/>
+</g>
+<path d="M42 56C44 46 56 42 68 44C82 46 96 56 100 70C104 84 98 96 86 98C74 100 58 96 50 86C44 78 40 66 42 56Z" fill="url(#stormroc-c)"/>
+<path d="M48 70q3 3 6 0q3 3 6 0M46 78q3 3 6 0q3 3 6 0q3 3 6 0M52 86q3 3 6 0q3 3 6 0q3 3 6 0M64 92q3 2.5 6 0q3 2.5 6 0" fill="none" stroke="#3a2210" stroke-width="1" opacity=".55"/>
+<path d="M52 86C50 92 52 96 56 98C60 99 64 98 66 95C62 92 58 90 52 86Z" fill="url(#stormroc-f)"/>
+<path d="M72 89C70 94 72 98 76 99C80 99.5 83 98 84 95C80 93 76 91 72 89Z" fill="url(#stormroc-f)"/>
+<path d="M54 92l2 3M58 93l1.5 3M76 94l1 3M80 94.5l1 2.5" fill="none" stroke-width=".9" opacity=".6"/>
+<g id="head" data-pivot="48 52">
+<path d="M31 27C37 20 49 20 55 27C59 33 59 41 56 49L52 52L48 50L45 54L41 50L38 53L36 48C33 46 29 44 27 40C25 36 27 30 31 27Z" fill="url(#stormroc-h)" stroke="#6e6658"/>
+<path d="M46 30q3 3 3 7M50 36q2 3 2 6M40 44q3 2 5 1M52 28q3 3 3 7" fill="none" stroke="#a8a090" stroke-width="1"/>
+<path d="M30 30C24 29.5 18 32 15 37C13.5 40 14 43 16 46C17 43.5 18.5 42 21 42C24 42.5 27 42 30 40Z" fill="url(#stormroc-k)" stroke="#8a5410"/>
+<path d="M21 42C23 44 27 44.5 31 43L30.5 40.5C27 41.5 24 41.5 21 42Z" fill="#e09a1a" stroke="#8a5410" stroke-width="1"/>
+<path d="M28 30C30 31.5 31 34 30.5 37" fill="none" stroke="#8a5410" stroke-width="1"/>
+<path d="M21.5 34.5q1.2-.6 2 .4" fill="none" stroke="#5a3408" stroke-width="1.1"/>
+<path d="M17.5 41.3C19 40.5 21.5 40.6 23.5 41.6" fill="none" stroke="#5a3408" stroke-width="1"/>
+<circle cx="36.5" cy="33" r="2.6" fill="#f0b030" stroke="#5a3408" stroke-width="1"/>
+<circle cx="36.3" cy="33.2" r="1.3" fill="#1e1206" stroke="none"/>
+<circle cx="35.7" cy="32.4" r=".6" fill="#fff" stroke="none"/>
+<path d="M31 30C34.5 28 39 28 42.5 30.5" fill="none" stroke="#6e6658" stroke-width="2.4"/>
+</g>
+<g id="wing-l" data-pivot="64 58"><use href="#stormroc-wg" transform="matrix(.76 0 0 .76 15.4 13.9)" fill="url(#stormroc-w)"/></g>
+</g>
+</g>
+</svg>

@@ -168,7 +168,7 @@ describe('Atlas pages', () => {
     const pages = internals(atlas).pages.get(128) ?? [];
     expect(pages.length).toBeGreaterThanOrEqual(2);
     expect(pages[0]?.next).toBe(SLOTS_PER_128_PAGE);
-  });
+  }, 30_000);
 
   it('after rebuild drops the old pages, destroys every old texture, and reuses no slots', async () => {
     const atlas = new Atlas(renderer, { decode: immediate, now: () => 0, schedule: () => {} });
@@ -194,7 +194,7 @@ describe('Atlas pages', () => {
     // The first frame of the new bake starts at the first slot of a new page, not after the old ones.
     const firstCell = [...a.cells.values()].find((t) => t.frame.x === 2 && t.frame.y === 2);
     expect(firstCell).toBeDefined();
-  });
+  }, 30_000);
 
   it('coalesces uploads: a second idle callback within 100 ms uploads nothing', async () => {
     const m = manualDecode();

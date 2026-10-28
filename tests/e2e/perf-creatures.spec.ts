@@ -4,8 +4,10 @@ import { expect, test, type Page } from '@playwright/test';
  * Creature pipeline cost in the real page (desktop-chromium only, see playwright.config.ts). 3,000 beings are spread over
  * land at 10x speed, and the view is zoomed so that most of them are drawn as icons. The gate is the main-thread cost of
  * the creature pipeline per frame (feed push + sample + CreatureLayer.draw with its dust), read from `__sr.creatureCost()`:
- * P95 of 4 ms or less over at least 10 s. The whole-frame time on CI's software WebGL is dominated by the full-screen
- * terrain fill, which is not the creature layer's cost, so it is logged for information and not asserted.
+ * P95 of 4 ms or less over at least 10 s. It is measured in two phases: at a close zoom (icons) and at the fit zoom (dots,
+ * one pooled sprite each). The render() cost (`__sr.renderCost()`, the whole Pixi render call, where the batching and draw
+ * submission of the creature sprites land) and the whole-frame time on CI's software WebGL are dominated by the full-screen
+ * terrain fill, which is not the creature layer's cost, so they are logged for information and not asserted.
  */
 
 type Hook = <T>(fn: string, ...args: unknown[]) => Promise<T>;
@@ -33,6 +35,9 @@ const ZOOM_PX = 6;
 const MEASURE_MS = 10_000;
 const COST_P95_GATE_MS = 4;
 const MIN_ICONS_IN_VIEW = 1000;
+const MIN_DOTS_IN_VIEW = 1000;
+/** Below this zoom (CSS px per tile) every being is a dot and no icon is placed. */
+const MAX_DOT_ZOOM_PX = 3;
 const MIN_ICON_ZOOM_PX = 4;
 /** The spawn area: a square of tiles around the realm centre, tried on a 2-tile grid (a spawn needs a walkable tile). */
 const AREA_TILES = 120;
@@ -43,7 +48,58 @@ function p95(values: number[]): number {
   return sorted[Math.min(sorted.length - 1, Math.ceil(0.95 * sorted.length) - 1)] ?? NaN;
 }
 
-test('3000 creatures at 10x: creature pipeline P95 <= 4 ms with 1000+ icons in view', async ({ page }) => {
+interface Phase {
+  deltas: number[];
+  /** The hook's count (icons or dots in view) sampled twice a second. */
+  counts: number[];
+  costs: number[];
+  renders: number[];
+}
+
+/** 10 s of play: rAF deltas for information, the count hook sampled twice a second, then the cost rings. */
+async function measure(page: Page, call: Hook, countHook: string): Promise<Phase> {
+  const { deltas, counts } = await page.evaluate(
+    ({ ms, countHook }) =>
+      new Promise<{ deltas: number[]; counts: number[] }>((resolve) => {
+        const hooks = (window as unknown as { __sr: Record<string, () => number> }).__sr;
+        const deltas: number[] = [];
+        const counts: number[] = [];
+        const start = performance.now();
+        let last = start;
+        let lastCount = start;
+        const frame = (t: number): void => {
+          deltas.push(t - last);
+          last = t;
+          if (t - lastCount >= 500) {
+            lastCount = t;
+            counts.push(hooks[countHook]!());
+          }
+          if (t - start < ms) requestAnimationFrame(frame);
+          else resolve({ deltas: deltas.slice(1), counts });
+        };
+        requestAnimationFrame(frame);
+      }),
+    { ms: MEASURE_MS, countHook },
+  );
+  const last = Math.min(deltas.length, 600);
+  return {
+    deltas,
+    counts,
+    costs: (await call<number[]>('creatureCost')).slice(-last),
+    renders: (await call<number[]>('renderCost')).slice(-last),
+  };
+}
+
+function describe(name: string, zoom: number, r: Phase): string {
+  const p50 = [...r.costs].sort((a, b) => a - b)[Math.floor(r.costs.length / 2)] ?? NaN;
+  return (
+    `perf ${name}: zoom ${zoom.toFixed(1)} px/tile, ${r.deltas.length} frames, creature cost P95 ${p95(r.costs).toFixed(2)} ms ` +
+    `(p50 ${p50.toFixed(2)}, ${r.costs.length} samples), in view min ${Math.min(...r.counts)} max ${Math.max(...r.counts)}, ` +
+    `render() P95 ${p95(r.renders).toFixed(1)} ms, frame P95 ${p95(r.deltas).toFixed(1)} ms (render and frame not asserted)`
+  );
+}
+
+test('3000 creatures at 10x: creature pipeline P95 <= 4 ms with 1000+ icons, then 1000+ dots, in view', async ({ page }) => {
   test.setTimeout(240_000);
   const errors: string[] = [];
   page.on('pageerror', (err) => errors.push(err.message));
@@ -97,43 +153,25 @@ test('3000 creatures at 10x: creature pipeline P95 <= 4 ms with 1000+ icons in v
   expect(zoom).toBeGreaterThanOrEqual(MIN_ICON_ZOOM_PX);
   await page.waitForTimeout(1000);
 
-  // 10 s of play: rAF deltas for information, the icon count sampled twice a second.
-  const run = page.evaluate(
-    (ms) =>
-      new Promise<{ deltas: number[]; icons: number[] }>((resolve) => {
-        const hooks = (window as unknown as { __sr: { creatureCount(): number } }).__sr;
-        const deltas: number[] = [];
-        const icons: number[] = [];
-        const start = performance.now();
-        let last = start;
-        let lastIcons = start;
-        const frame = (t: number): void => {
-          deltas.push(t - last);
-          last = t;
-          if (t - lastIcons >= 500) {
-            lastIcons = t;
-            icons.push(hooks.creatureCount());
-          }
-          if (t - start < ms) requestAnimationFrame(frame);
-          else resolve({ deltas: deltas.slice(1), icons });
-        };
-        requestAnimationFrame(frame);
-      }),
-    MEASURE_MS,
-  );
-  const { deltas, icons } = await run;
-  const costs = (await call<number[]>('creatureCost')).slice(-Math.min(deltas.length, 600));
-  const costP95 = p95(costs);
-  const minIcons = Math.min(...icons);
-  console.log(
-    `perf: zoom ${zoom.toFixed(1)} px/tile, ${deltas.length} frames, creature cost P95 ${costP95.toFixed(2)} ms ` +
-      `(p50 ${[...costs].sort((a, b) => a - b)[Math.floor(costs.length / 2)]!.toFixed(2)}, ${costs.length} samples), ` +
-      `icons in view min ${minIcons} max ${Math.max(...icons)}, frame P95 ${p95(deltas).toFixed(1)} ms (not asserted)`,
-  );
+  // Phase 1: icons at a close zoom.
+  const icons = await measure(page, call, 'creatureCount');
+  console.log(describe('icons', zoom, icons));
+  expect(icons.deltas.length).toBeGreaterThan(0);
+  expect(icons.costs.length, 'cost samples').toBeGreaterThanOrEqual(Math.min(icons.deltas.length, 600) * 0.9);
+  expect(Math.min(...icons.counts), `fewest beings drawn in view over the window: ${Math.min(...icons.counts)}`).toBeGreaterThanOrEqual(MIN_ICONS_IN_VIEW);
+  expect(p95(icons.costs), `creature pipeline P95 (icons) over ${icons.costs.length} frames`).toBeLessThanOrEqual(COST_P95_GATE_MS);
 
-  expect(deltas.length).toBeGreaterThan(0);
-  expect(costs.length, 'cost samples').toBeGreaterThanOrEqual(Math.min(deltas.length, 600) * 0.9);
-  expect(minIcons, `fewest beings drawn in view over the window: ${minIcons}`).toBeGreaterThanOrEqual(MIN_ICONS_IN_VIEW);
-  expect(costP95, `creature pipeline P95 ${costP95.toFixed(2)} ms over ${costs.length} frames`).toBeLessThanOrEqual(COST_P95_GATE_MS);
+  // Phase 2: dots at the fit zoom (wheel out until the dot level is fully on), the whole spawn area in view.
+  await page.mouse.move(at!.x, at!.y);
+  for (let i = 0; i < 60 && (await call<number>('zoom')) > MAX_DOT_ZOOM_PX; i++) await page.mouse.wheel(0, 100);
+  const dotZoom = await call<number>('zoom');
+  expect(dotZoom).toBeLessThanOrEqual(MAX_DOT_ZOOM_PX);
+  await page.waitForTimeout(1000);
+  const dots = await measure(page, call, 'dotCount');
+  console.log(describe('dots', dotZoom, dots));
+  expect(dots.deltas.length).toBeGreaterThan(0);
+  expect(dots.costs.length, 'cost samples').toBeGreaterThanOrEqual(Math.min(dots.deltas.length, 600) * 0.9);
+  expect(Math.min(...dots.counts), `fewest dots in view over the window: ${Math.min(...dots.counts)}`).toBeGreaterThanOrEqual(MIN_DOTS_IN_VIEW);
+  expect(p95(dots.costs), `creature pipeline P95 (dots) over ${dots.costs.length} frames`).toBeLessThanOrEqual(COST_P95_GATE_MS);
   expect(errors, errors.join('\n')).toEqual([]);
 });

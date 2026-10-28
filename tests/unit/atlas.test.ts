@@ -2,6 +2,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Atlas } from '../../src/render/atlas.ts';
 import { CanvasSource, Texture, type Renderer } from 'pixi.js';
+import { SPECIES } from '../../src/content/beasts.ts';
+import { SPECIES_GAIT } from '../../src/art/gaits.ts';
+import { BeingState } from '../../src/shared/being-feed.ts';
+import { framesOf, gaitFor } from '../../src/render/anim.ts';
 
 // Pixi probes for canvas support when it is imported; jsdom has no canvas, so it logs "not implemented". The probe
 // needs no context, so a null context stands in for it here (hoisted above the imports).
@@ -68,6 +72,19 @@ function requestSpecies(atlas: Atlas, count: number): void {
   for (let s = 0; s < count; s++) atlas.request(s);
 }
 
+/** Asks for the 128 px frames of every pose of the first `count` species, as the layer does at a close zoom. */
+function request128(atlas: Atlas, count: number): void {
+  for (let s = 0; s < count; s++) {
+    const sg = SPECIES_GAIT[SPECIES[s]!.id]!;
+    for (const state of [BeingState.Idle, BeingState.Walk, BeingState.Run, BeingState.Swim, BeingState.Sleep, BeingState.Hit]) {
+      for (const fast of [false, true]) {
+        const p = gaitFor(sg, state, fast);
+        for (let f = 0; f < framesOf(p.gait, p.mode); f++) atlas.frame(s, p.gait, p.mode, f, 128);
+      }
+    }
+  }
+}
+
 const originalCreate = document.createElement.bind(document);
 
 /** A canvas stand-in: a 2D context that records calls, enough for a page. */
@@ -85,10 +102,68 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe('Atlas 128 px frames', () => {
+  const idle = gaitFor(SPECIES_GAIT[SPECIES[0]!.id]!, BeingState.Idle, false);
+
+  it('bakes only the 48 px set until a 128 px frame is asked for', async () => {
+    const atlas = new Atlas(renderer, { decode: immediate, now: () => 0, schedule: () => {} });
+    requestSpecies(atlas, 5);
+    await drain(atlas);
+    const stats = atlas.stats();
+    expect(stats.pages128).toBe(0);
+    expect(stats.pages48).toBeGreaterThan(0);
+    expect(stats.cells128).toBe(0);
+    expect(stats.cells48).toBeGreaterThan(0);
+    expect(atlas.frame(0, idle.gait, idle.mode, 0, 48)).not.toBeNull();
+  });
+
+  it('falls back to the 48 px frame until the 128 px frame is uploaded, then hands out the 128 px one', async () => {
+    const atlas = new Atlas(renderer, { decode: immediate, now: () => 0, schedule: () => {} });
+    atlas.request(0);
+    await drain(atlas);
+    const small = atlas.frame(0, idle.gait, idle.mode, 0, 48);
+    expect(small).not.toBeNull();
+    // The first ask queues the 128 px set and still answers with the 48 px frame.
+    expect(atlas.frame(0, idle.gait, idle.mode, 0, 128)).toBe(small);
+    expect(internals(atlas).queue.length).toBeGreaterThan(0);
+    await drain(atlas);
+    const big = atlas.frame(0, idle.gait, idle.mode, 0, 128);
+    expect(big).not.toBeNull();
+    expect(big).not.toBe(small);
+    expect(big!.frame.width).toBe(128);
+    expect(atlas.stats().cells128).toBe(framesOf(idle.gait, idle.mode));
+    // Only the asked-for (gait, mode) was baked at 128 px.
+    expect(atlas.stats().cells128).toBeLessThan(atlas.stats().cells48);
+  });
+
+  it('asks for a (species, gait, mode) once, and keeps a 128 px ask made before the species is baked', async () => {
+    const atlas = new Atlas(renderer, { decode: immediate, now: () => 0, schedule: () => {} });
+    expect(atlas.frame(0, idle.gait, idle.mode, 0, 128)).toBeNull();
+    expect(internals(atlas).queue.length).toBe(0);
+    atlas.request(0);
+    await drain(atlas);
+    expect(atlas.stats().cells128).toBe(framesOf(idle.gait, idle.mode));
+    const before = atlas.stats().cells;
+    atlas.frame(0, idle.gait, idle.mode, 0, 128);
+    await drain(atlas);
+    expect(atlas.stats().cells).toBe(before);
+  });
+
+  it('bakes building stills at both sizes and falls back from 128 to 48', async () => {
+    const atlas = new Atlas(renderer, { decode: immediate, now: () => 0, schedule: () => {} });
+    atlas.requestBuilding('granary');
+    expect(atlas.building('granary', 128)).toBeNull();
+    await drain(atlas);
+    expect(atlas.building('granary', 48)).not.toBeNull();
+    expect(atlas.building('granary', 128)!.frame.width).toBe(128);
+  });
+});
+
 describe('Atlas pages', () => {
   it('fills page 0 before it opens page 1', async () => {
     const atlas = new Atlas(renderer, { decode: immediate, now: () => 0, schedule: () => {} });
     requestSpecies(atlas, 40);
+    request128(atlas, 40);
     await drain(atlas);
     const pages = internals(atlas).pages.get(128) ?? [];
     expect(pages.length).toBeGreaterThanOrEqual(2);
@@ -98,6 +173,7 @@ describe('Atlas pages', () => {
   it('after rebuild drops the old pages, destroys every old texture, and reuses no slots', async () => {
     const atlas = new Atlas(renderer, { decode: immediate, now: () => 0, schedule: () => {} });
     requestSpecies(atlas, 40);
+    request128(atlas, 40);
     await drain(atlas);
     const a = internals(atlas);
     const pagesBefore = a.pages.get(128)?.length ?? 0;

@@ -27,7 +27,7 @@ import { SimView } from '../ui/sim-view.ts';
 import { SPECIES } from '../content/beasts.ts';
 import { POWER_BY_ID, POWERS, TABS, powersInTab, type PowerDef, type TabId } from '../content/powers.ts';
 import { plainName } from '../content/plain-names.ts';
-import { Ev, PING_LOST_MS, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
+import { Ev, PING_LOST_MS, POSSESS_REFUSED, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
 import { MONTH_TICKS, YEAR_TICKS, DEFAULT_SIZE_STEP } from '../shared/constants.ts';
 import { RULE_BY_ID, RuleSet } from '../sim/rules.ts';
 import { MAX_BEINGS } from '../sim/beings/store.ts';
@@ -385,6 +385,16 @@ async function boot(): Promise<void> {
   const COST_RING = 600;
   const costRing = new Float64Array(COST_RING);
   let costWritten = 0;
+  /**
+   * Main-thread ms of each Pixi render() call, from the renderer's prerender and postrender runners. Pixi builds one
+   * instruction set for the whole stage, so the creature containers cannot be timed apart from the rest; this is the
+   * whole render, where the dots' and icons' batching and draw submission land (outside creatureCost, which ends at draw()).
+   */
+  const renderRing = new Float64Array(COST_RING);
+  let renderWritten = 0;
+  let renderT0 = 0;
+  renderer.app.renderer.runners.prerender.add({ prerender: () => { renderT0 = performance.now(); } });
+  renderer.app.renderer.runners.postrender.add({ postrender: () => { renderRing[renderWritten++ % COST_RING] = performance.now() - renderT0; } });
   /** Feed-push time since the last frame; it is charged to the next frame's sample. */
   let pushCostMs = 0;
   /** True once a feed has arrived for the current realm, so a followed being missing from the feed is lost. */
@@ -1496,7 +1506,7 @@ async function boot(): Promise<void> {
           }
         }
         // The sim refused a Possess order: the Being is stale or its generation is past the feed's 16 bits (pickBeing).
-        if (event.code === 'COMMAND_REFUSED' && event.detail === 'possess refused' && possessedId !== null) refusePossession();
+        if (event.code === 'COMMAND_REFUSED' && event.detail === POSSESS_REFUSED && possessedId !== null) refusePossession();
         if (event.code === 'WORKER_RESPAWN') crumb('WORKER_RESTART', 'respawn');
         else journal(event.code, event.detail);
         if (event.severity === 'fatal') {
@@ -1936,6 +1946,17 @@ async function boot(): Promise<void> {
     openWindow: () => windowHost.current,
     snapshot: () => simView.current,
     creatureCount: () => creatures.drawnCount(),
+    /** Dot sprites shown by the latest draw (the far-zoom level). */
+    dotCount: () => creatures.dotCount(),
+    /** The baked-art atlas: pages per frame size and frames held. */
+    atlasStats: () => creatures.atlasStats(),
+    /** Recent per-frame ms of the whole Pixi render() call (stage collect, batching, draw submission), oldest first, at most 600. */
+    renderCost: () => {
+      const n = Math.min(renderWritten, COST_RING);
+      const out: number[] = [];
+      for (let i = renderWritten - n; i < renderWritten; i++) out.push(renderRing[i % COST_RING]!);
+      return out;
+    },
     /** Beings in this frame's feed sample, in view or not. */
     beingTotal: () => beingCount,
     /** Recent per-frame ms of the creature pipeline (feed push + sample + draw + dust), oldest first, at most 600. */
@@ -1948,8 +1969,6 @@ async function boot(): Promise<void> {
     /** The camera's zoom in CSS px per tile (0 before the camera exists). */
     zoom: () => camera?.zoom ?? 0,
     resets: () => creatureReset.resets,
-    /** The layer's state now: the realm resets so far, the feed sample's length, and the sprites drawn. */
-    creatureState: () => ({ resets: creatureReset.resets, sample: interp.sample(performance.now(), []), drawn: creatures.drawnCount() }),
     /** A new realm with a random seed, as the Realm tab's restart does. */
     newWorld: () => restartRealm?.(),
     /** The feed sample this frame: each Being's feed key, its sim id (generation * MAX_BEINGS + slot), and interpolated tile, in feed order. */

@@ -1,7 +1,9 @@
 /**
  * Atlas of baked creature frames (map-graphics, Task 7). A species' rig (art/rig.ts) is posed at each frame of each
- * (gait, mode) it can play, rasterised, and drawn into 2048 px pages. Each frame is kept at 128 px and at 48 px, on
- * separate page sets, each page mipmapped. Frames bake in idle callbacks, at most BUDGET_MS of work per callback.
+ * (gait, mode) it can play, rasterised, and drawn into 2048 px pages, on separate page sets for 48 px and 128 px frames,
+ * each page mipmapped. A species' 48 px set is baked as soon as it is requested; the 128 px frames of one (species, gait,
+ * mode) only when frame(..., 128) is first asked for them (a close zoom), and until they are uploaded that call returns
+ * the 48 px frame. Building stills are baked at both sizes. Frames bake in idle callbacks, at most BUDGET_MS of work per callback.
  *
  * Uploads: a page is uploaded to the GPU at most once per FLUSH_INTERVAL_MS, or at once when the bake queue drains.
  * A frame is handed out (frame() / building()) only after the flush that uploads its page; until then the layer draws
@@ -20,9 +22,11 @@ import { framesOf, gaitFor } from './anim.ts';
 import type { FrameSource } from './creatures.ts';
 
 export type FramePx = 48 | 128;
-const SIZES: readonly FramePx[] = [128, 48];
-/** Building stills are drawn from the silhouette's height (8 px or so), far under the 56 px where creatures.ts takes the 128 px frame. */
-const BUILDING_SIZES: readonly FramePx[] = [48];
+/** A species is baked at 48 px up front; its 128 px frames are baked on demand (see frame()). */
+const BASE_SIZES: readonly FramePx[] = [48];
+const FULL_SIZES: readonly FramePx[] = [128];
+/** Buildings are drawn at world scale, so a still is baked at both sizes. */
+const BUILDING_SIZES: readonly FramePx[] = [48, 128];
 const PAGE = 2048;
 /** Transparent gutter around each frame, so mip levels do not bleed a neighbour's pixels in. */
 const PAD = 2;
@@ -65,6 +69,8 @@ interface Job {
   mode: PoseMode;
   phase: number;
   target: Target;
+  /** The frame sizes this job draws. */
+  sizes: readonly FramePx[];
 }
 
 /** A frame drawn on a page but not yet uploaded: it is handed out by `apply` after the next flush. */
@@ -130,6 +136,10 @@ export class Atlas implements FrameSource {
   private readonly pending: Pending[] = [];
   private readonly requestedSpecies = new Set<number>();
   private readonly requestedBuildings = new Set<string>();
+  /** The parsed rig of each baked species, so a 128 px set can be queued later without parsing again. */
+  private readonly rigs = new Map<number, Rig>();
+  /** (species, gait, mode) triples whose 128 px frames were asked for, keyed by the 128 px key of frame 0. */
+  private readonly wanted128 = new Map<number, { species: number; gait: GaitId; mode: PoseMode }>();
   private readonly queue: Job[] = [];
   private readonly ready: { job: Job; img: HTMLImageElement }[] = [];
   private readonly dirty = new Set<Page>();
@@ -142,6 +152,8 @@ export class Atlas implements FrameSource {
   /** Bumped by rebuild and dispose: loads and decodes started before it are dropped when they land. */
   private gen = 0;
   private disposed = false;
+  /** Context restores handled so far. */
+  private rebuilds = 0;
   private scheduled = false;
   private lastFlush = Number.NEGATIVE_INFINITY;
 
@@ -166,14 +178,58 @@ export class Atlas implements FrameSource {
     this.startBuilding(kind);
   }
 
+  /**
+   * The baked frame, or null until it is uploaded. The first ask for a 128 px frame queues the bake of that (species, gait,
+   * mode)'s 128 px set; until it is uploaded the 48 px frame stands in, so a close zoom shows no flash of silhouette.
+   */
   frame(species: number, gait: string, mode: PoseMode, frameIndex: number, px: FramePx): Texture | null {
     if (!GAIT_INDEX.has(gait) || frameIndex < 0 || frameIndex >= MAX_FRAMES) return null;
-    return this.cells.get(cellKey(species, gait as GaitId, mode, frameIndex, px)) ?? null;
+    const g = gait as GaitId;
+    if (px === 128) {
+      const full = this.cells.get(cellKey(species, g, mode, frameIndex, 128));
+      if (full) return full;
+      this.want128(species, g, mode);
+    }
+    return this.cells.get(cellKey(species, g, mode, frameIndex, 48)) ?? null;
   }
 
-  /** The baked still of a building kind, or null until it is baked and uploaded. */
+  /** The baked still of a building kind, or null until it is baked and uploaded. A 128 px still falls back to the 48 px one. */
   building(kind: string, px: FramePx): Texture | null {
-    return this.buildingCells.get(`${kind}|${px}`) ?? null;
+    return this.buildingCells.get(`${kind}|${px}`) ?? (px === 128 ? (this.buildingCells.get(`${kind}|48`) ?? null) : null);
+  }
+
+  /** Pages per frame size and frames held, for the memory estimate (a page is 2048 x 2048 RGBA with mips, about 22 MB). */
+  stats(): { pages48: number; pages128: number; cells: number; cells48: number; cells128: number; buildings: number; rebuilds: number } {
+    let cells128 = 0;
+    for (const key of this.cells.keys()) cells128 += key & 1;
+    return {
+      pages48: this.pages.get(48)?.length ?? 0,
+      pages128: this.pages.get(128)?.length ?? 0,
+      cells: this.cells.size,
+      cells48: this.cells.size - cells128,
+      cells128,
+      buildings: this.buildingCells.size,
+      rebuilds: this.rebuilds,
+    };
+  }
+
+  /** Notes that a (species, gait, mode) wants its 128 px frames and queues them if the species' rig is parsed. */
+  private want128(species: number, gait: GaitId, mode: PoseMode): void {
+    if (this.disposed) return;
+    const pk = cellKey(species, gait, mode, 0, 128);
+    if (this.wanted128.has(pk)) return;
+    this.wanted128.set(pk, { species, gait, mode });
+    const rig = this.rigs.get(species);
+    if (rig) this.queueFrames(rig, species, gait, mode, FULL_SIZES);
+  }
+
+  private queueFrames(rig: Rig, species: number, gait: GaitId, mode: PoseMode, sizes: readonly FramePx[]): void {
+    const n = framesOf(gait, mode);
+    for (let frame = 0; frame < n; frame++) {
+      // The middle of each frame's slice of the stride, so frameIndex(phase, n) lands on `frame`.
+      this.queue.push({ rig, gait: GAITS[gait], mode, phase: (frame + 0.5) / n, target: { species, gait, mode, frame }, sizes });
+    }
+    this.kick();
   }
 
   /**
@@ -209,6 +265,7 @@ export class Atlas implements FrameSource {
   }
 
   rebuild(): void {
+    this.rebuilds++;
     this.gen++;
     this.queue.length = 0;
     this.ready.length = 0;
@@ -217,6 +274,7 @@ export class Atlas implements FrameSource {
     for (const p of this.pending) p.tex.destroy();
     this.cells.clear();
     this.buildingCells.clear();
+    this.rigs.clear();
     this.pending.length = 0;
     this.dirty.clear();
     for (const list of this.pages.values()) for (const page of list) page.destroy();
@@ -266,14 +324,10 @@ export class Atlas implements FrameSource {
     if (svg === null || !sp) return;
     const rig = this.parseOrWarn(svg, id);
     if (!rig) return;
-    for (const { gait, mode } of bakePairs(sp)) {
-      const n = framesOf(gait, mode);
-      for (let frame = 0; frame < n; frame++) {
-        // The middle of each frame's slice of the stride, so frameIndex(phase, n) lands on `frame`.
-        this.queue.push({ rig, gait: GAITS[gait], mode, phase: (frame + 0.5) / n, target: { species, gait, mode, frame } });
-      }
-    }
-    this.kick();
+    this.rigs.set(species, rig);
+    for (const { gait, mode } of bakePairs(sp)) this.queueFrames(rig, species, gait, mode, BASE_SIZES);
+    // 128 px sets asked for before the rig was ready (or before a rebuild) are queued now.
+    for (const w of this.wanted128.values()) if (w.species === species) this.queueFrames(rig, species, w.gait, w.mode, FULL_SIZES);
   }
 
   private bakeBuilding(kind: string): void {
@@ -281,7 +335,7 @@ export class Atlas implements FrameSource {
     if (svg === null) return;
     const rig = this.parseOrWarn(svg, kind);
     if (!rig) return;
-    this.queue.push({ rig, gait: GAITS.static, mode: 'idle', phase: 0, target: { building: kind } });
+    this.queue.push({ rig, gait: GAITS.static, mode: 'idle', phase: 0, target: { building: kind }, sizes: BUILDING_SIZES });
     this.kick();
   }
 
@@ -349,9 +403,9 @@ export class Atlas implements FrameSource {
       });
   }
 
-  /** Draws a decoded frame into a free slot of the 128 px page set and of the 48 px page set. */
+  /** Draws a decoded frame into a free slot of the page set of each size the job asks for. */
   private place(job: Job, img: HTMLImageElement): void {
-    for (const px of 'building' in job.target ? BUILDING_SIZES : SIZES) {
+    for (const px of job.sizes) {
       const { page, x, y } = this.alloc(px);
       page.ctx.drawImage(img, x, y, px, px);
       const tex = new Texture({ source: page.source, frame: new Rectangle(x, y, px, px) });

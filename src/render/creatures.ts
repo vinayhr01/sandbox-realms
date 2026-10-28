@@ -1,7 +1,8 @@
 /**
  * Creature layer: draws the beings of the feed (feed-interp.ts), the hamlet buildings and the
  * boats, at world scale. A being's icon is as tall as its size class in tiles times the zoom, so it grows with the map.
- * Zoomed out, the beings become dots in their group colour; zoomed in, icons. Between 3 and 5 px per tile the two
+ * Zoomed out, the beings become dots in their group colour (pooled sprites of one shared circle texture, so they batch);
+ * zoomed in, icons. Between 3 and 5 px per tile the two
  * cross over. Sprites are pooled, and only what is in the view plus a margin is placed. Icons are baked rig frames
  * (atlas.ts) when they exist, else the group silhouette. A crowded screen steps its icons at a lower rate (animStep),
  * and fast beings kick up footfall dust (dust.ts).
@@ -29,6 +30,11 @@ const VIEW_MARGIN_TILES = 2;
 /** Buildings and boats are placed within this many CSS px outside the view. */
 const SPRITE_MARGIN_PX = 16;
 const DOT_RADIUS_PX = 2;
+/** The shared dot texture: a white disc this many px across, tinted per group and scaled to the dot's diameter. */
+const DOT_TEX_PX = 8;
+/** A building is drawn this many tiles tall, but never under BUILDING_MIN_PX CSS px (so it still reads when zoomed far out). */
+const BUILDING_TILES = 1.25;
+const BUILDING_MIN_PX = 8;
 const BOAT_RADIUS_PX = 3;
 /** Tiles tall per size class (18a size classes T, S, M, L, H, C). */
 const TILES_BY_SIZE: Readonly<Record<MapSizeClass, number>> = { T: 0.5, S: 0.7, M: 1.0, L: 1.4, H: 2.0, C: 3.0 };
@@ -63,6 +69,11 @@ export function lodOf(zoomPx: number): { dots: number; icons: number } {
 /** Height of a being on screen in CSS px: its size class in tiles times the zoom, and 0.6 of that when young. */
 export function worldHeightPx(size: MapSizeClass, zoomPx: number, child: boolean): number {
   return TILES_BY_SIZE[size] * zoomPx * (child ? CHILD_SCALE : 1);
+}
+
+/** Height of a building on screen in CSS px: BUILDING_TILES tiles at the zoom, at least BUILDING_MIN_PX. */
+export function buildingHeightPx(zoomPx: number): number {
+  return Math.max(BUILDING_MIN_PX, BUILDING_TILES * zoomPx);
 }
 
 /** The frame size for a sprite drawn `drawnHeightPx` CSS px tall: 128 px above FULL_FRAME_HEIGHT_PX, else 48 px. */
@@ -115,6 +126,8 @@ export interface CreatureToggles {
 class PooledSprite extends Sprite {
   ax = Number.NaN;
   ay = Number.NaN;
+  /** The tint last written (dots only), so an unchanged tint is not written again. */
+  tintValue = -1;
 }
 
 /** Places a sprite on (sx, sy) with its anchor at the feet, reusing it from the pool. */
@@ -165,15 +178,18 @@ export class CreatureLayer {
   private readonly buildingLayer = new Container();
   private readonly dustLayer = new Container();
   private readonly iconLayer = new Container();
-  private readonly dots = new Graphics();
+  private readonly dotLayer = new Container();
   private readonly boatMarks = new Graphics();
+  private readonly dotPool: PooledSprite[] = [];
   private readonly shadowPool: PooledSprite[] = [];
   private readonly iconPool: PooledSprite[] = [];
   private readonly buildingPool: PooledSprite[] = [];
   private readonly sprites: SpriteFactory;
   private readonly silhouettes = new Map<number, SpriteTex>();
   private readonly speciesDraw: (SpeciesDraw | undefined)[] = [];
-  private readonly shadowTexture: Texture;
+  private shadowTexture: Texture;
+  private dotTexture: Texture;
+  private readonly renderer: Application['renderer'];
   private readonly atlas: Atlas;
   private readonly phases = new PhaseByKey();
   private readonly dust: DustPool;
@@ -191,6 +207,7 @@ export class CreatureLayer {
   private readonly below = new Int32Array(RANK_BUCKETS + 1);
   private rankScale = 0;
   /** Sprites shown by the last draw, so the next one hides only the stale tail of each pool. */
+  private shownDots = 0;
   private shownIcons = 0;
   private shownShadows = 0;
   private buildings: readonly MapBuilding[] = [];
@@ -198,6 +215,7 @@ export class CreatureLayer {
   private frameSource: FrameSource | null;
   private toggles: CreatureToggles = { shadows: true, boats: false, particles: true, crowdAnim: true, dust: true, creatureAnim: true };
   private placed = 0;
+  private dotsDrawn = 0;
 
   constructor(app: Application) {
     // Buildings under the shadows, shadows and dust under the beings, dots and boats over the beings.
@@ -205,15 +223,24 @@ export class CreatureLayer {
     this.root.addChild(this.shadowLayer);
     this.root.addChild(this.dustLayer);
     this.root.addChild(this.iconLayer);
-    this.root.addChild(this.dots);
+    this.root.addChild(this.dotLayer);
     this.root.addChild(this.boatMarks);
     app.stage.addChild(this.root);
+    this.renderer = app.renderer;
     this.sprites = new SpriteFactory(app.renderer);
     this.atlas = new Atlas(app.renderer);
     this.frameSource = this.atlas;
     this.dust = new DustPool(this.dustLayer, Texture.WHITE);
+    this.shadowTexture = this.makeShadowTexture();
+    this.dotTexture = this.makeDotTexture();
+    // A lost WebGL context leaves a texture that was rendered into (not uploaded from a resource) empty on restore, so the
+    // generated textures are drawn again. The pooled sprites pick the new ones up on the next draw.
+    app.renderer.canvas.addEventListener('webglcontextrestored', () => this.regenerateTextures());
+  }
+
+  private makeShadowTexture(): Texture {
     const shadow = new Graphics().ellipse(SHADOW_W / 2, SHADOW_H / 2, SHADOW_W / 2, SHADOW_H / 2).fill({ color: 0x000000, alpha: SHADOW_ALPHA });
-    this.shadowTexture = app.renderer.textureGenerator.generateTexture({
+    const tex = this.renderer.textureGenerator.generateTexture({
       target: shadow,
       resolution: 1,
       antialias: false,
@@ -221,6 +248,30 @@ export class CreatureLayer {
       textureSourceOptions: { scaleMode: 'nearest' },
     });
     shadow.destroy(true);
+    return tex;
+  }
+
+  private makeDotTexture(): Texture {
+    const dot = new Graphics().circle(DOT_TEX_PX / 2, DOT_TEX_PX / 2, DOT_TEX_PX / 2).fill(0xffffff);
+    const tex = this.renderer.textureGenerator.generateTexture({
+      target: dot,
+      resolution: 1,
+      antialias: true,
+      frame: new Rectangle(0, 0, DOT_TEX_PX, DOT_TEX_PX),
+      textureSourceOptions: { scaleMode: 'linear' },
+    });
+    dot.destroy(true);
+    return tex;
+  }
+
+  /** Draws the shadow, dot and silhouette textures again, after a context restore. */
+  private regenerateTextures(): void {
+    this.shadowTexture.destroy(true);
+    this.dotTexture.destroy(true);
+    this.shadowTexture = this.makeShadowTexture();
+    this.dotTexture = this.makeDotTexture();
+    this.sprites.destroy();
+    this.silhouettes.clear();
   }
 
   /** Draws the first `count` beings of `beings` on the view, plus the buildings and boats. */
@@ -231,7 +282,6 @@ export class CreatureLayer {
     const dtMs = this.lastNowMs < 0 ? 0 : nowMs - this.lastNowMs;
     this.lastNowMs = nowMs;
     this.frameNo++;
-    this.dots.clear();
     // Phases and crowd ranks only matter while icons show: with the dot level fully on, nothing steps.
     const iconsOn = lod.icons > 0;
     const visible = this.collectInView(beings, count, view, margin);
@@ -240,12 +290,13 @@ export class CreatureLayer {
     const dustOn = this.toggles.particles && this.toggles.dust;
     let icons = 0;
     let shadows = 0;
+    let dots = 0;
     for (let k = 0; k < visible; k++) {
       const b = beings[this.inIdx[k]!]!;
       const sx = this.inX[k]!;
       const sy = this.inY[k]!;
       if (lod.dots > 0 && b.alpha * lod.dots > 0) {
-        this.dots.circle(sx, sy, DOT_RADIUS_PX).fill({ color: GROUP_COLOUR[speciesGroup(b.species)], alpha: b.alpha * lod.dots });
+        this.placeDot(dots++, GROUP_COLOUR[speciesGroup(b.species)], sx, sy, b.alpha * lod.dots);
       }
       if (!iconsOn) continue;
       const info = this.infoOf(b.species);
@@ -279,6 +330,9 @@ export class CreatureLayer {
     }
     this.phases.endFrame();
     this.placed = visible;
+    this.hideRange(this.dotPool, dots, this.shownDots);
+    this.shownDots = dots;
+    this.dotsDrawn = dots;
     this.hideRange(this.iconPool, icons, this.shownIcons);
     this.hideRange(this.shadowPool, shadows, this.shownShadows);
     this.shownIcons = icons;
@@ -314,6 +368,16 @@ export class CreatureLayer {
     return this.placed;
   }
 
+  /** Dot sprites shown by the latest draw. */
+  dotCount(): number {
+    return this.dotsDrawn;
+  }
+
+  /** The baked-art atlas's page and frame counts (Atlas.stats). */
+  atlasStats(): ReturnType<Atlas['stats']> {
+    return this.atlas.stats();
+  }
+
   /** Stops the baked-art pipeline for good (Atlas.dispose). Called when the layer's owner goes away. */
   dispose(): void {
     this.atlas.dispose();
@@ -324,12 +388,14 @@ export class CreatureLayer {
     this.buildings = [];
     this.boats = [];
     this.placed = 0;
-    this.dots.clear();
+    this.dotsDrawn = 0;
     this.boatMarks.clear();
     this.dust.clear();
+    this.hideFrom(this.dotPool, 0);
     this.hideFrom(this.iconPool, 0);
     this.hideFrom(this.shadowPool, 0);
     this.hideFrom(this.buildingPool, 0);
+    this.shownDots = 0;
     this.shownIcons = 0;
     this.shownShadows = 0;
   }
@@ -457,6 +523,19 @@ export class CreatureLayer {
     sprite.alpha = alpha;
   }
 
+  /** A dot: the shared disc, tinted in the group colour and scaled to DOT_RADIUS_PX. */
+  private placeDot(i: number, colour: number, sx: number, sy: number, alpha: number): void {
+    const sprite = placeSprite(this.dotPool, this.dotLayer, i, this.dotTexture, 0.5, 0.5);
+    if (sprite.tintValue !== colour) {
+      sprite.tintValue = colour;
+      sprite.tint = colour;
+    }
+    const k = (DOT_RADIUS_PX * 2) / DOT_TEX_PX;
+    if (sprite.scale.x !== k) sprite.scale.set(k);
+    sprite.position.set(sx, sy);
+    sprite.alpha = alpha;
+  }
+
   /** The shared shadow ellipse under a being, `height` CSS px tall, wide as the being is tall. */
   private placeShadow(i: number, height: number, sx: number, sy: number, alpha: number): void {
     const sprite = placeSprite(this.shadowPool, this.shadowLayer, i, this.shadowTexture, 0.5, 0.5);
@@ -466,23 +545,24 @@ export class CreatureLayer {
   }
 
   /**
-   * Buildings as their baked still when there is one, else their sprite, at the tile centre, culled to the view. A baked
-   * still is scaled to the silhouette's height so the building keeps its footprint, and its frame size follows that height.
+   * Buildings at world scale: buildingHeightPx(zoom) tall, feet on the tile centre, culled to the view. The baked still
+   * is used when there is one (its frame size follows the height), else the building's silhouette stretched to the same height.
    */
   private placeBuildings(view: MarkView): void {
     let n = 0;
+    const height = buildingHeightPx(view.zoom);
     for (const b of this.buildings) {
       const sx = view.offX + (b.x + 0.5) * view.zoom;
       const sy = view.offY + (b.y + 0.5) * view.zoom;
       if (!inView(sx, sy, view, SPRITE_MARGIN_PX)) continue;
       this.atlas.requestBuilding(b.kind);
-      const silhouette = this.sprites.building(buildingKindOf(b.kind));
-      const baked = this.atlas.building(b.kind, framePxFor(silhouette.texture.height));
+      const baked = this.atlas.building(b.kind, framePxFor(height));
+      const silhouette = baked ? null : this.sprites.building(buildingKindOf(b.kind));
       const sprite = baked
         ? placeSprite(this.buildingPool, this.buildingLayer, n++, baked, 0.5, 1)
-        : placeSprite(this.buildingPool, this.buildingLayer, n++, silhouette.texture, silhouette.anchorX, silhouette.anchorY);
+        : placeSprite(this.buildingPool, this.buildingLayer, n++, silhouette!.texture, silhouette!.anchorX, silhouette!.anchorY);
       sprite.position.set(sx, sy);
-      sprite.scale.set(baked ? silhouette.texture.height / baked.height : 1);
+      sprite.scale.set(height / (baked ? baked.height : silhouette!.texture.height));
     }
     this.hideFrom(this.buildingPool, n);
   }

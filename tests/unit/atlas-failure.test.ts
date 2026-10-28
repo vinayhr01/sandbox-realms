@@ -95,13 +95,13 @@ describe('bake warnings', () => {
 });
 
 describe('building stills', () => {
-  it('bake at 48 px only: the 128 px frame is never used', async () => {
+  it('bake at 48 px and 128 px (buildings are drawn at world scale)', async () => {
     const atlas = new Atlas(renderer, { decode: immediate, now: () => 0, schedule: () => {} });
     atlas.requestBuilding('granary');
     await drain(atlas);
     const keys = [...internals(atlas).buildingCells.keys()];
-    expect(keys).toEqual(['granary|48']);
-    expect(atlas.building('granary', 128)).toBeNull();
+    expect(keys.sort()).toEqual(['granary|128', 'granary|48']);
+    expect(atlas.building('granary', 128)).not.toBeNull();
     expect(atlas.building('granary', 48)).not.toBeNull();
   });
 });

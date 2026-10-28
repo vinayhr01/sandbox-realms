@@ -59,7 +59,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx --no-install playwright install --with-deps ${{ matrix.browser }}
+      # The creature perf gate runs alone in the perf job: two workers on a shared runner would skew its frame times.
       - run: npx --no-install playwright test --shard=${{ matrix.shard }}/4 ${{ matrix.projects }}
+        env:
+          SR_SKIP_PERF: '1'
       - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
         if: failure()
         with:
@@ -67,10 +70,30 @@ jobs:
           path: test-results/
           retention-days: 7
 
+  perf:
+    # The creature perf gate (P95 of the creature pipeline) on its own runner, one worker, so nothing else competes for the CPU.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version: 24.22.1
+          cache: npm
+      - run: npm ci
+      - run: npx --no-install playwright install --with-deps chromium
+      - run: npx --no-install playwright test tests/e2e/perf-creatures.spec.ts --project=desktop-chromium --workers=1
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
+        if: failure()
+        with:
+          name: playwright-perf
+          path: test-results/
+          retention-days: 7
+
   deploy:
     # Publishes the built game to GitHub Pages (https://vinayhr01.github.io/sandbox-realms/) after every check passes on main.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [build-and-test, determinism, playwright]
+    needs: [build-and-test, determinism, playwright, perf]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:

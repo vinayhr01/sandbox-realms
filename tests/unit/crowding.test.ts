@@ -1,6 +1,6 @@
 import { Container, Texture } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
-import { CROWD_LIMIT, animStep, framePxFor } from '../../src/render/creatures.ts';
+import { CROWD_LIMIT, animStep, buildingHeightPx, framePxFor } from '../../src/render/creatures.ts';
 import { DUST_LIFE_MS, DUST_MAX, DustPool } from '../../src/render/dust.ts';
 
 describe('framePxFor (frame size by drawn height)', () => {
@@ -12,6 +12,22 @@ describe('framePxFor (frame size by drawn height)', () => {
   it('uses the 128 px frame above 56 CSS px drawn', () => {
     expect(framePxFor(56.5)).toBe(128);
     expect(framePxFor(100)).toBe(128);
+  });
+});
+
+describe('buildingHeightPx (buildings at world scale)', () => {
+  it('is 1.25 tiles tall, but never under 8 CSS px', () => {
+    expect(buildingHeightPx(2)).toBe(8);
+    expect(buildingHeightPx(6)).toBe(8);
+    expect(buildingHeightPx(8)).toBe(10);
+    expect(buildingHeightPx(96)).toBe(120);
+  });
+
+  it('picks the 48 px frame far out and the 128 px frame up close', () => {
+    expect(framePxFor(buildingHeightPx(3))).toBe(48);
+    expect(framePxFor(buildingHeightPx(40))).toBe(48);
+    expect(framePxFor(buildingHeightPx(48))).toBe(128);
+    expect(framePxFor(buildingHeightPx(96))).toBe(128);
   });
 });
 

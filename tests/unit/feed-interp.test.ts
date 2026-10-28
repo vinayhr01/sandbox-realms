@@ -155,6 +155,25 @@ describe('coalesced feeds', () => {
     expect(byKey(sampleAt(interp, 0), KEY_1).x).toBe(10);
   });
 
+  it('scales the snap distance by the feeds coalesced into one', () => {
+    // A fast mover covers 2 tiles per feed. Five feeds coalesce into one: 10 tiles apart, which is a walk, not a jump.
+    const interp = new FeedInterp({ coalesce: true });
+    interp.push(feedOf([{ slot: 1, x: 10, y: 5, state: BeingState.Run }]), 0);
+    sampleAt(interp, 0);
+    for (let i = 1; i <= 5; i++) interp.push(feedOf([{ slot: 1, x: 10 + 2 * i, y: 5, state: BeingState.Run }]), 100 * i);
+    expect(10).toBeGreaterThan(SNAP_TILES);
+    expect(byKey(sampleAt(interp, 500), KEY_1).x).toBe(10);
+    expect(byKey(sampleAt(interp, 600), KEY_1).x).toBeGreaterThan(10);
+    expect(byKey(sampleAt(interp, 600), KEY_1).moved).toBe(10);
+    // The same distance in one uncoalesced feed is still a snap.
+    const single = new FeedInterp({ coalesce: true });
+    single.push(feedOf([{ slot: 1, x: 10, y: 5 }]), 0);
+    sampleAt(single, 0);
+    single.push(feedOf([{ slot: 1, x: 20, y: 5 }]), 100);
+    expect(byKey(sampleAt(single, 100), KEY_1).x).toBe(20);
+    expect(byKey(sampleAt(single, 100), KEY_1).moved).toBe(0);
+  });
+
   it('drops a held feed on reset', () => {
     const interp = new FeedInterp({ coalesce: true });
     interp.push(feedOf([{ slot: 1, x: 10, y: 5 }]), 0);

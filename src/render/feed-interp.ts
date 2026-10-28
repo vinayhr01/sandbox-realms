@@ -5,7 +5,10 @@
  */
 import { BeingState, FEED_STRIDE, type BeingFeed } from '../shared/being-feed.ts';
 
-/** A Being that moves more tiles than this between two feeds is snapped, not lerped (teleport, slot reuse). */
+/**
+ * A Being that moves more tiles than this between two feeds is snapped, not lerped (teleport, slot reuse). When several
+ * feeds were coalesced into one applied feed, the limit grows with their number (a fast mover covers that many feeds' worth).
+ */
 export const SNAP_TILES = 3;
 /** When two feeds are further apart than this, every Being snaps to its latest position. */
 export const MAX_GAP_MS = 500;
@@ -76,6 +79,8 @@ export class FeedInterp {
   private pendingCount = 0;
   private hasPending = false;
   private pendingMs = 0;
+  /** Feeds pushed since the held feed was last applied (at least 1 once one is held). */
+  private pendingFeeds = 0;
   private hasFeed = false;
   private tPrev = 0;
   private tCurr = 0;
@@ -92,13 +97,16 @@ export class FeedInterp {
       this.pendingData.set(feed.data.subarray(0, words));
       this.pendingCount = feed.count;
       this.pendingMs = nowMs;
+      this.pendingFeeds++;
       this.hasPending = true;
       return;
     }
-    this.apply(feed.data, feed.count, nowMs);
+    this.apply(feed.data, feed.count, nowMs, 1);
   }
 
-  private apply(d: Uint16Array, count: number, nowMs: number): void {
+  /** Applies a feed; `feeds` is how many pushes it stands for (coalescing), which scales the snap distance. */
+  private apply(d: Uint16Array, count: number, nowMs: number, feeds: number): void {
+    const snapTiles = SNAP_TILES * Math.max(1, feeds);
     const snapAll = this.hasFeed && nowMs - this.tCurr > MAX_GAP_MS;
     this.tPrev = this.hasFeed ? this.tCurr : nowMs;
     this.tCurr = nowMs;
@@ -132,7 +140,7 @@ export class FeedInterp {
         const dx = bx - t.x;
         const dy = by - t.y;
         const dist = Math.max(Math.abs(dx), Math.abs(dy));
-        const snap = snapAll || dist > SNAP_TILES;
+        const snap = snapAll || dist > snapTiles;
         t.px = snap ? bx : t.x;
         t.py = snap ? by : t.y;
         if (dx !== 0) t.facing = dx < 0 ? -1 : 1;
@@ -170,7 +178,9 @@ export class FeedInterp {
   sample(nowMs: number, out: DrawBeing[]): number {
     if (this.hasPending) {
       this.hasPending = false;
-      this.apply(this.pendingData, this.pendingCount, this.pendingMs);
+      const feeds = this.pendingFeeds;
+      this.pendingFeeds = 0;
+      this.apply(this.pendingData, this.pendingCount, this.pendingMs, feeds);
     }
     if (!this.hasFeed) return 0;
     const span = this.tCurr - this.tPrev;
@@ -224,6 +234,7 @@ export class FeedInterp {
   /** Forgets every Being, e.g. when a new world starts. */
   reset(): void {
     this.hasPending = false;
+    this.pendingFeeds = 0;
     this.tracks.clear();
     this.list.length = 0;
     this.hasFeed = false;

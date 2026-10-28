@@ -163,9 +163,20 @@ test('hover names a being beyond the snapshot sample', async ({ page }) => {
 test('context loss rebuilds atlas', async ({ page }) => {
   const call = await openRealm(page);
   await call('spawnMany', 'burrfleece', 20);
+  // Zoom in on the spawns so the beings are icons and the atlas bakes frames for them.
+  const pts = await call<{ x: number; y: number }[]>('beingPoints');
+  const near = pts.reduce((a, b) => ((b.x - 128) ** 2 + (b.y - 128) ** 2 < (a.x - 128) ** 2 + (a.y - 128) ** 2 ? b : a));
+  const centre = await call<{ x: number; y: number }>('tileToScreen', Math.round(near.x), Math.round(near.y));
+  await page.mouse.move(centre.x, centre.y);
+  for (let i = 0; i < 8; i++) await page.mouse.wheel(0, -300);
+  expect(await call<number>('zoom')).toBeGreaterThanOrEqual(5);
   await expect.poll(() => call<number>('creatureCount'), { timeout: 20_000 }).toBeGreaterThan(0);
-  // Lose and restore the WebGL context. The atlas rebuilds on webglcontextrestored; with no art yet the creatures
-  // keep their group silhouettes, so the count must hold and no error may reach the console.
+  // Wait until baked frames exist, so the context loss really hits uploaded atlas pages.
+  await expect.poll(async () => (await call<{ cells: number }>('atlasStats')).cells, { timeout: 60_000, intervals: [500] }).toBeGreaterThan(0);
+
+  // Lose and restore the WebGL context. The atlas rebuilds on webglcontextrestored and the generated textures (shadow,
+  // dot, silhouettes) are drawn again. No page or console error may follow (checked by afterEach), and the baked icons
+  // must come back.
   await page.evaluate(async () => {
     const canvas = document.querySelector<HTMLCanvasElement>('#map canvas');
     const gl = canvas?.getContext('webgl2');
@@ -174,7 +185,8 @@ test('context loss rebuilds atlas', async ({ page }) => {
     ext.loseContext();
     await new Promise((resolve) => setTimeout(resolve, 200));
     ext.restoreContext();
-    await new Promise((resolve) => setTimeout(resolve, 3000));
   });
-  expect(await call<number>('creatureCount')).toBeGreaterThanOrEqual(1);
+  await expect.poll(async () => (await call<{ rebuilds: number }>('atlasStats')).rebuilds, { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
+  await expect.poll(async () => (await call<{ cells: number }>('atlasStats')).cells, { timeout: 60_000, intervals: [500] }).toBeGreaterThan(0);
+  await expect.poll(() => call<number>('creatureCount'), { timeout: 20_000 }).toBeGreaterThanOrEqual(1);
 });

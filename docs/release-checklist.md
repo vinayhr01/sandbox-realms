@@ -34,6 +34,7 @@ Browser and device status, in one place:
 - [x] Sim tick cost measured in `tests/unit/tick-cost.test.ts` (median, 50 ms gate; the 8 ms budget is a warning).
 - [~] Ecosystem soak. Not met: the M3 exit (all species alive for 10 years) was not reached; 32 to 41 of 90 species survived year 10 on six seeds. The chosen criterion (total beasts 300 to 3,000) was run on the 90-species roster: year-10 totals were 1,103 to 1,573. The 8-species result is stale. See `DECISIONS.md` (Beings round 2).
 - [ ] Frame-rate target (60 fps at 512x512 on mid phones). Not done: headless WebGL runs at 1 to 3 fps.
+- [ ] Measure tab memory (Chrome task manager) on a mid-range Android phone with ~40 species in view at close zoom; record the number. Not done. `__sr.atlasStats()` reports the atlas pages (a 2048 px page is about 22 MB with mips; the 128 px pages grow only with the species and poses seen at close zoom).
 - [ ] Memory soak (60 minutes at 10x, heap growth under 5%). Not done.
 - [ ] Benchmark scenes and a CI perf gate. Not done: there are no benchmark scenes, and `npm run bench` (the tick-cost test) is not in CI.
 - [ ] Quality ladder (degradation). Not done: `degradeLevel` is read in `src/app/saves.ts` and never set.

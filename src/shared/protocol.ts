@@ -15,6 +15,8 @@ export const SNAPSHOT_MAX_BYTES = 32 * 1024;
 
 /** The page pings the worker this often (19 section 2, main_hang). Additive; PROTOCOL_VERSION unchanged. */
 export const PING_EVERY_MS = 2_000;
+/** The COMMAND_REFUSED detail the sim reports for a Possess order it refuses (a stale Being id or an off-map order). */
+export const POSSESS_REFUSED = 'possess refused';
 /** The worker reports the page as hung after this long without a ping while the page is visible (19 section 2). */
 export const PING_LOST_MS = 8_000;
 

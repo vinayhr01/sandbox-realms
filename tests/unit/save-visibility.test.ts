@@ -72,7 +72,7 @@ describe('manual save outcomes are always visible', () => {
     vi.spyOn(service, 'writeManual').mockReturnValue(new Promise(() => undefined));
     const out = await new SaveController(() => Promise.resolve(service), source(okCapture), { writeTimeoutMs: 30 }).perform('save', 'new');
     expect(out.ok).toBe(false);
-    expect(out.message).toMatch(/^Couldn't save: .*timed out/);
+    expect(out.message).toBe('Saving is taking long — check the list in a moment.');
   });
 
   it('says so when the save only lasts this visit', async () => {
@@ -121,5 +121,168 @@ describe('resume on boot', () => {
     expect((await c.resumeNewest(false)).ok).toBe(false);
     await c.perform('save', 'new');
     expect((await c.resumeNewest(true)).ok).toBe(false);
+  });
+});
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const memService = () => SaveService.open(undefined, { isPhone: false });
+
+describe('resume cannot overwrite the save it is resuming', () => {
+  it('blocks suspend, quick, manual and emergency saves until the resume lands', async () => {
+    const service = await memService();
+    let captures = 0;
+    let release: (v: boolean) => void = () => undefined;
+    const src: ChronicleSource = {
+      canCapture: true,
+      canRestore: true,
+      capture: () => (captures++, Promise.resolve({ bytes, info })),
+      restore: () => new Promise<boolean>((r) => (release = r)),
+    };
+    const c = new SaveController(() => Promise.resolve(service), src);
+    await service.writeSuspend(bytes, { ...info, realmName: 'Old World' }, 5);
+    c.beginResume();
+    const resume = c.resumeNewest(false);
+    await sleep(10);
+    await c.suspend();
+    expect(captures).toBe(0);
+    expect((await c.perform('quick', 'quick')).message).toBe('Still resuming your world…');
+    expect((await c.perform('save', 'new')).message).toBe('Still resuming your world…');
+    expect(await c.emergencySave()).toBe('emergency_save_resuming');
+    expect((await c.list()).map((m) => m.realmName)).toEqual(['Old World']);
+    release(true);
+    expect((await resume).ok).toBe(true);
+    await c.suspend();
+    expect(captures).toBe(1);
+  });
+
+  it('clears the resuming state even when there is nothing to resume', async () => {
+    const c = controller(undefined, source(okCapture));
+    c.beginResume();
+    expect((await c.resumeNewest(false)).ok).toBe(false);
+    expect((await c.perform('save', 'new')).ok).toBe(true);
+  });
+
+  it('keeps a copy of the resumed realm in a manual slot before a new world', async () => {
+    const service = await memService();
+    const c = new SaveController(() => Promise.resolve(service), source(okCapture));
+    await service.writeSuspend(bytes, info, 5);
+    await c.resumeNewest(false);
+    const kept = await c.keepResumedBeforeNewWorld();
+    expect(kept?.ok).toBe(true);
+    await c.suspend();
+    const names = (await c.list()).map((m) => `${m.kind}:${m.realmName}`).sort();
+    expect(names).toContain('manual:Ash Vale (before new world)');
+  });
+
+  it('still announces the resume when the restore lands after the wait', async () => {
+    vi.useFakeTimers();
+    try {
+      const service = await memService();
+      let release: (v: boolean) => void = () => undefined;
+      const src: ChronicleSource = { ...source(okCapture), restore: () => new Promise<boolean>((r) => (release = r)) };
+      const c = new SaveController(() => Promise.resolve(service), src);
+      await service.writeSuspend(bytes, info, 5);
+      const late: string[] = [];
+      const first = c.resumeNewest(false, (o) => late.push(o.message));
+      await vi.advanceTimersByTimeAsync(31_000);
+      expect((await first).ok).toBe(false);
+      release(true);
+      await vi.advanceTimersByTimeAsync(10);
+      expect(late).toEqual(['Resumed Ash Vale, year ' + info.year + '.']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not copy a resumed manual slot', async () => {
+    const service = await memService();
+    const c = new SaveController(() => Promise.resolve(service), source(okCapture));
+    await service.writeManual(1, bytes, info, 5);
+    await c.resumeNewest(false);
+    expect(await c.keepResumedBeforeNewWorld()).toBeNull();
+    expect(await c.list()).toHaveLength(1);
+  });
+
+  it('picks the same save as the restore rules, ties by slot id', async () => {
+    const service = await memService();
+    const restored: Uint8Array[] = [];
+    const src: ChronicleSource = { ...source(okCapture), restore: (b) => (restored.push(b), Promise.resolve(true)) };
+    const c = new SaveController(() => Promise.resolve(service), src);
+    await service.writeManual(2, bytes, { ...info, realmName: 'Two' }, 7);
+    await service.writeManual(1, bytes, { ...info, realmName: 'One' }, 7);
+    expect((await c.resumeNewest(false)).message).toMatch(/One/);
+  });
+});
+
+describe('a dropped connection is reopened', () => {
+  it('reopens the store after a versionchange and then saves', async () => {
+    let opens = 0;
+    let stale = false;
+    const open = async () => {
+      opens++;
+      const s = await memService();
+      const mine = opens;
+      Object.defineProperty(s, 'stale', { get: () => stale && mine === 1 });
+      return s;
+    };
+    const c = new SaveController(open, source(okCapture));
+    expect((await c.perform('save', 'new')).ok).toBe(true);
+    stale = true;
+    expect((await c.perform('save', 'new')).ok).toBe(true);
+    expect(opens).toBe(2);
+  });
+
+  it('only a SecurityError means private mode; InvalidStateError is a retryable storage error', async () => {
+    const service = await memService();
+    vi.spyOn(service, 'writeManual').mockRejectedValue(Object.assign(new Error('closing'), { name: 'InvalidStateError' }));
+    const out = await new SaveController(() => Promise.resolve(service), source(okCapture)).perform('save', 'new');
+    expect(out.message).toBe("Couldn't save: storage error, try again.");
+  });
+
+  it('uses the right verb for other actions', async () => {
+    const service = await memService();
+    vi.spyOn(service, 'delete').mockRejectedValue(Object.assign(new Error('full'), { name: 'QuotaExceededError' }));
+    const out = await new SaveController(() => Promise.resolve(service), source(okCapture)).perform('delete', 'manual:1');
+    expect(out.message).toMatch(/^Couldn't delete: /);
+  });
+});
+
+describe('a write that outlives its timeout', () => {
+  it('reports success when the slot is there after all', async () => {
+    const service = await memService();
+    const real = service.writeManual.bind(service);
+    vi.spyOn(service, 'writeManual').mockImplementation(async (...a) => {
+      const r = await real(...a);
+      await sleep(200);
+      return r;
+    });
+    const c = new SaveController(() => Promise.resolve(service), source(okCapture), { writeTimeoutMs: 30 });
+    const out = await c.perform('save', 'new');
+    expect(out).toEqual({ ok: true, message: 'Saved slot 1.' });
+  });
+
+  it('says it is slow, not failed, when the slot is not there yet, and the retry makes no duplicate', async () => {
+    const service = await memService();
+    const real = service.writeManual.bind(service);
+    vi.spyOn(service, 'writeManual').mockImplementationOnce(async (...a) => {
+      await sleep(80);
+      return real(...a);
+    });
+    const c = new SaveController(() => Promise.resolve(service), source(okCapture), { writeTimeoutMs: 30 });
+    const out = await c.perform('save', 'new');
+    expect(out.message).toBe('Saving is taking long — check the list in a moment.');
+    await sleep(120);
+    expect((await c.perform('save', 'new')).ok).toBe(true);
+    expect((await c.list()).map((m) => m.slotId).sort()).toEqual(['manual:1', 'manual:2']);
+  });
+});
+
+describe('a late result still reaches the window', () => {
+  it('calls onLate when the task finishes after the watchdog', async () => {
+    const late = vi.fn();
+    const out = await settleOutcome(sleep(80).then(() => ({ ok: true, message: 'Saved slot 1.' })), 'save', 20, late);
+    expect(out.ok).toBe(false);
+    await sleep(120);
+    expect(late).toHaveBeenCalledWith({ ok: true, message: 'Saved slot 1.' });
   });
 });

@@ -68,7 +68,7 @@ export interface SlotMeta extends SlotInfo {
   valid: boolean | 'unknown';
 }
 
-export type SaveErrorCode = 'invalid_slot' | 'too_large' | 'corrupt' | 'not_found' | 'unavailable' | 'blocked' | 'timeout' | 'private' | 'quota';
+export type SaveErrorCode = 'invalid_slot' | 'too_large' | 'corrupt' | 'not_found' | 'unavailable' | 'blocked' | 'timeout' | 'private' | 'quota' | 'storage';
 
 export class SaveError extends Error {
   constructor(
@@ -350,6 +350,8 @@ export type SaveBackendMode = 'indexeddb' | 'memory';
 /** Storage facade. Every write is atomic: the new blob and metadata commit together, or nothing changes. */
 export interface SaveBackend {
   readonly mode: SaveBackendMode;
+  /** True once the connection was closed under us (another tab upgraded the database); the store must be reopened. */
+  readonly stale?: boolean;
   list(): Promise<SlotMeta[]>;
   /** Writes a slot. The previous blob of the same slot moves to `prev`. `prune` ids are deleted in the same commit. */
   write(slotId: string, bytes: Uint8Array, meta: SlotMeta, prune: readonly string[]): Promise<void>;
@@ -391,8 +393,10 @@ export function classifyStorageError(err: unknown): SaveError | null {
   const name = err instanceof Error ? err.name : '';
   const text = err instanceof Error ? err.message : '';
   if (name === 'QuotaExceededError' || /quota/i.test(text)) return new SaveError('quota', text || 'storage is full');
-  if (name === 'SecurityError' || name === 'InvalidStateError' || name === 'UnknownError' || name === 'NotAllowedError') {
-    return new SaveError('private', text || 'storage is blocked by the browser');
+  if (name === 'SecurityError') return new SaveError('private', text || 'storage is blocked by the browser');
+  // A closing or dropped connection, or an engine fault: worth another try, not a private-mode verdict.
+  if (name === 'InvalidStateError' || name === 'UnknownError' || name === 'NotAllowedError' || name === 'TransactionInactiveError') {
+    return new SaveError('storage', text || 'storage error');
   }
   return null;
 }
@@ -443,7 +447,17 @@ export function openSaveDatabase(factory: IDBFactory, name: string = DB_NAME, ti
 class IndexedDbBackend implements SaveBackend {
   readonly mode = 'indexeddb' as const;
 
-  constructor(private readonly db: IDBDatabase) {}
+  stale = false;
+
+  constructor(private readonly db: IDBDatabase) {
+    db.onversionchange = () => {
+      this.stale = true;
+      db.close();
+    };
+    db.onclose = () => {
+      this.stale = true;
+    };
+  }
 
   list(): Promise<SlotMeta[]> {
     const tx = this.db.transaction('slots', 'readonly');
@@ -624,6 +638,11 @@ export class SaveService {
 
   get mode(): SaveBackendMode {
     return this.backend.mode;
+  }
+
+  /** True when the database connection was closed by the browser or another tab: open the store again. */
+  get stale(): boolean {
+    return this.backend.stale === true;
   }
 
   /** Slot list for the UI, newest first. */

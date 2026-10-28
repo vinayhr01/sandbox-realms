@@ -28,7 +28,7 @@ export function toast(text: string, action?: { label: string; run: () => void })
     item.append(' ', btn);
   }
   host.appendChild(item);
-  window.setTimeout(() => item.remove(), action ? 12_000 : 3000);
+  window.setTimeout(() => item.remove(), action ? 30_000 : 3000);
 }
 
 export interface DebugStats {

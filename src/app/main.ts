@@ -413,6 +413,18 @@ async function boot(): Promise<void> {
   client.onRespawn(() => {
     if (autosaveRecovery) void autosaveRecovery.restore();
   });
+  /** True from boot until the resume of the newest save has landed; map input is ignored meanwhile. */
+  let resumingWorld = false;
+  window.addEventListener(
+    'pointerdown',
+    (e: PointerEvent) => {
+      if (resumingWorld && e.target === renderer.app.canvas) {
+        e.stopImmediatePropagation();
+        setStatus('Resuming…');
+      }
+    },
+    true,
+  );
   restartRealm = () => {
     void client.newRealm(Math.floor(Math.random() * 0x7fffffff), DEFAULT_SIZE_STEP);
   };
@@ -1926,12 +1938,33 @@ async function boot(): Promise<void> {
   // the boot-loop dialog leave the choice to the player, and otherwise the newest save (autosave, quick,
   // suspend or manual slot) is loaded into the live realm.
   const wantsFreshWorld = params.has('seed') || params.has('new') || guard.loop || safeMode;
+  // Until the resume lands, the throwaway default world must not be saved over the newest save, and the
+  // map ignores input (saveController holds every save; the capture listener below holds the pointer).
+  if (!wantsFreshWorld) {
+    saveController.beginResume();
+    resumingWorld = true;
+    setStatus('Resuming…');
+  }
   await client.newRealm(seed, sizeStep);
   if (!wantsFreshWorld) {
     // Not awaited: a slow or blocked store must not hold up the start of play.
-    void saveController.resumeNewest(false).then((resumed) => {
-      if (resumed.ok) toast(resumed.message, { label: 'Start a new world instead', run: () => restartRealm?.() });
-    });
+    const announceResumed = (resumed: { ok: boolean; message: string }): void => {
+      resumingWorld = false;
+      // The message is announced once, by the toast; the status line only drops "Resuming…".
+      setStatus('Tap a tile to inspect it.');
+      if (!resumed.ok) return;
+      toast(resumed.message, {
+        label: 'Start a new world instead',
+        run: () => {
+          // The resumed realm is kept in a manual slot first, so choosing a new world never loses it.
+          void saveController.keepResumedBeforeNewWorld().then((kept) => {
+            if (kept) toast(kept.message);
+            restartRealm?.();
+          });
+        },
+      });
+    };
+    void saveController.resumeNewest(false, announceResumed).then(announceResumed);
   }
   client.setSpeed(state.paused ? 0 : state.speed);
   applySpeed();

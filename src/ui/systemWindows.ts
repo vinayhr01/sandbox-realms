@@ -87,8 +87,10 @@ function chronicleConfirmWindow(deps: WindowDeps, params: WindowParams): WindowB
           confirm.disabled = true;
           status.textContent = 'Working...';
           void settleOutcome(actions.run(action, slotId), action).then((out) => {
-            deps.notify?.(out.message);
-            if (!status.isConnected) return;
+            if (!status.isConnected) {
+              deps.notify?.(out.message);
+              return;
+            }
             if (out.ok) deps.open('win_chronicle', { notice: out.message });
             else {
               status.textContent = out.message;

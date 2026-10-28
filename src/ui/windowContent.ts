@@ -585,11 +585,16 @@ function buildChronicle(deps: WindowDeps, params: WindowParams): WindowBuild {
       const report = (task: Promise<ChronicleOutcome>, verb: string, working = 'Working...'): void => {
         status.textContent = working;
         for (const b of actionButtons) b.disabled = true;
-        void settleOutcome(task, verb).then((out) => {
-          deps.notify?.(out.message);
-          if (!status.isConnected) return;
+        // Announced once: in this window's status line while it is open, otherwise as a toast.
+        const show = (out: ChronicleOutcome): void => {
+          if (!status.isConnected) {
+            deps.notify?.(out.message);
+            return;
+          }
           deps.open('win_chronicle', { notice: out.message });
-        });
+        };
+        // After the watchdog has answered, the real result still refreshes the window when it lands.
+        void settleOutcome(task, verb, undefined, show).then(show);
       };
 
       if (actions) {

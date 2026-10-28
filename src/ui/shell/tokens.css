@@ -3,6 +3,9 @@
  * Colour tokens of the base theme stay in src/ui/styles.css; these add the glass and motion layer.
  */
 :root {
+  /* Where the shell's content starts: under one pill row, and under two on phones (styles.css). */
+  --shell-top: calc(env(safe-area-inset-top) + var(--space-2) + var(--tap));
+  --shell-top-phone: calc(env(safe-area-inset-top) + var(--space-2) + 2 * var(--tap) + var(--space-2));
   --glass-bg: rgba(18, 22, 32, 0.62);
   --glass-blur: 10px;
   --glass-border: rgba(255, 255, 255, 0.14);
@@ -55,6 +58,13 @@
   --gold: #ffff00;
   --gold-hi: #ffff00;
   --gold-ink: #000000;
+}
+
+/* Phones: the realm pill and the speed row stack, so the shell starts lower. */
+@media (max-width: 599px) {
+  :root {
+    --shell-top: var(--shell-top-phone);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

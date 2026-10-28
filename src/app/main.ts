@@ -15,7 +15,7 @@ import { SaveService } from './saves.ts';
 import { CANNOT_CAPTURE, CANNOT_RESTORE, SaveController, type ActionOutcome, type AutosaveState, type ChronicleSource } from './save-controller.ts';
 import { setDebug } from '../ui/hud.ts';
 import { createStore, pushToast, type ShellActions } from '../ui/shell/store.ts';
-import { mountShell } from '../ui/shell/mount.tsx';
+import { mountShell, mountToasts } from '../ui/shell/mount.tsx';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
 import { mountPossessPad, possessActionOfCode, type PossessAction } from '../ui/panels/possessControls.ts';
@@ -1555,11 +1555,12 @@ async function boot(): Promise<void> {
           if (lastAgeCrumb !== null) crumb('AGE', lastAgeCrumb);
         }
         simView.apply(event.snap);
-        store.realm.value = {
-          ...store.realm.value,
-          creatures: event.snap.population.total,
-          towns: event.snap.hamlets.filter((h) => h.tier === 'town').length,
-        };
+        {
+          const creatures = event.snap.population.total;
+          const towns = event.snap.townCount ?? 0;
+          const realm = store.realm.value;
+          if (realm.creatures !== creatures || realm.towns !== towns) store.realm.value = { ...realm, creatures, towns };
+        }
         musicFeed.ingest(event.snap);
         for (const id of stingers.ingest(event.snap.age ?? null, event.snap.dominions.filter((d) => d.atWar).length)) playCue(id);
         return;
@@ -1586,6 +1587,7 @@ async function boot(): Promise<void> {
     disarm: () => setArmed(null),
   };
   mountShell($('ui-root'), store, shellActions);
+  mountToasts($('toast-root'), store);
   // Edge pan needs a hover position that is current: it clears when the pointer leaves the map or
   // when a press starts (a drag moves the camera by itself).
   renderer.app.canvas.addEventListener('pointerleave', () => {

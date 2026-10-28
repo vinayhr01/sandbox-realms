@@ -27,6 +27,8 @@ export function TopPills({ store, actions }: { store: UiStore; actions: ShellAct
       <button
         type="button"
         class="pill realm-pill"
+        aria-haspopup="dialog"
+        aria-label={`Realm ${realm.name}, open Atlas`}
         onClick={() => {
           store.atlas.value = { ...store.atlas.value, open: true, tab: 'world' };
         }}

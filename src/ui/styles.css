@@ -67,6 +67,7 @@ body {
 }
 
 /* Shell (UX redesign, spec A): the pills and toasts draw over the map. Tokens live in src/ui/shell/tokens.css. */
+/* Above the map canvas, which is appended after this root. Toasts live outside #map (see #toast-root). */
 .ui-root {
   position: absolute;
   inset: 0;
@@ -342,7 +343,7 @@ body {
 
 .speed-btn {
   padding: 0 8px;
-  min-width: 40px;
+  min-width: var(--tap);
 }
 
 .brush,
@@ -620,7 +621,7 @@ body {
   position: absolute;
   left: var(--gap);
   right: var(--gap);
-  top: calc(var(--gap) + 36px);
+  top: calc(var(--shell-top) + var(--space-2));
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -640,12 +641,7 @@ body {
   pointer-events: auto;
 }
 
-/* Phones: the shell's two pill rows sit above the strip. */
-@media (max-width: 599px) {
-  .coach {
-    top: calc(var(--gap) + 104px);
-  }
-}
+
 
 /* Possession pad (13 section 10 keys; touch buttons for the same controls). Shown only while a Being is held (possessControls.ts). */
 .possess-pad {
@@ -718,9 +714,10 @@ body {
   font-size: calc(14px * var(--ui-scale));
 }
 
+/* Toasts sit in #toast-root, outside #map, so they paint above .audio-cues (z-index 9). */
 .toasts {
   position: fixed;
-  top: calc(env(safe-area-inset-top) + 64px);
+  top: var(--shell-top);
   left: 50%;
   transform: translateX(-50%);
   display: flex;

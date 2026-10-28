@@ -9,12 +9,16 @@ function Shell({ store, actions }: { store: UiStore; actions: ShellActions }) {
   return (
     <>
       <TopPills store={store} actions={actions} />
-      <Toasts store={store} />
       <div id="status" class="status" role="status" aria-live="polite">
         {store.status}
       </div>
     </>
   );
+}
+
+/** Toasts mount in their own root, outside the map, so they stack above the audio cues. */
+export function mountToasts(root: HTMLElement, store: UiStore): void {
+  render(<Toasts store={store} />, root);
 }
 
 export function mountShell(root: HTMLElement, store: UiStore, actions: ShellActions): void {

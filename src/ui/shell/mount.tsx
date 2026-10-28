@@ -2,6 +2,7 @@
 import { render } from 'preact';
 import './tokens.css';
 import { TopPills } from './TopPills.tsx';
+import { PowerSheet } from './PowerSheet.tsx';
 import { Toasts } from './Toasts.tsx';
 import type { ShellActions, UiStore } from './store.ts';
 
@@ -9,6 +10,7 @@ function Shell({ store, actions }: { store: UiStore; actions: ShellActions }) {
   return (
     <>
       <TopPills store={store} actions={actions} />
+      <PowerSheet store={store} actions={actions} />
       <div id="status" class="status" role="status" aria-live="polite">
         {store.status}
       </div>

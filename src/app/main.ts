@@ -17,7 +17,7 @@ import { setDebug } from '../ui/hud.ts';
 import { createStore, pushToast, type ShellActions } from '../ui/shell/store.ts';
 import { mountShell, mountToasts } from '../ui/shell/mount.tsx';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
-import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
+import { cooldownFraction } from '../ui/panels/powerBar.ts';
 import { mountPossessPad, possessActionOfCode, type PossessAction } from '../ui/panels/possessControls.ts';
 import { currentStep, parseTutorial, skipTutorial, TUTORIAL_TEXT, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
 import { cooldownSecondsLeft, dominionAtTile, hamletAtTile, linePoints, masterOfViewFlag, nearestLivePoint, nextOptionValue, powerStatus, strokeOp, toggleViewFlag, viewFlagsDefault } from '../ui/powerSupport.ts';
@@ -27,7 +27,7 @@ import { WindowHost } from '../ui/windowHost.ts';
 import { windowFor, type ChronicleActions, type ChronicleOutcome, type WindowDeps, type WindowParams } from '../ui/windowContent.ts';
 import { SimView } from '../ui/sim-view.ts';
 import { SPECIES } from '../content/beasts.ts';
-import { POWER_BY_ID, POWERS, TABS, powersInTab, type PowerDef, type TabId } from '../content/powers.ts';
+import { POWER_BY_ID, POWERS, type PowerDef } from '../content/powers.ts';
 import { plainName } from '../content/plain-names.ts';
 import { Ev, PING_LOST_MS, POSSESS_REFUSED, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
 import { MONTH_TICKS, YEAR_TICKS, DEFAULT_SIZE_STEP } from '../shared/constants.ts';
@@ -84,9 +84,6 @@ const KEY_PAN_PX_PER_MS = 0.6;
 const TUTORIAL_KEY = 'tutorial';
 
 type Tile = { x: number; y: number };
-
-/** Terrain tool buttons are shortcuts to the matching power. */
-const TOOL_POWERS: Readonly<Record<string, string>> = { raise: 'shape_raise', lower: 'shape_lower' };
 
 interface UiState {
   /** The armed power, or null for inspect. */
@@ -802,10 +799,6 @@ async function boot(): Promise<void> {
     renderCoach();
   };
 
-  // Power bar: one tab per power group; only the selected group's buttons exist in the DOM.
-  let powerTab: TabState = { active: TABS[0], tabs: TABS };
-  const tabLabel = (tab: TabId): string => plainName('tab', tab);
-
   /** Releases the held Being (Cmd.Possess on=false) and clears the possession state. */
   const releasePossession = (): void => {
     const wasHeld = possessedId !== null;
@@ -853,6 +846,8 @@ async function boot(): Promise<void> {
       setStatus(status.note);
       return;
     }
+    // The recent row (spec B): the power just used moves to the front.
+    store.recent.value = [power.id, ...store.recent.value.filter((id) => id !== power.id)].slice(0, 9);
     switch (power.handler) {
       case 'set_pause':
         togglePause();
@@ -979,72 +974,43 @@ async function boot(): Promise<void> {
     }
   };
 
-  /** Keeps aria-pressed on the power buttons in step with the armed power and the rules. */
+  /** Publishes which powers show a pressed state and which cannot be used now. The power sheet draws both (spec B). */
   const updatePowerButtons = (): void => {
     possessPad.setVisible(possessedId !== null);
-    for (const btn of document.querySelectorAll<HTMLButtonElement>('.power')) {
-      const power = POWER_BY_ID.get(btn.dataset['powerId'] ?? '');
-      if (!power) continue;
-      const pressed =
+    const pressed: string[] = [];
+    const unavailable: Record<string, string> = {};
+    for (const power of POWERS) {
+      const on =
         power.handler === 'toggle_rule'
           ? rules.isOn(String(power.params['rule']))
           : power.handler === 'toggle_option'
             ? boolOption(options, String(power.params['option']))
             : power.handler === 'toggle_view'
               ? viewFlags.has(String(power.params['key']))
-            : power.handler === 'possess'
-              ? possessPending || possessedId !== null
-            : power.handler === 'select_dominion'
-              ? selectedDominion >= 0
-            : power.handler === 'select_accord'
-              ? accordDominion >= 0
-            : power.handler === 'layer_toggle'
-              ? stringOption(options, 'map.layer') === String(power.params['layer'])
-              : state.armed?.id === power.id;
-      btn.setAttribute('aria-pressed', String(pressed));
+              : power.handler === 'possess'
+                ? possessPending || possessedId !== null
+                : power.handler === 'select_dominion'
+                  ? selectedDominion >= 0
+                  : power.handler === 'select_accord'
+                    ? accordDominion >= 0
+                    : power.handler === 'layer_toggle'
+                      ? stringOption(options, 'map.layer') === String(power.params['layer'])
+                      : power.handler === 'arm_inspect'
+                        ? state.armed === null
+                        : state.armed?.id === power.id;
+      if (on) pressed.push(power.id);
+      const status = powerStatus(power);
+      if (!status.enabled) unavailable[power.id] = status.note;
     }
-  };
-
-  const renderPowers = (): void => {
-    const tabHost = $('power-tabs');
-    tabHost.replaceChildren(
-      ...TABS.map((tab) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'power-tab';
-        btn.setAttribute('role', 'tab');
-        btn.setAttribute('aria-selected', String(tab === powerTab.active));
-        btn.textContent = tabLabel(tab);
-        btn.setAttribute('aria-label', `Powers: ${tabLabel(tab)}`);
-        btn.addEventListener('click', () => {
-          powerTab = selectTab(powerTab, tab);
-          renderPowers();
-        });
-        return btn;
-      }),
-    );
-    $('power-list').replaceChildren(
-      ...powersInTab(powerTab.active as TabId).map((power) => {
-        const status = powerStatus(power);
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'power';
-        btn.dataset['powerId'] = power.id;
-        btn.setAttribute('aria-disabled', String(!status.enabled));
-        btn.title = status.enabled ? '' : status.note;
-        btn.textContent = power.name;
-        btn.addEventListener('click', () => activatePower(power));
-        return btn;
-      }),
-    );
-    updatePowerButtons();
+    store.pressed.value = pressed;
+    store.unavailable.value = unavailable;
   };
 
   /** Copies the armed power and brush into the shell store. */
   const syncArmed = (): void => {
-    store.armed.value = state.armed ? { powerId: state.armed.id, brush: { size: brushRadius(), shape: state.shape } } : null;
+    store.armed.value = state.armed ? { powerId: state.armed.id, brush: { index: state.sizeIndex, radius: brushRadius(), shape: state.shape } } : null;
   };
-  /** Arms a power (null = inspect). Terrain tool buttons and the power bar both show the same state. */
+  /** Arms a power (null = inspect). The sheet and the map both show the armed state. */
   const setArmed = (power: PowerDef | null): void => {
     // A stroke in progress belongs to the old power: end it before the new one takes over.
     if (stroke) {
@@ -1056,10 +1022,6 @@ async function boot(): Promise<void> {
     syncArmed();
     stepAnchor = null;
     const op = strokeOp(power);
-    for (const btn of document.querySelectorAll<HTMLButtonElement>('.tool')) {
-      const tool = btn.dataset['tool'];
-      btn.setAttribute('aria-pressed', String(power === null ? tool === 'inspect' : tool === op));
-    }
     updatePowerButtons();
     if (!power) setStatus('Tap a tile to inspect it.');
     else if (op) setStatus(`${op === 'raise' ? 'Raise' : 'Lower'}: drag to shape the land.`);
@@ -1071,17 +1033,15 @@ async function boot(): Promise<void> {
     }
   };
 
-  const toolPower = (tool: string): PowerDef | null => {
-    const id = TOOL_POWERS[tool];
-    return id ? (POWER_BY_ID.get(id) ?? null) : null;
+  /** Sets the brush size by its slider index (0..10). The sheet's slider and the [ ] keys both come here. */
+  const setBrushIndex = (index: number): void => {
+    state.sizeIndex = index;
+    syncArmed();
   };
 
   const setShape = (shape: BrushShape): void => {
     state.shape = shape;
     syncArmed();
-    for (const btn of document.querySelectorAll<HTMLButtonElement>('.shape')) {
-      btn.setAttribute('aria-checked', String(btn.dataset['shape'] === shape));
-    }
   };
 
   /** Sets a Realm Rule on the mirror and in the sim. Returns false when the rule cannot change. */
@@ -1112,6 +1072,7 @@ async function boot(): Promise<void> {
       return;
     }
     if (power.cooldownMs > 0) cooldownUntil.set(power.id, now + power.cooldownMs);
+    store.cooldowns.value = Object.fromEntries(cooldownUntil);
     const op = strokeOp(power);
     if (op) client.stroke(op, state.shape, brushRadius(), x, y, x, y, true);
     else client.power(power.id, x, y);
@@ -1224,8 +1185,7 @@ async function boot(): Promise<void> {
     setBrush: (patch) => {
       if (patch.shape !== undefined) setShape(patch.shape);
       if (patch.sizeIndex !== undefined) {
-        sizeInput.value = String(patch.sizeIndex);
-        updateSizeOutput();
+        setBrushIndex(patch.sizeIndex);
       }
     },
     rules,
@@ -1585,6 +1545,8 @@ async function boot(): Promise<void> {
     },
     openWindow: (kind: string, params) => openWindow(kind, params),
     disarm: () => setArmed(null),
+    setBrushSize: (index: number) => setBrushIndex(index),
+    setBrushShape: (shape: BrushShape) => setShape(shape),
   };
   mountShell($('ui-root'), store, shellActions);
   mountToasts($('toast-root'), store);
@@ -1600,9 +1562,6 @@ async function boot(): Promise<void> {
     renderer.app.canvas.addEventListener(type, () => {
       pressed = false;
     });
-  }
-  for (const btn of document.querySelectorAll<HTMLButtonElement>('.tool')) {
-    btn.addEventListener('click', () => setArmed(toolPower(btn.dataset['tool'] ?? 'inspect')));
   }
 
   // Settings: every change is validated, saved, and applied at once.
@@ -1658,57 +1617,12 @@ async function boot(): Promise<void> {
     audio.applyOptions({ ...audioOptionsFrom(options), mono: cueOpts.mono, reduceLoudSounds: cueOpts.reduceLoudSounds, visualCues: cueOpts.visualCues, haptics: cueOpts.haptics });
   };
   applyOptions();
-  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-window]')) {
-    btn.addEventListener('click', () => openWindow(btn.dataset['window'] ?? ''));
-  }
   $('coach-skip').addEventListener('click', () => {
     tutorial = skipTutorial(tutorial);
     saveTutorial(tutorial);
     renderCoach();
   });
   renderCoach();
-
-  for (const btn of document.querySelectorAll<HTMLButtonElement>('.shape')) {
-    btn.addEventListener('click', () => setShape(btn.dataset['shape'] as BrushShape));
-  }
-  const sizeInput = $<HTMLInputElement>('brush-size');
-  sizeInput.value = String(state.sizeIndex);
-  const updateSizeOutput = (): void => {
-    state.sizeIndex = Number(sizeInput.value);
-    $('brush-size-out').textContent = String(brushRadius());
-    syncArmed();
-  };
-  sizeInput.addEventListener('input', updateSizeOutput);
-  updateSizeOutput();
-
-  for (const tab of document.querySelectorAll<HTMLButtonElement>('.tab')) {
-    tab.addEventListener('click', () => {
-      const name = tab.dataset['tab'] ?? 'terrain';
-      for (const other of document.querySelectorAll<HTMLButtonElement>('.tab')) {
-        other.setAttribute('aria-selected', String(other === tab));
-      }
-      for (const panel of ['terrain', 'realm', 'powers']) {
-        $(`panel-${panel}`).hidden = name !== panel;
-      }
-    });
-  }
-  // Titan (576, 01 section 1) is behind the Advanced toggle and on a fine pointer (desktop) only. Leaving either gate
-  // drops a Titan choice back to Standard.
-  const syncTitanOption = (): void => {
-    const titan = document.querySelector<HTMLOptionElement>('#realm-size option[value="9"]');
-    if (!titan) return;
-    const allowed = $<HTMLInputElement>('realm-advanced').checked && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-    titan.disabled = !allowed;
-    titan.hidden = !allowed;
-    if (!allowed && $<HTMLSelectElement>('realm-size').value === '9') $<HTMLSelectElement>('realm-size').value = '4';
-  };
-  $<HTMLInputElement>('realm-advanced').addEventListener('change', syncTitanOption);
-  syncTitanOption();
-  $('new-realm').addEventListener('click', () => {
-    const seed = Math.floor(Math.random() * 0x7fffffff);
-    const sizeStep = Number($<HTMLSelectElement>('realm-size').value);
-    void client.newRealm(seed, sizeStep);
-  });
 
   window.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
@@ -1723,8 +1637,7 @@ async function boot(): Promise<void> {
       document.documentElement.classList.toggle('hide-ui');
     } else if (e.code === 'BracketLeft' || e.code === 'BracketRight') {
       const step = e.code === 'BracketLeft' ? -1 : 1;
-      sizeInput.value = String(Math.max(0, Math.min(BRUSH_RADII.length - 1, state.sizeIndex + step)));
-      updateSizeOutput();
+      setBrushIndex(Math.max(0, Math.min(BRUSH_RADII.length - 1, state.sizeIndex + step)));
     } else if (e.code === 'Escape') {
       followPending = false;
       followKey = null;
@@ -1946,7 +1859,6 @@ async function boot(): Promise<void> {
   await client.newRealm(seed, sizeStep);
   client.setSpeed(state.paused ? 0 : state.speed);
   applySpeed();
-  renderPowers();
   setArmed(null);
   setShape('circle');
 

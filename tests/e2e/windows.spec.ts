@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openChip, openWindowButton, powerButton } from './helpers.ts';
 
 /**
  * Windows and the first-run tutorial (13 section 7, 15, 17): the Realm Rules toggles reach the sim,
@@ -41,9 +42,7 @@ test.afterEach(async ({ page }, testInfo) => {
 
 test('Realm Rules: search, then a toggle changes the rule and sends it to the sim', async ({ page }) => {
   const call = await openRealm(page);
-  await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('tab', { name: 'Powers: World' }).click();
-  await page.getByRole('button', { name: 'Realm Rules', exact: true }).click();
+  await openWindowButton(page, 'Realm Rules');
 
   const dialog = page.getByRole('dialog', { name: 'Realm Rules' });
   await expect(dialog).toBeVisible();
@@ -59,8 +58,7 @@ test('Realm Rules: search, then a toggle changes the rule and sends it to the si
 
 test('Achievements: the catalogue lists all 63 and search narrows it', async ({ page }) => {
   await openRealm(page);
-  await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('button', { name: 'Achievements', exact: true }).click();
+  await openWindowButton(page, 'Achievements');
   const dialog = page.getByRole('dialog', { name: 'Achievements' });
   await expect(dialog.getByText('63 of 63')).toBeVisible();
   await dialog.getByRole('searchbox', { name: 'Search Achievements' }).fill('cradle');
@@ -87,7 +85,8 @@ test('Tutorial: the coach strip follows the steps, and skipping keeps it hidden 
   await expect(page.locator('#coach-text')).toContainText('Pick a tool');
 
   // Arming a terrain tool completes the first step.
-  await page.getByRole('button', { name: 'Raise', exact: true }).click();
+  await openChip(page, 'Land');
+  await powerButton(page, 'Raise').click();
   await expect(page.locator('#coach-text')).toContainText('Drag across the map');
 
   await page.getByRole('button', { name: 'Skip tutorial' }).click();
@@ -100,8 +99,7 @@ test('Tutorial: the coach strip follows the steps, and skipping keeps it hidden 
 
 test('All powers: the catalogue filters to available powers and a tap arms one', async ({ page }) => {
   await openRealm(page);
-  await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('button', { name: 'All powers', exact: true }).click();
+  await openWindowButton(page, 'All powers');
   const dialog = page.getByRole('dialog', { name: 'Power catalogue' });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Available', exact: true }).click();
@@ -110,6 +108,6 @@ test('All powers: the catalogue filters to available powers and a tap arms one',
   await dialog.locator('.power-row').filter({ hasText: /^Charge/ }).click();
   await expect(dialog).toBeHidden();
 
-  await page.getByRole('tab', { name: 'Powers: Destruction' }).click();
-  await expect(page.getByRole('button', { name: 'Charge', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await openChip(page, 'Disasters');
+  await expect(powerButton(page, 'Charge')).toHaveAttribute('aria-pressed', 'true');
 });

@@ -183,3 +183,59 @@ export function searchPowers(query: string): PowerDef[] {
   if (q === '') return [];
   return POWERS.filter((p) => p.name.toLowerCase().includes(q) || categoryOf(p).toLowerCase().includes(q));
 }
+
+/**
+ * The temporary Windows chip (call 8): the old window launchers, with the names they had as buttons. The 46 nav buttons
+ * come first; Realm Rules and Ages were World-tab powers with no nav button, and stay reachable here until Task 3 moves
+ * every window into the Atlas.
+ */
+export const WINDOW_LAUNCHERS: ReadonlyArray<readonly [name: string, windowId: string]> = [
+  ['All powers', 'win_power_catalogue'],
+  ['Achievements', 'win_trophies'],
+  ['Realm overview', 'win_realm'],
+  ['New realm', 'win_new_realm'],
+  ['Tutorial', 'win_tutorial'],
+  ['Keys', 'win_keys'],
+  ['Privacy', 'win_privacy'],
+  ['Chronicle', 'win_chronicle'],
+  ['Help', 'win_help'],
+  ['Population', 'win_population'],
+  ['Beings', 'win_beings'],
+  ['Figures', 'win_figures'],
+  ['Lifetime stats', 'win_stats_lifetime'],
+  ['Codex', 'list_codex'],
+  ['Dominions', 'list_dominions'],
+  ['Hamlets', 'list_hamlets'],
+  ['Culture', 'win_culture'],
+  ['Campaigns', 'list_campaigns'],
+  ['Creeds', 'list_creeds'],
+  ['Customs', 'list_customs'],
+  ['Dialects', 'list_dialects'],
+  ['Families', 'list_households'],
+  ['Intrigues', 'list_intrigues'],
+  ['Strains', 'list_strains'],
+  ['Brushes', 'win_brushes'],
+  ['Language', 'win_language'],
+  ['Credits', 'win_credits'],
+  ['Install', 'win_install'],
+  ['Welcome', 'win_welcome'],
+  ['Armies', 'list_hosts'],
+  ['Pacts', 'list_pacts'],
+  ['Clans', 'list_kinbands'],
+  ['Favourite beings', 'list_fav_beings'],
+  ['Favourite items', 'list_fav_items'],
+  ['Compare', 'win_compare'],
+  ['Annals', 'win_annals'],
+  ['Trait rain', 'win_trait_rain_edit'],
+  ['Item rain', 'win_item_rain_edit'],
+  ['Trait editor', 'win_trait_editor'],
+  ['Gear editor', 'win_gear_editor'],
+  ['Patch notes', 'win_patch_notes'],
+  ['Error details', 'win_error'],
+  ['Leave realm', 'win_confirm_quit'],
+  ['Update', 'win_update'],
+  ['Developer console', 'win_dev_console'],
+  ['Developer tools', 'win_dev_tools'],
+  ['Realm Rules', 'win_rules'],
+  ['Ages', 'win_ages'],
+];

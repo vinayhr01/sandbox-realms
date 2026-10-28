@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openWindowButton } from './helpers.ts';
 
 /**
  * Windows added for the spec table (13 section 7.1): each opens from the Powers tab's Windows group
@@ -44,8 +45,7 @@ async function openRealm(page: Page, options?: Record<string, boolean>): Promise
 }
 
 async function openFromPowers(page: Page, name: string): Promise<void> {
-  await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('button', { name, exact: true }).click();
+  await openWindowButton(page, name);
 }
 
 test.afterEach(async ({ page }, testInfo) => {
@@ -162,8 +162,7 @@ test('the quit window keeps saving and leaving disabled, and the error window co
 
 test('the Chronicle window opens its confirmation from a save row only when there is one', async ({ page }) => {
   await openRealm(page);
-  await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('group', { name: 'Windows' }).getByRole('button', { name: 'Chronicle', exact: true }).click();
+  await openWindowButton(page, 'Chronicle');
   const chronicle = page.getByRole('dialog', { name: 'Chronicle', exact: true });
   const load = chronicle.getByRole('button', { name: /^Load / }).first();
   if ((await load.count()) === 0) return;

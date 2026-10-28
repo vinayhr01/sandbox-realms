@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openChip, powerButton } from './helpers.ts';
 import { SPECIES } from '../../src/content/beasts.ts';
 import { plainName } from '../../src/content/plain-names.ts';
 
@@ -88,11 +89,9 @@ test('follow a being beyond the old sample', async ({ page }) => {
   const call = await openRealm(page);
   await call('spawnMany', 'burrfleece', 200);
   await expect.poll(() => call<number>('creatureCount'), { timeout: 20_000 }).toBeGreaterThan(150);
-  // Arm Follow from the Insight tab, then tap the 150th Being of the feed sample.
-  await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  // Insight is the last power group (TABS in src/content/powers.ts).
-  await page.locator('#power-tabs .power-tab').last().click();
-  await page.locator('[data-power-id="ins_follow"]').click();
+  // Arm Follow from the Inspect chip, then tap the 150th Being of the feed sample.
+  await openChip(page, 'Inspect');
+  await powerButton(page, 'Follow').click();
   const being = (await call<{ x: number; y: number }[]>('beingPoints'))[149];
   expect(being).toBeDefined();
   const at = await call<{ x: number; y: number }>('tileToScreen', Math.round(being!.x), Math.round(being!.y));

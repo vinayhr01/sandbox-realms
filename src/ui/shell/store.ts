@@ -22,7 +22,8 @@ export interface RealmSummary {
 
 export interface ArmedState {
   powerId: string;
-  brush: { size: number; shape: BrushShape };
+  /** The brush as the sheet shows it: the slider index (0..10), the radius it stands for, and the shape. */
+  brush: { index: number; radius: number; shape: BrushShape };
 }
 
 export interface Toast {
@@ -53,6 +54,10 @@ export interface UiStore {
   atlas: Signal<{ open: boolean; tab: AtlasTab; stack: string[] }>;
   info: Signal<InfoTarget | null>;
   cooldowns: Signal<Record<string, number>>;
+  /** Ids of powers that show a pressed state (an Insight toggle that is on). The armed power is in `armed`. */
+  pressed: Signal<string[]>;
+  /** Power id to the reason it cannot be used now (a rule or a requirement). The sheet dims these. */
+  unavailable: Signal<Record<string, string>>;
 }
 
 /** The calls the shell makes back into main.ts. The game logic stays there. */
@@ -62,6 +67,8 @@ export interface ShellActions {
   activatePower(id: string): void;
   openWindow(kind: string, params?: WindowParams): void;
   disarm(): void;
+  setBrushSize(index: number): void;
+  setBrushShape(shape: BrushShape): void;
 }
 
 export function createStore(): UiStore {
@@ -79,6 +86,8 @@ export function createStore(): UiStore {
     atlas: signal({ open: false, tab: 'world' as AtlasTab, stack: [] as string[] }),
     info: signal<InfoTarget | null>(null),
     cooldowns: signal<Record<string, number>>({}),
+    pressed: signal<string[]>([]),
+    unavailable: signal<Record<string, string>>({}),
   };
 }
 

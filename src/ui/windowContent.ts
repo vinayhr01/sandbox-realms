@@ -426,6 +426,23 @@ function buildNewRealm(deps: WindowDeps): WindowBuild {
         size.append(opt);
       }
       sizeLabel.append(el('span', undefined, 'Size'), size);
+      // Titan (576, 01 section 1) is behind the Advanced toggle and on a fine pointer (desktop) only. Leaving either gate
+      // drops a Titan choice back to Standard.
+      const titan = el('option', undefined, 'Titan (576)');
+      titan.value = '9';
+      titan.hidden = true;
+      titan.disabled = true;
+      size.append(titan);
+      const advanced = el('input');
+      advanced.type = 'checkbox';
+      const advancedLabel = el('label', 'option');
+      advancedLabel.append(advanced, el('span', undefined, 'Advanced (Titan, desktop only)'));
+      advanced.addEventListener('change', () => {
+        const allowed = advanced.checked && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+        titan.disabled = !allowed;
+        titan.hidden = !allowed;
+        if (!allowed && size.value === '9') size.value = '4';
+      });
       const create = el('button', 'btn primary', 'Create realm');
       create.type = 'button';
       // With game.confirmQuit on, the first tap asks; the second tap leaves the current realm.
@@ -443,7 +460,7 @@ function buildNewRealm(deps: WindowDeps): WindowBuild {
       if (boolOption(deps.options(), 'game.confirmQuit')) {
         body.append(el('p', 'option-note', 'Creating a realm ends the current one. Tap again to confirm.'));
       }
-      body.append(seedLabel, sizeLabel, create);
+      body.append(seedLabel, sizeLabel, advancedLabel, create);
     },
   };
 }

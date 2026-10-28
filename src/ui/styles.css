@@ -218,96 +218,7 @@ body {
   pointer-events: none;
 }
 
-.bottombar {
-  padding-bottom: env(safe-area-inset-bottom);
-  background: var(--surface);
-  border-top: 1px solid var(--surface-2);
-}
-
-.tabs {
-  display: flex;
-  gap: 4px;
-  padding: 4px var(--gap) 0;
-}
-
-.tab,
-.power-tab {
-  min-height: var(--tap);
-  padding: 0 14px;
-  border: 0;
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: transparent;
-  color: var(--text-dim);
-  font: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.power-tabs {
-  display: flex;
-  gap: 4px;
-  width: 100%;
-  overflow-x: auto;
-}
-
-.power-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  width: 100%;
-  max-height: 28vh;
-  overflow-y: auto;
-}
-
-.power {
-  min-height: var(--tap);
-  padding: 0 12px;
-  border: 1px solid var(--surface-2);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.power[aria-disabled='true'] {
-  opacity: 0.55;
-}
-
-.power[aria-pressed='true'] {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
-  font-weight: 600;
-}
-
-.tab[aria-selected='true'],
-.power-tab[aria-selected='true'] {
-  background: var(--surface-2);
-  color: var(--text);
-  font-weight: 600;
-}
-
-.panel {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--gap);
-  padding: var(--gap);
-  background: var(--surface-2);
-}
-
-.tools,
-.shapes {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.tool,
-.shape,
-.btn,
-.power {
+.btn {
   min-height: var(--tap);
   min-width: var(--tap);
   padding: 0 14px;
@@ -319,8 +230,6 @@ body {
   cursor: pointer;
 }
 
-.tool[aria-pressed='true'],
-.shape[aria-checked='true'],
 .speed-btn[aria-pressed='true'],
 #pause[aria-pressed='true'] {
   background: var(--accent);
@@ -346,30 +255,6 @@ body {
   min-width: var(--tap);
 }
 
-.brush,
-.realm-size,
-.realm-advanced {
-  display: flex;
-  align-items: center;
-  gap: var(--gap);
-  flex-wrap: wrap;
-}
-
-.brush-size input[type='range'] {
-  width: min(180px, 40vw);
-  min-height: 28px;
-  accent-color: var(--accent);
-}
-
-.realm-size select {
-  min-height: var(--tap);
-  padding: 0 8px;
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--surface-2);
-  font: inherit;
-}
 
 .window {
   padding: 0;
@@ -669,20 +554,6 @@ body {
   user-select: none;
 }
 
-/* Window buttons: one scrolling row, so the Powers panel keeps its height as windows are added (13 section 3). */
-.power-actions {
-  display: flex;
-  justify-content: flex-start;
-  gap: 4px;
-  width: 100%;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.power-actions > .btn {
-  flex: none;
-}
-
 .option {
   display: flex;
   flex-direction: column;
@@ -885,41 +756,6 @@ body {
   word-break: break-word;
 }
 
-/* Landscape phones and short windows: tool column on the right, map on the left (13 section 3.2). */
-@media (orientation: landscape) and (max-height: 500px) {
-  .app {
-    display: grid;
-    grid-template-columns: 1fr 240px;
-    grid-template-rows: 1fr;
-  }
-
-  .map {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .bottombar {
-    grid-column: 2;
-    grid-row: 1;
-    min-height: 0;
-    overflow-y: auto;
-    border-top: 0;
-    border-left: 1px solid var(--surface-2);
-  }
-
-  .panel {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-
-/* Tablet and desktop: the bottom stack stays a row of controls, the map keeps the rest. */
-@media (min-width: 900px) {
-  .bottombar .panel {
-    flex-wrap: nowrap;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
@@ -954,8 +790,7 @@ body {
 }
 
 /* Hide interface (realm rules: Hide Interface, key H). */
-.hide-ui .top-pills,
-.hide-ui .bottombar {
+.hide-ui .top-pills {
   display: none;
 }
 
@@ -1119,7 +954,11 @@ html[data-reduce-motion] * {
   margin-right: auto;
 }
 
-.map > .ui-root,
+/* The shell (pills, sheet) paints above the minimap, which sits in the map corner. */
+.map > .ui-root {
+  z-index: 3;
+}
+
 .map > .coach,
 .map > .debug {
   z-index: 2;

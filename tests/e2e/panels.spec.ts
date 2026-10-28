@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { collapsePowerSheet, openChip, openPowerSheet, powerButton } from './helpers.ts';
 
 /**
  * Options panel and power bar: the settings dialog persists UI scale and reduce motion, and arming
@@ -75,13 +76,13 @@ test('options: UI scale and reduce motion apply and persist across reload', asyn
 
 test('powers: arming Raise shows the armed state and a drag on the map raises terrain', async ({ page }) => {
   const call = await openRealm(page);
-  await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('tab', { name: 'Powers: Terrain' }).click();
+  await openChip(page, 'Land');
 
-  const raise = page.getByRole('button', { name: 'Raise', exact: true });
+  const raise = powerButton(page, 'Raise');
   await expect(raise).toHaveAttribute('aria-pressed', 'false');
   await raise.click();
   await expect(raise).toHaveAttribute('aria-pressed', 'true');
+  await collapsePowerSheet(page);
 
   const start = await call<{ x: number; y: number }>('tileToScreen', 90, 90);
   const end = await call<{ x: number; y: number }>('tileToScreen', 100, 90);
@@ -96,20 +97,21 @@ test('powers: arming Raise shows the armed state and a drag on the map raises te
     .toBeGreaterThan(before.elevation);
 
   // Tapping the armed power again disarms it.
+  await openPowerSheet(page);
   await raise.click();
   await expect(raise).toHaveAttribute('aria-pressed', 'false');
 });
 
 test('powers: a sim power arms, a tap sends it to the sim, and an unbuilt power is disabled with a note', async ({ page }) => {
   const call = await openRealm(page);
-  await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('tab', { name: 'Powers: Destruction' }).click();
-  const bomb = page.getByRole('button', { name: 'Charge', exact: true });
+  await openChip(page, 'Disasters');
+  const bomb = powerButton(page, 'Charge');
   await expect(bomb).toBeVisible();
 
   await bomb.click();
   await expect(bomb).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('#status')).toContainText('Charge is armed');
+  await collapsePowerSheet(page);
 
   // A tap on the map applies the armed power: the sim gets a Power command (kind 7).
   const target = await call<{ x: number; y: number }>('tileToScreen', 100, 100);
@@ -117,13 +119,14 @@ test('powers: a sim power arms, a tap sends it to the sim, and an unbuilt power 
   await expect.poll(() => call<number[]>('commands')).toContain(7);
 
   // Bless is built (rituals powers), so it is enabled. It is not tapped: that would disarm Bomb below.
-  await page.getByRole('tab', { name: 'Powers: Blessings' }).click();
-  const bless = page.getByRole('button', { name: 'Bless', exact: true });
+  await openChip(page, 'Blessings');
+  const bless = powerButton(page, 'Bless');
   await expect(bless).not.toHaveAttribute('aria-disabled', 'true');
   await expect(bless).toHaveAttribute('aria-pressed', 'false');
-  await page.getByRole('tab', { name: 'Powers: Destruction' }).click();
+  await openChip(page, 'Disasters');
   await expect(bomb).toHaveAttribute('aria-pressed', 'true');
 
+  await collapsePowerSheet(page);
   // An armed power that is not a brush must not block panning. The default view fits the whole
   // realm, so zoom in first to leave room to pan.
   const center = await call<{ x: number; y: number }>('tileToScreen', 128, 128);

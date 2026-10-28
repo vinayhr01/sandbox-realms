@@ -18,14 +18,14 @@ function button(root: HTMLElement, name: string): HTMLButtonElement {
 describe('TopPills', () => {
   let host: HTMLElement;
   let store: UiStore;
-  let actions: { setSpeed: Spy; togglePause: Spy; activatePower: Spy; openWindow: Spy; disarm: Spy };
+  let actions: { setSpeed: Spy; togglePause: Spy; activatePower: Spy; openWindow: Spy; disarm: Spy; setBrushSize: Spy; setBrushShape: Spy };
 
   beforeEach(() => {
     host = document.createElement('div');
     document.body.appendChild(host);
     store = createStore();
     store.realm.value = { name: 'Realm 16', year: 3, month: 4, creatures: 142, towns: 2 };
-    actions = { setSpeed: vi.fn(), togglePause: vi.fn(), activatePower: vi.fn(), openWindow: vi.fn(), disarm: vi.fn() };
+    actions = { setSpeed: vi.fn(), togglePause: vi.fn(), activatePower: vi.fn(), openWindow: vi.fn(), disarm: vi.fn(), setBrushSize: vi.fn(), setBrushShape: vi.fn() };
     render(<TopPills store={store} actions={actions as ShellActions} />, host);
   });
 

@@ -2,6 +2,7 @@
  * Content of each window the UI opens (13 section 7.1). Each builder fills a body element; the
  * window host shows it. All state comes in through WindowDeps, so the windows hold no game state.
  */
+import { ACTION_WATCHDOG_MS, settleOutcome } from './settle.ts';
 import { POWERS, type PowerDef } from '../content/powers.ts';
 import { plainName } from '../content/plain-names.ts';
 import { AGES } from '../sim/ages.ts';
@@ -35,6 +36,8 @@ export interface ChronicleOutcome {
   message: string;
 }
 
+export { ACTION_WATCHDOG_MS, settleOutcome };
+
 /** Save, load, export and import for the Chronicle window (src/app/save-controller.ts). */
 export interface ChronicleActions {
   /** Why saving the live realm is unavailable, or null when it works. */
@@ -65,6 +68,8 @@ export interface WindowDeps {
   tutorial(): { state: TutorialState; restart(): void; skip(): void };
   /** Saved realms on this device, newest first. Rejects when the store cannot be read. */
   saves(): Promise<SaveSlotView[]>;
+  /** Announces a result through the page's toast and live region (the window may be closed by then). */
+  notify?: (text: string) => void;
   /** Save actions for the Chronicle window. Absent in tests: the window then only lists saves. */
   chronicle?: ChronicleActions;
   /** Downloads the newest crash record (Help). Not gated by consent and nothing is sent (19 section 8). Absent in tests. */
@@ -574,10 +579,14 @@ function buildChronicle(deps: WindowDeps, params: WindowParams): WindowBuild {
       status.setAttribute('role', 'status');
       body.append(status);
 
+      // Every button that starts an action; all are disabled while one is in flight.
+      const actionButtons: HTMLButtonElement[] = [];
       // Reports an action's outcome in this window, then rebuilds the window so the list is current.
-      const report = (task: Promise<ChronicleOutcome>): void => {
-        status.textContent = 'Working...';
-        void task.then((out) => {
+      const report = (task: Promise<ChronicleOutcome>, verb: string, working = 'Working...'): void => {
+        status.textContent = working;
+        for (const b of actionButtons) b.disabled = true;
+        void settleOutcome(task, verb).then((out) => {
+          deps.notify?.(out.message);
           if (!status.isConnected) return;
           deps.open('win_chronicle', { notice: out.message });
         });
@@ -597,9 +606,9 @@ function buildChronicle(deps: WindowDeps, params: WindowParams): WindowBuild {
         const toolbar = el('div', 'row-actions chronicle-tools');
         toolbar.setAttribute('role', 'group');
         toolbar.setAttribute('aria-label', 'Save actions');
-        const saveNew = buttonEl('Save to a new slot', () => report(actions.run('save', 'new')));
+        const saveNew = buttonEl('Save to a new slot', () => report(actions.run('save', 'new'), 'save', 'Saving...'));
         saveNew.disabled = actions.saveBlocked !== null;
-        const quick = buttonEl('Quick save', () => report(actions.run('quick', 'quick')));
+        const quick = buttonEl('Quick save', () => report(actions.run('quick', 'quick'), 'save', 'Saving...'));
         quick.disabled = actions.saveBlocked !== null;
         const importInput = el('input', 'chronicle-import');
         importInput.type = 'file';
@@ -608,8 +617,9 @@ function buildChronicle(deps: WindowDeps, params: WindowParams): WindowBuild {
         importInput.addEventListener('change', () => {
           const file = importInput.files?.[0];
           importInput.value = '';
-          if (file) report(actions.importFile(file));
+          if (file) report(actions.importFile(file), 'import', 'Importing...');
         });
+        actionButtons.push(saveNew, quick);
         toolbar.append(saveNew, quick, importInput);
         body.append(toolbar);
       } else {
@@ -651,7 +661,7 @@ function buildChronicle(deps: WindowDeps, params: WindowParams): WindowBuild {
                 actionsEl.append(btn);
               }
               if (actions) {
-                const exp = buttonEl('Export', () => report(actions.exportSave(s.slotId)));
+                const exp = buttonEl('Export', () => report(actions.exportSave(s.slotId), 'export'));
                 exp.setAttribute('aria-label', `Export ${label}`);
                 actionsEl.append(exp);
               }

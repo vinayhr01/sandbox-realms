@@ -10,14 +10,25 @@ export function setCalendar(text: string): void {
   if (el) el.textContent = text;
 }
 
-export function toast(text: string): void {
+export function toast(text: string, action?: { label: string; run: () => void }): void {
   const host = document.getElementById('toasts');
   if (!host) return;
   const item = document.createElement('div');
   item.className = 'toast';
   item.textContent = text;
+  if (action) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn';
+    btn.textContent = action.label;
+    btn.addEventListener('click', () => {
+      item.remove();
+      action.run();
+    });
+    item.append(' ', btn);
+  }
   host.appendChild(item);
-  window.setTimeout(() => item.remove(), 3000);
+  window.setTimeout(() => item.remove(), action ? 12_000 : 3000);
 }
 
 export interface DebugStats {

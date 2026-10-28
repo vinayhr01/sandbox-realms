@@ -1157,11 +1157,15 @@ async function boot(): Promise<void> {
     restore: (bytes) => client.restore(bytes),
   };
   const saveController = new SaveController(
-    () =>
-      SaveService.open(window.indexedDB, {
+    async () => {
+      const service = await SaveService.open(window.indexedDB, {
         isPhone: window.matchMedia('(pointer: coarse)').matches,
         storage: navigator.storage,
-      }),
+      });
+      // Ask the browser not to evict the saves under storage pressure (best effort; refusal changes nothing).
+      if (service.mode === 'indexeddb') void navigator.storage?.persist?.().catch(() => undefined);
+      return service;
+    },
     liveRealm,
     {
       onAutosaved: () => {
@@ -1203,6 +1207,7 @@ async function boot(): Promise<void> {
   const windowDeps: WindowDeps = {
     options: () => options,
     saves: () => saveController.list(),
+    notify: (text) => toast(text),
     chronicle,
     exportCrash: exportCrashToFile,
     setOption: (id, value) => changeOption(id, value),
@@ -1917,7 +1922,17 @@ async function boot(): Promise<void> {
     showFatal('Build mismatch', 'This page and its simulation come from different builds, so no Realm was started. Reload the page to get the current build.');
     return;
   }
+  // Resume where the player left off: a ?seed= or ?new in the address starts a fresh world, Safe Mode and
+  // the boot-loop dialog leave the choice to the player, and otherwise the newest save (autosave, quick,
+  // suspend or manual slot) is loaded into the live realm.
+  const wantsFreshWorld = params.has('seed') || params.has('new') || guard.loop || safeMode;
   await client.newRealm(seed, sizeStep);
+  if (!wantsFreshWorld) {
+    // Not awaited: a slow or blocked store must not hold up the start of play.
+    void saveController.resumeNewest(false).then((resumed) => {
+      if (resumed.ok) toast(resumed.message, { label: 'Start a new world instead', run: () => restartRealm?.() });
+    });
+  }
   client.setSpeed(state.paused ? 0 : state.speed);
   applySpeed();
   renderPowers();

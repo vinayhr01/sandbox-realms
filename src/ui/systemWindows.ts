@@ -16,6 +16,7 @@ import { buildList } from './listView.ts';
 import { realmHistory } from './realm-history.ts';
 import { SETTINGS, boolOption } from './panels/options.ts';
 import { capLog, runConsoleCommand, type ConsoleContext } from './spec-model.ts';
+import { settleOutcome } from './settle.ts';
 import { windowTitle } from './windowCatalog.ts';
 import type { WindowBuild, WindowDeps, WindowParams } from './windowContent.ts';
 
@@ -85,7 +86,8 @@ function chronicleConfirmWindow(deps: WindowDeps, params: WindowParams): WindowB
           if (!actions || (action !== 'save' && action !== 'load' && action !== 'delete')) return;
           confirm.disabled = true;
           status.textContent = 'Working...';
-          void actions.run(action, slotId).then((out) => {
+          void settleOutcome(actions.run(action, slotId), action).then((out) => {
+            deps.notify?.(out.message);
             if (!status.isConnected) return;
             if (out.ok) deps.open('win_chronicle', { notice: out.message });
             else {

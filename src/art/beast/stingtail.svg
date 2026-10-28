@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="stingtail-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8b45a"/><stop offset=".55" stop-color="#b8792c"/><stop offset="1" stop-color="#7a4a16"/></linearGradient>
+<linearGradient id="stingtail-k" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#eebc62"/><stop offset=".6" stop-color="#c08032"/><stop offset="1" stop-color="#8a5418"/></linearGradient>
+<path id="stingtail-l1" d="M50 103L40 94L37 108L39 120" fill="none"/>
+<path id="stingtail-l2" d="M58 104L52 95L49 110L52 120" fill="none"/>
+<path id="stingtail-l3" d="M66 104L68 95L73.6 110L76 120" fill="none"/>
+<path id="stingtail-l4" d="M74 103L81 94L86.6 108L84.6 120" fill="none"/>
+<g id="stingtail-ch"><path d="M34 98L25 92.4L19.6 91" fill="none" stroke-width="6.4"/><path d="M34 98L25 92.4L19.6 91" fill="none" stroke="#c08032" stroke-width="3.6"/><path d="M21 85.6C15 83.6 9 84.4 5.6 87.4L2.6 90.6L7.4 90C9.4 90.4 10.2 91.2 9.2 92.8L3.6 95.4C7.6 97.6 14 97.8 19.4 95.6C23 94 24.2 88.6 21 85.6Z"/><path d="M8.6 86.4C12 85 16 85 19 86.6" fill="none" stroke="#fff" stroke-width="1.2" opacity=".45"/><path d="M5 88.6l1.4.6M4.6 94.4l1.6-.2" fill="none" stroke-width=".9" opacity=".6"/></g>
+</defs>
+<g stroke="#4a2808" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="54 102"><use href="#stingtail-l1" x="4" y="-1" stroke-width="5"/><use href="#stingtail-l1" x="4" y="-1" stroke="#8a5a20" stroke-width="2.6"/></g>
+<g id="leg-mr" data-pivot="62 103"><use href="#stingtail-l2" x="4" y="-1" stroke-width="5"/><use href="#stingtail-l2" x="4" y="-1" stroke="#8a5a20" stroke-width="2.6"/></g>
+<g><use href="#stingtail-l3" x="4" y="-1" stroke-width="5"/><use href="#stingtail-l3" x="4" y="-1" stroke="#8a5a20" stroke-width="2.6"/></g>
+<g id="leg-br" data-pivot="78 102"><use href="#stingtail-l4" x="4" y="-1" stroke-width="5"/><use href="#stingtail-l4" x="4" y="-1" stroke="#8a5a20" stroke-width="2.6"/></g>
+<g id="body" data-pivot="66 100">
+<path d="M88 98C100 94 106 82 105 68C104 56 96 46 86 43C82 42 79 42.6 77 44" fill="none" stroke-width="10.4"/>
+<path d="M88 98C100 94 106 82 105 68C104 56 96 46 86 43C82 42 79 42.6 77 44" fill="none" stroke="#c88a36" stroke-width="7.4" stroke-dasharray="10.6 1.8" stroke-linecap="butt"/>
+<path d="M98.6 91.4C102.6 86 103.6 78 103 68C102 58 96 49.6 87.6 46" fill="none" stroke="#f6d088" stroke-width="1.4" opacity=".55"/>
+<path d="M79.4 41.6C75.4 39 69.4 40.6 68 45C67.2 47.8 68.6 50.4 71.6 50.8C75.6 51.4 79.6 49 80.6 45.6C81 44 80.6 42.6 79.4 41.6Z" fill="url(#stingtail-k)"/>
+<path d="M69.4 49.4C67.4 51.6 65.6 54.4 64.6 57.6C67 55.2 69.6 53.2 72.4 51.2Z" fill="#3a1a06" stroke-width="1"/>
+<path d="M71 43.4q3-1.6 6-.4" fill="none" stroke="#fff" stroke-width="1" opacity=".5"/>
+<path d="M44 95C52 90 70 89 84 91C92 92 96.4 96 96.4 101C96.4 106 90.4 109 82.4 109.6C70.4 110.4 56 110 46 107Z" fill="url(#stingtail-c)"/>
+<path d="M54 90.6q-1.6 9.6.4 18.6M62 89.6q-1.4 10.4.2 20.4M70 89.4q-1.2 10.6.2 20.8M78 89.8q-1 10.4.2 20.2M86 91q-.6 9.4.4 18.2" fill="none" stroke-width="1" opacity=".55"/>
+<path d="M48 93C58 90 74 89.6 86 92" fill="none" stroke="#f6d088" stroke-width="1.6" opacity=".6"/>
+<g id="head" data-pivot="44 100">
+<use href="#stingtail-ch" x="3" y="-4" fill="#8a5a20" stroke="#3a1e06"/>
+<path d="M47 94C43 89.6 35 89.4 30.4 92.4C27.4 94.4 26.6 98.6 28 101.8C30 105 38 106.2 47 105.4Z" fill="url(#stingtail-c)"/>
+<path d="M28.4 99.4C26.4 99.2 25 100.4 25.4 102C26.4 103 28 102.8 29 102M28.6 101.6C27 102.6 26.6 104 27.8 105C29.2 105.2 30.4 104.2 30.6 103" fill="#a86a24" stroke-width="1"/>
+<path d="M32 92q6-2.4 12 .2" fill="none" stroke="#f6d088" stroke-width="1.4" opacity=".6"/>
+<ellipse cx="36.4" cy="93.4" rx="1.9" ry="1.5" fill="#1e1006" stroke="none"/>
+<circle cx="35.8" cy="92.9" r=".55" fill="#fff" stroke="none"/>
+<circle cx="31" cy="95.6" r=".8" fill="#1e1006" stroke="none"/>
+<use href="#stingtail-ch" fill="url(#stingtail-k)"/>
+</g>
+</g>
+<g id="leg-bl" data-pivot="74 103"><use href="#stingtail-l4" stroke-width="5"/><use href="#stingtail-l4" stroke="#d29444" stroke-width="2.6"/></g>
+<g><use href="#stingtail-l3" stroke-width="5"/><use href="#stingtail-l3" stroke="#d29444" stroke-width="2.6"/></g>
+<g id="leg-ml" data-pivot="58 104"><use href="#stingtail-l2" stroke-width="5"/><use href="#stingtail-l2" stroke="#d29444" stroke-width="2.6"/></g>
+<g id="leg-fl" data-pivot="50 103"><use href="#stingtail-l1" stroke-width="5"/><use href="#stingtail-l1" stroke="#d29444" stroke-width="2.6"/></g>
+</g>
+</svg>

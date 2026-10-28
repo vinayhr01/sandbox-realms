@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="mudsnuffler-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8cbbd"/><stop offset=".55" stop-color="#eba091"/><stop offset="1" stop-color="#c57466"/></linearGradient>
+<linearGradient id="mudsnuffler-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eaa596"/><stop offset="1" stop-color="#b8695d"/></linearGradient>
+<linearGradient id="mudsnuffler-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c97f72"/><stop offset="1" stop-color="#8f5047"/></linearGradient>
+<linearGradient id="mudsnuffler-m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a6342"/><stop offset="1" stop-color="#5e3f26"/></linearGradient>
+<g id="mudsnuffler-fl"><path d="M40 80C40 91 41 102 42 110L42 113H52L52.5 110C53.5 102 55 91 55 80C52 74 43 74 40 80Z"/><path d="M41.3 104C44 106 49 106 52.8 103.5L52.3 112.6H41.8Z" fill="url(#mudsnuffler-m)" stroke="none" opacity=".85"/><path d="M41.6 112.5H52.6L53.5 120H40.5Q41 116 41.6 112.5Z" fill="#5e3a33" stroke="#3a221d"/><path d="M47 114V120" stroke="#9a6a60" stroke-width=".9"/></g>
+<g id="mudsnuffler-bl"><path d="M78 74C77 87 81 96 85 102L85 113H95L95.5 106C97 98 100 90 100 80C98 72 84 68 78 74Z"/><path d="M85 103C88 105 92 105 96.4 103L95.4 112.6H85Z" fill="url(#mudsnuffler-m)" stroke="none" opacity=".85"/><path d="M84.6 112.5H95.6L96.5 120H83.5Q84 116 84.6 112.5Z" fill="#5e3a33" stroke="#3a221d"/><path d="M90 114V120" stroke="#9a6a60" stroke-width=".9"/></g>
+</defs>
+<g stroke="#8c4a43" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="53 82"><use href="#mudsnuffler-fl" x="6" fill="url(#mudsnuffler-f)"/></g>
+<g id="leg-br" data-pivot="83 80"><use href="#mudsnuffler-bl" x="-6" fill="url(#mudsnuffler-f)"/></g>
+<g id="body" data-pivot="68 70">
+<g id="tail" data-pivot="104 62"><path d="M103 62C107 59 112 60 112 64.5C112 68.5 107.5 69 106.5 66.5C105.5 64 108.5 62.5 110 64.5C113 68 116 66 116 63" fill="none" stroke="#8c4a43" stroke-width="3.6"/><path d="M103 62C107 59 112 60 112 64.5C112 68.5 107.5 69 106.5 66.5C105.5 64 108.5 62.5 110 64.5C113 68 116 66 116 63" fill="none" stroke="#eba091" stroke-width="1.8"/></g>
+<path d="M34 72C33 58 44 48 60 47C76 46 92 48 100 54C107 60 108 72 104 82C100 90 92 94 82 94H52C42 93 35 84 34 72Z" fill="url(#mudsnuffler-c)"/>
+<path d="M48 91C58 93.5 80 93.8 94 90.5C86 87.6 72 86.8 60 87.3C54 87.6 50 89 48 91Z" fill="#fbe0d6" stroke="none" opacity=".7"/>
+<path d="M50 50.5C62 47.5 82 47.5 97 53" fill="none" stroke="#fff3ee" stroke-width="2.2" opacity=".6"/>
+<path d="M54 50.5l-1-3M60 49l-.5-3M66 48.2v-3M72 48l.5-3M78 48.3l1-3M84 49l1.2-3" fill="none" stroke-width=".9" opacity=".55"/>
+<path d="M60 60q2 3 1 6M70 58q2 3 1 6M82 58q2 3 1 6M92 62q2 3 1 6M66 72q2 3 1 6M86 72q2 3 1 5" fill="none" stroke-width="1" opacity=".3"/>
+<path d="M68 88Q74 83 82 86Q86 89 80 91Q74 92 68 88ZM90 70Q95 67 99 71Q97 75 92 74Z" fill="url(#mudsnuffler-m)" stroke="none" opacity=".75"/>
+<g id="head" data-pivot="42 66">
+<path d="M40 54C37 47 37 42 40 37C44 41 46 47 46 54Z" fill="#c97f72"/>
+<path d="M45 52C37 48 27 50 21 56C17 60 14 64 12 67C10 70 10 76 12 79C14 82 20 82.5 26 81.5C34 80.5 42 78.5 49 74Z" fill="url(#mudsnuffler-c)"/>
+<path d="M14 80C19 82 26 82 33 80.5C27 78 20 77 14 80Z" fill="#fbe0d6" stroke="none" opacity=".7"/>
+<ellipse cx="11.2" cy="73.2" rx="3.8" ry="6.4" fill="#f2a597"/>
+<ellipse cx="10.4" cy="71" rx=".9" ry="1.5" fill="#6e3a33" stroke="none"/>
+<ellipse cx="10.4" cy="75.6" rx=".9" ry="1.5" fill="#6e3a33" stroke="none"/>
+<path d="M14.2 80Q19 81.6 23.5 79" fill="none" stroke="#6e3a33" stroke-width="1.1"/>
+<path d="M16 68q2-.6 3 1M15.5 66q1.5-1.5 3.5-1" fill="none" stroke-width=".9" opacity=".6"/>
+<path d="M24.5 61.2q3-2 5.6-.2" fill="none" stroke="#6e3a33" stroke-width="1"/>
+<ellipse cx="27.6" cy="63.4" rx="2.2" ry="1.9" fill="#fbf1e8" stroke="none"/>
+<ellipse cx="27.4" cy="63.5" rx="1.5" ry="1.5" fill="#2a1612" stroke="none"/>
+<circle cx="26.9" cy="62.9" r=".6" fill="#fff" stroke="none"/>
+<path d="M30 70q3 2.5 6 1.5M38 66q2 3 2 6" fill="none" stroke-width="1" opacity=".35"/>
+<path d="M37 56C34 48 30 43 23.5 41C24 48 27.5 55 32 59Z" fill="url(#mudsnuffler-c)"/>
+<path d="M34.5 55C32.5 50 29.5 46.5 26 44.8C26.7 49.5 29 54 32 57Z" fill="#e48a7d" stroke="none"/>
+</g>
+</g>
+<g id="leg-bl" data-pivot="89 80"><use href="#mudsnuffler-bl" fill="url(#mudsnuffler-n)"/></g>
+<g id="leg-fl" data-pivot="47 82"><use href="#mudsnuffler-fl" fill="url(#mudsnuffler-n)"/></g>
+</g>
+</svg>

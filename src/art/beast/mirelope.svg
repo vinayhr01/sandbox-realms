@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="mirelope-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6a868"/><stop offset=".6" stop-color="#c77f40"/><stop offset="1" stop-color="#955626"/></linearGradient>
+<linearGradient id="mirelope-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cc8a4c"/><stop offset=".7" stop-color="#9e6534"/><stop offset="1" stop-color="#e8dccb"/></linearGradient>
+<linearGradient id="mirelope-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9c6034"/><stop offset=".7" stop-color="#6e4222"/><stop offset="1" stop-color="#b3a593"/></linearGradient>
+<linearGradient id="mirelope-h" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#5e5246"/><stop offset="1" stop-color="#2a241e"/></linearGradient>
+<g id="mirelope-fl"><path d="M44.5 75C43.5 84 45.5 92 47.5 100L47 112C47 114 46.5 115 46 116H52L52.2 112C52.2 107 52 103 52.5 99C54 92 57 84 56.5 75C55.5 67 50 63.5 46.5 66.5C45 68.5 44.5 71.5 44.5 75Z"/><path d="M45.8 115.5H52.2L52.8 120H43.8Q44.2 117.5 45.8 115.5Z" fill="#2e241e" stroke="#1a1410"/><path d="M48.6 116.2V120" stroke="#6b5a4c" stroke-width=".8"/></g>
+<g id="mirelope-bl"><path d="M79 72C79 82 84 91 91 98L90.5 112C90.5 114 90 115 89.5 116H95.5L95.8 112C96 106 97 101 98.8 97.5C101 88 100.5 76 97.5 66C91.5 63 84 65 79 72Z"/><path d="M89.3 115.5H95.8L96.4 120H87.3Q87.7 117.5 89.3 115.5Z" fill="#2e241e" stroke="#1a1410"/><path d="M92.1 116.2V120" stroke="#6b5a4c" stroke-width=".8"/></g>
+<path id="mirelope-hn" d="M31.6 27.5C30 20 30.4 12 33.4 5.6C34.4 3.6 36.6 3.8 36.4 6C34.4 12 34 19.5 35.6 27Z"/>
+</defs>
+<g stroke="#5c3418" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="56 78"><use href="#mirelope-fl" x="5.5" fill="url(#mirelope-f)"/></g>
+<g id="leg-br" data-pivot="82 76"><use href="#mirelope-bl" x="-5.5" fill="url(#mirelope-f)"/></g>
+<g id="body" data-pivot="68 72">
+<g id="tail" data-pivot="99 59"><path d="M98 58C101.5 57 104.5 59.5 105 64C105.3 67.5 103.5 70 101.5 69C100 67 99.2 62.5 98 58Z" fill="#f7f0e4"/><path d="M101.5 69C102.8 70.4 104.8 69 105 66.4" fill="none" stroke="#2a1d14" stroke-width="2.2"/></g>
+<path d="M42 70C44 61 53 57 65 57C77 57 88 55 97 57C104 59 106 67 103 77C101 84 95 87 88 86C78 87 64 87 56 86C48 85 43 79 42 70Z" fill="url(#mirelope-c)"/>
+<path d="M97.6 58.5C102.5 62 103.6 72 100.4 80.5C98 74 97 66 97.6 58.5Z" fill="#f7efe2" stroke="none"/>
+<path d="M47 81C56 77.6 76 77 99.6 79.6C97 84 93 86.4 88 86C78 87 64 87 56 86C51 85.4 48.6 83.6 47 81Z" fill="#f4ebdc" stroke="none"/>
+<path d="M46.4 80.6C58 76.4 78 75.8 100 78.4C94 80.4 70 80.8 47.6 82.2Z" fill="#3a2418" stroke="none" opacity=".85"/>
+<path d="M52 60C62 57.3 78 58.5 94 57.5" stroke="#f8d29e" stroke-width="2" opacity=".55" fill="none"/>
+<path d="M60 65q3 3 2 7M67 63q3 4 2 8M74 65q2 3 1.5 6M82 63q3 3 2.5 7M90 64q2 3 2 6" stroke-width="1" opacity=".3" fill="none"/>
+<g id="head" data-pivot="46 64">
+<path d="M41 76C35 67 31 58 30 47L39 32C43 39 49 48 59 57.5C53 62 46 68 41 76Z" fill="url(#mirelope-c)" stroke="none"/>
+<path d="M41 76C35 67 31 58 30 47M39 32C43 39 49 48 59 57.5" fill="none"/>
+<path d="M30.4 49C32.6 56 36 63 40.6 70C37 64 34 57 32.6 49.6Z" fill="#f4ebdc" stroke="none"/>
+<path d="M40 44q2 3 1.5 6M44 50q2 3 1.5 6M36 54q1.5 3 1 6" stroke-width="1" opacity=".3" fill="none"/>
+<use href="#mirelope-hn" x="5" y="1" fill="url(#mirelope-h)" stroke="#221c16"/>
+<path d="M35 25.6C39 18.6 46 15 53 16C51.5 21.5 45.5 27 38.5 30Z" fill="#9e6534"/>
+<path d="M39 30C38 25 33 22 28 23C23 24 19 29 15 36C12.5 40 10.5 43 11 46C11.5 48.5 14 49.5 17 49C21 48.5 25 47.5 29 47C34 46.5 37 43 38.5 38C39.5 35 39.5 32 39 30Z" fill="url(#mirelope-c)"/>
+<path d="M12 45.5C13 48.5 16 49.3 19 48.8C20 46.5 19 43 16.5 41C14.5 41.5 12.8 43 12 45.5Z" fill="#f5ece0" stroke="none"/>
+<path d="M23.6 35.6C21 38.6 18 41.6 15.4 43.4" fill="none" stroke="#3a2418" stroke-width="2" opacity=".8"/>
+<path d="M10.8 44.5C11 42 13 40.5 15 41.2C15.6 43 14.6 45.2 12.6 46C11.6 46.1 11 45.6 10.8 44.5Z" fill="#33241b" stroke="#1e140e" stroke-width="1"/>
+<circle cx="12.6" cy="42.6" r=".6" fill="#fff" stroke="none" opacity=".6"/>
+<path d="M14.5 48.2Q17.5 48.8 21 47.8M28.5 46C33 45 36.5 41 37.5 36" fill="none" stroke-width="1" opacity=".7"/>
+<ellipse cx="26" cy="32.3" rx="3.6" ry="3" fill="#f7efe2" stroke="none"/>
+<ellipse cx="26" cy="32.3" rx="2.4" ry="2.1" fill="#22160e" stroke="none"/>
+<circle cx="25.2" cy="31.5" r=".85" fill="#fff" stroke="none"/>
+<use href="#mirelope-hn" fill="url(#mirelope-h)" stroke="#221c16"/>
+<path d="M31.4 24.4l3.8-.6M31 20.6l3.6-.6M31 16.8l3.4-.4M31.6 13l3.2-.2M32.4 9.4l2.8 0" fill="none" stroke="#8d8070" stroke-width="1"/>
+<path d="M36 27C40 20.6 47 17.4 53.6 18.4C52 23.4 46 28 39 30.6Z" fill="url(#mirelope-c)"/>
+<path d="M38.6 27.4C42.4 22.6 47 20.4 51.2 20.2C48.8 23.4 44.4 26.6 40 28.6Z" fill="#f0d0b4" stroke="none"/>
+</g>
+</g>
+<g id="leg-bl" data-pivot="88 76"><use href="#mirelope-bl" fill="url(#mirelope-n)"/></g>
+<g id="leg-fl" data-pivot="50 78"><use href="#mirelope-fl" fill="url(#mirelope-n)"/></g>
+</g>
+</svg>

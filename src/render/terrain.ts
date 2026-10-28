@@ -1,11 +1,15 @@
 import { Application, BufferImageSource, Geometry, Mesh, Shader, UniformGroup } from 'pixi.js';
 import { GROUNDS } from '../content/grounds.ts';
 import type { BrushShape, FrameRows } from '../shared/protocol.ts';
+import { detailWeights } from './terrain-detail.ts';
 import { TERRAIN_FRAG, TERRAIN_VERT } from './terrain-shader.ts';
 
 /** Cursor shape codes used by the fragment shader (uCursor.w). */
 const SHAPE_CODE: Record<BrushShape, number> = { circle: 0, square: 1, diamond: 2 };
-const PALETTE_WIDTH = 32;
+/** One column per ground id. Ids run 0..GROUNDS.length-1 (33 kinds), so the row must hold at least that many. */
+const PALETTE_WIDTH = 64;
+/** Row 0: ground colours. Row 1: R = 255 for water and sea grounds, G = 255 for sea grounds only, 0 otherwise. */
+const PALETTE_HEIGHT = 2;
 /**
  * Largest grid side (Titan, 576; 01 section 1). The index texture is allocated once at this size
  * so one shader serves every Realm; the shader's uView.w carries the live side.
@@ -43,9 +47,14 @@ export class TerrainRenderer {
   private readonly uView = new Float32Array(4);
   private readonly uRes = new Float32Array(2);
   private readonly uCursor = new Float32Array(4);
+  private readonly uDetail = new Float32Array(2);
+  private readonly startedAt = performance.now();
   private readonly uniforms: UniformGroup;
   private pendingView: ViewState | null = null;
   private pendingCursor: CursorState | null = null;
+  /** Quality-ladder gates on the two detail ramps (map.terrainMedium, map.terrainClose): off drops that weight to 0. */
+  private detailMedium = true;
+  private detailClose = true;
 
   private constructor(app: Application) {
     this.app = app;
@@ -58,18 +67,20 @@ export class TerrainRenderer {
       alphaMode: 'no-premultiply-alpha',
       scaleMode: 'nearest',
     });
-    const palette = new Uint8Array(PALETTE_WIDTH * 4);
+    const palette = new Uint8Array(PALETTE_WIDTH * PALETTE_HEIGHT * 4);
     for (const g of GROUNDS) {
       const hex = parseInt(g.color.slice(1), 16);
       palette[g.id * 4] = (hex >> 16) & 0xff;
       palette[g.id * 4 + 1] = (hex >> 8) & 0xff;
       palette[g.id * 4 + 2] = hex & 0xff;
       palette[g.id * 4 + 3] = 255;
+      if (g.layer === 'water' || g.sea) palette[(PALETTE_WIDTH + g.id) * 4] = 255;
+      if (g.sea) palette[(PALETTE_WIDTH + g.id) * 4 + 1] = 255;
     }
     this.paletteSource = new BufferImageSource({
       resource: palette,
       width: PALETTE_WIDTH,
-      height: 1,
+      height: PALETTE_HEIGHT,
       format: 'rgba8unorm',
       alphaMode: 'no-premultiply-alpha',
       scaleMode: 'nearest',
@@ -78,6 +89,9 @@ export class TerrainRenderer {
       uView: { value: this.uView, type: 'vec4<f32>' },
       uRes: { value: this.uRes, type: 'vec2<f32>' },
       uCursor: { value: this.uCursor, type: 'vec4<f32>' },
+      uDetail: { value: this.uDetail, type: 'vec2<f32>' },
+      uTime: { value: 0, type: 'f32' },
+      uDpr: { value: 1, type: 'f32' },
     });
   }
 
@@ -150,6 +164,12 @@ export class TerrainRenderer {
     this.indexSource.update();
   }
 
+  /** Turns the medium and close detail ramps on or off (the quality ladder). */
+  setDetailToggles(medium: boolean, close: boolean): void {
+    this.detailMedium = medium;
+    this.detailClose = close;
+  }
+
   /** Current camera and cursor state for the next draw. */
   setView(view: ViewState, cursor: CursorState): void {
     this.pendingView = view;
@@ -168,6 +188,11 @@ export class TerrainRenderer {
     } else {
       this.uCursor.set([0, 0, 0, -1]);
     }
+    // The detail ramps take CSS px per tile; uView.z is in device px, so divide by dpr.
+    const detail = detailWeights(this.uView[2]! / dpr);
+    this.uDetail.set([detail.medium * (this.detailMedium ? 1 : 0), detail.close * (this.detailClose ? 1 : 0)]);
+    this.uniforms.uniforms.uTime = (performance.now() - this.startedAt) / 1000;
+    this.uniforms.uniforms.uDpr = dpr;
     this.uniforms.update();
   }
 

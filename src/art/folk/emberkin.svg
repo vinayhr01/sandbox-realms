@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="emberkin-s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a66a44"/><stop offset="1" stop-color="#74402a"/></linearGradient>
+<linearGradient id="emberkin-sf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a5636"/><stop offset="1" stop-color="#5c3220"/></linearGradient>
+<linearGradient id="emberkin-t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a8382a"/><stop offset="1" stop-color="#641a14"/></linearGradient>
+<linearGradient id="emberkin-a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4e3a32"/><stop offset="1" stop-color="#2a1c18"/></linearGradient>
+<linearGradient id="emberkin-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2e2624"/><stop offset="1" stop-color="#0f0c0c"/></linearGradient>
+<linearGradient id="emberkin-p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6e5c4c"/><stop offset="1" stop-color="#46382e"/></linearGradient>
+<linearGradient id="emberkin-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0b45a"/><stop offset="1" stop-color="#a8641e"/></linearGradient>
+<g id="emberkin-leg"><path d="M55.5 74H70.5C70.5 86 70 94 69.5 100C69.2 104 69.2 106 69.2 108H57.6C57.6 106 57.4 103 57 100C56.5 94 55.5 86 55.5 74Z"/><path d="M57.5 96.5q5.5 1.5 11.5 0" fill="none" stroke-width="1" opacity=".5"/><path d="M57 103.5H69.6L70 117C70 119 69 120 67.4 120H51.4C49.2 120 48.7 117.8 49.8 116.2C51.4 114.4 54.4 113.4 57 112Z" fill="#3a2a22" stroke="#1c1210"/><path d="M49.8 116.3C51.3 114.6 53.8 113.7 56 113.3L56.6 120H51.4C49.2 120 48.7 117.8 49.8 116.3Z" fill="#8e8e96" stroke="#3a3a42" stroke-width="1"/><path d="M56.8 103.2H69.8V107H56.9Z" fill="#5a4234" stroke="#1c1210" stroke-width="1"/><path d="M50.2 118.6H69.8" stroke="#140c0a" stroke-width="1.4"/></g>
+<g id="emberkin-arm"><path d="M57.4 39C60 35.4 67.2 35.4 69.2 39.6C70.8 46 70.2 53 68.8 58.5L68.2 73H59.8C59.3 67 58.8 63 58.6 58.5C56.8 52 56.3 45 57.4 39Z"/><path d="M60.5 43q2.4 4.5 1 9.5M65.5 47q1.6 3-.4 6.5" fill="none" stroke="#ff9d3c" stroke-width=".9" opacity=".85"/><path d="M58.8 61.6H68.8L68.4 71.4H59.6Z" fill="url(#emberkin-g)" stroke="#6a3e14" stroke-width="1.1"/><path d="M59.2 64.6h9.4M59.4 68.4h9.1" stroke="#7a4a18" stroke-width=".8"/><path d="M60 72.6C58.6 75.4 58.6 78.4 60.2 81C62.4 82.8 66 82.3 67.1 79.6C68 77.4 67.7 75 67.3 72.8Z" fill="url(#emberkin-s)" stroke="#4a2614" stroke-width="1.2"/><path d="M60.2 74.6C58.2 75 57.5 77.3 58.4 78.7C59.3 79.2 60.1 78.5 60.4 77.4" fill="url(#emberkin-s)" stroke="#4a2614" stroke-width="1"/><path d="M62.2 80.8l.2-2.6M64.6 81l.1-2.6" stroke="#4a2614" stroke-width=".8"/></g>
+</defs>
+<g stroke="#3a0e0a" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="66 77" stroke="#1c1612"><use href="#emberkin-leg" x="3" fill="#332822"/></g>
+<g id="leg-l" data-pivot="63 77" stroke="#241c18"><use href="#emberkin-leg" fill="url(#emberkin-p)"/></g>
+<g id="body" data-pivot="63 60">
+<g id="arm-r" data-pivot="66 40" stroke="#3a1e10"><use href="#emberkin-arm" x="3" fill="url(#emberkin-sf)"/></g>
+<path d="M51.5 38C55 34.5 68 34 73.5 36.5C77.5 40 78.5 46 77.5 54C77 60 78 70 80.5 80.5C72 83.8 56 83.8 47 80.5C49.5 72 50.5 62 49.5 54C49 46 49.5 41 51.5 38Z" fill="url(#emberkin-t)"/>
+<path d="M72.5 38.5C76.5 42 77.4 50 76.8 56C76.5 66 77.5 74 79.6 80" fill="none" stroke-width="3" opacity=".3"/>
+<path d="M69 70l2 10M74 69.5l2.4 9.5" fill="none" stroke-width="1" opacity=".5"/>
+<path d="M74.4 62l3.4 17.5" stroke="#6a4428" stroke-width="2.4"/><path d="M72.8 76.6l8-1.6l1 4.6l-8 1.6Z" fill="#7c7c86" stroke="#2e2e36" stroke-width="1"/>
+<path d="M53.6 44.2L57 36.4M61.6 44L63.6 36" stroke="#4a2410" stroke-width="1.6"/>
+<path d="M49.6 44.4C54 42.8 59.6 42.6 64 44L65 64C65 75 66 86 67 96.5C60 98 52 98 45 96.5C47.2 86 49 75 49.6 64Z" fill="url(#emberkin-a)" stroke="#140c0a"/>
+<path d="M52 50.5q5 1 10 0M51 84l-.8 9M58 85v10M64 84.5l.6 9" fill="none" stroke="#7a6052" stroke-width=".9" opacity=".7"/>
+<path d="M51.8 70H62.6V77.4C62.6 78.6 61.8 79.2 60.6 79.2H53.8C52.6 79.2 51.8 78.6 51.8 77.4Z" fill="#5e463c" stroke="#1a100c" stroke-width="1"/>
+<circle cx="51.4" cy="46.4" r=".9" fill="#e8b462" stroke="none"/><circle cx="62.4" cy="46.2" r=".9" fill="#e8b462" stroke="none"/>
+<path d="M49.4 63C58 64.4 68 64.4 77.6 62.8L77.9 67.4C68 69 58 69 49.6 67.6Z" fill="#4a2a18" stroke="#1e0e06" stroke-width="1.2"/>
+<rect x="56.2" y="62.9" width="4.6" height="5.6" rx=".8" fill="none" stroke="#e8a040" stroke-width="1.3"/>
+<g id="head" data-pivot="62 34">
+<path d="M57.6 30.5L58 37.5H66.6L66.4 29.5Z" fill="#7e4a2e" stroke="#4a2614"/>
+<path d="M56 36.6C58.6 39.4 64 40 67.6 36.2" fill="none" stroke="#2e2a32" stroke-width="2.6"/>
+<g transform="matrix(.9 0 0 .9 6.2 3.3)" stroke="#4a2614">
+<path d="M61.8 8.4C60 4 63.6 1.2 67 2.6C70.4 4 70.4 8 67.6 9.4Z" fill="url(#emberkin-h)" stroke="#0a0606"/>
+<path d="M61.6 7.6L67.8 8.8" stroke="#e8902c" stroke-width="1.6"/>
+<path d="M54 10C58 6 66 6 70 10C73 14 74 20 72 26C70 30 66 33 61 33C57 33 54 32 52.5 31C51.5 30 52 29 51.5 28.3C50.5 27.6 50.6 26.8 51.3 26.3C50.6 25.8 50.8 25 51.4 24.6C50 24 48.5 23.6 48.6 22.6C49 21.5 50.5 20 51.6 18.5C51.6 15.5 52 12.5 54 10Z" fill="url(#emberkin-s)"/>
+<path d="M56 10.4C59 8 65 8 68 10.4" fill="none" stroke="#d8a07a" stroke-width="1.4" opacity=".6"/>
+<path d="M69 14.4q2.6 3.4 1.4 7.8M66 12.6q2.4 2 2.6 4.6" fill="none" stroke="#ff9a3a" stroke-width="1"/>
+<path d="M68 13c4 2 5.6 7 5 12.6C73 20 71.4 15.4 68 13Z" fill="#1a1414" stroke="none" opacity=".5"/>
+<path d="M50.4 23.4q.9.7 1.8.2" fill="none" stroke-width="1"/>
+<path d="M53.2 19.3C54.5 18 56.6 18.1 57.7 19.5C56.6 20.7 54.5 20.9 53.2 19.3Z" fill="#fff" stroke-width=".8"/>
+<circle cx="55" cy="19.4" r="1.3" fill="#8a3e0c" stroke="none"/>
+<circle cx="54.6" cy="18.9" r=".45" fill="#fff" stroke="none"/>
+<path d="M53 18.9C54.5 17.6 56.7 17.7 57.9 19.2" fill="none" stroke="#120c0a" stroke-width="1"/>
+<path d="M52.4 16.6Q55.5 14.4 58.8 16" fill="none" stroke="#120c0a" stroke-width="2.2"/>
+<path d="M51.2 25.6C52.6 24.4 55.4 24.2 57 25.4C55.4 26.4 53 26.6 51.2 25.6Z" fill="url(#emberkin-h)" stroke="#0a0606" stroke-width=".8"/>
+<path d="M52 27.6C52.2 32 54.6 36.4 59.6 37.4C64.6 36.4 67.6 32 68.8 25.6C67 27.6 64.4 29 61 29.4C58 29.6 55 28.6 53.6 27.6Z" fill="url(#emberkin-h)" stroke="#0a0606"/>
+<path d="M51.8 26.8q1.2.5 2.4.2" fill="none" stroke="#c0604a" stroke-width="1.3"/>
+<path d="M55.4 30q2 3 5 4M58.8 30.4q2 2.4 5 2.6M63.2 29.6q1.4 1.6 3.8 1.4" fill="none" stroke="#4a3a34" stroke-width=".8"/>
+<path d="M54.8 36L54 42.4L57.2 42.8L57.6 36.4Z" fill="url(#emberkin-h)" stroke="#0a0606" stroke-width="1"/>
+<path d="M53.8 39.2l3.6.4" stroke="#e8902c" stroke-width="1.6"/>
+<path d="M64.6 19.6C66.6 18.6 68.6 20.1 68.4 22.6C68.3 25.1 66.6 26.6 64.6 25.6Z" fill="url(#emberkin-s)"/>
+<path d="M65.8 21.3q1.4.9.8 2.6" fill="none" stroke-width=".9"/>
+<circle cx="66.2" cy="25.8" r="1" fill="#e8a040" stroke="#6a3e14" stroke-width=".6"/>
+</g>
+</g>
+<g id="arm-l" data-pivot="63 40" stroke="#4a2614"><use href="#emberkin-arm" fill="url(#emberkin-s)"/></g>
+</g>
+</g>
+</svg>

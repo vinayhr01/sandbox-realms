@@ -6,11 +6,10 @@
 
 /** Keep at least this many tiles of map visible at the edges when panned (13 section 9). */
 const EDGE_MARGIN_PX = 16;
-/** Zoom range relative to the fit-to-screen zoom (13 section 9: 0.4x..8x of base; TUNE). */
+/** Zoom-out limit relative to the fit-to-screen zoom (13 section 9: TUNE). */
 const MIN_FACTOR = 0.5;
-const MAX_FACTOR = 8;
-/** Absolute upper limit so single tiles stay pickable at very small grids. */
-const MAX_ZOOM_PX = 48;
+/** Absolute upper limit in CSS px per tile, the same on every realm: at this zoom a creature icon is at its largest (creatures.ts). */
+export const MAX_ZOOM_PX = 96;
 
 export interface TilePoint {
   x: number;
@@ -55,7 +54,7 @@ export class Camera {
   }
 
   get maxZoom(): number {
-    return Math.min(Math.max(this.fitZoom * MAX_FACTOR, 24), MAX_ZOOM_PX);
+    return MAX_ZOOM_PX;
   }
 
   /** Continuous tile coordinates under a screen point (not floored). */

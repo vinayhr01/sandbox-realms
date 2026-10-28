@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   BOOT_LOOP_WINDOW_MS,
+  DEGRADE_MAX_LEVEL,
+  DEGRADE_OFF,
+  DEGRADE_RENDER_SCALE_LEVEL,
+  DEGRADE_START,
   FAULT_SEVERITY,
   RECOVERY_WINDOW_MS,
   SAFE_MODE_PROFILE,
@@ -9,9 +13,43 @@ import {
   isBootLoop,
   recordBoot,
   restoreOffers,
+  stepDegrade,
+  type DegradeTrack,
   type RecoveryAttempt,
   type RestoreCandidate,
 } from '../../src/app/recovery.ts';
+import { SETTING_BY_ID } from '../../src/ui/panels/options.ts';
+
+describe('degradation ladder', () => {
+  it('turns off the eight runtime map effects in order, one per level', () => {
+    expect(DEGRADE_OFF).toEqual([
+      'map.crowdAnim',
+      'map.dust',
+      'map.terrainClose',
+      'map.terrainMedium',
+      'map.creatureAnim',
+      'map.bloom',
+      'map.particles',
+      'map.shadows',
+    ]);
+    expect(DEGRADE_MAX_LEVEL).toBe(9);
+    expect(DEGRADE_RENDER_SCALE_LEVEL).toBe(9);
+  });
+
+  it('keeps the new runtime flags out of the saved settings and the Options UI', () => {
+    for (const id of ['map.crowdAnim', 'map.dust', 'map.terrainClose', 'map.terrainMedium', 'map.creatureAnim']) {
+      expect(SETTING_BY_ID.has(id)).toBe(false);
+    }
+  });
+
+  it('reaches the top level under sustained load and stays there', () => {
+    let track: DegradeTrack = DEGRADE_START;
+    for (let s = 0; s < 100; s++) track = stepDegrade(track, 100, 16.7);
+    expect(track.level).toBe(DEGRADE_MAX_LEVEL);
+    track = stepDegrade(track, 100, 16.7);
+    expect(track.level).toBe(DEGRADE_MAX_LEVEL);
+  });
+});
 
 const NOW = 10_000_000;
 

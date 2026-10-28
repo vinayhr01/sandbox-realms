@@ -8,6 +8,7 @@
  */
 import { ACHIEVEMENTS } from '../content/achievements.ts';
 import { SPECIES } from '../content/beasts.ts';
+import { speciesGroup } from '../content/species-group.ts';
 import { STRAIN_TRAIT_BY_ID } from '../content/traits.ts';
 import { BIOMES, biomeOfCover } from '../content/biomes.ts';
 import {
@@ -29,7 +30,6 @@ import {
   type MapBuilding,
   type MapIntrigue,
   type MapKind,
-  type MapKindGroup,
   type MapGroup,
   type MapLink,
   type MapMarks,
@@ -244,19 +244,6 @@ function mapPointsOf(sim: Sim): MapPoint[] {
   });
 }
 
-/** Species group letter (18a section 2) to the map sprite group; 'folk' is the Folk row group. */
-const MAP_GROUP_OF_LETTER: Record<string, MapKindGroup> = {
-  A: 'beast',
-  B: 'beast',
-  C: 'beast',
-  D: 'sea',
-  E: 'insect',
-  F: 'undead',
-  G: 'monster',
-  H: 'divine',
-  folk: 'folk',
-};
-
 /**
  * Sprite kind (group and size class) of each point in mapPoints, same ids and order. Read-only; capped at
  * MAP_POINT_CAP like mapPoints. Dropped first by fitSnapshot.
@@ -283,7 +270,7 @@ function mapKindsOf(sim: Sim): MapKind[] {
     const strain = s.strain[slot] ?? 0;
     return {
       id,
-      group: MAP_GROUP_OF_LETTER[def?.group ?? ''] ?? 'beast',
+      group: speciesGroup(s.species[slot] ?? 0),
       size: (def?.size ?? 'S') as MapSizeClass,
       mood: s.mood[slot] ?? 0,
       task: DECISION_ROWS[sim.beings.task[slot] ?? -1]?.id ?? '',
@@ -364,18 +351,23 @@ function mapLinksOf(sim: Sim): MapLink[] {
 }
 
 /**
- * Buildings of every hamlet in hamlet order, with their tile positions, capped at MAP_BUILDING_CAP. Reads only.
- * The hamlet rows carry counts only, and the notable rows are capped at 16, so the map gets its own list.
+ * Buildings of every hamlet in hamlet order, with their tile positions, uncapped. Reads only. The map's being feed
+ * takes this whole list (src/shared/being-feed.ts), and the snapshot keeps the first MAP_BUILDING_CAP of it.
  */
-function mapBuildingsOf(sim: Sim): MapBuilding[] {
+export function allBuildingsOf(sim: Sim): MapBuilding[] {
   const out: MapBuilding[] = [];
   for (const h of hamletsOf(sim)) {
-    for (const b of h.buildings) {
-      if (out.length >= MAP_BUILDING_CAP) return out;
-      out.push({ id: b.y * 1024 + b.x, kind: b.def.id, x: b.x, y: b.y });
-    }
+    for (const b of h.buildings) out.push({ id: b.y * 1024 + b.x, kind: b.def.id, x: b.x, y: b.y });
   }
   return out;
+}
+
+/**
+ * Buildings for the map feed, capped at MAP_BUILDING_CAP. The hamlet rows carry counts only, and the notable rows are
+ * capped at 16, so the map gets its own list.
+ */
+function mapBuildingsOf(sim: Sim): MapBuilding[] {
+  return allBuildingsOf(sim).slice(0, MAP_BUILDING_CAP);
 }
 
 /**

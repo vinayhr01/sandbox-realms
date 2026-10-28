@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="phantom_hand-c" gradientUnits="userSpaceOnUse" x1="0" y1="34" x2="0" y2="96"><stop offset="0" stop-color="#fffdf0"/><stop offset=".5" stop-color="#fff0b0"/><stop offset="1" stop-color="#f2c75a"/></linearGradient>
+<linearGradient id="phantom_hand-t" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff0b0"/><stop offset="1" stop-color="#ffe8a0" stop-opacity="0"/></linearGradient>
+<path id="phantom_hand-fg" d="M57 60L37 55.5L26 53.5M56 68L34 66.5L20 67M56 76L36 77.5L23 79.5M57 84L41 87.5L31 90.5M70 57L60 45L53 37"/>
+</defs>
+<g stroke="#c8962a" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="body" data-pivot="64 76">
+<g transform="translate(0 6)">
+<path d="M28 30l1.5 4 4 1.5-4 1.5-1.5 4-1.5-4-4-1.5 4-1.5ZM104 40l1.2 3 3 1.2-3 1.2-1.2 3-1.2-3-3-1.2 3-1.2ZM16 92l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1ZM88 100l1 2.5 2.5 1-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1Z" fill="#fff8d0" stroke="#e8b84a" stroke-width="1"/>
+<g opacity=".3" fill="none" stroke="#ffe27a">
+<use href="#phantom_hand-fg" stroke-width="17"/>
+<path d="M52 56C60 50 78 50 86 55C91 64 91 80 86 89C78 94 60 94 52 89C47 80 47 64 52 56Z" fill="#ffe27a" stroke-width="8"/>
+</g>
+<g opacity=".8">
+<g id="tail" data-pivot="98 72">
+<path d="M94 60C102 58 108 62 114 57C113 63 117 67 123 67C117 71 115 76 119 82C111 80 104 84 94 84Z" fill="url(#phantom_hand-t)" stroke="none"/>
+<path d="M96 61C104 60 109 62 113 58M98 72C106 70 114 72 121 69M96 82C104 81 110 81 117 82" fill="none" stroke="#fff6cc" stroke-width="1.4" opacity=".8"/>
+</g>
+<path d="M80 57C88 59 95 60 100 61V83C95 84 89 85 82 87Z" fill="url(#phantom_hand-c)"/>
+<path d="M94 62v20" fill="none" stroke="#e8b84a" stroke-width="1" opacity=".6"/>
+<use href="#phantom_hand-fg" fill="none" stroke="#c8962a" stroke-width="10.4"/>
+<use href="#phantom_hand-fg" fill="none" stroke="url(#phantom_hand-c)" stroke-width="7.6"/>
+<path d="M54 55C62 51 74 52 82 56C86 62 87 70 86 78C85 84 82 88 78 90C68 93 60 92 54 89C50 80 50 64 54 55Z" fill="url(#phantom_hand-c)" stroke="none"/>
+<path d="M65 52.5C71 52 77 53.5 82 56C86 62 87 70 86 78C85 84 82 88 78 90C70 92.5 63 92.3 57.5 90.5" fill="none"/>
+<path d="M66 55l-3 5" fill="none" stroke="#c8962a" stroke-width="1.2"/>
+<path d="M37.5 53.2q-1 2.5-.2 4.8M34.6 64.2q-.8 2.4 0 4.6M36.4 75.2q-.6 2.4.2 4.6M41 85q-.4 2.4.6 4.6M60.8 43.4q-2.4.6-3.2 3" fill="none" stroke="#d8a838" stroke-width="1"/>
+<path d="M27 51.5C24.5 51.2 23.4 52.8 23.6 54.2C25 55 27 55 28 54ZM21.2 65C18.6 65 17.6 66.6 17.8 68C19.2 68.8 21.2 68.6 22.2 67.6ZM24.2 77.6C21.6 77.8 20.8 79.4 21.2 80.8C22.6 81.4 24.6 81 25.4 80ZM32 88.6C29.6 89.2 29 90.8 29.6 92.2C31 92.6 32.8 92 33.6 90.8ZM54.6 35.4C52.6 34 50.8 34.6 50.4 36C51 37.4 52.8 38.4 54.2 38.2Z" fill="#fffef6" stroke="#d8a838" stroke-width=".9"/>
+<path d="M62 66C68 64 76 66 80 70M64 76C70 78 76 78 82 75M60 60C64 70 64 80 62 88" fill="none" stroke="#e0ae40" stroke-width="1.1" opacity=".75"/>
+<path d="M56 58C64 53.5 76 53.5 83 57" fill="none" stroke="#fff" stroke-width="2.2" opacity=".7"/>
+<path d="M24 66.2C28 65.8 32 65.8 36 66.2M26 54.6l9 1.6" fill="none" stroke="#fff" stroke-width="1.6" opacity=".6"/>
+</g>
+</g>
+</g>
+</g>
+</svg>

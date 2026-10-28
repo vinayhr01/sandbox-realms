@@ -3,6 +3,7 @@
  * every command carries `seq`, every reply echoes it.
  */
 import type { ReplayEntry } from './replay-ring.ts';
+import type { BeingFeed } from './being-feed.ts';
 
 export const PROTOCOL_VERSION = 3;
 
@@ -14,6 +15,8 @@ export const SNAPSHOT_MAX_BYTES = 32 * 1024;
 
 /** The page pings the worker this often (19 section 2, main_hang). Additive; PROTOCOL_VERSION unchanged. */
 export const PING_EVERY_MS = 2_000;
+/** The COMMAND_REFUSED detail the sim reports for a Possess order it refuses (a stale Being id or an off-map order). */
+export const POSSESS_REFUSED = 'possess refused';
 /** The worker reports the page as hung after this long without a ping while the page is visible (19 section 2). */
 export const PING_LOST_MS = 8_000;
 
@@ -71,6 +74,8 @@ export enum Ev {
   Pong = 111,
   /** Reply to Cmd.Replay: the replay ring, oldest first, and how many older entries were dropped. Additive kind. */
   Replay = 112,
+  /** Per-frame feed of living beings for the map (src/shared/being-feed.ts). Additive kind; PROTOCOL_VERSION unchanged. */
+  Beings = 113,
 }
 
 export type Speed = 0 | 0.5 | 1 | 2 | 5 | 10;
@@ -85,7 +90,8 @@ export type Command =
   /** Dabs along the line (x0,y0)->(x1,y1). includeStart=false skips the first tile, which an earlier segment already painted. */
   | { kind: Cmd.Stroke; seq: number; op: BrushOp; shape: BrushShape; size: number; x0: number; y0: number; x1: number; y1: number; includeStart: boolean }
   | { kind: Cmd.Query; seq: number; tileX: number; tileY: number }
-  | { kind: Cmd.ReturnBuffer; seq: number; buffer: ArrayBuffer }
+  /** `feed` marks a buffer from the being feed, which the worker keeps in its own pool. */
+  | { kind: Cmd.ReturnBuffer; seq: number; buffer: ArrayBuffer; feed?: boolean }
   | { kind: Cmd.Power; seq: number; powerId: string; x: number; y: number }
   | { kind: Cmd.SetRule; seq: number; rule: string; on: boolean }
   | { kind: Cmd.Snapshot; seq: number }
@@ -624,4 +630,6 @@ export type Event =
   /** Reply to Cmd.SaveRealm. Empty bytes when there is no realm. */
   | { kind: Ev.Saved; reply: number; bytes: Uint8Array }
   /** Reply to a Cmd.LoadRealm that failed; ok is always false. */
-  | { kind: Ev.Loaded; reply: number; ok: boolean; detail: string };
+  | { kind: Ev.Loaded; reply: number; ok: boolean; detail: string }
+  /** Every living Being for the map, once per frame post (being-feed.ts). Its `data.buffer` is transferred. */
+  | { kind: Ev.Beings; feed: BeingFeed };

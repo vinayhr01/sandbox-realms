@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="thornboar-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8e7868"/><stop offset=".55" stop-color="#6a5444"/><stop offset="1" stop-color="#4a3a2e"/></linearGradient>
+<linearGradient id="thornboar-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#76604e"/><stop offset="1" stop-color="#4a3828"/></linearGradient>
+<linearGradient id="thornboar-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#56422f"/><stop offset="1" stop-color="#34261a"/></linearGradient>
+<linearGradient id="thornboar-t" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#cbbd9a"/><stop offset="1" stop-color="#fbf6e6"/></linearGradient>
+<g id="thornboar-fl"><path d="M38 74C37 84 39 94 40 102L40.6 112H48.6L48.6 103C49.6 94 51 84 52 74C49 66 40 66 38 74Z"/><path d="M40.6 111.5H48.6L49.6 120H38.6Q39 115.6 40.6 111.5Z" fill="#2a201a" stroke="#1c140e"/><path d="M44.2 112.6V120" stroke="#6a5a4e" stroke-width=".8"/><path d="M48.8 106.6l1.8 1.6" stroke-width="1.2"/><path d="M41 80l1.4 2M45 79l1 2.4M42 88l1.4 2M46 87l1 2.2" stroke-width=".9" opacity=".45"/></g>
+<g id="thornboar-bl"><path d="M80 62C78 74 80 84 86 90L86.4 112H94.4L94.6 104C95.6 98 98 94 99.6 90C102.6 82 102.6 70 99 60C92 56 84 57 80 62Z"/><path d="M86.4 111.5H94.4L95.4 120H84.4Q84.8 115.6 86.4 111.5Z" fill="#2a201a" stroke="#1c140e"/><path d="M90 112.6V120" stroke="#6a5a4e" stroke-width=".8"/><path d="M84 68l1.6 2M90 66l1.4 2.4M95 70l1 2.4M86 76l1.6 2M93 78l1.2 2.2" stroke-width=".9" opacity=".45"/></g>
+</defs>
+<g stroke="#2e2018" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="50 72"><use href="#thornboar-fl" x="5" fill="url(#thornboar-f)"/></g>
+<g id="leg-br" data-pivot="82 66"><use href="#thornboar-bl" x="-8" fill="url(#thornboar-f)"/></g>
+<g id="body" data-pivot="66 70">
+<g id="tail" data-pivot="99 63">
+<path d="M98.6 61.4C102.8 61.6 105 64.6 104.6 69C104.2 73 106 75.6 108.2 76.8L106.8 79C103.6 78 101.4 74 101.8 70C102 67 101 65.4 98.4 65Z" fill="url(#thornboar-c)"/>
+<path d="M106.4 76.2C109.2 76.4 111.2 79 110.6 82C109.2 84.2 106 83.8 105.4 81.4C105 79.6 105.4 77.6 106.4 76.2Z" fill="#2e2018"/>
+</g>
+<path d="M32 70C32 56 42 46 56 45C66 44.4 74 48 84 52C94 55 100 60 101 68C102 76 98 82 92 83C84 82 76 82 68 83C60 86 50 88 42 86C36 84 32 78 32 70Z" fill="url(#thornboar-c)"/>
+<path d="M44 85C52 84.6 60 83 68 81C62 79.6 52 80.4 45 82.6Z" fill="#a08c7a" stroke="none" opacity=".7"/>
+<path d="M50 56l2 3M56 54l1.6 3.4M62 56l2 3M68 55l1.6 3.4M74 58l2 3M80 58l1.6 3.4M86 61l2 3M92 63l1.6 3.4M54 64l2 3M60 66l1.6 3.4M66 64l2 3M72 66l1.6 3.4M78 66l2 3M84 69l1.6 3.4M90 70l2 3M64 73l2 3M72 74l1.6 3.4M80 75l2 3" fill="none" stroke="#2e2018" stroke-width="1" opacity=".4"/>
+<path d="M38 52L37.6 46.4L41 49.4L42 43.4L45 47L46.6 41.4L49.4 45.4L51.6 40.6L54 44.8L56.8 40.6L58.4 45L61.6 41.8L62.6 46.2L66 43.6L66.6 48L70 46.4L70.4 50.4L74 49.4L73.6 53.4L77 53.2L75 56.4C66 52 54 50 44 54Z" fill="#3a2a1e"/>
+<path d="M44 52.4C52 50 62 50 72 53" fill="none" stroke="#a89484" stroke-width="1" opacity=".5"/>
+<g id="head" data-pivot="40 58">
+<path d="M34 82C28 76 25 66 25 58L30 44C40 44 48 46 56 48C50 58 42 70 34 82Z" fill="url(#thornboar-c)" stroke="none"/>
+<path d="M34 82C28 76 25 66 25 58M30 44C40 44 48 46 56 48" fill="none"/>
+<path d="M30 60l2 2.6M34 64l2 2.4M30 70l2 2.4M36 72l2 2.2" fill="none" stroke-width="1" opacity=".4"/>
+<path d="M23.6 44C22.6 39.6 23.4 35.6 25.4 33C27.6 36 28.6 40 28.4 44Z" fill="url(#thornboar-f)"/>
+<path d="M33 46C30 42 26 41 22 42C16 44 10 48 6 51C4 52 2.8 54 3 56.6L4 61C4.6 63 6.4 64 8.4 63.6C12 63 16 63 20 63.6C26 64.4 32 62 35 57C36.6 54 36 49 33 46Z" fill="url(#thornboar-c)"/>
+<path d="M8.4 63.6C12 63 16 63 20 63.6C26 64.4 31 62.4 34 58.6C28 59.6 20 60 12 60.4C9.6 60.6 8.4 62 8.4 63.6Z" fill="#4a3a2e" stroke="none" opacity=".7"/>
+<path d="M28 44.6C27 38.6 28.6 33.4 31 30.2C33.6 34 35 39.4 34.6 45.4Z" fill="url(#thornboar-c)"/>
+<path d="M29.8 43C29.4 38.6 30.4 35 31.4 33.4C32.8 36 33.4 39.6 33 43.6Z" fill="#a07a70" stroke="none"/>
+<ellipse cx="3.8" cy="57.4" rx="2.4" ry="4" fill="#b08a80" stroke-width="1.2"/>
+<ellipse cx="3.4" cy="55.8" rx=".6" ry="1" fill="#2e2018" stroke="none"/><ellipse cx="3.4" cy="59.2" rx=".6" ry="1" fill="#2e2018" stroke="none"/>
+<path d="M6.4 62.4C10 61.4 14 61.4 18.4 62.2" fill="none" stroke="#1c140e" stroke-width="1.2"/>
+<path d="M10 62.2C8.6 59.4 8.8 56 11.2 53.6C11.4 56.6 12 59.6 13.2 62Z" fill="url(#thornboar-t)" stroke="#6e5e46" stroke-width="1"/>
+<path d="M14 62.4C13.4 60.6 13.6 58.6 14.8 57C15.2 58.8 15.8 60.6 16.6 62.2Z" fill="url(#thornboar-t)" stroke="#6e5e46" stroke-width=".9"/>
+<path d="M9 49.6q4-2 8-1.6M10.6 53q3-1 6-.6" fill="none" stroke-width="1" opacity=".4"/>
+<path d="M17.4 46.6Q20.6 44.8 23.6 46.8" fill="none" stroke="#2e2018" stroke-width="1.3"/>
+<ellipse cx="20.6" cy="48.8" rx="1.8" ry="1.4" fill="#3a1c10" stroke="#1c140e" stroke-width=".9"/>
+<circle cx="20.1" cy="48.4" r=".5" fill="#fff" stroke="none"/>
+<path d="M24 52l2 2.4M27 50l2 2.4M26 56l2 2.2M30 54l2 2.2" fill="none" stroke-width="1" opacity=".4"/>
+</g>
+</g>
+<g id="leg-bl" data-pivot="87 66"><use href="#thornboar-bl" x="-3" fill="url(#thornboar-n)"/></g>
+<g id="leg-fl" data-pivot="45 72"><use href="#thornboar-fl" fill="url(#thornboar-n)"/></g>
+</g>
+</svg>

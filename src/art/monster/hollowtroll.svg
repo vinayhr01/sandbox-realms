@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="hollowtroll-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a6b97f"/><stop offset=".55" stop-color="#7a8f58"/><stop offset="1" stop-color="#55673b"/></linearGradient>
+<linearGradient id="hollowtroll-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#768a54"/><stop offset="1" stop-color="#435230"/></linearGradient>
+<linearGradient id="hollowtroll-b" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d0d39e"/><stop offset="1" stop-color="#a8b27a"/></linearGradient>
+<linearGradient id="hollowtroll-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a5038"/><stop offset="1" stop-color="#3a2a1c"/></linearGradient>
+<linearGradient id="hollowtroll-t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9c7a52"/><stop offset="1" stop-color="#5e4528"/></linearGradient>
+<g id="hollowtroll-leg"><path d="M53 78H71C73 86 72 94 68 101L66.5 110H56.5L56.5 102C54 95 52.5 87 53 78Z"/><path d="M56 95q5 2 11 0" fill="none" stroke-width="1" opacity=".45"/><path d="M56.5 108H67C69 112 70 116 69 120H45.5C42.5 120 41.5 117.5 43 115.5C45.5 113 51 112 56.5 110Z"/><path d="M43.5 116.5C42 117 41.5 119 43 120M48 115.2C46.5 116 46.3 118.6 47.6 120M52.3 114.5C51 115.5 51 118.5 52.2 120" fill="none" stroke-width="1"/><path d="M42.7 117.4q1.4-.6 2.4.6M47.3 116.2q1.4-.6 2.3.6" fill="none" stroke="#efe6c8" stroke-width="1.1"/></g>
+<g id="hollowtroll-arm"><path d="M53.5 45C55 38 66 37 68.5 44C69 52 66.5 60 63.5 67L60.5 76L50 74C51 65 52 55 53.5 45Z"/><path d="M50.5 72C49 80 47 88 45 96L55.5 98C58 90 60 82 61 74Z"/><path d="M50.5 72.5q5 2.5 10 1" fill="none" stroke-width="1" opacity=".5"/><path d="M44 93.5C40 96 38.5 101 40 104.5C42 107.5 50 108 54.5 105C57.5 102.5 57.5 98 56 95Z"/><path d="M40.5 104L39 109.5L43 105.5ZM45 106L44.5 111L47.8 106.3ZM50 106L50.5 110.5L52.6 105.5Z" fill="#efe6c8" stroke="#6b6448" stroke-width="1"/><path d="M42.5 99.5q5 2 10 1" fill="none" stroke-width="1" opacity=".6"/></g>
+</defs>
+<g stroke="#34421f" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="73 82"><use href="#hollowtroll-leg" x="11" fill="url(#hollowtroll-f)"/></g>
+<g id="leg-l" data-pivot="62 82"><use href="#hollowtroll-leg" fill="url(#hollowtroll-c)"/></g>
+<g id="body" data-pivot="68 66">
+<g id="arm-r" data-pivot="73 46"><use href="#hollowtroll-arm" x="12" y="-1" fill="url(#hollowtroll-f)"/></g>
+<path d="M58 36C60 31 64 30 66 33C67 28 72 27 74 31C76 27 81 28 82 33C85 31 89 34 88 38Z" fill="url(#hollowtroll-h)" stroke="#2a1e12" stroke-width="1"/>
+<path d="M50 46C52 37 62 32 73 33C85 34 93 45 93 58C93 70 89 80 81 86C73 89 61 88 55 84C50 76 48 66 48 58C48 53 49 49 50 46Z" fill="url(#hollowtroll-c)"/>
+<path d="M50 60C51.5 72 57 82 67 86.5C61 79 58 70 57.5 60C55 58 52 58 50 60Z" fill="url(#hollowtroll-b)" stroke="none"/>
+<path d="M66 44a1.6 1.6 0 1 0 .1 0M80 50a1.8 1.8 0 1 0 .1 0M84 64a1.5 1.5 0 1 0 .1 0M74 58a1.3 1.3 0 1 0 .1 0" fill="#8fa266" stroke-width="1" opacity=".8"/>
+<path d="M60 38C70 34 82 36 88 42" fill="none" stroke="#c4d49a" stroke-width="2" opacity=".45"/>
+<path d="M53 77C61 81 77 81 87 77L89.5 90L86 88L83 92L79 89L75 93L71 89.5L67 93L63 89.5L59 92.5L56 89Z" fill="url(#hollowtroll-t)" stroke="#3a2a18"/>
+<path d="M53.4 77.2C61 80.5 77 80.5 87 77.2L87.4 81C77 84.5 61 84.5 54 81.2Z" fill="#4e3a24" stroke="#2a1e12" stroke-width="1"/>
+<g id="head" data-pivot="56 46">
+<path d="M56 32C61 27 67 25 72 23.5C69 30 65 35 59 38.5Z" fill="url(#hollowtroll-c)"/>
+<path d="M58.5 31.5C63 29 67 27 70 26" fill="none" stroke-width="1"/>
+<path d="M39 35C41 28 49 24.5 56 27.5C61 30.5 62.5 37 61.5 43C60.5 49 56 53.5 50 54.5C45 55.5 40 53.5 37 50.5Z" fill="url(#hollowtroll-c)"/>
+<path d="M45 27C47 22 52 20 56 22C58 19 62 19 64 22C61 24 59 27 57.5 30C53 27.5 49 26.5 45 27Z" fill="url(#hollowtroll-h)" stroke="#2a1e12" stroke-width="1"/>
+<path d="M36.5 49C40 50.5 46 51.5 52 51C51 54.5 47 57 42.5 56.5C39.5 56 37.5 53 36.5 49Z" fill="url(#hollowtroll-f)"/>
+<path d="M36.8 49.2C41 51 46 51.6 52 51" fill="none" stroke="#2a3418" stroke-width="1.3"/>
+<path d="M39.5 50.4L40 45.8L42.4 50.9ZM46 51.3L46.8 47L48.8 51.4Z" fill="#efe6c8" stroke="#6b6448" stroke-width=".9"/>
+<path d="M41.5 37C35.5 36 29.5 38.5 27 43.5C25 48 27.5 51.5 31.5 51C35 50.5 37.5 47.5 39.5 45Z" fill="url(#hollowtroll-c)"/>
+<path d="M29.5 47.5q1.5 1.3 3 .8" fill="none" stroke-width="1"/>
+<path d="M30 41a1 1 0 1 0 .1 0M34 39.5a.8.8 0 1 0 .1 0" fill="#5e7340" stroke="none"/>
+<path d="M41.5 38C43.5 36.5 46.5 36.5 48 38.5C46.5 40 43.5 40 41.5 38Z" fill="#f2e48a" stroke-width=".9"/>
+<circle cx="44.6" cy="38.2" r="1.1" fill="#2a1a0a" stroke="none"/>
+<circle cx="44.2" cy="37.8" r=".4" fill="#fff" stroke="none"/>
+<path d="M39.5 35.5C43 33 48 33 51.5 35.5" fill="none" stroke="#34421f" stroke-width="2.4"/>
+<path d="M52 40q2 3 1 6M55 36q2 2 2 5" fill="none" stroke-width="1" opacity=".45"/>
+</g>
+<g id="arm-l" data-pivot="61 46"><use href="#hollowtroll-arm" fill="url(#hollowtroll-c)"/><path d="M57 41C60 39 64 39 66.5 41" fill="none" stroke="#c4d49a" stroke-width="1.6" opacity=".5"/></g>
+</g>
+</g>
+</svg>

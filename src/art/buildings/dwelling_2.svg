@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="dwelling_2-dr" x2="0" y2="1"><stop offset="0" stop-color="#946036"/><stop offset="1" stop-color="#5c3719"/></linearGradient>
+<radialGradient id="dwelling_2-en" cx=".45" cy=".45" r=".6"><stop offset="0" stop-color="#f3dca6"/><stop offset="1" stop-color="#c3935a"/></radialGradient>
+<linearGradient id="dwelling_2-gl" x2="0" y2="1"><stop offset="0" stop-color="#4d3a29"/><stop offset="1" stop-color="#1f160e"/></linearGradient>
+<linearGradient id="dwelling_2-gw" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a6"/><stop offset="1" stop-color="#f2a443"/></linearGradient>
+<linearGradient id="dwelling_2-pl" x2="0" y2="1"><stop offset="0" stop-color="#f6e8c8"/><stop offset="1" stop-color="#dcc391"/></linearGradient>
+<linearGradient id="dwelling_2-st" x2="0" y2="1"><stop offset="0" stop-color="#d2cbbb"/><stop offset="1" stop-color="#978d7c"/></linearGradient>
+<linearGradient id="dwelling_2-sts"><stop offset="0" stop-color="#a59d8e"/><stop offset="1" stop-color="#6c6458"/></linearGradient>
+<linearGradient id="dwelling_2-th" x2="0" y2="1"><stop offset="0" stop-color="#efcd74"/><stop offset="1" stop-color="#b88a3c"/></linearGradient>
+<linearGradient id="dwelling_2-ths"><stop offset="0" stop-color="#c79f50"/><stop offset="1" stop-color="#8a632c"/></linearGradient>
+<linearGradient id="dwelling_2-wc"><stop offset="0" stop-color="#7e4f28"/><stop offset=".3" stop-color="#c98f55"/><stop offset=".7" stop-color="#b27a44"/><stop offset="1" stop-color="#6a401f"/></linearGradient>
+<linearGradient id="dwelling_2-wd" x2="0" y2="1"><stop offset="0" stop-color="#cf975d"/><stop offset="1" stop-color="#94602f"/></linearGradient>
+<g id="dwelling_2-w0"><path d="M-7-.5h6.5v12h-6.5Z" fill="url(#dwelling_2-dr)" stroke="#3a2210"/><path d="M12.5-.5h6.5v12h-6.5Z" fill="url(#dwelling_2-dr)" stroke="#3a2210"/><path d="M-4 1v9M16 1l0 9" fill="none" stroke="#3a2210" stroke-width="1" opacity=".6"/><path d="M0 0h12v11h-12Z" stroke="#4a2e18" stroke-width="1.6"/><path d="M6 .5v10.5M.5 5.5h11" fill="none" stroke="#4a2e18" stroke-width="1.1"/><path d="M1.6 4.1l2-2.2" fill="none" stroke="#fff" stroke-width=".9" opacity=".8"/><path d="M-1.5 11h15v2h-15Z" fill="url(#dwelling_2-wd)" stroke="#53331a"/></g>
+</defs>
+<g stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<path d="M82 120L82 88L100.7 77.8L100.7 109.8Z" fill="url(#dwelling_2-sts)" stroke="#544d43"/>
+<path d="M16 120L16 88L82 88L82 120Z" fill="url(#dwelling_2-st)" stroke="#544d43"/>
+<path d="M16 94l66 0M16 100l660M16 106l660M16 112l66-1M16 118l66 0M24 89v5M32 89v5M41 89v5M50 89v5M58 89v5M68 89v5M78 89v5M21 95v5M29 95v5M39 95v5M48 95v5M58 95v5M66 95v5M75 95v5M24 101v5M32 101v5M43 101v5M51 101v5M62 101v5M72 101v5M21 107v5M29 107v5M38 107v5M46 107v5M54 107v5M62 107v5M70 107v5M78 107v5M26 113v5M34 113v5M41 113v5M51 113v5M61 113v5M69 113v5M77 113v5M20 119v1M29 119v1M36 119v1M44 119v1M52 119v1M60 119v1M70 119v1M78 119v1" fill="none" stroke="#544d43" stroke-width="1" opacity=".5"/>
+<path d="M82 94l19-10M82 100l19-10M82 106l19-10M82 112l19-10M82 118l19-10M87 86v5M93 83v5M98 80v5M85 93v5M90 90v5M95 87v5M87 98v5M93 95v5M98 92v5M85 105v5M90 102v5M95 99v5M87 110v5M93 107v5M98 104v5M85 117v1M90 114v1M95 111v1" fill="none" stroke="#544d43" stroke-width="1" opacity=".5"/>
+<path d="M82 88L100.7 77.8L91.3 54.9Z" fill="url(#dwelling_2-sts)" stroke="#544d43"/>
+<path d="M97.3 52.9L104.3 81.8L103.7 85L95.8 55.9Z" fill="url(#dwelling_2-ths)" stroke="#73501e"/>
+<path d="M10 92L88 92L97.3 52.9L19.4 52.9Z" fill="url(#dwelling_2-th)" stroke="#73501e"/>
+<path d="M15 92l9-39M19 92l10-39M22 92l9-39M27 92l9-39M32 92l9-39M35 92l9-39M41 92l10-39M45 92l10-39M49 92l9-39M54 92l10-39M57 92l9-39M61 92l10-39M67 92l9-39M70 92l10-39M75 92l9-39M79 92l9-39M84 92l9-39" fill="none" stroke="#73501e" stroke-width="1" opacity=".5"/>
+<path d="M10 92h78" fill="none" stroke="#73501e" stroke-width="2.4" opacity=".6"/>
+<path d="M19.4 52.9h77.9" fill="none" stroke="#73501e" stroke-width="2.6" opacity=".7"/>
+<path d="M72 64L72 46L75.3 44.2L75.3 62.2Z" fill="url(#dwelling_2-sts)" stroke="#544d43"/>
+<path d="M64 64L64 46L72 46L72 64Z" fill="url(#dwelling_2-st)" stroke="#544d43"/>
+<path d="M64 52l80M64 54l8 1M64 57l8 0M64 61l8 0M68 49v2M67 52v2M69 55v2M66 58v2M68 61v2" fill="none" stroke="#544d43" stroke-width="1" opacity=".4"/>
+<path d="M62.8 43.6h10.4v2.6h-10.4Z" fill="url(#dwelling_2-st)" stroke="#544d43"/>
+<path d="M27 96h15v24h-15Z" fill="url(#dwelling_2-pl)" stroke="#806444"/>
+<path d="M29 98h11v22h-11Z" fill="url(#dwelling_2-dr)" stroke="#3a2210" stroke-width="1.6"/>
+<path d="M33 99v21M36 99v21" fill="none" stroke="#3a2210" stroke-width="1" opacity=".6"/>
+<path d="M30 105h9M30 115h9" fill="none" stroke="#2a180a" stroke-width="1.3" opacity=".6"/>
+<circle cx="37.6" cy="110.1" r="1.1" fill="#e6bc5c" stroke="#7a5a20" stroke-width=".6"/>
+<use href="#dwelling_2-w0" x="52" fill="url(#dwelling_2-gw)" y="98"/>
+<path d="M88.5 94.4L94.2 91.4L94.2 101.4L88.5 104.4Z" fill="url(#dwelling_2-gl)" stroke="#2a1d12" stroke-width="1.4"/>
+<path d="M91.3 92.9v10M88.5 99.4l5.7-3" fill="none" stroke="#3a2412" stroke-width="1" opacity=".9"/>
+<path d="M98 106Q96.5 112 98 118Q103.5 121 109 118Q110.5 112 109 106Z" fill="url(#dwelling_2-wc)" stroke="#4a2c14"/>
+<ellipse cx="103.5" cy="106" rx="5.5" ry="2.2" fill="url(#dwelling_2-en)" stroke="#4a2c14" stroke-width="1.2"/>
+<path d="M97.4 108.8Q103.5 111.2 109.6 108.8M97.4 115.5Q103.5 117.9 109.6 115.5" fill="none" stroke="#3b4148" stroke-width="1.6" opacity=".9"/>
+<path d="M6 120l1 -3.3M7.6 120l-1 -3.5M11.9 120l0.9 -2.9M13.5 120l-0.8 -3.2M17.6 120l1.1 -4.4M19.2 120l-0.5 -2.6M23.3 120l0.7 -4.4M24.9 120l-0.9 -2.3M27.6 120l1.3 -4.5M29.2 120l-0.8 -2.2M32.9 120l0.7 -3.1M34.5 120l-0.8 -3M37.2 120l0.8 -3.4M38.8 120l-1 -2M41.9 120l1.3 -4.4M43.5 120l-1 -2.6M46.2 120l1.3 -4.5M47.8 120l-1 -2.7M51.7 120l1.4 -3.9M53.3 120l-0.4 -3M56.5 120l1 -4M58.1 120l-0.4 -2.6M61.5 120l1.2 -2.6M63.1 120l-0.3 -2.6M67 120l0.9 -3.3M68.6 120l-0.5 -2.9M71.3 120l0.8 -4.4M72.9 120l-0.7 -3M76 120l1.2 -3.3M77.6 120l-1.1 -2.3M80.9 120l0.5 -2.6M82.5 120l-0.7 -3.2M86.2 120l0.8 -3.9M87.8 120l-0.4 -2.7M91.8 120l1.5 -3.1M93.4 120l-0.5 -2.2M96.6 120l1.3 -2.6M98.2 120l-0.1 -2.2M100.6 120l1.3 -3.5M102.2 120l-0.9 -2.4M105.7 120l0.9 -3.6M107.3 120l-1 -3.3M110.7 120l1 -3.5M112.3 120l-0.3 -2.2M116.5 120l0.9 -2.9M118.1 120l-0.2 -2.9" fill="none" stroke="#3f6d28" stroke-width="1.1" opacity=".8"/>
+</g>
+</svg>

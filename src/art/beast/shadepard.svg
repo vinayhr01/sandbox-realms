@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="shadepard-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#636878"/><stop offset=".5" stop-color="#3c3f4b"/><stop offset="1" stop-color="#25272f"/></linearGradient>
+<linearGradient id="shadepard-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4c505d"/><stop offset="1" stop-color="#2a2c34"/></linearGradient>
+<linearGradient id="shadepard-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#30323b"/><stop offset="1" stop-color="#1e1f25"/></linearGradient>
+<path id="shadepard-r" d="M-2.4-.4C-1.8-2.4.4-2.8 1.8-1.6M2.6.4C2.6 2 1.4 3.1-.2 3.1M-1.8 2.6C-2.8 1.8-2.9.8-2.6-.1" fill="none" stroke="#2a2c35" stroke-width="1.3" opacity=".75"/>
+<g id="shadepard-fl"><path d="M40.5 70C39.5 82 41.5 94 42.5 104L42 111.5C39 112.8 35 114.8 34.8 117.4C34.8 119.4 36.2 120 38 120H49C50.4 119.4 50.8 117.4 49.8 115L49.2 104C50 94 52 84 53.2 72C50.6 64 42.4 64 40.5 70Z"/><path d="M38.6 117v3M42 116.4v3.6M45.4 116.4v3.6" stroke="#6a6f80" stroke-width=".9" opacity=".7"/><path d="M42.6 76q1 10 1.4 22" fill="none" stroke="#7a8094" stroke-width="1.2" opacity=".35"/></g>
+<g id="shadepard-bl"><path d="M80.5 64.5C78.5 76 82.5 88 88 94L87 106L86.5 111.5C83.5 112.8 80 114.8 79.8 117.4C79.8 119.4 81.2 120 83 120H95C96.4 119.4 96.8 117.4 95.8 115L95.2 106C96.2 100 97.6 96 99.6 92C103.4 82 103.4 70 99.6 60.6C92 57 83.4 58.6 80.5 64.5Z"/><path d="M83.6 117v3M87 116.4v3.6M90.4 116.4v3.6" stroke="#6a6f80" stroke-width=".9" opacity=".7"/><path d="M83 66q8-4 15 2" fill="none" stroke="#7a8094" stroke-width="1.4" opacity=".4"/></g>
+</defs>
+<g stroke="#17181e" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="53 72"><use href="#shadepard-fl" x="6" fill="url(#shadepard-f)"/></g>
+<g id="leg-br" data-pivot="81 68"><use href="#shadepard-bl" x="-9" fill="url(#shadepard-f)"/></g>
+<g id="body" data-pivot="68 70">
+<g id="tail" data-pivot="99 60">
+<path d="M98 57C105 59 108.5 67 109 77C109.5 87 108.5 94 110 99C111.5 103.5 109 106.5 105.8 105.6C103 104.6 103.2 99 103.2 93C103.2 83 102 73 97 65Z" fill="url(#shadepard-c)"/>
+<path d="M101 61.4C105 64 106.6 70 107 77" fill="none" stroke="#8a90a6" stroke-width="1.2" opacity=".5"/>
+</g>
+<path d="M36 70C36 59 45 56 57 56C71 56 84 54 94 57C101 59 104 65 102 72C100 79 96 82 91 82C83 80 76 80 68 81C60 84 52 86 46 85.5C39 84 36 78 36 70Z" fill="url(#shadepard-c)"/>
+<path d="M47 57.8C62 56 80 54.2 94 57.4" fill="none" stroke="#9aa0b8" stroke-width="1.8" opacity=".55"/>
+<path d="M50 61C62 59.6 78 58.6 92 60.6" fill="none" stroke="#8a90a6" stroke-width="1" opacity=".3"/>
+<use href="#shadepard-r" x="52" y="66"/><use href="#shadepard-r" x="61" y="64.5"/><use href="#shadepard-r" x="70" y="64"/><use href="#shadepard-r" x="79" y="63.5"/><use href="#shadepard-r" x="88" y="64.5"/><use href="#shadepard-r" x="96" y="68"/>
+<use href="#shadepard-r" x="57" y="72"/><use href="#shadepard-r" x="66" y="71"/><use href="#shadepard-r" x="75" y="70.5"/><use href="#shadepard-r" x="84" y="71"/><use href="#shadepard-r" x="92" y="75"/>
+<g id="head" data-pivot="42 61">
+<path d="M37 80C31 74 28 64 26 55.5L33 37C43 39 51 46 59 55C51 61 43 69 37 80Z" fill="url(#shadepard-c)" stroke="none"/>
+<path d="M37 80C31 74 28 64 26 55.5M33 37C43 39 51 46 59 55" fill="none"/>
+<path d="M34 39.6C42 42 49 47.4 55.6 53.6" fill="none" stroke="#9aa0b8" stroke-width="1.6" opacity=".5"/>
+<path d="M20.5 31.6C20 27 22 24 25 24.4C26.6 26.4 27 29 26.4 31.6Z" fill="url(#shadepard-f)"/>
+<path d="M26.4 32C25.6 26.4 28.4 23.2 31.6 23.6C34.4 24.2 35.4 28.4 34.4 34Z" fill="url(#shadepard-c)"/>
+<path d="M28.6 31C28.6 27.6 29.8 25.8 31.5 26.1C32.9 27 33.1 29.4 32.7 32.4Z" fill="#6a5a66" stroke="none"/>
+<path d="M37 40.5C35 33.5 29.4 29.8 22.6 30.2C15.6 30.6 10.6 34.4 8.6 39.4C6.2 40.4 4.8 42.8 4.8 45.2C4.8 48 6.6 50.4 10 51.4C12.4 54.2 17.2 56 22.8 56C30.6 56 36.4 52 37.6 46.2C38 44.2 37.8 42.4 37 40.5Z" fill="url(#shadepard-c)"/>
+<path d="M11 33.8C15 30.8 22 29.8 28 31.6" fill="none" stroke="#9aa0b8" stroke-width="1.5" opacity=".55"/>
+<path d="M5.4 46.6C5.8 49 7.6 50.8 10.6 51.4C13.2 53.8 17.2 55.4 21.4 55.6C19.4 52 15.6 49.6 11.6 48.6C9.2 48 7 47.4 5.4 46.6Z" fill="#2c2e36" stroke="none"/>
+<path d="M27 44q3 2 6 1.4M26 49q3 2 6.4 1" fill="none" stroke="#7a8094" stroke-width="1" opacity=".4"/>
+<path d="M4.8 43C4.8 41.2 6.8 40.6 8.4 41.2C9.2 42.6 8.6 44.4 7 45.2C5.8 45.4 5 44.6 4.8 43Z" fill="#202127" stroke-width="1"/>
+<path d="M6.2 42.4q1-.8 2-.4" fill="none" stroke="#fff" stroke-width=".7" opacity=".6"/>
+<path d="M6.6 45.4v1.6Q7.8 48.6 10.4 48.4Q13.2 48.2 15 49.6" fill="none" stroke="#0f1014" stroke-width="1.1"/>
+<g fill="#6a6f80" stroke="none"><circle cx="11" cy="46.6" r=".45"/><circle cx="13.2" cy="46.1" r=".45"/><circle cx="12.1" cy="47.8" r=".45"/></g>
+<path d="M12.4 47l-8 1.2M12.8 47.8l-7.4 3.4" fill="none" stroke="#e8ecf4" stroke-width=".6" opacity=".85"/>
+<ellipse cx="16.6" cy="38.2" rx="2.9" ry="1.9" fill="#d8d13a" stroke="#0f1014" stroke-width="1"/>
+<ellipse cx="16.5" cy="38.2" rx=".9" ry="1.6" fill="#0d0e08" stroke="none"/>
+<circle cx="15.7" cy="37.5" r=".6" fill="#fff" stroke="none"/>
+<path d="M13 36q3.6-2 7.6.4" fill="none" stroke="#0f1014" stroke-width="1.2"/>
+</g>
+</g>
+<g id="leg-bl" data-pivot="87 68"><use href="#shadepard-bl" x="-3" fill="url(#shadepard-n)"/></g>
+<g id="leg-fl" data-pivot="47 72"><use href="#shadepard-fl" fill="url(#shadepard-n)"/></g>
+</g>
+</svg>

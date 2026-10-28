@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="ridgeprowler-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4a84e"/><stop offset=".6" stop-color="#e2822e"/><stop offset="1" stop-color="#b65c1e"/></linearGradient>
+<linearGradient id="ridgeprowler-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e88e3a"/><stop offset=".75" stop-color="#c06a26"/><stop offset="1" stop-color="#f2e6d2"/></linearGradient>
+<linearGradient id="ridgeprowler-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8652a"/><stop offset=".75" stop-color="#8a4518"/><stop offset="1" stop-color="#c9b9a2"/></linearGradient>
+<linearGradient id="ridgeprowler-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#e6d8c2"/></linearGradient>
+<g id="ridgeprowler-fl"><path d="M39.5 70C38.5 82 40.5 94 41.5 104L41 111.5C38 112.8 33.8 114.8 33.6 117.4C33.6 119.4 35 120 37 120H49.3C50.8 119.4 51.2 117.4 50.2 115L49.6 104C50.6 94 53 84 54.2 72C51.2 63.5 41.5 63.5 39.5 70Z"/><path d="M37.6 117v3M41.2 116.4v3.6M44.8 116.4v3.6" stroke-width=".9" opacity=".6"/><path d="M41 79.5q4 1.4 7.6-.6M41.5 87.5q3.6 1.2 6.8-.6M42 95q3 1 6-.4" fill="none" stroke="#2b1a12" stroke-width="1.8"/></g>
+<g id="ridgeprowler-bl"><path d="M80 64C78 76 82 88 88 94L87 106L86.5 111.5C83.5 112.8 79.8 114.8 79.6 117.4C79.6 119.4 81 120 83 120H95.3C96.8 119.4 97.2 117.4 96.2 115L95.6 106C96.6 100 98 96 100 92C104 82 104 70 100 60C92 56 83 58 80 64Z"/><path d="M83.6 117v3M87.2 116.4v3.6M90.8 116.4v3.6" stroke-width=".9" opacity=".6"/><path d="M84 69q6 2 9.5 8.5M82.5 77.5q5.5 2 8.5 7.5M89.5 99.5q3.4.4 6.2-1.6" fill="none" stroke="#2b1a12" stroke-width="1.9"/></g>
+</defs>
+<g stroke="#5c2c0e" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="53 72"><use href="#ridgeprowler-fl" x="6" fill="url(#ridgeprowler-f)"/></g>
+<g id="leg-br" data-pivot="81 68"><use href="#ridgeprowler-bl" x="-9" fill="url(#ridgeprowler-f)"/></g>
+<g id="body" data-pivot="68 70">
+<g id="tail" data-pivot="99 59">
+<path d="M98 56C106 58 110 66 110.5 76C111 86 110 94 111.5 99C113 103 110.5 106.5 107 105.5C104 104.5 104 99 104 93C104 83 103 73 97 65Z" fill="url(#ridgeprowler-c)"/>
+<path d="M102.8 66.8l5.6-2.4M104.4 75.6l6-.6M104.4 84.6l6 .2M104.6 92.6l6 1" fill="none" stroke="#2b1a12" stroke-width="2.4"/>
+<path d="M107 105.5C104 104.5 104 99.5 104.2 96.5C107 97.4 110 97.6 111.6 98.6C113 103 110.5 106.5 107 105.5Z" fill="#2b1a12"/>
+</g>
+<path d="M34 70C34 58 44 54 56 54C70 54 84 52 94 55C102 57 105 64 103 72C101 79 97 83 91 83C83 81 76 81 68 82C60 85 52 88 45 87C38 85 34 78 34 70Z" fill="url(#ridgeprowler-c)"/>
+<path d="M46 86.3C54 85.5 62 83 69 80.5C63 79 54 80 47 82.5Z" fill="url(#ridgeprowler-w)" stroke="none"/>
+<path d="M48 55.6C62 54 80 52.2 94 55.2" fill="none" stroke="#fbcf94" stroke-width="1.6" opacity=".55"/>
+<g fill="#2b1a12" stroke="none">
+<path d="M57 54.3C58 59 57 63 54 67C58.5 64 60.5 59 60.5 54.2Z"/>
+<path d="M65 54C66.5 60 65.5 66 62 71C67 67 69 61 68.5 54Z"/>
+<path d="M73 53.6C75 59 74.5 65 71 70C76 66 77.5 60 76.5 53.4Z"/>
+<path d="M81 53C83 59 82.5 66 79 72C84 67 85.5 60 84.5 53.2Z"/>
+<path d="M89 53.8C91 59 91 65 88 70C92.5 66 94 60 92.5 54.4Z"/>
+<path d="M97 56C99 61 99 66 97 70C100.5 67 102 62 100.5 57.5Z"/>
+<path d="M68 81.6C69 77.5 72 74.5 76 73.5C73.5 76.5 72.5 79 72.5 81.2Z"/>
+<path d="M80 81.4C81 77.5 84 75 88 74.5C85.5 77 84.6 79.5 84.8 81.8Z"/>
+<path d="M56 86C57 81 60 78 64 77C62 80 61 83 61 84.4Z"/>
+</g>
+<path d="M60 62q2 3 1.4 6M76 61q2 3 1.4 6M92 62q1.6 3 1 5.6" fill="none" stroke-width="1" opacity=".3"/>
+<g id="head" data-pivot="42 60">
+<path d="M36 80C30 74 27 64 25 55L32 36C42 38 50 45 58 53C50 59 42 68 36 80Z" fill="url(#ridgeprowler-c)" stroke="none"/>
+<path d="M36 80C30 74 27 64 25 55M32 36C42 38 50 45 58 53" fill="none"/>
+<path d="M35.6 79C31 73 28.4 66 27 58.5C31 63 34 69.5 35.6 79Z" fill="url(#ridgeprowler-w)" stroke="none"/>
+<path d="M39 46q2.4 4 1.4 8.4M45 50.4q1.8 4 .4 7.6M50.5 54q1 3-.6 6" fill="none" stroke="#2b1a12" stroke-width="2"/>
+<path d="M20 31.4C19.5 26.8 21.5 23.6 24.6 24C26.2 26 26.6 28.6 26 31.4Z" fill="url(#ridgeprowler-f)"/>
+<path d="M26 32C25 26 28 22.5 31.5 23C34.5 23.5 35.5 28 34.5 34Z" fill="url(#ridgeprowler-c)"/>
+<path d="M28.2 31C28.2 27.4 29.6 25.4 31.4 25.7C32.9 26.6 33.2 29.2 32.8 32.4Z" fill="#f6e6d0" stroke="none"/>
+<path d="M37 40C35 33 29 29 22 29.5C15 30 10 34 8 39C5.5 40 4 42.5 4 45C4 48 6 50.5 9.5 51.5C12 54.5 17 56.5 23 56.5C31 56.5 37 52 38 46C38.5 44 38 42 37 40Z" fill="url(#ridgeprowler-c)"/>
+<path d="M24 56.4C30 56.4 35.2 53 37.6 47C39 52 38.4 57.4 35.2 61.4C31 60.4 27 58.6 24 56.4Z" fill="url(#ridgeprowler-w)"/>
+<path d="M4.6 46.4C5 49 7 50.8 10 51.5C13 54 17 55.6 21.4 55.8C19.4 52 15.4 49.4 11.2 48.4C8.6 47.8 6.2 47.2 4.6 46.4Z" fill="url(#ridgeprowler-w)" stroke="none"/>
+<ellipse cx="17.6" cy="34.6" rx="3.4" ry="1.7" fill="#fffaf0" stroke="none"/>
+<path d="M21 31.4q2 3 1.2 5.6M24.8 31q1.6 3.2.2 6.2M28.6 34q-2 3.2.2 6.4M30 46q4 1.2 7.2-.8M29 50.4q4 1.6 7.4 0" fill="none" stroke="#2b1a12" stroke-width="1.7"/>
+<path d="M4 42.8C4 41 6 40.4 7.6 41C8.4 42.4 7.8 44.2 6.2 45C5 45.2 4.2 44.4 4 42.8Z" fill="#c47a68" stroke-width="1"/>
+<path d="M5.4 42.2q1-.8 2-.4" fill="none" stroke="#fff" stroke-width=".7" opacity=".7"/>
+<path d="M5.8 45.2v1.6Q7 48.4 9.6 48.2Q12.5 48 14.5 49.6" fill="none" stroke="#3a2010" stroke-width="1.1"/>
+<g fill="#3a2010" stroke="none"><circle cx="10.2" cy="46.4" r=".45"/><circle cx="12.6" cy="45.9" r=".45"/><circle cx="11.4" cy="47.6" r=".45"/></g>
+<path d="M11.6 46.8l-8.2 1.2M12 47.6l-7.6 3.4" fill="none" stroke="#fff" stroke-width=".6" opacity=".8"/>
+<ellipse cx="16" cy="38" rx="2.8" ry="1.9" fill="#e8c33a" stroke="#3a2010" stroke-width="1"/>
+<circle cx="15.8" cy="38" r="1.1" fill="#1a1008" stroke="none"/>
+<circle cx="15.1" cy="37.4" r=".6" fill="#fff" stroke="none"/>
+<path d="M13.2 39.2q-1.8.8-2.8 2.4" fill="none" stroke="#2b1a12" stroke-width="1.2"/>
+</g>
+</g>
+<g id="leg-bl" data-pivot="87 68"><use href="#ridgeprowler-bl" x="-3" fill="url(#ridgeprowler-n)"/></g>
+<g id="leg-fl" data-pivot="47 72"><use href="#ridgeprowler-fl" fill="url(#ridgeprowler-n)"/></g>
+</g>
+</svg>

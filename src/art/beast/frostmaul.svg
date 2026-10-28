@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="frostmaul-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fdfbf2"/><stop offset=".55" stop-color="#e6e4d8"/><stop offset="1" stop-color="#b9bcb4"/></linearGradient>
+<linearGradient id="frostmaul-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eeede4"/><stop offset="1" stop-color="#b4b7b0"/></linearGradient>
+<linearGradient id="frostmaul-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c6c8c0"/><stop offset="1" stop-color="#8e938e"/></linearGradient>
+<g id="frostmaul-fl"><path d="M36 74C35 86 37 96 38 104L37.4 110C34 111.5 30 113.4 29.6 116.6C29.6 119 31.2 120 33.6 120H48.4C50.2 119.6 50.8 117.6 50 115L49.6 104C51 94 54 84 55 74C51 64 39 64 36 74Z"/><path d="M33.4 117v3M37 116.6v3.4M40.6 116.6v3.4" stroke-width=".9" opacity=".6"/><path d="M30.6 118.8l-2.2 1.2M34.2 119.4l-2 1.2M37.8 119.4l-1.8 1.2" stroke="#3a3c40" stroke-width="1.1"/><path d="M40 80q1.4 6 1 12M45 82q1 6 .4 11" fill="none" stroke-width="1" opacity=".3"/></g>
+<path id="frostmaul-bl" d="M80 62C77 76 80 88 86 94L86 106C90 107.4 95 107.4 98.4 106C99.6 98 102 94 104 88C108 78 107 66 102 58C94 54 84 55 80 62Z"/>
+<g id="frostmaul-ft"><path d="M86 102L85.6 110C82.4 111.5 78.4 113.4 78 116.6C78 119 79.6 120 82 120H97C98.8 119.6 99.4 117.6 98.6 115L98.4 102Z"/><path d="M81.8 117v3M85.4 116.6v3.4M89 116.6v3.4" stroke-width=".9" opacity=".6"/><path d="M79 118.8l-2.2 1.2M82.6 119.4l-2 1.2M86.2 119.4l-1.8 1.2" stroke="#3a3c40" stroke-width="1.1"/></g>
+</defs>
+<g stroke="#6c7474" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" transform="translate(2.5 0)">
+<g id="leg-fr" data-pivot="51 72"><use href="#frostmaul-fl" x="6" fill="url(#frostmaul-f)"/></g>
+<g id="leg-br" data-pivot="80 66"><g fill="url(#frostmaul-f)"><use href="#frostmaul-ft" x="-12"/><use href="#frostmaul-bl" x="-12"/></g></g>
+<g id="body" data-pivot="68 72">
+<g id="seg-1" data-pivot="84 68">
+<g id="seg-2" data-pivot="102 62">
+<g id="tail" data-pivot="107 62"><path d="M105 58C110 57 113.6 60 113 64.4C112.4 68 109 69 106 67.4Z" fill="url(#frostmaul-c)"/><path d="M107.4 61.4q2.4.6 3.4 2.6" fill="none" stroke-width=".9" opacity=".4"/></g>
+<path d="M96 49.2C104 51.6 108.6 57 109.4 63L109.4 74C106 70 101 66 95.6 64Z" fill="url(#frostmaul-c)" stroke="none"/>
+<path d="M97 54q5 2 8 7M98 60q4 2 7 6" fill="none" stroke-width="1" opacity=".3"/>
+</g>
+<path d="M80 47.6C86 47 92 47 96 49C106 52 110 60 109 70C108 80 103 86 96 87C90 86.6 85 86.6 80 87Z" fill="url(#frostmaul-c)" stroke="none"/>
+<path d="M80 47.6C86 47 92 47 96 49C106 52 110 60 109 70C108 80 103 86 96 87C90 86.6 85 86.6 80 87" fill="none"/>
+<path d="M86 66q3 4 2.6 9M94 64q3 4 2.6 9M100 70q2 3 1.6 7" fill="none" stroke-width="1" opacity=".3"/>
+</g>
+<path d="M30 72C30 58 40 50 54 49C66 48.2 76 47.6 86 47.4L86 87C80 86.6 76 86.6 70 87C60 89 50 91 42 90C34 88 30 82 30 72Z" fill="url(#frostmaul-c)" stroke="none"/>
+<path d="M86 87C80 86.6 76 86.6 70 87C60 89 50 91 42 90C34 88 30 82 30 72C30 58 40 50 54 49C66 48.2 76 47.6 86 47.4" fill="none"/>
+<path d="M44 51C58 49.4 74 48.4 92 48.8" fill="none" stroke="#fff" stroke-width="1.8" opacity=".8"/>
+<path d="M50 62q2 3 1.4 6M58 58q2 3 1.4 6M66 61q2 3 1.4 6M74 58q2 3 1.4 6M60 72q2 3 1.4 6M70 70q2 3 1.4 6" fill="none" stroke-width="1" opacity=".28"/>
+<g id="head" data-pivot="40 60">
+<path d="M34 84C28 78 25 68 25 60L30 44C40 44 50 46 60 50C52 58 44 70 34 84Z" fill="url(#frostmaul-c)" stroke="none"/>
+<path d="M34 84C28 78 25 68 25 60M30 44C40 44 50 46 60 50" fill="none"/>
+<path d="M36 52q3 4 2.4 9M42 54q3 4 2.4 9M33 64q2 4 1.6 8" fill="none" stroke-width="1" opacity=".3"/>
+<path d="M21.4 40.6C20.6 37 22 34.6 24.6 34.8C26.8 35.4 27.4 38 26.6 41Z" fill="url(#frostmaul-f)"/>
+<path d="M34 46C32 40 26 37 20 38C14 38.6 10 41 7.6 44C5 45 3 46.6 2.8 49C2.6 51.6 4.4 53.6 7.4 54.2C10.4 56.6 15 58.4 20.4 58.4C28 58 33.6 54.4 35 50C35.6 48.6 35.2 47.4 34 46Z" fill="url(#frostmaul-c)"/>
+<path d="M26 41C25 37 26.6 34.4 29.4 34.6C32 35 32.6 38 31.6 41.6Z" fill="url(#frostmaul-c)"/>
+<path d="M27.6 39.8C27.2 37.4 28 36.2 29.4 36.4C30.6 36.8 30.8 38.4 30.4 40.4Z" fill="#9a9c98" stroke="none"/>
+<path d="M9 41.8C13 39.4 18 38.6 22 39.4" fill="none" stroke="#fff" stroke-width="1.4" opacity=".9"/>
+<path d="M2.4 47.6C2.4 45.6 4.4 44.8 6.4 45.2C7.4 46.6 6.8 48.6 5.2 49.4C3.8 49.6 2.6 49 2.4 47.6Z" fill="#2a2c30" stroke="#1e2024" stroke-width="1"/>
+<circle cx="4.2" cy="46.2" r=".6" fill="#fff" stroke="none" opacity=".7"/>
+<path d="M4.4 52.4C8 53.2 12 53.4 15 53Q17.6 52.8 19.4 54" fill="none" stroke="#2a2c30" stroke-width="1.2"/>
+<circle cx="16.6" cy="44" r="1.4" fill="#1e2024" stroke="none"/>
+<circle cx="16.1" cy="43.5" r=".5" fill="#fff" stroke="none"/>
+<path d="M14.4 42.2q2.2-1.2 4.4 0" fill="none" stroke-width="1" opacity=".6"/>
+<path d="M22 48q3 2 6 1.6M20 52.6q3 1.6 6.4 1" fill="none" stroke-width="1" opacity=".3"/>
+</g>
+</g>
+<g id="leg-bl" data-pivot="86 66"><g fill="url(#frostmaul-n)"><g id="fin" data-pivot="86 104"><use href="#frostmaul-ft" x="-6"/></g><use href="#frostmaul-bl" x="-6"/></g><path d="M78 66q6 2 10 9M80 80q4 4 5 9" fill="none" stroke-width="1" opacity=".3"/></g>
+<g id="leg-fl" data-pivot="45 72"><use href="#frostmaul-fl" fill="url(#frostmaul-n)"/></g>
+</g>
+</svg>

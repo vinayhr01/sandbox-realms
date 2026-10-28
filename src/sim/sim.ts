@@ -1,5 +1,5 @@
 import { TICK_MS } from '../shared/constants.ts';
-import { Cmd, type Command } from '../shared/protocol.ts';
+import { Cmd, POSSESS_REFUSED, type Command } from '../shared/protocol.ts';
 import { createRng, fnv1a, FNV_OFFSET, type Rng } from '../shared/rng.ts';
 import { groundKey } from '../content/grounds.ts';
 import { biomeOfCover, BIOMES } from '../content/biomes.ts';
@@ -404,7 +404,7 @@ export class Sim {
         break;
       case Cmd.Possess:
         // Architect possession of one Being (07 section 13, beings build 3). A stale id or an off-map order is refused.
-        if (!possessCommand(this, cmd.beingId, cmd.on, cmd.x, cmd.y, cmd.attack)) this.refusals.push('possess refused');
+        if (!possessCommand(this, cmd.beingId, cmd.on, cmd.x, cmd.y, cmd.attack)) this.refusals.push(POSSESS_REFUSED);
         else if (cmd.on) possessAbilities(this, cmd.beingId, cmd);
         break;
       default:

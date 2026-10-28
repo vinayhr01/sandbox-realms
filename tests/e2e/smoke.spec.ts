@@ -107,3 +107,59 @@ test('wheel zoom moves the camera without scrolling the page', async ({ page }) 
     .not.toBe(before.x);
   expect(await page.evaluate(() => window.scrollY)).toBe(0);
 });
+
+test('terrain shader compiles at all zoom levels', async ({ page }) => {
+  const shaderErrors: string[] = [];
+  page.on('console', (msg) => {
+    if (msg.type() === 'error' && /shader|WebGL/i.test(msg.text())) shaderErrors.push(msg.text());
+  });
+  const call = await openRealm(page);
+  const centre = await call<{ x: number; y: number }>('tileToScreen', 128, 128);
+  // Tile pitch in CSS px, read from two neighbouring tile centres.
+  const pitch = async () => {
+    const a = await call<{ x: number }>('tileToScreen', 0, 0);
+    const b = await call<{ x: number }>('tileToScreen', 1, 0);
+    return b.x - a.x;
+  };
+  const sampleCentre = async (): Promise<[number, number, number]> => {
+    const png = (await page.screenshot({ clip: { x: centre.x - 2, y: centre.y - 2, width: 4, height: 4 } })).toString('base64');
+    return page.evaluate(async (b64) => {
+      const img = new Image();
+      img.src = `data:image/png;base64,${b64}`;
+      await img.decode();
+      const cv = document.createElement('canvas');
+      cv.width = img.width;
+      cv.height = img.height;
+      const ctx = cv.getContext('2d')!;
+      ctx.drawImage(img, 0, 0);
+      const d = ctx.getImageData(Math.floor(img.width / 2), Math.floor(img.height / 2), 1, 1).data;
+      return [d[0]!, d[1]!, d[2]!] as [number, number, number];
+    }, png);
+  };
+  const BACKDROP: [number, number, number] = [18, 20, 26];
+
+  // Zoom out to the minimum.
+  await page.mouse.move(centre.x, centre.y);
+  for (let i = 0; i < 25; i++) await page.mouse.wheel(0, 300);
+  await page.waitForTimeout(300);
+  expect(await sampleCentre()).not.toEqual(BACKDROP);
+
+  // Zoom in to about 12 CSS px per tile.
+  for (let i = 0; i < 60 && (await pitch()) < 12; i++) {
+    await page.mouse.wheel(0, -100);
+    await page.waitForTimeout(30);
+  }
+  expect(await pitch()).toBeGreaterThanOrEqual(12);
+  expect(await sampleCentre()).not.toEqual(BACKDROP);
+
+  // Zoom in to the real maximum: 96 CSS px per tile on every realm.
+  for (let i = 0; i < 150 && (await pitch()) < 95.5; i++) {
+    await page.mouse.wheel(0, -300);
+    await page.waitForTimeout(30);
+  }
+  await page.waitForTimeout(300);
+  expect(await pitch()).toBeGreaterThanOrEqual(64);
+  expect(await sampleCentre()).not.toEqual(BACKDROP);
+
+  expect(shaderErrors).toEqual([]);
+});

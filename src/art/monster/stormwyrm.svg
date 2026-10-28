@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="stormwyrm-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ec6446"/><stop offset=".55" stop-color="#bf3527"/><stop offset="1" stop-color="#83191a"/></linearGradient>
+<linearGradient id="stormwyrm-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a8301f"/><stop offset="1" stop-color="#5e1012"/></linearGradient>
+<linearGradient id="stormwyrm-m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7a066"/><stop offset="1" stop-color="#c63d2b"/></linearGradient>
+<linearGradient id="stormwyrm-mf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c25236"/><stop offset="1" stop-color="#7a2018"/></linearGradient>
+<linearGradient id="stormwyrm-h" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#c9a877"/><stop offset="1" stop-color="#fbf0d6"/></linearGradient>
+<linearGradient id="stormwyrm-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d84a33"/><stop offset="1" stop-color="#7a1616"/></linearGradient>
+<linearGradient id="stormwyrm-p" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8d58c"/><stop offset="1" stop-color="#d99a4a"/></linearGradient>
+<g id="stormwyrm-w"><path d="M62 60L76 44L90 30L110 25Q99 34 112 44Q99 47 104 59Q92 55 89 65Q81 59 72 67Z"/><path d="M90 30L112 44M90 30L104 58M90 30L90 64M82 41L100 52" fill="none" stroke="#6e1a12" stroke-width="1.6"/><path d="M62 60L76 44L90 30L110 26" fill="none" stroke="#6e1a12" stroke-width="3"/><path d="M89 30l-1-6 4 4Z" fill="url(#stormwyrm-h)" stroke="#6e5232" stroke-width="1"/></g>
+<g id="stormwyrm-fl"><path d="M43 76C43 84 45 90 48 96L44.5 107C41 109.5 38 112 37 116C36.5 118.6 37.5 120 39.5 120H52C53.5 118 53.5 115.5 52 113.5L53 106C56 102 59 99 59 94C60 88 60 82 58 76C55 69 46 69 43 76Z"/><path d="M38.5 117.5c-1.8-.2-3.3.8-4 2.6h4.2zM43.5 117.5c-1.8-.2-3.3.8-4 2.6h4.2zM48.5 117.5c-1.8-.2-3.3.8-4 2.6h4.2z" fill="url(#stormwyrm-h)" stroke="#6e5232" stroke-width="1"/></g>
+<g id="stormwyrm-bl"><path d="M76 74C75 84 78 92 84 96C88 98 91 101 92 104L88 111C84 113 81 114 80 116.5C79.5 119 80.5 120 82.5 120H96C97.5 118.5 97.5 116 96 114L99 107C101 103 102 99 101 95C104 90 105.5 84 105 78C104 68 98 64 92 64C84 63 78 66 76 74Z"/><path d="M81.5 117.5c-1.8-.2-3.3.8-4 2.6h4.2zM86.5 117.5c-1.8-.2-3.3.8-4 2.6h4.2zM91.5 117.5c-1.8-.2-3.3.8-4 2.6h4.2z" fill="url(#stormwyrm-h)" stroke="#6e5232" stroke-width="1"/></g>
+</defs>
+<g stroke="#5c1410" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="56 80"><use href="#stormwyrm-fl" x="6" fill="url(#stormwyrm-f)"/></g>
+<g id="leg-br" data-pivot="82 78"><use href="#stormwyrm-bl" x="-6" fill="url(#stormwyrm-f)"/></g>
+<g id="body" data-pivot="70 76">
+<g id="wing-r" data-pivot="70 57"><use href="#stormwyrm-w" transform="matrix(.82 0 0 .82 19.2 7.8)" fill="url(#stormwyrm-mf)"/></g>
+<g id="tail" data-pivot="98 70">
+<path d="M94 60C106 60 115 68 117 80C119 90 116.5 98 112 103L107.5 100.5C111 96 112.5 89 111 84C109 78 104 76 98 81Z" fill="url(#stormwyrm-c)"/>
+<path d="M106 62.5l5-4 0 6.5M113.5 68l6-2.5-1.5 6.5M118 77l4.5-.5-2.5 5M119.5 87l3.5 1.5-3.5 3.5" fill="url(#stormwyrm-h)" stroke="#6e5232" stroke-width="1"/>
+<path d="M103.5 97C107.5 98.5 112 98 117 96.5C115.5 102 112.5 107.5 107.5 113C107 107.5 105.5 102 103.5 97Z" fill="url(#stormwyrm-c)"/>
+<path d="M107 100.5q2.5 4 1 9" fill="none" stroke-width="1" opacity=".5"/>
+<path d="M104 70q3 3 6 1M110 76q2 3 4.5 3M112 86q2 2 4 1" fill="none" stroke-width="1" opacity=".4"/>
+</g>
+<path d="M57 59l3.5-7 3.5 7M67 58l3.5-7.5 3.5 7.5M77 57.5l3.5-7 3.5 7M87 59l3.5-6.5 3.5 7" fill="url(#stormwyrm-h)" stroke="#6e5232" stroke-width="1"/>
+<path d="M38 76C38 64 48 58 60 58C72 57 86 56 96 60C104 64 106 74 102 84C99 92 92 95 84 94C74 95 62 96 52 95C44 93 38 86 38 76Z" fill="url(#stormwyrm-c)"/>
+<path d="M41 83C45 90 53 94 62 95C72 95.5 82 95 90 93C84 89 72 89 62 89C54 88.5 46 86.5 41 83Z" fill="url(#stormwyrm-p)" stroke="none"/>
+<path d="M48 87.5l-1.5 5M55 89l-1 5.5M62 89.5v5.5M69 89.5l.5 5.5M76 89.5l1 5M83 89l1.5 4.5" fill="none" stroke="#b5743a" stroke-width="1"/>
+<path d="M60 70q2.5 2 5 0q2.5 2 5 0q2.5 2 5 0M64 76q2.5 2 5 0q2.5 2 5 0M80 68q2.5 2 5 0q2.5 2 5 0M84 74q2.5 2 5 0M68 64q2.5 2 5 0q2.5 2 5 0" fill="none" stroke="#7e1a16" stroke-width="1" opacity=".45"/>
+<path d="M52 61C64 58.5 80 58 94 61" fill="none" stroke="#ff9a76" stroke-width="2" opacity=".5"/>
+<g id="head" data-pivot="50 68">
+<path d="M43 37l7-3-3 6.5ZM48.5 44l7-2.5-3.5 6ZM54.5 50.5l7-1.5-4 5.5Z" fill="url(#stormwyrm-h)" stroke="#6e5232" stroke-width="1"/>
+<path d="M40 80C34 72 30 62 28 50L41 32C45 40 51 50 62 58C54 64 46 70 40 80Z" fill="url(#stormwyrm-c)" stroke="none"/>
+<path d="M40 80C34 72 30 62 28 50M41 32C45 40 51 50 62 58" fill="none"/>
+<path d="M28.5 50C30.5 62 34.5 72 40.5 80L45 76C40.5 68 36.5 60 34 50Z" fill="url(#stormwyrm-p)" stroke="none"/>
+<path d="M29.5 55l5-1M31 61l5-1M33 67l5-1.5M36 73l5-2" fill="none" stroke="#b5743a" stroke-width="1"/>
+<path d="M31 24C33 17 38 11 45 8C42 13 38.5 19 35.5 25Z" fill="#b59366" stroke="#6e5232"/>
+<path d="M44 30C42 25 37 22 31 23C26 24 22 27 17 29C13 30 9 31 7 33C5 35 5 38 7 40C9 42 9 44 11 45.5C16 47 22 48.5 28 48.5C34 48 40 46 44 40Z" fill="url(#stormwyrm-c)"/>
+<path d="M41 43.5l7 2.5-5-6ZM37 46.5l5 4.5-1-6.5Z" fill="url(#stormwyrm-c)"/>
+<path d="M7.5 40C14 40.5 22 41 30.5 42.5" fill="none" stroke="#4a0e0c" stroke-width="1.3"/>
+<path d="M12 40.6l1.3 3.4 1.4-3.3ZM19.5 41.2l1.1 2.8 1.2-2.6Z" fill="#fffbe8" stroke="#7a5a3a" stroke-width=".7"/>
+<path d="M8 33.6q1.6-1.2 3.2 0" fill="none" stroke="#3a0a08" stroke-width="1.4"/>
+<path d="M14.5 29.8l1.5-4.5 2.8 3.6Z" fill="url(#stormwyrm-h)" stroke="#6e5232" stroke-width="1"/>
+<path d="M17 36q3 1.5 6 0M22 33q3 1.5 6 0M33 37q3 1.5 6 0M35 32q2.5 1.5 5 0" fill="none" stroke="#7e1a16" stroke-width="1" opacity=".45"/>
+<ellipse cx="29" cy="29.6" rx="3" ry="2" fill="#ffd23f" stroke="#4a0e0c" stroke-width="1"/>
+<ellipse cx="29.2" cy="29.6" rx=".65" ry="1.7" fill="#1a0d06" stroke="none"/>
+<circle cx="28.2" cy="28.9" r=".6" fill="#fff" stroke="none"/>
+<path d="M23.5 27C27 24.6 31.5 24.6 35 26.6" fill="none" stroke="#6e1410" stroke-width="2.2"/>
+<path d="M36 24C40 18 46 13 54 11C50 15 45.5 20 41.5 27.5Z" fill="url(#stormwyrm-h)" stroke="#6e5232"/>
+<path d="M41 18.5l2 2M45.5 15.5l1.6 2" fill="none" stroke="#9c7a4c" stroke-width="1"/>
+</g>
+<g id="wing-l" data-pivot="62 60"><use href="#stormwyrm-w" transform="matrix(.86 0 0 .86 8.7 8.4)" fill="url(#stormwyrm-m)"/></g>
+</g>
+<g id="leg-bl" data-pivot="88 78"><use href="#stormwyrm-bl" fill="url(#stormwyrm-l)"/><path d="M84 80q4 3 8 2M86 88q4 2 8 0M94 72q3 2 6 1" fill="none" stroke-width="1" opacity=".4"/></g>
+<g id="leg-fl" data-pivot="50 80"><use href="#stormwyrm-fl" fill="url(#stormwyrm-l)"/><path d="M47 82q3 2 7 1M48 89q3 2 7 0" fill="none" stroke-width="1" opacity=".4"/></g>
+</g>
+</svg>

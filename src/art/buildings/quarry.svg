@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="quarry-me" x2="0" y2="1"><stop offset="0" stop-color="#a3acb4"/><stop offset="1" stop-color="#59626a"/></linearGradient>
+<linearGradient id="quarry-rk" x2="0" y2="1"><stop offset="0" stop-color="#b8ad9b"/><stop offset="1" stop-color="#71685b"/></linearGradient>
+<linearGradient id="quarry-st" x2="0" y2="1"><stop offset="0" stop-color="#d2cbbb"/><stop offset="1" stop-color="#978d7c"/></linearGradient>
+<linearGradient id="quarry-sts"><stop offset="0" stop-color="#a59d8e"/><stop offset="1" stop-color="#6c6458"/></linearGradient>
+
+</defs>
+<g stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<path d="M2 120V64L12 52H38V62H52V42L62 32H94V54H108V66L124 76V120Z" fill="url(#quarry-rk)" stroke="#4b443b"/>
+<path d="M12 52H38L40 50H14ZM52 42L62 32L64 30.4L54 40.6ZM62 32H94L96 30H64ZM94 54H108L110 52H96ZM38 62H52L54 60H40ZM108 66L124 76L126 74.6L110 64.4Z" fill="#d8cfbe" stroke="none"/>
+<path d="M8 70v12M20 66v10M30 64v14M46 70v10M58 50v14M70 44v14M82 42v12M88 60v10M100 64v10M114 80v10M14 90l8 4M66 74l10 2M98 86l10-2" fill="none" stroke="#4b443b" stroke-width="1" opacity=".6"/>
+<path d="M2 84H50M52 76H108M40 100H124" fill="none" stroke="#4b443b" stroke-width="1.4" opacity=".3"/>
+<path d="M104 120V30M98 120L104 30" fill="none" stroke="#6b4224" stroke-width="3"/>
+<path d="M104 112L58 36" fill="none" stroke="#7a4c28" stroke-width="3"/>
+<path d="M104 34L60 38" fill="none" stroke="#a07c48" stroke-width="1.2" opacity=".9"/>
+<path d="M58 37V64" fill="none" stroke="#a07c48" stroke-width="1.2"/>
+<path d="M53 64L58 60L63 64" fill="none" stroke="#a07c48" stroke-width="1"/>
+<path d="M65 76L65 64L70.5 61L70.5 73Z" fill="url(#quarry-sts)" stroke="#544d43"/>
+<path d="M51 64L65 64L70.5 61L56.5 61Z" fill="url(#quarry-st)" stroke="#544d43"/>
+<path d="M51 76L51 64L65 64L65 76Z" fill="url(#quarry-st)" stroke="#544d43"/>
+<path d="M40 120L40 102L47.7 97.8L47.7 115.8Z" fill="url(#quarry-sts)" stroke="#544d43"/>
+<path d="M10 102L40 102L47.7 97.8L17.7 97.8Z" fill="url(#quarry-st)" stroke="#544d43"/>
+<path d="M10 120L10 102L40 102L40 120Z" fill="url(#quarry-st)" stroke="#544d43"/>
+<path d="M13 105l2 4M35 116l2-3" fill="none" stroke="#544d43" stroke-width="1" opacity=".5"/>
+<path d="M70 120L70 104L76.6 100.4L76.6 116.4Z" fill="url(#quarry-sts)" stroke="#544d43"/>
+<path d="M42 104L70 104L76.6 100.4L48.6 100.4Z" fill="url(#quarry-st)" stroke="#544d43"/>
+<path d="M42 120L42 104L70 104L70 120Z" fill="url(#quarry-st)" stroke="#544d43"/>
+<path d="M45 107l2 4M65 116l2-3" fill="none" stroke="#544d43" stroke-width="1" opacity=".5"/>
+<path d="M40 102L40 86L46.6 82.4L46.6 98.4Z" fill="url(#quarry-sts)" stroke="#544d43"/>
+<path d="M18 86L40 86L46.6 82.4L24.6 82.4Z" fill="url(#quarry-st)" stroke="#544d43"/>
+<path d="M18 102L18 86L40 86L40 102Z" fill="url(#quarry-st)" stroke="#544d43"/>
+<path d="M21 89l2 4M35 98l2-3" fill="none" stroke="#544d43" stroke-width="1" opacity=".5"/>
+<path d="M78 120L88 96" fill="none" stroke="#8a5a32" stroke-width="2.4"/>
+<path d="M80 95.6Q88 90 97 93.4L96 95.2Q88 93.6 82 98Z" fill="url(#quarry-me)" stroke="#3b4148"/>
+<circle cx="74" cy="118.4" r="1.6" fill="#a59d8e"/>
+<circle cx="118" cy="118" r="2" fill="#a59d8e"/>
+<circle cx="6" cy="118.6" r="1.4" fill="#a59d8e"/>
+</g>
+</svg>

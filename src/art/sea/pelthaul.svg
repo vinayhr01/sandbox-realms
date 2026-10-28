@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="pelthaul-c" gradientUnits="userSpaceOnUse" x1="0" y1="62" x2="0" y2="120"><stop offset="0" stop-color="#aab3ba"/><stop offset=".45" stop-color="#808a92"/><stop offset=".8" stop-color="#b3bbc0"/><stop offset="1" stop-color="#d6dbde"/></linearGradient>
+<linearGradient id="pelthaul-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6b747c"/><stop offset="1" stop-color="#454c53"/></linearGradient>
+<linearGradient id="pelthaul-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8c969d"/><stop offset="1" stop-color="#5c656c"/></linearGradient>
+<path id="pelthaul-b" d="M30 84C36 76 48 74 60 76C76 78 92 86 104 96C108 99 111.5 103 113.5 106L113.5 113C106 116 96 118 84 118.5C70 119 52 119 40 117C32 115.5 26 110 25 102C24.5 94 26 88 30 84Z"/>
+<path id="pelthaul-hf" d="M103 105C109 102 115 99 121 96C124 100 125 106 123.5 112.5C117 113 110 112.5 103 111.5Z"/>
+<path id="pelthaul-hd" d="M107 105l13-6M107 108.3l15-2M107 111l15 1" fill="none"/>
+<path id="pelthaul-ar" d="M35 99C39.5 103 42 108 42.5 114L32 115.5C31 110 30.5 105 32 101Z"/>
+<path id="pelthaul-hn" d="M31 112.5C35 111.5 40.5 112.5 43.5 114.5C44.5 117.5 42.5 120 39 120.3H28.5C26.8 120 26.3 118.5 27.3 117ZM28.5 120.2l-2.6.3M31.6 120.2l-2.2.7M34.7 120.2l-1.8.8"/>
+<clipPath id="pelthaul-k1"><rect width="90" height="128"/></clipPath>
+<clipPath id="pelthaul-k2"><rect x="84" width="20" height="128"/></clipPath>
+<clipPath id="pelthaul-k3"><rect x="100" width="28" height="128"/></clipPath>
+</defs>
+<g stroke="#3a4148" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="46 103"><g transform="translate(7 -2)" fill="url(#pelthaul-f)"><use href="#pelthaul-ar"/><use href="#pelthaul-hn"/></g></g>
+<g id="body" data-pivot="64 104">
+<g id="seg-1" data-pivot="88 108">
+<g id="seg-2" data-pivot="102 110">
+<g id="leg-br" data-pivot="105 107"><g transform="translate(-1 -4)" fill="url(#pelthaul-f)"><use href="#pelthaul-hf"/><use href="#pelthaul-hd" stroke-width=".9" opacity=".5"/></g></g>
+<g id="tail" data-pivot="111 109"><path d="M109.5 107l7.5 1.5-6.5 3.5Z" fill="url(#pelthaul-n)" stroke-width="1.1"/></g>
+<use href="#pelthaul-b" clip-path="url(#pelthaul-k3)" fill="url(#pelthaul-c)"/>
+<g id="leg-bl" data-pivot="105 108"><use href="#pelthaul-hf" fill="url(#pelthaul-n)"/><use href="#pelthaul-hd" stroke-width=".9" opacity=".5"/><path d="M121 96l1.5-1M124.4 105.2l1.5-.2M123.5 112.5l1.5.4" stroke="#22272c" stroke-width="1.3"/></g>
+</g>
+<use href="#pelthaul-b" clip-path="url(#pelthaul-k2)" fill="url(#pelthaul-c)"/>
+<g fill="#59626a" stroke="none" opacity=".6"><ellipse cx="86" cy="92" rx="1.5" ry="1"/><ellipse cx="92" cy="98" rx="1.3" ry=".9"/><ellipse cx="84" cy="102" rx="1.1" ry=".8"/><ellipse cx="96" cy="104" rx="1.2" ry=".8"/></g>
+</g>
+<use href="#pelthaul-b" clip-path="url(#pelthaul-k1)" fill="url(#pelthaul-c)"/>
+<path d="M40 80C52 75.5 68 76.5 84 82" fill="none" stroke="#cfd5d9" stroke-width="1.8" opacity=".6"/>
+<path d="M36 112C50 116 66 117 82 116" fill="none" stroke="#e6e9eb" stroke-width="1.6" opacity=".6"/>
+<g fill="#59626a" stroke="none" opacity=".6"><ellipse cx="50" cy="82" rx="1.6" ry="1.1"/><ellipse cx="58" cy="86" rx="1.3" ry=".9"/><ellipse cx="66" cy="81" rx="1.5" ry="1"/><ellipse cx="72" cy="88" rx="1.2" ry=".9"/><ellipse cx="44" cy="90" rx="1.2" ry=".8"/><ellipse cx="62" cy="94" rx="1.4" ry="1"/><ellipse cx="76" cy="96" rx="1.1" ry=".8"/><ellipse cx="54" cy="100" rx="1.2" ry=".8"/></g>
+<path d="M56 90q4 3 3 7M66 92q4 3 3 7" fill="none" stroke-width="1" opacity=".25"/>
+<g id="head" data-pivot="34 90">
+<path d="M38 92C36 84 34 76 30 70C26 63 18 60 12 63C7 66 5 72 7 77C8.5 80.5 12 82 16 82.5C20 84 24 88 26 95Z" fill="url(#pelthaul-c)" stroke="none"/><path d="M35 80C33.5 76 32 73 30 70C26 63 18 60 12 63C7 66 5 72 7 77C8.5 80.5 12 82 16 82.5C20 84 23.5 88 25.5 93" fill="none"/>
+<g fill="#59626a" stroke="none" opacity=".6"><ellipse cx="26" cy="70" rx="1.2" ry=".8"/><ellipse cx="30" cy="78" rx="1.3" ry=".9"/><ellipse cx="22" cy="64.5" rx="1" ry=".7"/></g>
+<path d="M13 64C18 61.5 24 62.5 28 66" fill="none" stroke="#cfd5d9" stroke-width="1.6" opacity=".7"/>
+<path d="M8 77.5C10.5 80 13.5 80.8 16.5 80" fill="none" stroke="#2a3036" stroke-width="1.2"/>
+<path d="M7.2 72.8q1.3 1.5 2.6.2M9.6 74.2q1.2 1.4 2.4.1" fill="none" stroke="#1e2227" stroke-width="1.1"/>
+<ellipse cx="7.8" cy="73.4" rx="1.6" ry="1.3" fill="#2a2f34" stroke="none"/>
+<path d="M11 76.5l-5-1M11.5 77.5l-5 .8M12 78.3l-4.5 2.4M13 76l-4-2.6" fill="none" stroke="#e8ecee" stroke-width=".6"/>
+<circle cx="17.5" cy="69" r="3.3" fill="#141719" stroke-width="1"/>
+<circle cx="16.4" cy="67.9" r="1.1" fill="#fff" stroke="none"/>
+<circle cx="18.6" cy="70.2" r=".45" fill="#fff" stroke="none" opacity=".7"/>
+<path d="M14 64.6q3.5-1.6 7 0" fill="none" stroke-width="1" opacity=".7"/>
+</g>
+</g>
+<g id="leg-fl" data-pivot="38 103"><g fill="url(#pelthaul-n)"><use href="#pelthaul-ar"/><g id="fin" data-pivot="35 114"><use href="#pelthaul-hn"/><path d="M33 115.5q3-.8 6 .3" fill="none" stroke-width=".9" opacity=".5"/></g></g></g>
+</g>
+</svg>

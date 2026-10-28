@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="rimecolossus-s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d6ebf8"/><stop offset="1" stop-color="#93b9d8"/></linearGradient>
+<linearGradient id="rimecolossus-sf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a9c8e0"/><stop offset="1" stop-color="#6d93b6"/></linearGradient>
+<linearGradient id="rimecolossus-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#bcd6ec"/></linearGradient>
+<linearGradient id="rimecolossus-t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a8672"/><stop offset="1" stop-color="#5e4c3c"/></linearGradient>
+<linearGradient id="rimecolossus-tf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#76644f"/><stop offset="1" stop-color="#43352a"/></linearGradient>
+<linearGradient id="rimecolossus-i" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f2fdff"/><stop offset=".5" stop-color="#9fe2ff"/><stop offset="1" stop-color="#4aa6d8"/></linearGradient>
+<g id="rimecolossus-leg"><path d="M51 74H70C70 86 69.5 94 69 101H55C54.5 94 52 86 51 74Z"/><path d="M55 90q6 1.5 12 0" fill="none" stroke-width="1" opacity=".45"/><path d="M53.5 100H70.5L71 116C71 118.5 70 120 68.5 120H48C45.5 120 45 117.5 46.5 116C48 114.5 51 114 53.5 112.5Z" fill="url(#rimecolossus-tf)" stroke="#3a2c20"/><path d="M52.5 99.5L55 103L57.5 99.8L60 103L62.5 99.8L65 103L67.5 99.8L70 103L71.5 99.5" fill="none" stroke="#e8f2fa" stroke-width="2"/><path d="M47 118.6H70.5M50 116v4M54 115v5" fill="none" stroke="#2e2218" stroke-width="1.1"/><path d="M57 108l8 2M57 112l8 2" fill="none" stroke="#c9a77c" stroke-width="1"/></g>
+<g id="rimecolossus-arm"><path d="M55 39C57 33 72 33 74 39C75.5 47 75 54 73.5 60L73 73H59C58.5 68 58 64 58 59C56.5 53 54.5 46 55 39Z"/><path d="M58.5 61H73.5L73.2 70H58.8Z" fill="url(#rimecolossus-tf)" stroke="#3a2c20" stroke-width="1.2"/><path d="M59 64.5h14M59 67.5h14" fill="none" stroke="#c9a77c" stroke-width=".9"/><path d="M58.5 70.5C56 75 56 80 58.5 84C61.5 87 68 86.5 71 83.5C73.5 79 73.5 74 72.5 70.5Z" fill="url(#rimecolossus-s)" stroke="#3c5a78" stroke-width="1.3"/><path d="M58.8 73.5C55.5 74 54.5 77 55.5 79.5C56.8 80.4 58.3 79.6 58.8 78" fill="url(#rimecolossus-s)" stroke="#3c5a78" stroke-width="1"/><path d="M61 84.5l.2-3.5M64.5 85.3v-3.5M68 84.8l-.1-3.5" stroke="#6d93b6" stroke-width=".9"/><path d="M61 50q5 1.5 10 0" fill="none" stroke-width="1" opacity=".45"/></g>
+</defs>
+<g stroke="#3c5a78" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="70 77"><use href="#rimecolossus-leg" x="8" fill="url(#rimecolossus-sf)"/></g>
+<g id="leg-l" data-pivot="62 77"><use href="#rimecolossus-leg" fill="url(#rimecolossus-s)"/></g>
+<g id="body" data-pivot="64 60">
+<g id="arm-r" data-pivot="74 40"><use href="#rimecolossus-arm" x="10" fill="url(#rimecolossus-sf)"/></g>
+<path d="M44 38C49 31 77 30 83 35C88 42 89 50 88 58C87 64 87 68 87 70H47C47 64 46 60 45.5 56C44.5 48 42.5 43 44 38Z" fill="url(#rimecolossus-s)"/>
+<path d="M49 46q3 3 7 2M74 44q4 3 8 1M77 54q3 2 6 0" fill="none" stroke-width="1" opacity=".4"/>
+<path d="M45 64C56 66.5 76 66.5 88 64L90.5 83C78 86.5 56 86.5 43 83Z" fill="url(#rimecolossus-t)" stroke="#3a2c20"/>
+<path d="M43 83l2.5-3l2.5 3l2.5-3l2.5 3l2.5-3l2.5 3l2.5-3l2.5 3l2.5-3l2.5 3l2.5-3l2.5 3l2.5-3l2.5 3l2.5-3l2.5 3l2.5-3l2.5 3l2.5-3" fill="none" stroke="#3a2c20" stroke-width="1"/>
+<path d="M52 72q2 4 0 8M60 72q2 4 0 8M68 72q2 4 0 8M76 72q2 4 0 8M84 72q2 4 0 8" fill="none" stroke="#c9a77c" stroke-width="1" opacity=".7"/>
+<path d="M44.5 63C56 65.5 76 65.5 88.5 63L88.8 68C76 70.5 56 70.5 44.8 68Z" fill="#4a3424" stroke="#2e2014" stroke-width="1.2"/>
+<path d="M60 63.6h8v5.6h-8Z" fill="url(#rimecolossus-i)" stroke="#2e6c96" stroke-width="1"/>
+<path d="M74 36C77 33 82 34 84 37C83 34 81 30 79 28L77 32L75 27L73 32Z" fill="url(#rimecolossus-i)" stroke="#2e6c96" stroke-width="1"/>
+<g id="head" data-pivot="60 34">
+<path d="M66 6C74 6 80 12 80 20C80 30 78 38 75 46C72 40 70 34 68 30Z" fill="url(#rimecolossus-w)"/>
+<path d="M72 12q4 6 4 14M69 16q3 6 3 12" fill="none" stroke="#9fbcd6" stroke-width="1"/>
+<path d="M50 11C54 6 64 5 70 9C74 13 75 19 74 25C73 30 70 34 66 36H54C51.5 34 50 31 49 28.5C47 28 45.5 27 46 26L48 23.5C46.5 22.5 44.5 21.6 44.5 20.6C45 19.5 47 18 48.4 17C48.4 14.5 49 12.5 50 11Z" fill="url(#rimecolossus-s)"/>
+<circle cx="55" cy="25" r="2.5" fill="#7fb0dc" stroke="none" opacity=".4"/>
+<path d="M47.4 27C46 31 47 39 50.5 45C53 49.5 56 53 58.5 54C60 49 62.5 44 64.5 40C66.5 36.5 67.5 33 67.5 29.5C62 31 55 29.5 50.5 27Z" fill="url(#rimecolossus-w)"/>
+<path d="M50 32q1 7 5 13M54 32q1 8 5 14M58 32q2 6 2 12M63 32q-1 5-2 10" fill="none" stroke="#9fbcd6" stroke-width="1"/>
+<path d="M50.5 45l1 5 1.5-3.5ZM55.5 50l1.5 6 1.5-4.5ZM61 46l1 4.5 1.3-4Z" fill="url(#rimecolossus-i)" stroke="#2e6c96" stroke-width=".8"/>
+<path d="M45.6 25.4C48.5 24 52 24.6 54 27C51.5 28.8 48 28.4 45.6 25.4Z" fill="url(#rimecolossus-w)" stroke-width="1"/>
+<path d="M46.6 26.6q1.5 1 3 .6" fill="none" stroke="#2e4a66" stroke-width="1.1"/>
+<path d="M44.6 20.6q1.2.9 2.4.3" fill="none" stroke-width="1"/>
+<path d="M50 16.5C51.5 15.3 54 15.3 55.2 17C54 18.2 51.5 18.4 50 16.5Z" fill="#fff" stroke-width=".8"/>
+<circle cx="52.2" cy="16.7" r="1.25" fill="#1f5c8c" stroke="none"/>
+<circle cx="51.8" cy="16.2" r=".45" fill="#fff" stroke="none"/>
+<path d="M48.6 14.5C51 12.6 55 12.6 58 14.4" fill="none" stroke="url(#rimecolossus-w)" stroke-width="2.6"/>
+<path d="M48.6 14.5C51 12.6 55 12.6 58 14.4" fill="none" stroke="#7d9cb8" stroke-width=".8"/>
+<path d="M49 11C51 6.5 60 5 66 5.8C70 6.5 72 7.5 72.5 9C66 9 58 9.5 49 11Z" fill="url(#rimecolossus-w)"/>
+<path d="M52 9.5l1.5-3.5 2 3.1ZM57.5 9l2-3.5 2 3.3ZM63.5 9l1.6-3 1.8 3.1Z" fill="url(#rimecolossus-i)" stroke="#2e6c96" stroke-width=".9"/>
+<path d="M66 20C68 18.5 71 18 73.5 15.5C73.5 20 72 25 66.5 26.5Z" fill="url(#rimecolossus-s)"/><path d="M67.5 21.5q2.5-1 4-3" fill="none" stroke-width="1"/>
+</g>
+<g id="arm-l" data-pivot="64 40"><use href="#rimecolossus-arm" fill="url(#rimecolossus-s)"/><path d="M56 40C57 34 62 31 68 32C71 33 73 35 73.5 38L69 36L67 39.5L64 35.5L61 40L59 36.5Z" fill="url(#rimecolossus-i)" stroke="#2e6c96" stroke-width="1"/></g>
+</g>
+</g>
+</svg>

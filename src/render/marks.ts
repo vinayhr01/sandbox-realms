@@ -1,15 +1,13 @@
 /**
- * Map mark layer: beings as dots (folk and wild), item marks, armies, campaigns, battles, pact links
- * and hamlet nameplates, drawn from the latest snapshot only. Reads no sim memory. Positions are tile
- * coordinates from the snapshot; the layer converts them with the camera (CSS px per tile, offset of
- * tile (0,0)). It redraws only when the snapshot, the toggles or the camera change.
+ * Map mark layer: item marks, armies, campaigns, battles, pact links, intrigues and hamlet nameplates, drawn from
+ * the latest snapshot only. Reads no sim memory. Positions are tile coordinates from the snapshot; the layer converts
+ * them with the camera (CSS px per tile, offset of tile (0,0)). It redraws only when the snapshot, the toggles or the
+ * camera change. Beings, hamlet buildings and boats are drawn by the creature layer (creatures.ts).
  *
- * Intrigues are drawn at the tile of the dominion or hamlet they target, for running intrigues only. Boats
- * (`snap.mapBoats`, src/sim/boats) are drawn as dots in their kind's colour when `marks.boats` is on.
+ * Intrigues are drawn at the tile of the dominion or hamlet they target, for running intrigues only.
  */
-import { Application, Container, Graphics, Sprite, Text } from 'pixi.js';
-import type { MapBoat, MapIntrigue, MapKind, MapMarks, Snapshot } from '../shared/protocol.ts';
-import { buildingKindOf, SpriteFactory, type SpriteTex } from './sprites.ts';
+import { Application, Container, Graphics, Text } from 'pixi.js';
+import type { MapIntrigue, MapMarks, Snapshot } from '../shared/protocol.ts';
 
 const ITEM_COLOUR = 0xffb020;
 const FAVOURITE_COLOUR = 0xff5fd2;
@@ -20,10 +18,6 @@ const LINK_COLOUR = 0x9fb6ff;
 const HAMLET_COLOUR = 0xffe9a8;
 const REBELLION_COLOUR = 0xff4d6d;
 const SCHEME_COLOUR = 0xb388ff;
-const BOAT_COLOUR: Readonly<Record<MapBoat['kind'], number>> = { trading: 0x7fd3ff, fishing: 0xa8e6a1, transport: 0xffd27f };
-const BOAT_RADIUS_PX = 3;
-/** Sprites this far outside the viewport (CSS px) are not placed: keeps a sprite whose anchor is off screen. */
-const SPRITE_MARGIN_PX = 16;
 const ITEM_RADIUS_PX = 4;
 const ARMY_HALF_PX = 3;
 const CAMPAIGN_RADIUS_PX = 6;
@@ -45,8 +39,6 @@ export interface MarkToggles {
   battles: boolean;
   /** `marks.intrigues`: running intrigues at their target. */
   intrigues: boolean;
-  /** `marks.boats`: boats at their tile. Optional; absent means off. */
-  boats?: boolean;
   /** `map.names`: full draws the name, banner draws only the dot, off draws nothing. */
   names: 'full' | 'banner' | 'off';
   /** `map.favouritesOnlyNames`: only favourites get a name. No hamlet is a favourite, so hamlet names are hidden. */
@@ -90,24 +82,16 @@ function toScreen(view: MarkView, x: number, y: number): { sx: number; sy: numbe
 
 export class MarkLayer {
   private readonly root = new Container();
-  private readonly buildings = new Container();
-  private readonly beings = new Container();
   private readonly graphics = new Graphics();
   private readonly labels = new Container();
   private readonly labelPool: Text[] = [];
-  private readonly beingPool: Sprite[] = [];
-  private readonly buildingPool: Sprite[] = [];
-  private readonly sprites: SpriteFactory;
   private key = '';
 
   constructor(app: Application) {
-    // Buildings under beings, beings under the mark graphics and the labels.
-    this.root.addChild(this.buildings);
-    this.root.addChild(this.beings);
+    // The mark graphics under the labels.
     this.root.addChild(this.graphics);
     this.root.addChild(this.labels);
     app.stage.addChild(this.root);
-    this.sprites = new SpriteFactory(app.renderer);
   }
 
   /** Redraws when something it shows has changed; otherwise does nothing. */
@@ -122,8 +106,6 @@ export class MarkLayer {
       toggles.campaigns,
       toggles.battles,
       toggles.intrigues,
-      toggles.boats ?? false,
-      snap?.mapBoats?.length ?? 0,
       toggles.names,
       toggles.favouritesOnlyNames,
       toggles.nameScale,
@@ -138,11 +120,9 @@ export class MarkLayer {
     const g = this.graphics;
     g.clear();
     this.hideLabels();
-    // Sprites are rebuilt from the snapshot and only repositioned on a camera change: no texture work per frame.
-    this.placeSprites(snap, view);
     if (!snap) return;
 
-    // Beings have a sprite (placeSprites). Items below need their tile on screen, so the ids are mapped here.
+    // Items need the tile of their holder on screen, so the sampled Beings' ids are mapped here.
     const points = snap.mapPoints ?? [];
     const byId = new Map<number, { sx: number; sy: number }>();
     for (const p of points) byId.set(p.id, toScreen(view, p.x, p.y));
@@ -159,57 +139,9 @@ export class MarkLayer {
     }
 
     if (toggles.intrigues && snap.mapIntrigues) this.drawIntrigues(snap.mapIntrigues, view);
-    if (toggles.boats && snap.mapBoats) this.drawBoats(snap.mapBoats, view);
 
     const marks = snap.mapMarks;
     if (marks) this.drawMarks(marks, toggles, view);
-  }
-
-  /**
-   * Places the building and being sprites that fall inside the viewport (plus SPRITE_MARGIN_PX). Pools grow
-   * to the largest count seen and extra sprites are hidden, not destroyed. Beings with no MapKind use the
-   * Folk flag (folk) or the beast group (wild), and size S.
-   */
-  private placeSprites(snap: Snapshot | null, view: MarkView): void {
-    let nb = 0;
-    let nbeing = 0;
-    if (snap) {
-      for (const b of snap.mapBuildings ?? []) {
-        const { sx, sy } = toScreen(view, b.x, b.y);
-        if (!this.onScreen(sx, sy, view)) continue;
-        const tex = this.sprites.building(buildingKindOf(b.kind));
-        this.place(this.buildingPool, this.buildings, nb++, tex, sx, sy);
-      }
-      const kinds = new Map<number, MapKind>();
-      for (const k of snap.mapKinds ?? []) kinds.set(k.id, k);
-      for (const p of snap.mapPoints ?? []) {
-        const { sx, sy } = toScreen(view, p.x, p.y);
-        if (!this.onScreen(sx, sy, view)) continue;
-        const kind = kinds.get(p.id);
-        const tex = this.sprites.being(kind?.group ?? (p.folk ? 'folk' : 'beast'), kind?.size ?? 'S');
-        this.place(this.beingPool, this.beings, nbeing++, tex, sx, sy);
-      }
-    }
-    for (let i = nb; i < this.buildingPool.length; i++) this.buildingPool[i]!.visible = false;
-    for (let i = nbeing; i < this.beingPool.length; i++) this.beingPool[i]!.visible = false;
-  }
-
-  private onScreen(sx: number, sy: number, view: MarkView): boolean {
-    return sx >= -SPRITE_MARGIN_PX && sy >= -SPRITE_MARGIN_PX && sx <= view.viewW + SPRITE_MARGIN_PX && sy <= view.viewH + SPRITE_MARGIN_PX;
-  }
-
-  /** Puts sprite i of a pool on (sx, sy), creating it on first use. */
-  private place(pool: Sprite[], parent: Container, i: number, tex: SpriteTex, sx: number, sy: number): void {
-    let sprite = pool[i];
-    if (!sprite) {
-      sprite = new Sprite();
-      pool.push(sprite);
-      parent.addChild(sprite);
-    }
-    sprite.texture = tex.texture;
-    sprite.anchor.set(tex.anchorX, tex.anchorY);
-    sprite.position.set(sx, sy);
-    sprite.visible = true;
   }
 
   private drawMarks(marks: MapMarks, toggles: MarkToggles, view: MarkView): void {
@@ -282,15 +214,6 @@ export class MarkLayer {
       } else {
         g.moveTo(sx, sy - r).lineTo(sx + r, sy).lineTo(sx, sy + r).lineTo(sx - r, sy).closePath().stroke({ width: 1.5, color: colour });
       }
-    }
-  }
-
-  /** Boats as filled dots in their kind's colour, at the boat's tile. */
-  private drawBoats(boats: readonly MapBoat[], view: MarkView): void {
-    const g = this.graphics;
-    for (const b of boats) {
-      const { sx, sy } = toScreen(view, b.x, b.y);
-      g.circle(sx, sy, BOAT_RADIUS_PX).fill(BOAT_COLOUR[b.kind]);
     }
   }
 

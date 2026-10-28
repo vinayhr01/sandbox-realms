@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="leafchomper-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8e87e"/><stop offset=".55" stop-color="#82b641"/><stop offset="1" stop-color="#4a7a26"/></linearGradient>
+<linearGradient id="leafchomper-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8fbc4e"/><stop offset="1" stop-color="#3f6a20"/></linearGradient>
+<linearGradient id="leafchomper-t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfcf7e"/><stop offset="1" stop-color="#7f9144"/></linearGradient>
+<radialGradient id="leafchomper-e" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#c8945a"/><stop offset=".6" stop-color="#7a4e22"/><stop offset="1" stop-color="#3e2610"/></radialGradient>
+<path id="leafchomper-fp" d="M44 86L36 100L33 112L27 117.5l-2.4.6M27 117.5l-.2 2.2"/>
+<path id="leafchomper-mp" d="M54 88L50 102L57 113L63 117.5l2.4.4M63 117.5l.4 2.2"/>
+<path id="leafchomper-hp" d="M100 60L86.5 110L92 115.5l2.4.4M92 115.5l.2 2.2"/>
+<path id="leafchomper-hf" d="M63.5 84C68 74 80 64 95 55.5C101 52.5 105 57 103 61.5C96 70 85 80 74 90C68 93 61.5 90 63.5 84Z"/>
+</defs>
+<g stroke="#2f4f18" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-br" data-pivot="73 80"><g transform="translate(5 -2)"><use href="#leafchomper-hp" fill="none" stroke="#24400f" stroke-width="4.4"/><use href="#leafchomper-hp" fill="none" stroke="#5f8c32" stroke-width="2.8"/><use href="#leafchomper-hf" fill="url(#leafchomper-d)" stroke="#24400f"/></g></g>
+<g id="leg-mr" data-pivot="59 86"><g transform="translate(5 -2)" fill="none"><use href="#leafchomper-mp" stroke="#24400f" stroke-width="4.4"/><use href="#leafchomper-mp" stroke="#5f8c32" stroke-width="2.8"/></g></g>
+<g id="leg-fr" data-pivot="49 84"><g transform="translate(5 -2)" fill="none"><use href="#leafchomper-fp" stroke="#24400f" stroke-width="4.4"/><use href="#leafchomper-fp" stroke="#5f8c32" stroke-width="2.8"/></g></g>
+<g id="body" data-pivot="70 78">
+<path d="M56 74C70 70 92 72 108 76C116 78 120 82 118 86C114 90 100 92 84 91C72 90 62 88 56 84Z" fill="url(#leafchomper-g)"/>
+<path d="M66 88.5v-5M74 89.5v-6M82 90v-7M90 90v-7M98 90v-6.5M106 89v-5.5" fill="none" stroke-width="1" opacity=".4"/>
+<path d="M60 87C76 89 96 90 114 87" fill="none" stroke="#e8f2a6" stroke-width="1.6" opacity=".55"/>
+<path d="M50 66C66 62 92 63 112 68C120 70 123 74 119 77.5C100 77.5 76 75.5 54 74.5Z" fill="url(#leafchomper-t)"/>
+<path d="M56 69C74 67.5 96 69 116 73M60 72.5C78 71.5 98 72.5 114 75.5" fill="none" stroke-width=".8" opacity=".45"/>
+<path d="M70 68.5l2 1M80 68.6l2 1.2M90 69.2l2 1.2M100 70.4l2 1.2M108 72l2 1.2M76 73.2l1.6.6M88 73.8l1.6.6M100 74.6l1.6.6" fill="none" stroke="#5a5a20" stroke-width="1" opacity=".6"/>
+<path d="M38 64C44 58 56 58 62 62C64 70 64 80 62 88C56 90 46 90 40 88C37 80 36 72 38 64Z" fill="url(#leafchomper-g)"/>
+<path d="M40 65C48 61.5 56 61.5 61 64" fill="none" stroke="#e8f6b0" stroke-width="2" opacity=".7"/>
+<path d="M50.5 62.5q-1.5 12 1 25M44 76q8-2 17 0" fill="none" stroke-width="1" opacity=".35"/>
+<g id="head" data-pivot="40 74">
+<path d="M28 58C36 44 48 34 62 28" fill="none" stroke="#24400f" stroke-width="1.7"/>
+<path d="M40 60C34 56 25 56 19 61C14 66 12 76 13 85C14 91 19 95 26 95C31 95 36 93 40 90C43 80 43 70 40 60Z" fill="url(#leafchomper-g)"/>
+<path d="M15 76C15 84 18 90 24 92.5C22 86 21 80 22 74Z" fill="#e6f0a0" stroke="none" opacity=".6"/>
+<path d="M30 80q5 4 9 2M28 86q5 3 10 1" fill="none" stroke-width="1" opacity=".35"/>
+<ellipse cx="26.5" cy="68" rx="6" ry="8" fill="url(#leafchomper-e)" stroke="#2a1a08" stroke-width="1"/>
+<path d="M22 70q4.5 1.4 9 0M22.5 73.5q4 1.2 8 0" fill="none" stroke="#5a3814" stroke-width=".8" opacity=".6"/>
+<circle cx="24.6" cy="64.6" r="1.7" fill="#fff" stroke="none"/>
+<circle cx="27.6" cy="67.4" r=".7" fill="#fff" stroke="none" opacity=".6"/>
+<circle cx="18.5" cy="72" r=".9" fill="#f6f0b0" stroke="none"/>
+<path d="M17 92C16 96 18 99 22 99C25 99 27 96.5 26 93Z" fill="#a8c45a"/>
+<path d="M19.5 97.6l2.4 2.6 2.2-2.6" fill="#4a3014" stroke="#2a1a08" stroke-width=".9"/>
+<path d="M16 94l-4 4 1 3M27 96.5l-1 4.5 2 2" fill="none" stroke="#2f4f18" stroke-width="2.4"/>
+<path d="M16 94l-4 4 1 3M27 96.5l-1 4.5 2 2" fill="none" stroke="#b8d06a" stroke-width="1.2"/>
+<path d="M24 58C31 42 42 31 56 24" fill="none" stroke="#2f4f18" stroke-width="1.9"/>
+<path d="M27 52.5l1.6.8M31 46l1.6.9M35.6 40.4l1.4 1.1M41 35.4l1.2 1.3M47 31l1 1.4" fill="none" stroke="#2f4f18" stroke-width="1" opacity=".7"/>
+</g>
+</g>
+<g id="leg-ml" data-pivot="54 88" fill="none"><use href="#leafchomper-mp" stroke="#2f4f18" stroke-width="4.6"/><use href="#leafchomper-mp" stroke="#9ccc56" stroke-width="3"/></g>
+<g id="leg-fl" data-pivot="44 86" fill="none"><use href="#leafchomper-fp" stroke="#2f4f18" stroke-width="4.8"/><use href="#leafchomper-fp" stroke="#9ccc56" stroke-width="3.2"/></g>
+<g id="leg-bl" data-pivot="68 82">
+<use href="#leafchomper-hp" fill="none" stroke="#2f4f18" stroke-width="4.6"/>
+<use href="#leafchomper-hp" fill="none" stroke="#9ccc56" stroke-width="3"/>
+<path d="M97.3 72l3 1M94 84.5l3 1M90.6 97l3 1" fill="none" stroke="#8a3a1a" stroke-width="1.2"/>
+<use href="#leafchomper-hf" fill="url(#leafchomper-g)"/>
+<path d="M69 85C78 76 88 67 100 59" fill="none" stroke-width="1" opacity=".45"/>
+<path d="M73 80l4 3.6M78.5 75l4 3.6M84 70l4 3.6M90 65l3.6 3.4" fill="none" stroke="#3a5e1c" stroke-width="1" opacity=".5"/>
+<path d="M67 78C76 70 86 62 97 56" fill="none" stroke="#eef8b8" stroke-width="1.8" opacity=".6"/>
+<circle cx="100" cy="59" r="2.4" fill="#5a7a2a" stroke="none"/>
+</g>
+</g>
+</svg>

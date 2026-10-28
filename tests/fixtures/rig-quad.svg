@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <g id="tail" data-pivot="30 66"><path d="M30 66 L14 56" stroke="#5a3a1b" stroke-width="4"/></g>
+  <g id="leg-bl" data-pivot="44 84"><rect x="40" y="84" width="7" height="24" fill="#5a3a1b"/></g>
+  <g id="leg-br" data-pivot="56 84"><rect x="52" y="84" width="7" height="24" fill="#5a3a1b"/></g>
+  <g id="body" data-pivot="64 70"><ellipse cx="64" cy="70" rx="34" ry="20" fill="#8a5a2b"/></g>
+  <g id="leg-fl" data-pivot="40 80"><rect x="36" y="80" width="7" height="24" fill="#5a3a1b"/></g>
+  <g id="leg-fr" data-pivot="88 80"><rect x="84" y="80" width="7" height="24" fill="#5a3a1b"/></g>
+  <g id="head" data-pivot="96 56"><circle cx="100" cy="50" r="12" fill="#8a5a2b"/></g>
+</svg>

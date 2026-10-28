@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="waddlefin-b" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#525b72"/><stop offset="1" stop-color="#1c2029"/></linearGradient>
+<linearGradient id="waddlefin-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c3140"/><stop offset="1" stop-color="#14171e"/></linearGradient>
+<radialGradient id="waddlefin-u" cx=".35" cy=".35" r=".8"><stop offset="0" stop-color="#ffffff"/><stop offset=".7" stop-color="#f2f3f6"/><stop offset="1" stop-color="#cfd3dc"/></radialGradient>
+<linearGradient id="waddlefin-o" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffcf4a"/><stop offset="1" stop-color="#f0780e"/></linearGradient>
+<linearGradient id="waddlefin-y" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd25a" stop-opacity=".95"/><stop offset="1" stop-color="#fff2c4" stop-opacity="0"/></linearGradient>
+<linearGradient id="waddlefin-k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a4a56"/><stop offset="1" stop-color="#15151a"/></linearGradient>
+<g id="waddlefin-ft"><path d="M62 108L62.5 114C59 114.6 54 115.6 50 117.3C48 118.2 48 120 50 120.2H66C67.6 120 68 118.6 67.5 117L67 108Z"/><path d="M52 118.4l5-1.2M53 120l5-.6" fill="none" stroke-width=".8" opacity=".6"/><path d="M50 117.6l-1.6.6M50 120l-1.6.1" fill="none" stroke="#0a0a0e" stroke-width="1.2"/></g>
+</defs>
+<g stroke-linejoin="round" stroke-linecap="round" stroke="#12141c" stroke-width="1.5">
+<g id="seg-3" data-pivot="68 110">
+<g id="leg-r" data-pivot="72.5 110"><use href="#waddlefin-ft" x="8" fill="#22242c"/></g>
+<g id="leg-l" data-pivot="64.5 110"><use href="#waddlefin-ft" fill="url(#waddlefin-k)" stroke="#0e0f14"/></g>
+</g>
+<g id="body" data-pivot="62 84">
+<g id="tail" data-pivot="82 108"><path d="M80 104L95 113.5C96 116 94 117.5 91.5 117L78 110Z" fill="url(#waddlefin-f)"/></g>
+<g id="seg-1" data-pivot="62 104">
+<g id="wing-r" data-pivot="76 54"><path d="M77 51C83 59 87 73 89 87C87.5 90 85 89 83 85C80 74 77 62 75 54Z" fill="url(#waddlefin-f)"/></g>
+<path d="M46 50C42 62 39 78 40 94C42 106 50 114 62 115C74 116 84 110 88 98C92 84 90 64 84 50C80 42 72 38 64 38C56 38 50 42 46 50Z" fill="url(#waddlefin-b)"/>
+<path d="M47.2 52C43 64 41 79 42 94C43.5 104 50 111.5 58 113C66 111 70 103 70 92C70 78 67 65 62 57C58 51 52 48 47.2 52Z" fill="url(#waddlefin-u)" stroke="none"/>
+<path d="M46 52.5C51 49.5 57 50.5 61 55C63 59 63 63 61 67C55 65 49 62 44.4 59Z" fill="url(#waddlefin-y)" stroke="none"/>
+<path d="M47 72q3 2 6 0M45 82q3 2 6 0M50 90q3 2 6 0M46 98q3 2 6 0M54 102q3 2 6 0M56 80q3 2 6 0" fill="none" stroke="#c4c9d4" stroke-width="1"/>
+<path d="M74 46q3 2 6 0M78 66q3 2 5 0M80 80q2.6 2 5 0M74 98q3 2 6 0M80 92q2.6 2 5 0" fill="none" stroke="#6a7490" stroke-width="1" opacity=".7"/>
+<g id="seg-2" data-pivot="58 44"><g id="head" data-pivot="58 44">
+<path d="M66 40C70 34 70 25 66 19C62 14 56 12 50 13C44 14 40 18 39 23C38 29 40 35 44 41C48 45 56 46 62 45Z" fill="url(#waddlefin-b)"/>
+<path d="M58 30C62 28 66 30 66.5 34.5C66.5 39 63 43 58.5 45C56.5 41 56 35 58 30Z" fill="url(#waddlefin-o)" stroke="#a04a0a" stroke-width="1"/>
+<path d="M54 43.5C57 45 59.5 47.5 61 51.5" fill="none" stroke="#ffc23e" stroke-width="2.6" opacity=".9"/>
+<path d="M50 16C56 14.5 62 16.5 65 21" fill="none" stroke="#7c86a2" stroke-width="1.6" opacity=".6"/>
+<path d="M41 22C34 22.5 26 25.5 16 32.5C24 31.5 32 30.5 41.5 29.5Z" fill="url(#waddlefin-k)" stroke="#0e0f14"/>
+<path d="M41.5 29.5C32 30.5 24 31.5 16.5 32.8C24 34.5 32 34 41.5 32.5Z" fill="url(#waddlefin-o)" stroke="#8a3e08" stroke-width="1.1"/>
+<path d="M41.5 29.5l1.6.4" fill="none" stroke-width="1"/>
+<path d="M36 25l-1.6.6" fill="none" stroke="#6a6a78" stroke-width=".9"/>
+<circle cx="47" cy="22.5" r="2" fill="#4a2a18" stroke="#0e0f14" stroke-width=".8"/>
+<circle cx="47" cy="22.6" r="1" fill="#0a0604" stroke="none"/>
+<circle cx="46.4" cy="21.9" r=".6" fill="#fff" stroke="none"/>
+</g></g>
+<g id="wing-l" data-pivot="70 54"><g id="fin" data-pivot="70 54">
+<path d="M65 54C71 51 76 55 78 61C80.5 71 82.5 81 84 91C83 95.5 79 96.5 76.5 92.5C72 82 68 70 65.5 62Z" fill="url(#waddlefin-b)"/>
+<path d="M66.4 62.5C69 72 72.5 83 77 92" fill="none" stroke="#dfe3ec" stroke-width="1.6"/>
+<path d="M70 58q3 1.6 5 0M72 66q2.6 1.4 4.6 0" fill="none" stroke="#7c86a2" stroke-width=".9" opacity=".7"/>
+</g></g>
+</g>
+</g>
+</g>
+</svg>

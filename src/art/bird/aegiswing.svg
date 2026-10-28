@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="aegiswing-r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffdf7"/><stop offset=".6" stop-color="#efe6d0"/><stop offset="1" stop-color="#d2c29c"/></linearGradient>
+<linearGradient id="aegiswing-s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fadfc4"/><stop offset="1" stop-color="#e2b48e"/></linearGradient>
+<linearGradient id="aegiswing-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbe08a"/><stop offset="1" stop-color="#c8902e"/></linearGradient>
+<linearGradient id="aegiswing-o" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0a8"/><stop offset="1" stop-color="#e2a93a"/></linearGradient>
+<linearGradient id="aegiswing-w" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#e8eef6"/><stop offset="1" stop-color="#b8c4d6"/></linearGradient>
+<linearGradient id="aegiswing-wf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#dfe6f0"/><stop offset="1" stop-color="#97a4ba"/></linearGradient>
+<linearGradient id="aegiswing-a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a8ccef"/><stop offset="1" stop-color="#5a8ac0"/></linearGradient>
+<radialGradient id="aegiswing-g"><stop offset="0" stop-color="#fff6c8" stop-opacity=".9"/><stop offset=".55" stop-color="#ffefa8" stop-opacity=".45"/><stop offset="1" stop-color="#ffe88a" stop-opacity="0"/></radialGradient>
+<g id="aegiswing-wg"><path d="M62 60C63 46 71 30 84 19C89 16 94 18 97 22L101 30L99 31L105 40L102 41L106 51L103 52L104 62L101 62L99 71L96 70L91 77L89 74L82 78L80 74L73 74C68 70 64 65 62 60Z"/><path d="M99 31L84 40M102 41L85 47M103 52L84 53M101 62L83 59M96 70L80 64M89 74L77 68" fill="none" stroke="#9aa8bc" stroke-width="1"/><path d="M63 58C64 46 71 32 83 21C89 25 91 31 89 37C86 45 81 52 75 58C71 61 66 61 63 58Z" fill="#fff" fill-opacity=".55"/><path d="M68 53q3-3 6-1q2-4 6-2q1-4 5-3M71 58q3-3 6-1q2-4 6-3M76 38q3-2 6 0" fill="none" stroke="#b4c0d2" stroke-width="1"/></g>
+<g id="aegiswing-leg"><path d="M52 80H60C60 90 59.5 100 59 108C58.7 111 58.6 112.5 58.6 114H52.6C52.4 112 52 108 51.6 104C51 96 51 88 52 80Z"/><path d="M52 113.5H59L59.4 117.5C59.4 119 58.6 120 57 120H45C43.4 120 43 118.6 44 117.6C45.6 116.4 48.6 115.6 52 115Z"/><path d="M52.8 115.4L56.8 118.4M53 113.6h5.8" fill="none" stroke="#c8902e" stroke-width="1.2"/><path d="M44.2 119.6H59.2" fill="none" stroke="#8a5a14" stroke-width="1.3"/><path d="M46.2 117.3v2M48.6 116.7v2.6" fill="none" stroke-width=".7"/></g>
+</defs>
+<g stroke-linejoin="round" stroke-linecap="round" stroke="#8a7650" stroke-width="1.5">
+<g id="leg-r" data-pivot="61 82" stroke="#8a5a3a"><use href="#aegiswing-leg" x="5" fill="#d8a882"/></g>
+<g id="leg-l" data-pivot="56 82" stroke="#9a6a4a"><use href="#aegiswing-leg" fill="url(#aegiswing-s)"/></g>
+<g id="body" data-pivot="56 66">
+<g id="wing-r" data-pivot="70 53" stroke="#6d7a90"><use href="#aegiswing-wg" x="4" y="-3" fill="url(#aegiswing-wf)"/></g>
+<g id="tail" data-pivot="68 68" stroke="#3a5a80"><path d="M67 67C74 71 80 79 82 91C83 97 82 101 80 103L76 101C78 95 77 87 73 80C71 76 68 73 66 71Z" fill="url(#aegiswing-a)"/><path d="M72 76q5 7 6 18" fill="none" stroke="#d4e8fa" stroke-width="1" opacity=".8"/></g>
+<path d="M42 46C48 43 60 43 66 46C70 52 70 62 68 70C70 79 74 90 78 101C70 105 52 105 38 101C40 91 42 80 42 70C40 62 39 54 42 46Z" fill="url(#aegiswing-r)"/>
+<path d="M48 75l-2 26M56 75v28M64 75l4 27M60 50q4 8 4 14" fill="none" stroke="#c4b48c" stroke-width="1" opacity=".8"/>
+<path d="M38.4 100.6C52 104.6 70 104.6 77.6 100.6" fill="none" stroke="#e2a93a" stroke-width="2.2"/>
+<path d="M41.2 66C50 68 60 68 68.6 66L68.8 70.5C60 72.5 50 72.5 41.4 70.5Z" fill="url(#aegiswing-o)" stroke="#8a5a14" stroke-width="1.2"/>
+<path d="M44 46.5C47 49.5 50 50 53 47.5" fill="none" stroke="#e2a93a" stroke-width="1.6"/>
+<g id="wing-l" data-pivot="66 56" stroke="#6d7a90"><use href="#aegiswing-wg" fill="url(#aegiswing-w)"/><path d="M64 57C66 44 74 30 84 21" fill="none" stroke="#fff" stroke-width="2"/></g>
+<g id="head" data-pivot="48 46">
+<circle cx="48" cy="30" r="19" fill="url(#aegiswing-g)" stroke="none"/>
+<path d="M44 38L44.5 47H51L50.5 38Z" fill="#e8bc96" stroke="#9a6a4a"/>
+<path d="M54 30C58 32 60.5 36 59.5 40.5C58.5 43.5 55.5 44.5 53 43.5C55 40.5 55.5 36 54 30Z" fill="url(#aegiswing-h)" stroke="#7a5418"/>
+<g transform="matrix(.85 0 0 .85 -6 13)" stroke="#9a6a4a">
+<path d="M54 10C58 6 66 6 70 10C73 14 74 20 72 26C70 30 66 33 61 33C57 33 54 32 52.5 31C51.5 30 52 29 51.5 28.3C50.5 27.6 50.6 26.8 51.3 26.3C50.6 25.8 50.8 25 51.4 24.6C50 24 48.5 23.6 48.6 22.6C49 21.5 50.5 20 51.6 18.5C51.6 15.5 52 12.5 54 10Z" fill="url(#aegiswing-s)"/>
+<circle cx="57.5" cy="25" r="2.6" fill="#f2a090" stroke="none" opacity=".5"/>
+<path d="M50.4 23.4q.9.7 1.8.2" fill="none" stroke-width="1"/>
+<path d="M51.6 26.7q1.4.9 2.8.3" fill="none" stroke="#b05a48" stroke-width="1.2"/>
+<path d="M53.2 19.3C54.5 18 56.6 18.1 57.7 19.5C56.6 20.7 54.5 20.9 53.2 19.3Z" fill="#fff" stroke-width=".8"/>
+<circle cx="55" cy="19.4" r="1.25" fill="#2f5c9e" stroke="none"/>
+<circle cx="54.6" cy="18.9" r=".45" fill="#fff" stroke="none"/>
+<path d="M53 18.9C54.5 17.6 56.7 17.7 57.9 19.2" fill="none" stroke="#7a5418" stroke-width="1"/>
+<path d="M52.7 16.4Q55.5 15 58.2 16.2" fill="none" stroke="#a87830" stroke-width="1.3"/>
+<path d="M51.5 15.5C50.5 8 56.5 3.5 64 4C71.5 4.5 76 10.5 75 18.5C74.6 23 73.5 27.5 71 31C70.8 28.5 70 26 68.6 24C67.5 21 66 18.8 64 17.3C62.5 18 60.5 17.5 59.5 16.2C58 17.5 55.8 17.5 54.7 16.3C53.8 17 52.5 16.8 51.5 15.5Z" fill="url(#aegiswing-h)" stroke="#7a5418"/>
+<path d="M57 9q2-2 4 0q2-2 4 0M63 13q2-2 4 0q2-2 4 1M68 19q2-1 3 1M55 13q2-1.6 3.4 0" fill="none" stroke="#fff3c0" stroke-width="1" opacity=".9"/>
+<path d="M64.6 19.6C66.6 18.6 68.6 20.1 68.4 22.6C68.3 25.1 66.6 26.6 64.6 25.6Z" fill="url(#aegiswing-s)"/>
+<path d="M65.8 21.3q1.4.9.8 2.6" fill="none" stroke-width=".9"/>
+</g>
+<ellipse cx="51" cy="13" rx="11" ry="3" transform="rotate(-8 51 13)" fill="none" stroke="#b07a1a" stroke-width="3.6"/>
+<ellipse cx="51" cy="13" rx="11" ry="3" transform="rotate(-8 51 13)" fill="none" stroke="url(#aegiswing-o)" stroke-width="2"/>
+</g>
+<path d="M47 47C42 51 39 56 37 61L33.5 64C31.5 66 33 69 36 68.4L43 64.5C48 60 52 54 54 49Z" fill="url(#aegiswing-r)"/>
+<path d="M33.6 64.2C34.4 66 35.4 67.4 36.6 68.2" fill="none" stroke="#e2a93a" stroke-width="1.6"/>
+<path d="M44 52q-3 5-5 9" fill="none" stroke="#c4b48c" stroke-width="1"/>
+<path d="M33 52C31 54 30 57.5 31 61C32 62.8 34.2 62.8 35.2 60.6L36.2 55C36.2 53 34.6 51.5 33 52Z" fill="url(#aegiswing-s)" stroke="#9a6a4a" stroke-width="1.2"/>
+<path d="M33.4 54.5v5.5" fill="none" stroke="#c08a66" stroke-width=".8"/>
+</g>
+</g>
+</svg>

@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="gravecaller-r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d5aa6"/><stop offset=".6" stop-color="#5a3c80"/><stop offset="1" stop-color="#3c2558"/></linearGradient>
+<linearGradient id="gravecaller-rf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a3f7c"/><stop offset="1" stop-color="#2c1a42"/></linearGradient>
+<linearGradient id="gravecaller-s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8e2e6"/><stop offset="1" stop-color="#b6aab8"/></linearGradient>
+<linearGradient id="gravecaller-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2f0ec"/><stop offset="1" stop-color="#b9b4ac"/></linearGradient>
+<linearGradient id="gravecaller-k" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a5636"/><stop offset="1" stop-color="#4a301c"/></linearGradient>
+<linearGradient id="gravecaller-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a3a44"/><stop offset="1" stop-color="#241a22"/></linearGradient>
+<radialGradient id="gravecaller-o" cx=".4" cy=".4" r=".6"><stop offset="0" stop-color="#f2ffe8"/><stop offset=".45" stop-color="#9dfc84"/><stop offset="1" stop-color="#3fae54"/></radialGradient>
+<radialGradient id="gravecaller-g" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#b6ff9a" stop-opacity=".7"/><stop offset="1" stop-color="#b6ff9a" stop-opacity="0"/></radialGradient>
+<linearGradient id="gravecaller-t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6d77a"/><stop offset="1" stop-color="#b98a30"/></linearGradient>
+<g id="gravecaller-leg"><path d="M55.4 74H70.6L72 106H54Z"/><path d="M54.2 102H71.8L72 106H54Z" fill="url(#gravecaller-t)" stroke-width="1"/><path d="M60 80l-1 18M66 80l.6 18" fill="none" stroke-width="1" opacity=".4"/><path d="M56 106H69.4L69.8 116C69.8 118.6 68.8 120 67.2 120H50.4C48.6 120 47.6 119 48 117.8C48.6 116.2 50.6 115.6 52.6 115.2C54.4 114.6 55.6 113.4 56 112Z" fill="url(#gravecaller-b)" stroke="#1c141a"/><path d="M49.6 118.6H69.4M57 108.6h12" fill="none" stroke="#6e5a66" stroke-width="1"/></g>
+<g id="gravecaller-arm"><path d="M60 38C64 36 68 38 68.6 42C69.4 48 68 54 66 58L64.6 70C62 72 56 72.6 52.6 71L57 57C56.4 50 56.6 42 60 38Z"/><path d="M52.6 71C55.6 72.6 61.6 72 64.6 70" fill="none" stroke="url(#gravecaller-t)" stroke-width="2"/><path d="M60 46l-1 10M64 47l-.6 12" fill="none" stroke-width="1" opacity=".4"/></g>
+</defs>
+<g stroke="#2a1a3c" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="67 77" stroke="#1e1230"><use href="#gravecaller-leg" x="3" fill="url(#gravecaller-rf)"/></g>
+<g id="leg-l" data-pivot="64 77"><use href="#gravecaller-leg" fill="url(#gravecaller-r)"/></g>
+<g id="body" data-pivot="63 60">
+<g id="arm-r" data-pivot="67 40" stroke="#1e1230"><use href="#gravecaller-arm" x="4" fill="url(#gravecaller-rf)"/><path d="M57.4 71.6C56 74 56.4 77 58.4 78.4C60.6 79.2 63 78 63.4 75.6L63.2 72.6Z" fill="#a89aa8" stroke="#5a4a5c" stroke-width="1"/></g>
+<path d="M52 38C56 35 68 34.6 73 37C76.6 40 78 48 77.6 56C77.4 64 78.6 72 80.4 80.6H47.6C49.6 72 50.6 62 50.4 54C50 46 50.2 41 52 38Z" fill="url(#gravecaller-r)"/>
+<path d="M75 40C77.6 48 76.6 58 77 66C77.4 72 78.4 76 79.6 80" fill="none" stroke-width="3.4" opacity=".25"/>
+<path d="M53.6 40C52.4 52 51.4 66 49.8 80.4" fill="none" stroke="url(#gravecaller-t)" stroke-width="2.4"/>
+<path d="M58 70l-.6 10M70 68l1 12M64 50q4 1.6 8 0" fill="none" stroke-width="1" opacity=".4"/>
+<path d="M50.8 63.6C59 65.4 68 65.4 76.6 63.4L76.8 67C68 69 59 69 50.8 67.4Z" fill="#3a2a22" stroke="#1e140e" stroke-width="1"/>
+<path d="M72 67l1.6 8.6M74 66.6l3 7.4" fill="none" stroke="#3a2a22" stroke-width="1.6"/>
+<path d="M60 64C59 62 59.6 59.6 62 59.4C64.4 59.4 65.2 62 64.4 64C64 65.6 63 66.6 62 66.6C61 66.6 60.4 65.6 60 64Z" fill="url(#gravecaller-w)" stroke="#5c5650" stroke-width=".9"/>
+<path d="M60.8 62.2a.8.8 0 1 0 1.6 0a.8.8 0 1 0-1.6 0M62.8 62.2a.8.8 0 1 0 1.6 0a.8.8 0 1 0-1.6 0" fill="#2a1a3c" stroke="none"/>
+<g id="head" data-pivot="63 34">
+<path d="M49 24C48 12 55.6 4 65.6 4C74.6 4 80.6 10.6 80.6 19.6C80.6 27.6 78.6 33 74.6 37.4L54 38C50.6 35 49.4 30 49 24Z" fill="url(#gravecaller-r)"/>
+<path d="M66 6q9 2 12 12M70 8q6 5 6 14" fill="none" stroke="#a88ad0" stroke-width="1" opacity=".5"/>
+<path d="M49.6 15.6C51.6 10.4 57 8.6 62 10.6C65 15 65.4 24 63.4 30.6C61.4 34.6 57.6 36 53.6 35C51 33.6 50 31 50 28C48.6 27 48 25.6 48.6 24.6C47.6 23.6 46.6 22.6 47.2 21.6C48.2 20 49.2 18 49.6 15.6Z" fill="#251636"/>
+<path d="M51.6 14C54 12 58 12 60.6 13.6C62.4 18 62.6 24 61 29C59.4 32 56 33 53.4 32C51.6 30.6 51 28.6 51 26.6C49.8 26 49.4 25 49.8 24.2C48.8 23.4 48.2 22.6 48.6 21.8C49.6 20.4 50.4 18.6 50.6 16.6Z" fill="url(#gravecaller-s)" stroke="#6a5a70"/>
+<path d="M51.2 17.2C52.8 16 55.6 16 57 17.6C56 19.6 53 20 51.2 17.2Z" fill="#3a2a48" stroke="none"/>
+<ellipse cx="54" cy="17.8" rx="1.5" ry="1.1" fill="url(#gravecaller-o)" stroke="none"/>
+<circle cx="53.6" cy="17.4" r=".45" fill="#fff" stroke="none"/>
+<path d="M50.4 15.4L57.6 14.6" fill="none" stroke="#e6e2e8" stroke-width="1.6"/>
+<path d="M49.4 22.4q.9.7 1.8.2" fill="none" stroke="#6a5a70" stroke-width="1"/>
+<path d="M50.6 25.4C49.6 31 50 38 52.6 45.6L54.6 42.6L56.4 46L58.4 41C60.4 36 61.4 31 61 27C58 28 54 27.6 50.6 25.4Z" fill="url(#gravecaller-w)" stroke="#7a746c"/>
+<path d="M52.6 30l.6 10M55.6 30.6l.4 9M58.4 30l-.4 7" fill="none" stroke="#9a948c" stroke-width=".9"/>
+<path d="M50 25.4C52 24.6 54 25 55.4 26.2C53.6 27.6 51.4 27.4 50 25.4Z" fill="url(#gravecaller-w)" stroke="#7a746c" stroke-width="1"/>
+</g>
+<g id="arm-l" data-pivot="63 40">
+<path d="M41.6 24L40.2 98" fill="none" stroke="#2e1e12" stroke-width="5"/>
+<path d="M41.6 24L40.2 98" fill="none" stroke="url(#gravecaller-k)" stroke-width="2.6"/>
+<path d="M40.8 40l2.4 1.6M40.4 80l-2.4 1.4" fill="none" stroke="#2e1e12" stroke-width="1"/>
+<g transform="translate(-2 10)"><circle cx="44" cy="9.6" r="6.4" fill="url(#gravecaller-g)" stroke="none"/>
+<circle cx="44" cy="9.6" r="3.6" fill="url(#gravecaller-o)" stroke="#2f7a3e" stroke-width="1"/>
+<path d="M39 13.6C39 10.4 41 8.8 44 8.8C47 8.8 49 10.4 49 13.6C49 15.6 48 17 46.6 17.6V19.6H41.4V17.6C40 17 39 15.6 39 13.6Z" fill="url(#gravecaller-w)" stroke="#5c5650" stroke-width="1"/>
+<path d="M40.8 13.4a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0-2.8 0M44.4 13.4a1.4 1.4 0 1 0 2.8 0a1.4 1.4 0 1 0-2.8 0" fill="#2f7a3e" stroke="none"/>
+<path d="M42.6 19.6v-1.8M44 19.6v-1.8M45.4 19.6v-1.8" fill="none" stroke="#5c5650" stroke-width=".7"/></g>
+<path d="M60 38C64 36 67.6 38 68 42C68.4 48 66 54 63 58L52 68C49 70 45 68 46 65L56 55C55.6 49 56.6 42 60 38Z" fill="url(#gravecaller-r)"/>
+<path d="M45.6 65.4C47 69 50.4 70 52.6 68" fill="none" stroke="url(#gravecaller-t)" stroke-width="2"/>
+<path d="M60 44l-2 10" fill="none" stroke-width="1" opacity=".4"/>
+<path d="M44.6 62.6C42.4 62.4 40 63.4 39.6 65.4C39.4 67.4 41 68.6 43 68.6C45 68.6 46.6 67.6 47 66Z" fill="url(#gravecaller-s)" stroke="#6a5a70" stroke-width="1.2"/>
+<path d="M40 64.6l-1.4-.4M40.2 66.6l-1.4.2" fill="none" stroke="#6a5a70" stroke-width="1"/>
+</g>
+</g>
+</g>
+</svg>

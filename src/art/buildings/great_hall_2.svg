@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="great_hall_2-ss" x2="0" y2="1"><stop offset="0" stop-color="#a39a87"/><stop offset="1" stop-color="#766e60"/></linearGradient>
+<linearGradient id="great_hall_2-st" x2="0" y2="1"><stop offset="0" stop-color="#dad1bf"/><stop offset="1" stop-color="#aba28f"/></linearGradient>
+<linearGradient id="great_hall_2-ts" x2="0" y2="1"><stop offset="0" stop-color="#8f5d33"/><stop offset="1" stop-color="#5f3a1d"/></linearGradient>
+<linearGradient id="great_hall_2-tw" x2="0" y2="1"><stop offset="0" stop-color="#c99360"/><stop offset="1" stop-color="#94603a"/></linearGradient>
+<linearGradient id="great_hall_2-gw" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a6"/><stop offset="1" stop-color="#f2a443"/></linearGradient>
+<linearGradient id="great_hall_2-tl" x2="0" y2="1"><stop offset="0" stop-color="#dc7c4a"/><stop offset="1" stop-color="#a3482a"/></linearGradient>
+<linearGradient id="great_hall_2-tld" x2="0" y2="1"><stop offset="0" stop-color="#a3482a"/><stop offset="1" stop-color="#6e2b17"/></linearGradient>
+<linearGradient id="great_hall_2-dr" x2="0" y2="1"><stop offset="0" stop-color="#a06a3c"/><stop offset="1" stop-color="#5f3a1c"/></linearGradient>
+<linearGradient id="great_hall_2-sn" x2="0" y2="1"><stop offset="0" stop-color="#c4bba9"/><stop offset="1" stop-color="#a49b88"/></linearGradient>
+<linearGradient id="great_hall_2-au" x2="0" y2="1"><stop offset="0" stop-color="#f7df80"/><stop offset="1" stop-color="#c9922c"/></linearGradient>
+<linearGradient id="great_hall_2-rd" x2="0" y2="1"><stop offset="0" stop-color="#d84c36"/><stop offset="1" stop-color="#8f2a1b"/></linearGradient>
+</defs>
+<g stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<path d="M77 119.3L99 103.9L99 95.9L77 111.3Z" fill="url(#great_hall_2-ss)" stroke="#5a5347"/>
+<path d="M21 119.3L77 119.3L77 111.3L21 111.3Z" fill="url(#great_hall_2-st)" stroke="#5a5347"/>
+<path d="M21.8 115.3h54.4M30 115.3v-3.2M39 115.3v-3.2M48 115.3v-3.2M57 115.3v-3.2M66 115.3v-3.2" fill="none" stroke="#5a5347" stroke-width="1" opacity=".45"/>
+<path d="M77.4 115l21.2 -14.8M81.5 112.2v-3.2M86 109v-3.2M90.5 105.9v-3.2M95 102.7v-3.2" fill="none" stroke="#5a5347" stroke-width="1" opacity=".45"/>
+<path d="M77 111.3L99 95.9L99 67.9L77 83.3Z" fill="url(#great_hall_2-ts)" stroke="#563419"/>
+<path d="M21 111.3L77 111.3L77 83.3L21 83.3Z" fill="url(#great_hall_2-tw)" stroke="#563419"/>
+<path d="M21.8 107.3h54.4M21.8 103.3h54.4M21.8 99.3h54.4M21.8 95.3h54.4M21.8 91.3h54.4M21.8 87.3h54.4" fill="none" stroke="#563419" stroke-width="1" opacity=".45"/>
+<path d="M77.4 107l21.2 -14.8M77.4 103l21.2 -14.8M77.4 99l21.2 -14.8M77.4 95l21.2 -14.8M77.4 91l21.2 -14.8M77.4 87l21.2 -14.8" fill="none" stroke="#563419" stroke-width="1" opacity=".45"/>
+<path d="M77.5 111v-28M88 103.6v-28M98.5 96.3v-28" fill="none" stroke="#553519" stroke-width="2.6"/>
+<path d="M80.5 100.4L85 97.2L85 83.2L80.5 86.4Z" fill="url(#great_hall_2-ts)" stroke="#563419"/>
+<path d="M81 98.5L84.5 96.1L84.5 85.1L81 87.5Z" fill="url(#great_hall_2-gw)" stroke="#9a5a1c" stroke-width="1"/>
+<path d="M82.8 97.3v-11" fill="none" stroke="#563419" stroke-width="1"/>
+<path d="M91.5 92.7L96 89.5L96 75.5L91.5 78.7Z" fill="url(#great_hall_2-ts)" stroke="#563419"/>
+<path d="M92 90.8L95.5 88.4L95.5 77.4L92 79.8Z" fill="url(#great_hall_2-gw)" stroke="#9a5a1c" stroke-width="1"/>
+<path d="M93.8 89.6v-11" fill="none" stroke="#563419" stroke-width="1"/>
+<path d="M22.5 111.3v-28" fill="none" stroke="#6b4424" stroke-width="3"/>
+<path d="M75.5 111.3v-28" fill="none" stroke="#6b4424" stroke-width="3"/>
+<path d="M15 85.7L47 50.7L73 32.5L41 67.5Z" fill="url(#great_hall_2-tl)" stroke="#5e2614"/>
+<path d="M47 50.7L79 85.7L105 67.5L73 32.5Z" fill="url(#great_hall_2-tld)" stroke="#5e2614"/>
+<path d="M73.7 79.9l26 -18.2M68.3 74l26 -18.2M63 68.2l26 -18.2M57.7 62.4l26 -18.2M52.3 56.5l26 -18.2M85.5 81.2l-5.3 -5.9M92 76.6l-5.3 -5.8M98.5 72.1l-5.3 -5.9M76.9 77.6l-5.3 -5.8M83.4 73l-5.3 -5.8M89.9 68.5l-5.3 -5.8M74.8 69.5l-5.3 -5.8M81.3 64.9l-5.3 -5.8M87.8 60.4l-5.3 -5.9M66.3 65.9l-5.4 -5.8M72.8 61.4l-5.4 -5.9M79.3 56.8l-5.4 -5.8M64.2 57.8l-5.4 -5.8M70.7 53.3l-5.4 -5.9M77.2 48.7l-5.4 -5.8M55.6 54.3l-5.4 -5.9M62.1 49.7l-5.4 -5.8M68.6 45.2l-5.3 -5.9" fill="none" stroke="#5e2614" stroke-width="1" opacity=".45"/>
+<path d="M21 83.3L77 83.3L49 50.3Z" fill="url(#great_hall_2-tw)" stroke="#563419"/>
+<path d="M25.5 79.3h47M28.8 75.3h40.4M32.1 71.3h33.8M35.4 67.3h27.2M38.7 63.3h20.6M42 59.3h14M45.3 55.3h7.4" fill="none" stroke="#563419" stroke-width="1" opacity=".45"/>
+<path d="M49 83.3v-32M27 82.3h44" fill="none" stroke="#6b4424" stroke-width="2.6"/>
+<path d="M43 76.8V69.8A6 6 0 0 1 55 69.8V76.8Z" fill="url(#great_hall_2-tw)" stroke="#563419"/>
+<path d="M44.5 75.3V69.8A4.5 4.5 0 0 1 53.5 69.8V75.3Z" fill="url(#great_hall_2-gw)" stroke="#9a5a1c" stroke-width="1"/>
+<path d="M49 75.3v-10M44.5 70.3h9" fill="none" stroke="#563419" stroke-width="1.1"/>
+<path d="M42 77.9L56 77.9L56 75.9L42 75.9Z" fill="url(#great_hall_2-tw)" stroke="#563419" stroke-width="1"/>
+<path d="M45.7 66.9l1.4 1.6" fill="none" stroke="#fff" stroke-width="1" opacity=".6"/>
+<path d="M15 85.7L47 50.7L79 85.7L79 88.7L47 54.3L15 88.7Z" fill="url(#great_hall_2-tl)" stroke="#5e2614"/>
+<path d="M46 52.7l-6-11q-1-3 2-3l1 3q-1.6.6-.6 2l6 8M48 52.7l6-11q1-3-2-3l-1 3q1.6.6.6 2l-6 8" fill="url(#great_hall_2-dr)" stroke="#3f2611" stroke-width="1.2"/>
+<path d="M62 120L63.5 119L63.5 116.6L62 117.6Z" fill="url(#great_hall_2-ss)" stroke="#5a5347"/>
+<path d="M34 117.6L62 117.6L63.5 116.6L35.5 116.6Z" fill="#cfc6b4" stroke="#5a5347"/>
+<path d="M34 120L62 120L62 117.6L34 117.6Z" fill="url(#great_hall_2-sn)" stroke="#5a5347"/>
+<path d="M39 116.9V104.9A10 10 0 0 1 59 104.9V116.9Z" fill="url(#great_hall_2-dr)" stroke="#3f2611"/>
+<path d="M41 116.9V104.9A8 8 0 0 1 57 104.9V116.9Z" fill="url(#great_hall_2-dr)" stroke="#3f2611"/>
+<path d="M45 116.9v-17.5M49 116.9v-19.5M53 116.9v-17.5" fill="none" stroke="#3f2611" stroke-width="1" opacity=".6"/>
+<path d="M41.8 111.9h11.2M41.8 104.5h11.2" fill="none" stroke="#2c2f34" stroke-width="1.4"/>
+<path d="M52.5 107.9a1 1 0 1 0 2 0a1 1 0 1 0 -2 0Z" fill="url(#great_hall_2-au)" stroke="#7a5514" stroke-width=".8"/>
+<path d="M49 116.9v-20" fill="none" stroke="#3f2611" stroke-width="1"/>
+<path d="M24 85.3h10" fill="none" stroke="#5a3a1c" stroke-width="1.8"/>
+<path d="M25 85.3h8v17l-4-3.4-4 3.4Z" fill="url(#great_hall_2-rd)" stroke="#5e1a10" stroke-width="1.2"/>
+<path d="M26.8 92.3a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0 -4.4 0Z" fill="url(#great_hall_2-au)" stroke="#7a5514" stroke-width=".8"/>
+<path d="M64 85.3h10" fill="none" stroke="#5a3a1c" stroke-width="1.8"/>
+<path d="M65 85.3h8v17l-4-3.4-4 3.4Z" fill="url(#great_hall_2-rd)" stroke="#5e1a10" stroke-width="1.2"/>
+<path d="M66.8 92.3a2.2 2.2 0 1 0 4.4 0a2.2 2.2 0 1 0 -4.4 0Z" fill="url(#great_hall_2-au)" stroke="#7a5514" stroke-width=".8"/>
+</g>
+</svg>

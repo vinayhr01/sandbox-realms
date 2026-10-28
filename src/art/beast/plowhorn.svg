@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="plowhorn-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c47a48"/><stop offset=".55" stop-color="#9a5530"/><stop offset="1" stop-color="#6e3a1e"/></linearGradient>
+<linearGradient id="plowhorn-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a65d34"/><stop offset="1" stop-color="#5e3119"/></linearGradient>
+<linearGradient id="plowhorn-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a4224"/><stop offset="1" stop-color="#462412"/></linearGradient>
+<linearGradient id="plowhorn-h" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#e9dcc0"/><stop offset=".7" stop-color="#cdb98f"/><stop offset="1" stop-color="#5e5040"/></linearGradient>
+<g id="plowhorn-fl"><path d="M41 72C40 84 42 94 43.5 102L43.5 112H53.5L54 102C55.5 94 58 84 58 72C55 65 44 65 41 72Z"/><path d="M43 111.5H54L55 120H41.8Q42.3 115.5 43 111.5Z" fill="#33251d" stroke="#1d140f"/><path d="M48.5 113.5V120" stroke="#6b5444" stroke-width=".9"/><path d="M44 104q4.5 2 9 0" fill="none" stroke-width="1" opacity=".4"/></g>
+<g id="plowhorn-bl"><path d="M79 66C78 80 83 90 88 96L87.5 112H97.5L98 104C99 98 101.5 94 103 88C105 78 104 68 101 61C93 57 84 59 79 66Z"/><path d="M87 111.5H98L99 120H85.8Q86.3 115.5 87 111.5Z" fill="#33251d" stroke="#1d140f"/><path d="M92.5 113.5V120" stroke="#6b5444" stroke-width=".9"/><path d="M88 104q4.5 2 9 0" fill="none" stroke-width="1" opacity=".4"/></g>
+<path id="plowhorn-hn" d="M26.5 46C23 41 21 35 22.5 29C23.3 26.5 25.8 26 26.6 28.5C26.4 34 28.5 39 32 44Z"/>
+</defs>
+<g stroke="#4a2614" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="55 74"><use href="#plowhorn-fl" x="6" fill="url(#plowhorn-f)"/></g>
+<g id="leg-br" data-pivot="80 70"><use href="#plowhorn-bl" x="-11" fill="url(#plowhorn-f)"/></g>
+<g id="body" data-pivot="70 70">
+<g id="tail" data-pivot="106 55"><path d="M105 54C109 60 110 70 109.5 80C109.3 84 109 87 108.6 89" fill="none" stroke="#4a2614" stroke-width="4"/><path d="M105 54C109 60 110 70 109.5 80C109.3 84 109 87 108.6 89" fill="none" stroke="#9a5530" stroke-width="2"/><path d="M108.5 87C105.5 89 104.5 94 106 99C107.5 97.5 108.5 96.5 109.5 99C111.5 95 112 90 108.5 87Z" fill="#3d2418"/></g>
+<path d="M36 66C35 54 42 44 52 42C58 41 62 44 68 45C80 45 92 46 100 48C107 51 109 59 108 69C107 79 103 86 95 88C83 90 66 91 54 89C44 87 37 79 36 66Z" fill="url(#plowhorn-c)"/>
+<path d="M50 87C60 89.6 80 89.8 94 87.4C88 83.5 74 82.5 62 83C56 83.3 52 84.6 50 87Z" fill="#d9a77e" stroke="none" opacity=".75"/>
+<path d="M46 46C52 42.5 58 42.5 64 45.5C76 46 90 46.5 99 49" fill="none" stroke="#e3a172" stroke-width="2.2" opacity=".55"/>
+<path d="M58 55q3 4 2 8M66 53q3 4 2 8M76 54q3 4 2 8M86 54q3 4 2 8M94 58q2 4 1.5 7M62 70q2 3 1.5 6M80 68q2 3 1.5 6" fill="none" stroke-width="1" opacity=".3"/>
+<path d="M88 60C94 58 100 60 102 66" fill="none" stroke-width="1.1" opacity=".35"/>
+<g id="head" data-pivot="44 60">
+<path d="M34 72C37 81 44 87 52 86C51 79 50 72 47 66Z" fill="url(#plowhorn-c)"/>
+<path d="M38 77q3 3 3 7M43 78q2 3 2 6" fill="none" stroke-width="1" opacity=".35"/>
+<use href="#plowhorn-hn" x="7" y="-1" fill="url(#plowhorn-h)" stroke="#5a4636"/>
+<path d="M47 52C40 45 32 41 26 43C21 45 19 51 17.5 57C16 62 13 66 13 70.5C13 75 16.5 78 21.5 78C27 78 31 76 35 73C41 69 46 66 50 63Z" fill="url(#plowhorn-c)"/>
+<path d="M13.6 70.5C14 66 17 63.8 20.5 64.8C23.8 67 24.8 72.5 22.5 77.6C18 78.2 14 75.8 13.6 70.5Z" fill="#c8a594" stroke="none"/>
+<path d="M14.8 69.2q1.6-2 3.6-.8" fill="none" stroke="#3a2418" stroke-width="1.2"/>
+<path d="M14.6 74.8Q18 76.6 23 75.6" fill="none" stroke="#3a2418" stroke-width="1"/>
+<path d="M30 46q-4 3-3 7M24 48q3 1 4 4" fill="none" stroke="#6e3a1e" stroke-width="1" opacity=".55"/>
+<path d="M25 46.5C26.5 43 30 41.5 33 43C32 46 29 48 25 46.5Z" fill="#7a4022" stroke="none"/>
+<ellipse cx="28.6" cy="54" rx="2.7" ry="2.3" fill="#f4e6d3" stroke="none"/>
+<ellipse cx="28.4" cy="54.1" rx="1.9" ry="1.8" fill="#24150c" stroke="none"/>
+<circle cx="27.7" cy="53.4" r=".8" fill="#fff" stroke="none"/>
+<path d="M25 51.2q3.5-2.5 7-.6" fill="none" stroke-width="1"/>
+<path d="M31 62q3 2 6 1M24 60q2 1.5 4 1" fill="none" stroke-width="1" opacity=".35"/>
+<path d="M34 48C38 45 44 45 48 48.5C44 51.5 38 52 34 50.5Z" fill="url(#plowhorn-c)"/>
+<path d="M36 48.8C39 47.2 43 47.2 45.5 48.8C42.5 50 39 50.3 36 49.6Z" fill="#d79b85" stroke="none"/>
+<use href="#plowhorn-hn" fill="url(#plowhorn-h)" stroke="#5a4636"/>
+</g>
+</g>
+<g id="leg-bl" data-pivot="86 70"><use href="#plowhorn-bl" x="-5" fill="url(#plowhorn-n)"/></g>
+<g id="leg-fl" data-pivot="49 74"><use href="#plowhorn-fl" fill="url(#plowhorn-n)"/></g>
+</g>
+</svg>

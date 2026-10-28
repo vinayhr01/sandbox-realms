@@ -197,6 +197,34 @@ export function nearestMapPoint<P extends { x: number; y: number }>(
   return best;
 }
 
+/**
+ * The Being nearest a screen point among the first `count` feed entries, within `radiusPx`, or null. Same mapping as
+ * nearestMapPoint. A Being whose `alpha` is below 1 is fading out after it left the feed, so it is not picked.
+ */
+export function nearestLivePoint<P extends { x: number; y: number; alpha: number }>(
+  points: readonly P[],
+  count: number,
+  view: { offX: number; offY: number; zoom: number },
+  sx: number,
+  sy: number,
+  radiusPx: number,
+): P | null {
+  let best: P | null = null;
+  let bestD2 = radiusPx * radiusPx;
+  for (let i = 0; i < count; i++) {
+    const p = points[i];
+    if (!p || p.alpha < 1) continue;
+    const dx = view.offX + (p.x + 0.5) * view.zoom - sx;
+    const dy = view.offY + (p.y + 0.5) * view.zoom - sy;
+    const d2 = dx * dx + dy * dy;
+    if (d2 <= bestD2) {
+      best = p;
+      bestD2 = d2;
+    }
+  }
+  return best;
+}
+
 /** Index of the parcel holding tile (x, y), row-major as in MapTiles, or -1 off the realm. */
 export function parcelOfTile(tiles: Pick<MapTiles, 'size' | 'perAxis'>, x: number, y: number): number {
   const col = Math.floor(x / tiles.size);

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="bonehound-s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffbef"/><stop offset=".6" stop-color="#ebdfc1"/><stop offset="1" stop-color="#c2b088"/></linearGradient>
+<linearGradient id="bonehound-r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7f0dc"/><stop offset="1" stop-color="#cdbd96"/></linearGradient>
+<linearGradient id="bonehound-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a8483c"/><stop offset="1" stop-color="#6a2620"/></linearGradient>
+<radialGradient id="bonehound-e" cx=".45" cy=".45" r=".6"><stop offset="0" stop-color="#eafff8"/><stop offset=".45" stop-color="#8ff0d2"/><stop offset="1" stop-color="#2f9c86"/></radialGradient>
+<path id="bonehound-fd" d="M46 73L43.6 91M43.8 95L45.4 109"/>
+<path id="bonehound-bd" d="M88 68L84.4 84M85 87.6L91 99.6M91 101.6L89.4 111"/>
+<g id="bonehound-paw"><path d="M6.4-3.6C8 -1.6 8 2.4 7.4 5C7 6.6 6 7.4 4.8 7.4H-4.2C-6 7.4-6.6 5.6-5.2 4.4C-3.2 3-1 1.6.8-.6C2.4-2.6 4.4-4.6 6.4-3.6Z" fill="currentColor"/><path d="M-2.2 4.6V7.4M.6 3.8V7.4M3.4 3V7.4" stroke-width=".9" opacity=".7"/><path d="M-5.6 6.8l-1.6.6M-2.6 7.2l-1.4.6" stroke="#5a4e38" stroke-width="1.1"/></g>
+<g id="bonehound-fl"><use href="#bonehound-fd" stroke-width="6.8"/><use href="#bonehound-fd" stroke="currentColor" stroke-width="3.8"/><path d="M44.2 77l-1.2 11M43.6 98.6l.8 8" stroke-width=".8" opacity=".45"/><circle cx="46" cy="72.6" r="4" fill="currentColor"/><circle cx="43.6" cy="93" r="2.8" fill="currentColor"/><use href="#bonehound-paw" x="40.6" y="112.6"/></g>
+<g id="bonehound-bl"><use href="#bonehound-bd" stroke-width="6.8"/><use href="#bonehound-bd" stroke="currentColor" stroke-width="3.8"/><path d="M85.6 73l-1.6 8M86.6 90l3.4 7" stroke-width=".8" opacity=".45"/><circle cx="88" cy="68" r="4.4" fill="currentColor"/><circle cx="84.6" cy="85.8" r="2.8" fill="currentColor"/><circle cx="91" cy="100.6" r="2.4" fill="currentColor"/><use href="#bonehound-paw" x="85.2" y="112.6"/></g>
+</defs>
+<g stroke="#6e6148" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" fill="none">
+<g id="leg-fr" data-pivot="52 74" stroke="#5a4e38"><use href="#bonehound-fl" x="6" color="#b8a985"/></g>
+<g id="leg-br" data-pivot="82 70" stroke="#5a4e38"><use href="#bonehound-bl" x="-6" color="#b8a985"/></g>
+<g id="body" data-pivot="68 68">
+<g id="tail" data-pivot="97 60">
+<path d="M96 60C104 59 110 55 113 47.6C114.4 44 114.6 40.6 114 37.6" stroke-width="6"/>
+<path d="M96 60C104 59 110 55 113 47.6C114.4 44 114.6 40.6 114 37.6" stroke="#e7dcbd" stroke-width="3.2" stroke-dasharray="2.6 1.2" stroke-linecap="butt"/>
+<circle cx="114" cy="36.6" r="2.2" fill="url(#bonehound-s)"/>
+</g>
+<path d="M44 55C54 49.6 70 49.6 82 53.6C89 55.6 94 57.6 98 60" stroke-width="7.4"/>
+<path d="M44 55C54 49.6 70 49.6 82 53.6C89 55.6 94 57.6 98 60" stroke="#e7dcbd" stroke-width="4.4" stroke-dasharray="3.2 1.1" stroke-linecap="butt"/>
+<path d="M56 50.6l-1-3.4M63 49.4l-.4-3.6M70 49.6l.4-3.6M77 50.8l1-3.4" stroke-width="2.6"/>
+<path d="M50 55.6C58 53.6 72 53.6 80.6 56.6C81.6 63.6 76.6 72 66.6 76C58.6 78.4 51.4 74.6 49.4 66.6C48.8 62.6 49 58.6 50 55.6Z" fill="url(#bonehound-r)"/>
+<path d="M56.4 58.4C55.4 64 56.4 70 58.4 74.4M62.4 58C62 65 62.4 71 64 75.6M68.6 58.2C68.6 65 69 70.6 69.6 74.6M74.6 58.6C75 64 74.6 68.6 73.6 72" stroke="#4a3e30" stroke-width="2.2"/>
+<path d="M51.4 69C55 75 61 77.6 67 76.4" stroke="#fffaea" stroke-width="1.1" opacity=".8"/>
+<path d="M81 56C85 51.6 93 51.6 96 56C97 60 95 66 91 68.4C87 69.6 83 66.6 81.6 62.4Z" fill="url(#bonehound-s)"/>
+<ellipse cx="89" cy="61.4" rx="2" ry="2.6" fill="#4a3e30"/>
+<g id="head" data-pivot="46 55">
+<path d="M42.4 46.4L49.6 44.6L53.4 56.4L46.6 58.6Z" fill="url(#bonehound-c)" stroke="#4a1c16"/>
+<path d="M45 46l-2.6-3.4 3.8.6ZM49.4 52.4l4-1.4-1 3.6ZM51.4 57.6l2.6 3-3.8-.2Z" fill="#c8ccd2" stroke="#5f646c" stroke-width=".9"/>
+<path d="M44 34C42 28 36 26 30 28C26 29.6 23 32 21 35L11 38.4C8 39.4 7 42.4 8.6 44.4L12 46.6L22 48.4C26 51.4 32 53 38 51.4C43 50 46 44.6 45.6 39.6Z" fill="url(#bonehound-s)"/>
+<path d="M43 36C44.4 40 43.6 46 39.4 49C41 44 41 40 39.6 35.6C40.8 34.6 42 34.6 43 36Z" fill="#b8a580" stroke="none" opacity=".55"/>
+<path d="M37 28.6l-1.6 3.2 2.2 1-1.4 3" stroke-width="1"/>
+<ellipse cx="31" cy="37" rx="3.8" ry="3.4" fill="#3a3026"/>
+<circle cx="30.6" cy="37.2" r="2" fill="url(#bonehound-e)" stroke="none"/>
+<circle cx="29.9" cy="36.5" r=".6" fill="#fff" stroke="none"/>
+<path d="M25.6 33.4Q30 31 35.4 33.2M12 39.6Q18 37.4 24 37.6" stroke-width="1.1"/>
+<path d="M8.4 40.6C9.6 39.6 11.4 39.6 12 40.8L10.4 43.4Z" fill="#3a3026" stroke-width="1"/>
+<path d="M11.4 46.4L13 49.6L14.4 46.8L15.6 48.8L16.8 47L18 48.8L19.2 47.2L20.4 49L21.6 47.6Z" fill="#fffdf4" stroke-width=".9"/>
+<path d="M12 48.6C16 49.2 22 50 28 51.4C33 52.4 37.6 52 40 50.4L39.4 54.4C34.4 57 27.4 57 21.4 55.4C17.4 54.4 14 52.4 12.4 51Z" fill="url(#bonehound-s)"/>
+<path d="M14.4 50.8L15.4 48.8L16.6 51.2L17.8 49.2L19 51.6L20.2 49.6L21.4 52" fill="#fffdf4" stroke-width=".9"/>
+<path d="M24 52.6q6 1.6 12 .6M27.6 41.4q4 2.6 8.4 2" stroke-width="1" opacity=".5"/>
+</g>
+</g>
+<g id="leg-bl" data-pivot="88 70"><use href="#bonehound-bl" color="#f2e9d0"/></g>
+<g id="leg-fl" data-pivot="46 74"><use href="#bonehound-fl" color="#f2e9d0"/></g>
+</g>
+</svg>

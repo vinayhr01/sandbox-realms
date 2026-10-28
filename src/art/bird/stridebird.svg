@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="stridebird-b" cx=".35" cy=".3" r=".85"><stop offset="0" stop-color="#5e5752"/><stop offset=".5" stop-color="#2e2926"/><stop offset="1" stop-color="#151211"/></radialGradient>
+<linearGradient id="stridebird-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#dcd6ca"/></linearGradient>
+<linearGradient id="stridebird-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d6d0c4"/><stop offset="1" stop-color="#a49e92"/></linearGradient>
+<linearGradient id="stridebird-s" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f2c8b8"/><stop offset="1" stop-color="#c88a7e"/></linearGradient>
+<linearGradient id="stridebird-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eab4a2"/><stop offset="1" stop-color="#c08070"/></linearGradient>
+<linearGradient id="stridebird-k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0cfae"/><stop offset="1" stop-color="#c49068"/></linearGradient>
+<g id="stridebird-leg"><path d="M70 72C69 80 70 87 73.5 92C74.5 93.5 74.5 95 74 97L73 113H79L79.5 97C79.8 94.5 81 92.5 82 90C83.5 84 83 78 81 72Z"/><path d="M73 112C69 114 64 115.6 60 116.8C58 117.4 57.5 119.6 59.5 120H77C78.6 120 79.5 118.6 79.2 117L79.2 112Z"/><path d="M78.6 116.4L84 117.6C85.6 118 85.6 120 84 120H78.6Z"/><path d="M59.8 117C57.5 117.4 55.6 118.6 55.8 120H59.6Z" fill="#3a2a24"/><path d="M73.8 100h5.4M73.6 104h5.4M73.4 108h5.4M64 118l4-1.2M68 119.4l4-.6" fill="none" stroke-width=".8" opacity=".6"/></g>
+</defs>
+<g stroke-linejoin="round" stroke-linecap="round" stroke="#100d0c" stroke-width="1.5">
+<g id="leg-r" data-pivot="86 74" stroke="#6a3a32"><use href="#stridebird-leg" x="10" fill="#b07668"/></g>
+<g id="body" data-pivot="82 62">
+<g id="tail" data-pivot="108 56" stroke="#8a8478">
+<path d="M104 52C108 44 114 39 120 38C119 44 121.5 50 119 56C116 62 110 64 105 62Z" fill="url(#stridebird-w)"/>
+<path d="M108 54q5-8 11-13M108 58q6-5 11-6" fill="none" stroke="#c6c0b2" stroke-width="1"/>
+</g>
+<g id="wing-r" data-pivot="72 50" stroke="#8a8478"><path d="M66 48C74 40 88 38 98 42C94 46 88 48 82 50C76 52 70 52 66 48Z" fill="url(#stridebird-g)"/></g>
+<path d="M54 62C54 50 66 40 82 40C98 40 110 48 112 60C114 72 106 82 94 83L92 87L88 83L85 88L81 83L78 88L74 82L71 87L68 81L64 85L62 79C57 75 54 69 54 62Z" fill="url(#stridebird-b)"/>
+<path d="M60 66q3 3 6 1M64 74q3 3 6 1M98 70q3 3 6 1M102 62q3 3 5 0M92 76q3 3 6 1" fill="none" stroke="#7a726c" stroke-width="1" opacity=".8"/>
+<g id="head" data-pivot="58 58" stroke="#7a4a40">
+<path d="M34 22C37 30 42 40 48 48C52 53 58 58 64 62L56 66C50 60 44 52 40 46C35 38 31 30 28 23Z" fill="url(#stridebird-s)"/>
+<path d="M36 30l1 .4M40 38l1 .4M44 44l1 .4M38 34l.8.5M46 50l1 .3M33 27l.8.4M50 55l1 .4" fill="none" stroke="#a87064" stroke-width="1"/>
+<path d="M39 16C39 11 35 8 30 8C25 8 21 11 20.5 15L20 18C22 22 26 24 31 24C36 24 39 21 39 16Z" fill="url(#stridebird-s)"/>
+<path d="M27 9q1-2 3-2.4M31 8.6q1.5-1.8 3.5-1.6M34.5 10q1.6-1 3.4-.4" fill="none" stroke="#8a8478" stroke-width="1"/>
+<path d="M21 14.5C17 14.5 13 15.5 10 17.5C10.5 19 12 20 14 20.3C17 20.5 19.5 20.3 21.5 19.8Z" fill="url(#stridebird-k)" stroke="#8a5a3a"/>
+<path d="M21.5 18L11.2 18.2M21.5 18q2.5.4 4 1.8" fill="none" stroke="#8a5a3a" stroke-width="1"/>
+<ellipse cx="16.6" cy="16.2" rx=".9" ry=".5" fill="#8a5a3a" stroke="none"/>
+<circle cx="28" cy="15" r="3.1" fill="#5a3418" stroke="#2a1a12" stroke-width="1"/>
+<circle cx="28" cy="15.1" r="1.6" fill="#120a06" stroke="none"/>
+<circle cx="27" cy="14.1" r=".9" fill="#fff" stroke="none"/>
+<path d="M25 12.6l-1.2-1.6M27.2 11.8l-.4-1.9M29.6 11.9l.4-1.8M31.4 12.8l1.1-1.4" fill="none" stroke="#2a1a12" stroke-width=".9"/>
+</g>
+<path d="M53 61L57 55L59.5 59.5L63 54.5L65.5 60L69 56L70 63L62 67Z" fill="url(#stridebird-b)"/>
+<g id="wing-l" data-pivot="66 56" stroke="#8a8478">
+<path d="M60 58C66 50 80 48 92 52C102 56 108 64 110 74C104 78 98 75 94 80C88 82 82 79 77 82C71 82 65 78 62.5 72C60.5 68 59.5 62 60 58Z" fill="url(#stridebird-w)"/>
+<path d="M66 60q8 4 11 13M74 56q10 4 13 16M84 54q10 6 12 18M96 58q6 6 8 13" fill="none" stroke="#c6c0b2" stroke-width="1"/>
+<path d="M64 56C72 51 82 50 90 52" fill="none" stroke="#fff" stroke-width="2"/>
+</g>
+</g>
+<g id="leg-l" data-pivot="76 74" stroke="#7a4a40"><use href="#stridebird-leg" fill="url(#stridebird-l)"/><path d="M73 78q3 2 7 1" fill="none" stroke-width="1" opacity=".5"/></g>
+</g>
+</svg>

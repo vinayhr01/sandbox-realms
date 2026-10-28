@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="dawnchirp-u" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8e2d4"/><stop offset="1" stop-color="#b8ad98"/></linearGradient>
+<linearGradient id="dawnchirp-w" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b98252"/><stop offset="1" stop-color="#6a4224"/></linearGradient>
+<linearGradient id="dawnchirp-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a5030"/><stop offset="1" stop-color="#4a2e18"/></linearGradient>
+<linearGradient id="dawnchirp-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a4aaae"/><stop offset="1" stop-color="#717880"/></linearGradient>
+<radialGradient id="dawnchirp-c" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#f6f4ee"/><stop offset="1" stop-color="#cdc8bc"/></radialGradient>
+<linearGradient id="dawnchirp-n" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b86a34"/><stop offset="1" stop-color="#7c4020"/></linearGradient>
+<linearGradient id="dawnchirp-k" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a5656"/><stop offset="1" stop-color="#2a2626"/></linearGradient>
+<path id="dawnchirp-leg" d="M60 96L59.8 108L58.5 116.5M58.5 116.5L49 118.8M58.5 116.5L52.5 119.4M58.5 116.5L65 118.6"/>
+</defs>
+<g stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-r" data-pivot="68 98"><use href="#dawnchirp-leg" x="8" fill="none" stroke="#5a3a2c" stroke-width="4.8"/><use href="#dawnchirp-leg" x="8" fill="none" stroke="#9a6e5c" stroke-width="2.9"/><path d="M63 93C62 98 64 101 66 102L68 100.5L70 102L72 100.5L73 101C74 98 74 95 73 93Z" fill="#a89c88" stroke="#6e6250" stroke-width="1.3"/></g>
+<g id="body" data-pivot="62 82" stroke="#4e3018" stroke-width="1.5">
+<g id="tail" data-pivot="90 82">
+<path d="M86 76C96 73 107 70.5 117 69C120 73 120.5 79 117 83.5C107 86 97 88 88 90Z" fill="url(#dawnchirp-f)"/>
+<path d="M92 79l23-5.5M93 84l23-3.5" fill="none" stroke="#a87a50" stroke-width="1" opacity=".8"/>
+</g>
+<g id="wing-r" data-pivot="62 64"><path d="M56 62C66 56 80 58 90 64C98 70 104 76 108 82C100 82 90 80 82 76C72 72 62 68 56 62Z" fill="url(#dawnchirp-f)"/></g>
+<path d="M33 70C34 60 44 54 56 56C70 57 84 62 92 72C98 80 98 92 90 98C80 106 64 107 52 104C40 100 33 90 33 80Z" fill="url(#dawnchirp-u)"/>
+<path d="M46 59C58 55 74 57 86 64C93 69 96.5 76 96.5 84C88 80 76 77 64 75.5C54 74 47 68 46 59Z" fill="url(#dawnchirp-w)" stroke="none"/>
+<path d="M40 84q3 2.4 6 0M44 92q3 2.4 6 0M52 98q3 2.4 6 0M54 88q3 2.4 6 0M64 98q3 2 6 0M76 98q3 2 6-.5M64 90q3 2 6 0" fill="none" stroke="#a69a84" stroke-width="1"/>
+<g id="wing-l" data-pivot="58 66">
+<path d="M50 68C56 58 70 58 82 64C92 70 100 78 106 88C98 90 88 88 80 86C70 84 60 82 54 78C50 75 49 72 50 68Z" fill="url(#dawnchirp-w)"/>
+<path d="M58 66.5q2.5 2.4 5.5 0M66 67q2.5 2.4 5.5 0M74 69q2.5 2.4 5 0M62 74q2.5 2.4 5.5 0M70 75q2.5 2.4 5.5 0" fill="none" stroke="#3a2210" stroke-width="1.6"/>
+<path d="M57 72C65 74.5 74 76.5 84 77.5" fill="none" stroke="#f6f0e2" stroke-width="2"/>
+<path d="M80 82l24 5.5M84 79l20 8M76 84l18 3" fill="none" stroke="#3a2210" stroke-width="1"/>
+<path d="M88 76q4 3 9 5" fill="none" stroke="#d89a5c" stroke-width="1.2"/>
+<path d="M56 63C63 60 72 60 80 63" fill="none" stroke="#e0b07c" stroke-width="1.8" opacity=".6"/>
+</g>
+<g id="head" data-pivot="46 66">
+<path d="M50 66C54 60 54 50 50 46C46 42 40 40 34 41C28 42 24 47 23 53C22 58 24 64 28 68C32 72 40 72 46 70Z" fill="url(#dawnchirp-c)"/>
+<path d="M23.4 51C25 45 30 41 36 41C43 41 49 44 52 50C46 50 40 50 36 51C32 52 27 52 23.4 51Z" fill="url(#dawnchirp-g)"/>
+<path d="M34 52.5C40 51 46 51 52 52C53.4 56 52.6 62 50.4 66C48 62 44 58.5 40 56.5C37 55.5 35 54.5 34 52.5Z" fill="url(#dawnchirp-n)" stroke="none"/>
+<path d="M24 60C25 66 28 72 34 76C38 78 42 77 44 74C40 70 36 66 32 62C29 61 26 60 24 60Z" fill="#2c221c" stroke="#1a1410" stroke-width="1"/>
+<path d="M25 55.2C28 54.4 31 54.4 34 55.4" fill="none" stroke="#2c221c" stroke-width="1.6"/>
+<path d="M25 53.6L16.6 57L25 60.6Z" fill="url(#dawnchirp-k)" stroke="#1e1a1a" stroke-width="1"/>
+<path d="M25 57.2l-6.6 .1" fill="none" stroke="#1e1a1a" stroke-width=".9"/>
+<path d="M38 45q3 1.6 6 .4M42 48q3 1.4 5 0" fill="none" stroke="#5e6670" stroke-width=".9"/>
+<path d="M40 64q2.6 1.6 5 0" fill="none" stroke="#b9b2a4" stroke-width=".9"/>
+<circle cx="30" cy="53" r="2.4" fill="#2a1a0e" stroke="#1a1410" stroke-width=".8"/>
+<circle cx="29.3" cy="52.2" r=".75" fill="#fff" stroke="none"/>
+</g>
+</g>
+<g id="leg-l" data-pivot="60 98"><use href="#dawnchirp-leg" fill="none" stroke="#5a3a2c" stroke-width="5"/><use href="#dawnchirp-leg" fill="none" stroke="#c0907a" stroke-width="3.1"/><path d="M58.8 106h2.2M58.7 110h2.2M58.5 113.6h2.2" stroke="#8e6452" stroke-width=".8"/><path d="M49 118.8l-1.3.3M52.5 119.4l-1.2.2M65 118.6l1.2.3" stroke="#2e1e16" stroke-width="1.2"/><path d="M55 93C54 98 56 101 58 102L60 100.5L62 102L64 100.5L65 101C66 98 66 95 65 93Z" fill="url(#dawnchirp-u)" stroke="#8a7e68" stroke-width="1.3"/></g>
+</g>
+</svg>

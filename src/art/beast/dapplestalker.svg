@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="dapplestalker-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4d68a"/><stop offset=".6" stop-color="#dcae5c"/><stop offset="1" stop-color="#b2843e"/></linearGradient>
+<linearGradient id="dapplestalker-n" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e4bb66"/><stop offset=".75" stop-color="#c79c4e"/><stop offset="1" stop-color="#f3e8cf"/></linearGradient>
+<linearGradient id="dapplestalker-f" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ab8444"/><stop offset=".75" stop-color="#8a6630"/><stop offset="1" stop-color="#c6b796"/></linearGradient>
+<linearGradient id="dapplestalker-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffbef"/><stop offset="1" stop-color="#e8dcc0"/></linearGradient>
+<g id="dapplestalker-r"><circle r="2.1" fill="#c48e3e" stroke="none"/><path d="M-2.4-.4C-1.8-2.4.4-2.8 1.8-1.6M2.6.4C2.6 2 1.4 3.1-.2 3.1M-1.8 2.6C-2.8 1.8-2.9.8-2.6-.1" fill="none" stroke="#3a2614" stroke-width="1.3"/></g>
+<g id="dapplestalker-fl"><path d="M40.5 70C39.5 82 41.5 94 42.5 104L42 111.5C39 112.8 35 114.8 34.8 117.4C34.8 119.4 36.2 120 38 120H49C50.4 119.4 50.8 117.4 49.8 115L49.2 104C50 94 52 84 53.2 72C50.6 64 42.4 64 40.5 70Z"/><path d="M38.6 117v3M42 116.4v3.6M45.4 116.4v3.6" stroke-width=".9" opacity=".6"/><g fill="#3a2614" stroke="none"><circle cx="44" cy="76" r="1.2"/><circle cx="49" cy="79" r="1.1"/><circle cx="45" cy="84" r="1.1"/><circle cx="48.5" cy="90" r="1"/><circle cx="44.5" cy="95" r=".9"/><circle cx="47.5" cy="101" r=".8"/></g></g>
+<g id="dapplestalker-bl"><path d="M80.5 64.5C78.5 76 82.5 88 88 94L87 106L86.5 111.5C83.5 112.8 80 114.8 79.8 117.4C79.8 119.4 81.2 120 83 120H95C96.4 119.4 96.8 117.4 95.8 115L95.2 106C96.2 100 97.6 96 99.6 92C103.4 82 103.4 70 99.6 60.6C92 57 83.4 58.6 80.5 64.5Z"/><path d="M83.6 117v3M87 116.4v3.6M90.4 116.4v3.6" stroke-width=".9" opacity=".6"/><g fill="#3a2614" stroke="none"><circle cx="86" cy="68" r="1.3"/><circle cx="92" cy="66" r="1.2"/><circle cx="96" cy="73" r="1.2"/><circle cx="89" cy="76" r="1.2"/><circle cx="94" cy="83" r="1.1"/><circle cx="91" cy="99" r=".9"/><circle cx="93.5" cy="104" r=".8"/></g></g>
+</defs>
+<g stroke="#6a4618" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round">
+<g id="leg-fr" data-pivot="53 72"><use href="#dapplestalker-fl" x="6" fill="url(#dapplestalker-f)"/></g>
+<g id="leg-br" data-pivot="81 68"><use href="#dapplestalker-bl" x="-9" fill="url(#dapplestalker-f)"/></g>
+<g id="body" data-pivot="68 70">
+<g id="tail" data-pivot="99 60">
+<path d="M98 57C105 59 108.5 67 109 77C109.5 87 108.5 94 110 99C111.5 103.5 109 106.5 105.8 105.6C103 104.6 103.2 99 103.2 93C103.2 83 102 73 97 65Z" fill="url(#dapplestalker-c)"/>
+<g fill="#3a2614" stroke="none"><circle cx="103" cy="66" r="1.2"/><circle cx="106" cy="73" r="1.2"/><circle cx="104.6" cy="80" r="1.1"/><circle cx="107.4" cy="86" r="1.1"/></g>
+<path d="M103.4 93l5.8.6M103.8 99l6.2.6" fill="none" stroke="#3a2614" stroke-width="2"/>
+<path d="M105.8 105.6C103 104.6 103.2 101.5 103.4 101.8C106 102.6 108.6 102.6 110.6 102C110.4 104.6 108.6 106.4 105.8 105.6Z" fill="#3a2614"/>
+</g>
+<path d="M36 70C36 59 45 56 57 56C71 56 84 54 94 57C101 59 104 65 102 72C100 79 96 82 91 82C83 80 76 80 68 81C60 84 52 86 46 85.5C39 84 36 78 36 70Z" fill="url(#dapplestalker-c)"/>
+<path d="M47 85C54 84.4 62 82 69 79.6C63 78.4 54 79.4 48 81.6Z" fill="url(#dapplestalker-w)" stroke="none"/>
+<path d="M49 57.4C62 56 80 54.2 94 57.2" fill="none" stroke="#fde6a8" stroke-width="1.6" opacity=".6"/>
+<use href="#dapplestalker-r" x="50" y="62"/><use href="#dapplestalker-r" x="58" y="60.5"/><use href="#dapplestalker-r" x="66" y="60"/><use href="#dapplestalker-r" x="74" y="59.5"/><use href="#dapplestalker-r" x="82" y="59"/><use href="#dapplestalker-r" x="90" y="60"/><use href="#dapplestalker-r" x="97" y="64"/>
+<use href="#dapplestalker-r" x="54" y="69"/><use href="#dapplestalker-r" x="62" y="67"/><use href="#dapplestalker-r" x="70" y="66.5"/><use href="#dapplestalker-r" x="78" y="66"/><use href="#dapplestalker-r" x="86" y="66"/><use href="#dapplestalker-r" x="94" y="70"/>
+<use href="#dapplestalker-r" x="60" y="75"/><use href="#dapplestalker-r" x="68" y="73"/><use href="#dapplestalker-r" x="76" y="72.5"/><use href="#dapplestalker-r" x="84" y="72.5"/><use href="#dapplestalker-r" x="91" y="77"/><use href="#dapplestalker-r" x="46" y="70"/>
+<g id="head" data-pivot="42 61">
+<path d="M37 80C31 74 28 64 26 55.5L33 37C43 39 51 46 59 55C51 61 43 69 37 80Z" fill="url(#dapplestalker-c)" stroke="none"/>
+<path d="M37 80C31 74 28 64 26 55.5M33 37C43 39 51 46 59 55" fill="none"/>
+<path d="M36.6 79C32 73 29.4 66 28 58.5C32 63 35 69.5 36.6 79Z" fill="url(#dapplestalker-w)" stroke="none"/>
+<g fill="#3a2614" stroke="none"><circle cx="40" cy="47" r="1.2"/><circle cx="45" cy="51" r="1.2"/><circle cx="50.5" cy="55" r="1.1"/><circle cx="38.5" cy="54" r="1.1"/><circle cx="44" cy="58" r="1.1"/><circle cx="34.5" cy="60" r="1"/></g>
+<path d="M20.5 31.6C20 27 22 24 25 24.4C26.6 26.4 27 29 26.4 31.6Z" fill="url(#dapplestalker-f)"/>
+<path d="M26.4 32C25.6 26.4 28.4 23.2 31.6 23.6C34.4 24.2 35.4 28.4 34.4 34Z" fill="url(#dapplestalker-c)"/>
+<path d="M28.6 31C28.6 27.6 29.8 25.8 31.5 26.1C32.9 27 33.1 29.4 32.7 32.4Z" fill="#f6e8cf" stroke="none"/>
+<path d="M37 40.5C35 33.5 29.4 29.8 22.6 30.2C15.6 30.6 10.6 34.4 8.6 39.4C6.2 40.4 4.8 42.8 4.8 45.2C4.8 48 6.6 50.4 10 51.4C12.4 54.2 17.2 56 22.8 56C30.6 56 36.4 52 37.6 46.2C38 44.2 37.8 42.4 37 40.5Z" fill="url(#dapplestalker-c)"/>
+<path d="M24 56C29.8 56 34.8 52.8 37.2 47.2C38.4 52 37.8 57 34.8 60.8C30.8 59.8 27 58.2 24 56Z" fill="url(#dapplestalker-w)"/>
+<path d="M5.4 46.6C5.8 49 7.6 50.8 10.6 51.4C13.2 53.8 17.2 55.4 21.4 55.6C19.4 52 15.6 49.6 11.6 48.6C9.2 48 7 47.4 5.4 46.6Z" fill="url(#dapplestalker-w)" stroke="none"/>
+<g fill="#3a2614" stroke="none"><circle cx="20.5" cy="32.6" r=".8"/><circle cx="23.8" cy="32.2" r=".8"/><circle cx="22" cy="35" r=".8"/><circle cx="25.4" cy="35.2" r=".8"/><circle cx="27.6" cy="38" r=".9"/><circle cx="24" cy="38.4" r=".7"/><circle cx="29" cy="42" r="1"/><circle cx="31.8" cy="45.6" r="1"/><circle cx="28.4" cy="47" r=".9"/><circle cx="32.4" cy="50" r=".9"/><circle cx="27.6" cy="51.4" r=".8"/></g>
+<path d="M4.8 43C4.8 41.2 6.8 40.6 8.4 41.2C9.2 42.6 8.6 44.4 7 45.2C5.8 45.4 5 44.6 4.8 43Z" fill="#b8746a" stroke-width="1"/>
+<path d="M6.2 42.4q1-.8 2-.4" fill="none" stroke="#fff" stroke-width=".7" opacity=".7"/>
+<path d="M6.6 45.4v1.6Q7.8 48.6 10.4 48.4Q13.2 48.2 15 49.6" fill="none" stroke="#3a2614" stroke-width="1.1"/>
+<g fill="#3a2614" stroke="none"><circle cx="11" cy="46.6" r=".45"/><circle cx="13.2" cy="46.1" r=".45"/><circle cx="12.1" cy="47.8" r=".45"/></g>
+<path d="M12.4 47l-8 1.2M12.8 47.8l-7.4 3.4" fill="none" stroke="#fff" stroke-width=".6" opacity=".8"/>
+<path d="M13.4 35.6Q16.8 33.6 20.2 35.8" fill="none" stroke="#fffaf0" stroke-width="1.4"/>
+<ellipse cx="16.6" cy="38.2" rx="2.7" ry="1.8" fill="#c7d046" stroke="#3a2614" stroke-width="1"/>
+<circle cx="16.4" cy="38.2" r="1.05" fill="#141008" stroke="none"/>
+<circle cx="15.7" cy="37.6" r=".6" fill="#fff" stroke="none"/>
+<path d="M13.8 39.4q-1.6 1-2.2 2.6" fill="none" stroke="#3a2614" stroke-width="1.1"/>
+</g>
+</g>
+<g id="leg-bl" data-pivot="87 68"><use href="#dapplestalker-bl" x="-3" fill="url(#dapplestalker-n)"/></g>
+<g id="leg-fl" data-pivot="47 72"><use href="#dapplestalker-fl" fill="url(#dapplestalker-n)"/></g>
+</g>
+</svg>

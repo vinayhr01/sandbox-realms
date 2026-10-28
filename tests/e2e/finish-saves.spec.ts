@@ -82,3 +82,27 @@ test('a realm file imports, survives a reload, exports byte for byte, and delete
 
   expect(errors, errors.join('\n')).toEqual([]);
 });
+
+test('saving to a new slot updates the open Chronicle window without reopening it', async ({ page }) => {
+  test.setTimeout(120_000);
+  const errors = collectErrors(page);
+
+  await page.goto('/?seed=42&size=4');
+  await page.waitForFunction(() => Boolean((window as unknown as { __sr?: unknown }).__sr));
+  await expect(page.locator('#realm-name')).toContainText('Realm');
+
+  const chronicle = await openChronicle(page);
+  await expect(chronicle.getByText('No saved realms on this device yet.')).toBeVisible();
+
+  await chronicle.getByRole('button', { name: 'Save to a new slot', exact: true }).click();
+
+  // The window itself refreshes: the outcome shows in the window and the list counts the new slot.
+  await expect(chronicle.getByText('Saved slot 1.')).toBeVisible();
+  await expect(chronicle.locator('.list-count')).toHaveText('1 of 1');
+  await expect(chronicle.getByText('No saved realms on this device yet.')).toBeHidden();
+  await expect(chronicle.getByRole('button', { name: /^Export .*, slot/ })).toBeVisible();
+  // One list only: a rebuild must replace the old list, not stack a second one under it.
+  await expect(chronicle.getByRole('list', { name: 'Saved realms' })).toHaveCount(1);
+
+  expect(errors, errors.join('\n')).toEqual([]);
+});

@@ -10,6 +10,7 @@
   --glass-blur: 10px;
   --glass-border: rgba(255, 255, 255, 0.14);
   --glass-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --sheet-solid: rgba(18, 22, 32, 0.94);
   --gold: #f2c14e;
   --gold-hi: #ffd76a;
   --gold-ink: #1a1500;
@@ -35,6 +36,7 @@
     --glass-bg: rgba(255, 255, 255, 0.78);
     --glass-border: rgba(20, 24, 33, 0.16);
     --glass-shadow: 0 6px 18px rgba(20, 24, 33, 0.18);
+    --sheet-solid: rgba(255, 255, 255, 0.96);
     --gold: #8a5a00;
     --gold-hi: #a86f00;
     --gold-ink: #ffffff;
@@ -45,6 +47,7 @@
   --glass-bg: rgba(255, 255, 255, 0.78);
   --glass-border: rgba(20, 24, 33, 0.16);
   --glass-shadow: 0 6px 18px rgba(20, 24, 33, 0.18);
+  --sheet-solid: rgba(255, 255, 255, 0.96);
   --gold: #8a5a00;
   --gold-hi: #a86f00;
   --gold-ink: #ffffff;
@@ -55,6 +58,7 @@
   --glass-blur: 0px;
   --glass-border: #ffffff;
   --glass-shadow: none;
+  --sheet-solid: #000000;
   --gold: #ffff00;
   --gold-hi: #ffff00;
   --gold-ink: #000000;

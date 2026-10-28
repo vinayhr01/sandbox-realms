@@ -133,4 +133,74 @@ describe('PowerSheet', () => {
     raise.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     expect(store.favourites.value).toEqual([]);
   });
+
+  it('arming a power shows its name as a badge on the collapsed sheet, and the badge disarms', async () => {
+    store.armed.value = { powerId: 'shape_raise', brush: { index: 5, radius: 4, shape: 'circle' } };
+    await tick();
+    const badge = host.querySelector<HTMLButtonElement>('button[aria-label="Disarm Raise"]');
+    expect(badge).not.toBeNull();
+    expect(badge?.textContent).toContain('Raise');
+    expect(badge?.closest('[aria-hidden="true"]')).toBeNull();
+    badge?.click();
+    expect(actions.disarm).toHaveBeenCalledTimes(1);
+  });
+
+  it('long press then contextmenu toggles the favourite once, and a following Enter activates the power', async () => {
+    vi.useFakeTimers();
+    try {
+      const flush = async () => {
+        for (let i = 0; i < 5; i++) await Promise.resolve();
+      };
+      store.sheet.value = 'expanded';
+      await flush();
+      const raise = host.querySelector<HTMLButtonElement>('button[data-power-id="shape_raise"]');
+      if (!raise) throw new Error('no raise button');
+      raise.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+      vi.advanceTimersByTime(500);
+      raise.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+      expect(store.favourites.value).toEqual(['shape_raise']);
+
+      raise.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      raise.click();
+      expect(actions.activatePower).toHaveBeenCalledTimes(1);
+      expect(actions.activatePower).toHaveBeenCalledWith('shape_raise');
+      expect(store.favourites.value).toEqual(['shape_raise']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('the F key pins and unpins the focused power', async () => {
+    store.sheet.value = 'expanded';
+    await tick();
+    const raise = host.querySelector<HTMLButtonElement>('button[data-power-id="shape_raise"]');
+    if (!raise) throw new Error('no raise button');
+    expect(raise.title).toContain('F');
+    raise.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true }));
+    expect(store.favourites.value).toEqual(['shape_raise']);
+    raise.dispatchEvent(new KeyboardEvent('keydown', { key: 'F', bubbles: true }));
+    expect(store.favourites.value).toEqual([]);
+    expect(actions.activatePower).not.toHaveBeenCalled();
+  });
+
+  it('the cooldown ring goes when the cooldown ends, with no other change to the sheet', async () => {
+    store.recent.value = ['havoc_sunburst'];
+    store.cooldowns.value = { havoc_sunburst: performance.now() + 150 };
+    await tick();
+    const sunburst = () => host.querySelector<HTMLButtonElement>('button[data-power-id="havoc_sunburst"]');
+    expect(sunburst()?.querySelector('.ring')).not.toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 320));
+    await tick();
+    expect(sunburst()?.querySelector('.ring')).toBeNull();
+  });
+
+  it('the chip tablist controls a tabpanel that is labelled by the active chip', async () => {
+    store.sheet.value = 'expanded';
+    await tick();
+    const tablist = host.querySelector('[role="tablist"]');
+    expect(tablist?.getAttribute('aria-controls')).toBe('sheet-panel');
+    const panel = host.querySelector('#sheet-panel');
+    expect(panel?.getAttribute('role')).toBe('tabpanel');
+    expect(panel?.getAttribute('aria-labelledby')).toBe('chip-land');
+  });
 });

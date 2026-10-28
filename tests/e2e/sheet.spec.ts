@@ -66,3 +66,15 @@ for (const viewport of [
     await expect(page.locator('#status')).toContainText('Tile ');
   });
 }
+
+test('no horizontal overflow at 1920x1080 with the sheet expanded and the Windows chip open', async ({ page }) => {
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await openRealm(page);
+  await openPowerSheet(page);
+  await page.getByRole('button', { name: /^More/ }).click();
+  await page.getByRole('tab', { name: 'Windows', exact: true }).click();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+  const sheet = await page.locator('.power-sheet').boundingBox();
+  expect(sheet?.width ?? 0).toBeLessThanOrEqual(720);
+});

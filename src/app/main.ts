@@ -15,6 +15,8 @@ import { SaveService } from './saves.ts';
 import { CANNOT_CAPTURE, CANNOT_RESTORE, SaveController, type ActionOutcome, type AutosaveState, type ChronicleSource } from './save-controller.ts';
 import { setDebug } from '../ui/hud.ts';
 import { createStore, pushToast, type ShellActions } from '../ui/shell/store.ts';
+import { loadPowerPrefs, savePowerPrefs } from '../ui/shell/powerPrefs.ts';
+import { effect } from '@preact/signals';
 import { mountShell, mountToasts } from '../ui/shell/mount.tsx';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction } from '../ui/panels/powerBar.ts';
@@ -372,6 +374,13 @@ async function boot(): Promise<void> {
   const debugOverlay = params.has('debug');
   // The UI shell's state (spec A). The shell itself mounts over the map once the controls are wired, below.
   const store = createStore();
+  // Favourites and the recent row survive a reload (safe storage, key sr.powers.v1). Saved on every change.
+  const savedPrefs = loadPowerPrefs(safeStorage());
+  store.favourites.value = savedPrefs.favourites;
+  store.recent.value = savedPrefs.recent;
+  effect(() => {
+    savePowerPrefs(safeStorage(), { favourites: store.favourites.value, recent: store.recent.value });
+  });
   const setStatus = (text: string): void => {
     store.status.value = text;
   };

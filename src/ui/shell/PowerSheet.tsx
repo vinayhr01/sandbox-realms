@@ -82,7 +82,7 @@ function PowerButton({ power, armedId, pressedIds, unavailable, cooldowns, press
       aria-label={power.name}
       aria-pressed={pressed ? 'true' : 'false'}
       aria-disabled={note !== null ? 'true' : undefined}
-      title={note ?? undefined}
+      title={note ?? `${power.name}. Press F to pin or unpin a favourite.`}
       onClick={() => {
         if (press.current.fired) {
           press.current.fired = false;
@@ -90,8 +90,18 @@ function PowerButton({ power, armedId, pressedIds, unavailable, cooldowns, press
         }
         onActivate(id);
       }}
+      onKeyDown={(e) => {
+        // A key press is never a long press: clear the flag, so the Enter that follows activates the power.
+        press.current.fired = false;
+        if (!e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'f' || e.key === 'F')) {
+          e.preventDefault();
+          onFavourite(id);
+        }
+      }}
       onContextMenu={(e) => {
         e.preventDefault();
+        // A long press has already toggled the favourite; the contextmenu that follows it does not toggle again.
+        if (press.current.fired) return;
         cancelPress();
         onFavourite(id);
       }}
@@ -106,9 +116,22 @@ function PowerButton({ power, armedId, pressedIds, unavailable, cooldowns, press
           fired: false,
         };
       }}
-      onPointerUp={cancelPress}
-      onPointerLeave={cancelPress}
-      onPointerCancel={cancelPress}
+      onPointerUp={() => {
+        // The click for this release comes in the same task; clear the flag after it, so a long press swallows only its own click.
+        const ref = press.current;
+        window.setTimeout(() => {
+          ref.fired = false;
+        }, 0);
+        cancelPress();
+      }}
+      onPointerLeave={() => {
+        cancelPress();
+        press.current.fired = false;
+      }}
+      onPointerCancel={() => {
+        cancelPress();
+        press.current.fired = false;
+      }}
     >
       <span class="power-icon">
         <PowerIcon power={power} />
@@ -132,6 +155,17 @@ export function PowerSheet({ store, actions }: { store: UiStore; actions: ShellA
   const [query, setQuery] = useState('');
   const press = useRef<{ timer: number | null; fired: boolean }>({ timer: null, fired: false });
   const drag = useRef({ startY: 0, moved: false });
+  const [clock, setClock] = useState(0);
+  const cooldowns = store.cooldowns.value;
+  // A cooldown ring leaves when its cooldown ends: one timer re-renders the sheet at the next expiry, so the ring goes
+  // even when reduced motion stops its animation.
+  useEffect(() => {
+    const now = performance.now();
+    const ends = Object.values(cooldowns).filter((t) => t > now);
+    if (ends.length === 0) return;
+    const timer = window.setTimeout(() => setClock((c) => c + 1), Math.min(...ends) - now + 1);
+    return () => window.clearTimeout(timer);
+  }, [cooldowns, clock]);
 
   const chips: ChipId[] = moreOpen && expanded ? [...discovered, ...ALL_CHIPS.filter((c) => !discovered.includes(c))] : discovered;
   const activeChip = chips.includes(chipState) ? chipState : (chips[0] ?? 'land');
@@ -232,16 +266,24 @@ export function PowerSheet({ store, actions }: { store: UiStore; actions: ShellA
         >
           <span class="handle-bar" aria-hidden="true" />
         </button>
-        {armed !== null && <span class="armed-dot" aria-hidden="true" />}
+        {!expanded && armedPower !== undefined && (
+          <button type="button" class="armed-badge" aria-label={`Disarm ${armedPower.name}`} onClick={() => actions.disarm()}>
+            <span class="armed-icon">
+              <PowerIcon power={armedPower} />
+            </span>
+            <span class="armed-name">{armedPower.name}</span>
+          </button>
+        )}
       </div>
 
       <div class="sheet-bar">
-        <div class="chips" role="tablist" aria-label="Power categories">
+        <div class="chips" role="tablist" aria-label="Power categories" aria-controls={expanded ? 'sheet-panel' : undefined}>
           {chips.map((chip) => {
             const selected = chip === activeChip;
             return (
               <button
                 key={chip}
+                id={`chip-${chip}`}
                 type="button"
                 role="tab"
                 class="chip"
@@ -299,7 +341,7 @@ export function PowerSheet({ store, actions }: { store: UiStore; actions: ShellA
       )}
 
       {expanded && (
-        <div class="sheet-body">
+        <div id="sheet-panel" class="sheet-body" role="tabpanel" aria-labelledby={`chip-${activeChip}`}>
           <input
             type="search"
             class="search"

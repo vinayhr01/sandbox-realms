@@ -13,7 +13,9 @@ import { colourFilterMarkup, layoutMaxWidth, mapCanvasFilter, type ColourBlindPa
 import { Minimap, type MinimapView } from '../ui/minimap.ts';
 import { SaveService } from './saves.ts';
 import { CANNOT_CAPTURE, CANNOT_RESTORE, SaveController, type ActionOutcome, type AutosaveState, type ChronicleSource } from './save-controller.ts';
-import { setCalendar, setDebug, setStatus, toast } from '../ui/hud.ts';
+import { setDebug } from '../ui/hud.ts';
+import { createStore, pushToast, type ShellActions } from '../ui/shell/store.ts';
+import { mountShell } from '../ui/shell/mount.tsx';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
 import { mountPossessPad, possessActionOfCode, type PossessAction } from '../ui/panels/possessControls.ts';
@@ -371,6 +373,11 @@ async function boot(): Promise<void> {
   noteCrashRun({ safeMode });
   const params = new URLSearchParams(location.search);
   const debugOverlay = params.has('debug');
+  // The UI shell's state (spec A). The shell itself mounts over the map once the controls are wired, below.
+  const store = createStore();
+  const setStatus = (text: string): void => {
+    store.status.value = text;
+  };
 
   const host = $('map');
   const renderer = await TerrainRenderer.create(host);
@@ -468,7 +475,7 @@ async function boot(): Promise<void> {
   let musicClockMs = 0;
   /** A notification: a toast with its cue. */
   const notify = (text: string, cue: Cue = CUE.notify): void => {
-    toast(text);
+    pushToast(store, text);
     playCue(cue);
   };
 
@@ -722,7 +729,7 @@ async function boot(): Promise<void> {
     accordPending = false;
     accordDominion = -1;
     historyFeed.clear();
-    $('realm-name').textContent = `Realm ${seed.toString(36).toUpperCase().slice(-6)}`;
+    store.realm.value = { ...store.realm.value, name: `Realm ${seed.toString(36).toUpperCase().slice(-6)}` };
   };
 
   let lastSpeedCrumb = '';
@@ -733,12 +740,8 @@ async function boot(): Promise<void> {
       lastSpeedCrumb = speedNow;
       crumb('SPEED', speedNow);
     }
-    $('pause').setAttribute('aria-pressed', String(state.paused));
-    $('pause').setAttribute('aria-label', state.paused ? 'Resume' : 'Pause');
-    $('pause').textContent = state.paused ? '▶' : '❚❚';
-    for (const btn of document.querySelectorAll<HTMLButtonElement>('.speed-btn')) {
-      btn.setAttribute('aria-pressed', String(!state.paused && Number(btn.dataset['speed']) === state.speed));
-    }
+    store.speed.value = state.speed;
+    store.paused.value = state.paused;
   };
 
   /** The dialog title of a stopped sim, so a late save-list answer only redraws this dialog. */
@@ -1037,6 +1040,10 @@ async function boot(): Promise<void> {
     updatePowerButtons();
   };
 
+  /** Copies the armed power and brush into the shell store. */
+  const syncArmed = (): void => {
+    store.armed.value = state.armed ? { powerId: state.armed.id, brush: { size: brushRadius(), shape: state.shape } } : null;
+  };
   /** Arms a power (null = inspect). Terrain tool buttons and the power bar both show the same state. */
   const setArmed = (power: PowerDef | null): void => {
     // A stroke in progress belongs to the old power: end it before the new one takes over.
@@ -1046,6 +1053,7 @@ async function boot(): Promise<void> {
     }
     if (power) crumb('POWER_SELECT', power.id);
     state.armed = power;
+    syncArmed();
     stepAnchor = null;
     const op = strokeOp(power);
     for (const btn of document.querySelectorAll<HTMLButtonElement>('.tool')) {
@@ -1070,6 +1078,7 @@ async function boot(): Promise<void> {
 
   const setShape = (shape: BrushShape): void => {
     state.shape = shape;
+    syncArmed();
     for (const btn of document.querySelectorAll<HTMLButtonElement>('.shape')) {
       btn.setAttribute('aria-checked', String(btn.dataset['shape'] === shape));
     }
@@ -1151,7 +1160,7 @@ async function boot(): Promise<void> {
     capture: async () => {
       const bytes = await client.capture();
       if (!bytes) return null;
-      const info = { realmName: $('realm-name').textContent ?? 'Realm', tick: simTick, year: Math.floor(simTick / YEAR_TICKS) + 1 };
+      const info = { realmName: store.realm.value.name, tick: simTick, year: Math.floor(simTick / YEAR_TICKS) + 1 };
       return { bytes, info };
     },
     restore: (bytes) => client.restore(bytes),
@@ -1479,8 +1488,10 @@ async function boot(): Promise<void> {
         if (event.stats.ticksThisPump > 0) noteSimMs(event.stats.avgTickMs);
         simSpeed = event.stats.speed;
         noteCrashRun({ tick: simTick, speed: simSpeed });
-        calendarText = `Y${Math.floor(simTick / YEAR_TICKS) + 1} M${(Math.floor(simTick / MONTH_TICKS) % 12) + 1}`;
-        setCalendar(calendarText);
+        const year = Math.floor(simTick / YEAR_TICKS) + 1;
+        const month = (Math.floor(simTick / MONTH_TICKS) % 12) + 1;
+        calendarText = `Y${year} M${month}`;
+        if (store.realm.value.year !== year || store.realm.value.month !== month) store.realm.value = { ...store.realm.value, year, month };
         return;
       case Ev.Fault:
         progressBar.hide();
@@ -1544,6 +1555,11 @@ async function boot(): Promise<void> {
           if (lastAgeCrumb !== null) crumb('AGE', lastAgeCrumb);
         }
         simView.apply(event.snap);
+        store.realm.value = {
+          ...store.realm.value,
+          creatures: event.snap.population.total,
+          towns: event.snap.hamlets.filter((h) => h.tier === 'town').length,
+        };
         musicFeed.ingest(event.snap);
         for (const id of stingers.ingest(event.snap.age ?? null, event.snap.dominions.filter((d) => d.atWar).length)) playCue(id);
         return;
@@ -1553,15 +1569,23 @@ async function boot(): Promise<void> {
   });
 
   // Controls.
-  $('pause').addEventListener('click', togglePause);
-  for (const btn of document.querySelectorAll<HTMLButtonElement>('.speed-btn')) {
-    btn.addEventListener('click', () => {
-      state.speed = Number(btn.dataset['speed']) as Speed;
+  // The shell's pills and toasts (spec A). The actions are the same calls the old top bar made.
+  const shellActions: ShellActions = {
+    setSpeed: (speed: Speed) => {
+      state.speed = speed;
       state.paused = false;
       applySpeed();
       feedTutorial('speed-changed');
-    });
-  }
+    },
+    togglePause,
+    activatePower: (id: string) => {
+      const power = POWER_BY_ID.get(id);
+      if (power) activatePower(power);
+    },
+    openWindow: (kind: string, params) => openWindow(kind, params),
+    disarm: () => setArmed(null),
+  };
+  mountShell($('ui-root'), store, shellActions);
   // Edge pan needs a hover position that is current: it clears when the pointer leaves the map or
   // when a press starts (a drag moves the camera by itself).
   renderer.app.canvas.addEventListener('pointerleave', () => {
@@ -1632,7 +1656,6 @@ async function boot(): Promise<void> {
     audio.applyOptions({ ...audioOptionsFrom(options), mono: cueOpts.mono, reduceLoudSounds: cueOpts.reduceLoudSounds, visualCues: cueOpts.visualCues, haptics: cueOpts.haptics });
   };
   applyOptions();
-  $('settings-open').addEventListener('click', () => openWindow('win_settings'));
   for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-window]')) {
     btn.addEventListener('click', () => openWindow(btn.dataset['window'] ?? ''));
   }
@@ -1651,6 +1674,7 @@ async function boot(): Promise<void> {
   const updateSizeOutput = (): void => {
     state.sizeIndex = Number(sizeInput.value);
     $('brush-size-out').textContent = String(brushRadius());
+    syncArmed();
   };
   sizeInput.addEventListener('input', updateSizeOutput);
   updateSizeOutput();

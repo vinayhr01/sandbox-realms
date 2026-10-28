@@ -66,22 +66,62 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--gap);
-  min-height: 48px;
-  padding: calc(env(safe-area-inset-top) + 4px) var(--gap) 4px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--surface-2);
+/* Shell (UX redesign, spec A): the pills and toasts draw over the map. Tokens live in src/ui/shell/tokens.css. */
+.ui-root {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
 }
 
-.realm-info {
+.top-pills {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + var(--space-2));
+  left: var(--space-2);
+  right: var(--space-2);
   display: flex;
-  align-items: baseline;
-  gap: var(--gap);
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+.pill-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   min-width: 0;
+}
+
+.pill {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-l);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow);
+  color: var(--text);
+  font: inherit;
+  min-width: 0;
+}
+
+/* Without backdrop-filter the glass turns solid, so the text keeps its contrast. */
+@supports not (backdrop-filter: blur(1px)) {
+  .pill {
+    background: var(--surface);
+  }
+}
+
+.realm-pill {
+  cursor: pointer;
+  padding: var(--space-1) var(--space-3);
+  text-align: left;
 }
 
 .realm-name {
@@ -89,18 +129,51 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 14ch;
 }
 
-.calendar {
+.realm-stat {
   color: var(--text-dim);
+  font-size: var(--text-s);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.speed {
-  display: flex;
-  gap: 4px;
-  flex-wrap: nowrap;
+.speed-pill {
+  padding: 0 var(--space-1);
+  gap: 2px;
+}
+
+.speed-pill .btn {
+  background: transparent;
+  border-color: transparent;
+}
+
+.speed-pill .btn[aria-pressed='true'] {
+  background: var(--gold);
+  color: var(--gold-ink);
+  border-color: var(--gold);
+}
+
+.pill-button {
+  cursor: pointer;
+  padding: 0 var(--space-3);
+}
+
+/* Phones: the realm pill keeps the name and the year; the counts move to the Atlas. The speed pill and Settings take a row of their own. */
+@media (max-width: 599px) {
+  .realm-extra {
+    display: none;
+  }
+
+  .top-pills {
+    flex-wrap: wrap;
+  }
+
+  .pill-end {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
 }
 
 .map {
@@ -567,6 +640,13 @@ body {
   pointer-events: auto;
 }
 
+/* Phones: the shell's two pill rows sit above the strip. */
+@media (max-width: 599px) {
+  .coach {
+    top: calc(var(--gap) + 104px);
+  }
+}
+
 /* Possession pad (13 section 10 keys; touch buttons for the same controls). Shown only while a Being is held (possessControls.ts). */
 .possess-pad {
   position: absolute;
@@ -640,7 +720,7 @@ body {
 
 .toasts {
   position: fixed;
-  top: 56px;
+  top: calc(env(safe-area-inset-top) + 64px);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -652,12 +732,28 @@ body {
 
 .toast {
   zoom: var(--ui-scale-tooltips, 1);
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-m);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
   color: var(--text);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--glass-shadow);
   font-size: calc(14px * var(--ui-scale));
+  animation: toast-in var(--dur) var(--ease-out);
+}
+
+.toast-new {
+  border-color: var(--gold);
+  color: var(--gold-hi);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
 }
 
 /* Visual sound cues (16 B9, A7): a caption line for stingers and screen-edge pulses for off-screen events. */
@@ -797,21 +893,17 @@ body {
   .app {
     display: grid;
     grid-template-columns: 1fr 240px;
-    grid-template-rows: auto 1fr;
-  }
-
-  .topbar {
-    grid-column: 1 / -1;
+    grid-template-rows: 1fr;
   }
 
   .map {
     grid-column: 1;
-    grid-row: 2;
+    grid-row: 1;
   }
 
   .bottombar {
     grid-column: 2;
-    grid-row: 2;
+    grid-row: 1;
     min-height: 0;
     overflow-y: auto;
     border-top: 0;
@@ -865,7 +957,7 @@ body {
 }
 
 /* Hide interface (realm rules: Hide Interface, key H). */
-.hide-ui .topbar,
+.hide-ui .top-pills,
 .hide-ui .bottombar {
   display: none;
 }
@@ -1030,7 +1122,7 @@ html[data-reduce-motion] * {
   margin-right: auto;
 }
 
-.map > .status,
+.map > .ui-root,
 .map > .coach,
 .map > .debug {
   z-index: 2;

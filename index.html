@@ -69,24 +69,8 @@
         <h1>Sandbox Realms: free browser god game sandbox</h1>
         <p>A free browser god game and world-building sandbox with mouse, touch and keyboard controls. Shape terrain, seed biomes, call weather and disasters, and watch about 90 creatures and six peoples build hamlets, form dominions, creeds and cultures, and wage campaigns.</p>
       </section>
-      <header class="topbar">
-        <div class="realm-info">
-          <span id="realm-name" class="realm-name">Realm</span>
-          <span id="calendar" class="calendar">Y1 M1</span>
-        </div>
-        <div class="speed" role="group" aria-label="Simulation speed">
-          <button id="pause" class="btn icon" type="button" aria-label="Pause" aria-pressed="false">&#10074;&#10074;</button>
-          <button class="btn speed-btn" type="button" data-speed="0.5" aria-pressed="false">x0.5</button>
-          <button class="btn speed-btn" type="button" data-speed="1" aria-pressed="true">x1</button>
-          <button class="btn speed-btn" type="button" data-speed="2" aria-pressed="false">x2</button>
-          <button class="btn speed-btn" type="button" data-speed="5" aria-pressed="false">x5</button>
-          <button class="btn speed-btn" type="button" data-speed="10" aria-pressed="false">x10</button>
-        </div>
-        <button id="settings-open" class="btn" type="button" aria-haspopup="dialog" aria-controls="options">Settings</button>
-      </header>
-
       <main id="map" class="map" aria-label="Realm map. Drag with an armed tool to paint; drag or pinch to move the camera.">
-        <div id="status" class="status" role="status" aria-live="polite">Tap the map to inspect a tile.</div>
+        <div id="ui-root" class="ui-root"></div>
         <div id="coach" class="coach" hidden>
           <p id="coach-text" class="coach-text"></p>
           <button id="coach-skip" class="btn" type="button">Skip tutorial</button>
@@ -205,8 +189,6 @@
         <p class="option-note">Saved on this device.</p>
       </div>
     </dialog>
-
-    <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
 
     <div id="fatal" class="fatal" role="alertdialog" aria-modal="true" aria-labelledby="fatal-title" hidden>
       <div class="fatal-card">

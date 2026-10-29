@@ -1,12 +1,33 @@
-// @vitest-environment jsdom
+// @vitest-environment node
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
 import { describe, expect, it } from 'vitest';
 import { GAITS, SPECIES_GAIT } from '../../src/art/gaits.ts';
-import { artFor, artForBuilding, chunkOf, loadArt, type ArtChunk } from '../../src/art/load.ts';
+import {
+  artFor,
+  artForBuilding,
+  chipArtFor,
+  chunkOf,
+  loadArt,
+  loadPowerArt,
+  loadPowerArtFor,
+  POWER_ART_GROUPS,
+  powerArtFor,
+  type ArtChunk,
+} from '../../src/art/load.ts';
 import { artProblems } from '../../src/art/rig.ts';
 import { SPECIES } from '../../src/content/beasts.ts';
+import { POWERS } from '../../src/content/powers.ts';
 import { BUILDINGS } from '../../src/sim/settlements/catalogue.ts';
+import { CHIP_IDS } from '../../src/ui/shell/powerCatalog.ts';
+
+// artProblems parses with the DOM. Power art is loaded with import.meta.glob, which comes back empty under the jsdom
+// environment, so this file runs in node and borrows jsdom's parser.
+// jsdom ships without type declarations; createRequire keeps the import typed here.
+const { JSDOM } = createRequire(import.meta.url)('jsdom') as { JSDOM: new () => { window: { DOMParser: unknown; XMLSerializer: unknown } } };
+const { window: dom } = new JSDOM();
+Object.assign(globalThis, { DOMParser: dom.DOMParser, XMLSerializer: dom.XMLSerializer });
 
 const CHUNKS: readonly ArtChunk[] = ['folk', 'beast', 'bird', 'sea', 'insect', 'undead', 'monster', 'divine', 'buildings'];
 const FIXTURE = readFileSync(join(process.cwd(), 'tests/fixtures/rig-quad.svg'), 'utf8');
@@ -50,5 +71,39 @@ describe('art lint', () => {
     expect(artProblems(FIXTURE.replace('</svg>', '<filter id="f"/></svg>'), [])).toContainEqual(expect.stringMatching(/filter/));
     expect(artProblems(FIXTURE, ['wing-l'])).toContainEqual(expect.stringMatching(/wing-l/));
     expect(artProblems(FIXTURE + ' '.repeat(12 * 1024), [])).toContainEqual(expect.stringMatching(/12 KB/));
+  });
+
+  it('passes every file in every power-art group', async () => {
+    for (const group of POWER_ART_GROUPS) {
+      const art = await loadPowerArt(group);
+      expect(Object.keys(art).length, `power-art ${group} has files`).toBeGreaterThan(0);
+      for (const [key, svg] of Object.entries(art)) {
+        expect(artProblems(svg, []), `power-art ${group}/${key}`).toEqual([]);
+      }
+    }
+  });
+
+  it('gives every non-creature power and every chip power art', async () => {
+    for (const p of POWERS) {
+      if (p.tab === 'beings') continue;
+      await loadPowerArtFor(p);
+      expect(powerArtFor(p), `power ${p.id}`).toEqual(expect.any(String));
+    }
+    await loadPowerArt('chips');
+    for (const chip of CHIP_IDS) {
+      expect(chipArtFor(chip), `chip ${chip}`).toEqual(expect.any(String));
+    }
+  });
+
+  it('prefixes every id in a power-art file with its key', async () => {
+    for (const group of POWER_ART_GROUPS) {
+      const art = await loadPowerArt(group);
+      for (const [key, svg] of Object.entries(art)) {
+        const prefix = group === 'chips' ? `chip_${key}-` : `${key}-`;
+        const ids = [...svg.matchAll(/\sid="([^"]*)"/g)].map((m) => m[1] ?? '');
+        const bad = ids.filter((id) => !id.startsWith(prefix));
+        expect(bad, `power-art ${group}/${key} ids must start with ${prefix}`).toEqual([]);
+      }
+    }
   });
 });

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<radialGradient id="omen_gourd_harvest-skin" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#ffb050"/><stop offset=".6" stop-color="#f07a1a"/><stop offset="1" stop-color="#b04a0a"/></radialGradient>
+<linearGradient id="omen_gourd_harvest-glow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6a0"/><stop offset="1" stop-color="#ffb030"/></linearGradient>
+<path d="M60 32 C58 20 62 12 70 10 L74 14 C68 18 68 24 70 34 Z" fill="#6a8a2a" stroke="#2e3e10" stroke-width="2" stroke-linejoin="round"/>
+<path d="M72 22 C84 10 100 14 104 22 C94 28 82 30 72 22 Z" fill="#7ab04a" stroke="#2e5a1e" stroke-width="1.8"/>
+<path d="M64 30 C40 26 12 42 12 72 C12 100 36 116 64 114 C92 116 116 100 116 72 C116 42 88 26 64 30 Z" fill="url(#omen_gourd_harvest-skin)" stroke="#5a2008" stroke-width="2.5"/>
+<path d="M64 30 C50 44 48 100 64 114 M64 30 C78 44 80 100 64 114 M40 33 C24 56 26 96 46 112 M88 33 C104 56 102 96 82 112" stroke="#a8400a" stroke-width="2" fill="none" opacity=".7"/>
+<path d="M34 62 L48 48 L54 68 Z M94 62 L80 48 L74 68 Z M59 78 L64 70 L69 78 Z" fill="url(#omen_gourd_harvest-glow)" stroke="#5a2008" stroke-width="2" stroke-linejoin="round"/>
+<path d="M30 82 Q64 106 98 82 L90 86 L86 94 L78 90 L72 98 L64 92 L56 98 L50 90 L42 94 L38 86 Z" fill="url(#omen_gourd_harvest-glow)" stroke="#5a2008" stroke-width="2" stroke-linejoin="round"/>
+<ellipse cx="32" cy="50" rx="7" ry="4" transform="rotate(-40 32 50)" fill="#fff" opacity=".4"/>
+</svg>

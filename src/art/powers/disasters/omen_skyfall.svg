@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<linearGradient id="omen_skyfall-trail" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff6a1a" stop-opacity="0"/><stop offset=".55" stop-color="#ffa030" stop-opacity=".9"/><stop offset="1" stop-color="#fff2a0"/></linearGradient>
+<radialGradient id="omen_skyfall-rock" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#a88878"/><stop offset=".55" stop-color="#5e4438"/><stop offset="1" stop-color="#2e201a"/></radialGradient>
+<path d="M28 68 Q70 30 120 6 Q92 58 60 100 Z" fill="url(#omen_skyfall-trail)" stroke="#c8501a" stroke-width="1.5" stroke-linejoin="round"/>
+<path d="M38 76 Q72 42 110 16 Q84 56 54 92 Z" fill="#ffe080" opacity=".6"/>
+<path d="M80 72 L114 44 L90 80 Z M14 34 L40 12 L22 42 Z" fill="#ffa030" stroke="#c8501a" stroke-width="1.5" stroke-linejoin="round" opacity=".9"/>
+<circle cx="85" cy="77" r="6" fill="url(#omen_skyfall-rock)" stroke="#1e140e" stroke-width="1.8"/>
+<circle cx="19" cy="39" r="5" fill="url(#omen_skyfall-rock)" stroke="#1e140e" stroke-width="1.8"/>
+<circle cx="44" cy="84" r="21" fill="url(#omen_skyfall-rock)" stroke="#1e140e" stroke-width="2.5"/>
+<circle cx="38" cy="82" r="4.5" fill="#3e2a22"/><circle cx="50" cy="94" r="3" fill="#3e2a22"/><circle cx="34" cy="94" r="2.5" fill="#3e2a22"/>
+<path d="M50 65 A21 21 0 0 1 64 80" stroke="#ffcf5a" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M14 118 l8 -6 M44 124 v-8 M72 118 l-8 -6" stroke="#ffcf5a" stroke-width="3" stroke-linecap="round"/>
+</svg>

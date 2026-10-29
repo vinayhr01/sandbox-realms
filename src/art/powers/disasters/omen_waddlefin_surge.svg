@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<linearGradient id="omen_waddlefin_surge-black" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a5470"/><stop offset="1" stop-color="#10131c"/></linearGradient>
+<linearGradient id="omen_waddlefin_surge-belly" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d4dcea"/></linearGradient>
+<linearGradient id="omen_waddlefin_surge-beak" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd060"/><stop offset="1" stop-color="#f08a1a"/></linearGradient>
+<g transform="translate(-8 36) scale(.55)">
+<path d="M38 60 Q24 76 28 92 Q36 84 40 76 Z M90 60 Q104 76 100 92 Q92 84 88 76 Z" fill="url(#omen_waddlefin_surge-black)" stroke="#0a0c12" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M64 16 C84 16 92 36 92 56 C92 80 98 98 88 110 C80 118 48 118 40 110 C30 98 36 80 36 56 C36 36 44 16 64 16 Z" fill="url(#omen_waddlefin_surge-black)" stroke="#0a0c12" stroke-width="2.5"/>
+<path d="M64 42 C78 42 84 56 84 74 C84 96 78 110 64 110 C50 110 44 96 44 74 C44 56 50 42 64 42 Z" fill="url(#omen_waddlefin_surge-belly)"/>
+<path d="M48 38 C52 30 60 32 64 38 C68 32 76 30 80 38 C80 46 70 50 64 46 C58 50 48 46 48 38 Z" fill="url(#omen_waddlefin_surge-belly)"/>
+<circle cx="56" cy="38" r="3.5" fill="#10131c"/><circle cx="72" cy="38" r="3.5" fill="#10131c"/>
+<circle cx="55" cy="37" r="1.1" fill="#fff"/><circle cx="71" cy="37" r="1.1" fill="#fff"/>
+<path d="M57 44 L71 44 L64 54 Z" fill="url(#omen_waddlefin_surge-beak)" stroke="#8a4a08" stroke-width="1.5" stroke-linejoin="round"/>
+<ellipse cx="52" cy="116" rx="9" ry="4" fill="url(#omen_waddlefin_surge-beak)" stroke="#8a4a08" stroke-width="1.5"/>
+<ellipse cx="76" cy="116" rx="9" ry="4" fill="url(#omen_waddlefin_surge-beak)" stroke="#8a4a08" stroke-width="1.5"/>
+<path d="M50 24 Q56 19 64 19" stroke="#8a94b0" stroke-width="2.5" fill="none" stroke-linecap="round"/></g>
+<g transform="translate(66 36) scale(.55)">
+<path d="M38 60 Q24 76 28 92 Q36 84 40 76 Z M90 60 Q104 76 100 92 Q92 84 88 76 Z" fill="url(#omen_waddlefin_surge-black)" stroke="#0a0c12" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M64 16 C84 16 92 36 92 56 C92 80 98 98 88 110 C80 118 48 118 40 110 C30 98 36 80 36 56 C36 36 44 16 64 16 Z" fill="url(#omen_waddlefin_surge-black)" stroke="#0a0c12" stroke-width="2.5"/>
+<path d="M64 42 C78 42 84 56 84 74 C84 96 78 110 64 110 C50 110 44 96 44 74 C44 56 50 42 64 42 Z" fill="url(#omen_waddlefin_surge-belly)"/>
+<path d="M48 38 C52 30 60 32 64 38 C68 32 76 30 80 38 C80 46 70 50 64 46 C58 50 48 46 48 38 Z" fill="url(#omen_waddlefin_surge-belly)"/>
+<circle cx="56" cy="38" r="3.5" fill="#10131c"/><circle cx="72" cy="38" r="3.5" fill="#10131c"/>
+<circle cx="55" cy="37" r="1.1" fill="#fff"/><circle cx="71" cy="37" r="1.1" fill="#fff"/>
+<path d="M57 44 L71 44 L64 54 Z" fill="url(#omen_waddlefin_surge-beak)" stroke="#8a4a08" stroke-width="1.5" stroke-linejoin="round"/>
+<ellipse cx="52" cy="116" rx="9" ry="4" fill="url(#omen_waddlefin_surge-beak)" stroke="#8a4a08" stroke-width="1.5"/>
+<ellipse cx="76" cy="116" rx="9" ry="4" fill="url(#omen_waddlefin_surge-beak)" stroke="#8a4a08" stroke-width="1.5"/>
+<path d="M50 24 Q56 19 64 19" stroke="#8a94b0" stroke-width="2.5" fill="none" stroke-linecap="round"/></g>
+<g transform="translate(14 6) scale(.82)">
+<path d="M38 60 Q24 76 28 92 Q36 84 40 76 Z M90 60 Q104 76 100 92 Q92 84 88 76 Z" fill="url(#omen_waddlefin_surge-black)" stroke="#0a0c12" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M64 16 C84 16 92 36 92 56 C92 80 98 98 88 110 C80 118 48 118 40 110 C30 98 36 80 36 56 C36 36 44 16 64 16 Z" fill="url(#omen_waddlefin_surge-black)" stroke="#0a0c12" stroke-width="2.5"/>
+<path d="M64 42 C78 42 84 56 84 74 C84 96 78 110 64 110 C50 110 44 96 44 74 C44 56 50 42 64 42 Z" fill="url(#omen_waddlefin_surge-belly)"/>
+<path d="M48 38 C52 30 60 32 64 38 C68 32 76 30 80 38 C80 46 70 50 64 46 C58 50 48 46 48 38 Z" fill="url(#omen_waddlefin_surge-belly)"/>
+<circle cx="56" cy="38" r="3.5" fill="#10131c"/><circle cx="72" cy="38" r="3.5" fill="#10131c"/>
+<circle cx="55" cy="37" r="1.1" fill="#fff"/><circle cx="71" cy="37" r="1.1" fill="#fff"/>
+<path d="M57 44 L71 44 L64 54 Z" fill="url(#omen_waddlefin_surge-beak)" stroke="#8a4a08" stroke-width="1.5" stroke-linejoin="round"/>
+<ellipse cx="52" cy="116" rx="9" ry="4" fill="url(#omen_waddlefin_surge-beak)" stroke="#8a4a08" stroke-width="1.5"/>
+<ellipse cx="76" cy="116" rx="9" ry="4" fill="url(#omen_waddlefin_surge-beak)" stroke="#8a4a08" stroke-width="1.5"/>
+<path d="M50 24 Q56 19 64 19" stroke="#8a94b0" stroke-width="2.5" fill="none" stroke-linecap="round"/></g>
+</svg>

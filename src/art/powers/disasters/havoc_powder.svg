@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<linearGradient id="havoc_powder-wood" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a4a1c"/><stop offset=".45" stop-color="#c58a4a"/><stop offset=".55" stop-color="#d89a5a"/><stop offset="1" stop-color="#6a3e16"/></linearGradient>
+<radialGradient id="havoc_powder-lid" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#e0a868"/><stop offset="1" stop-color="#8a5a28"/></radialGradient>
+<radialGradient id="havoc_powder-spark" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fffbe0"/><stop offset=".4" stop-color="#ffd84a" stop-opacity=".9"/><stop offset="1" stop-color="#ff8a1a" stop-opacity="0"/></radialGradient>
+<ellipse cx="60" cy="114" rx="36" ry="6" fill="#1a1208" opacity=".3"/>
+<path d="M36 34 Q28 70 36 106 Q64 114 92 106 Q100 70 92 34 Z" fill="url(#havoc_powder-wood)" stroke="#3e2410" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M50 36 Q46 70 50 110 M64 38 V112 M78 36 Q82 70 78 110" stroke="#5a3414" stroke-width="1.5" fill="none" opacity=".6"/>
+<path d="M33 50 Q64 58 95 50 M33 92 Q64 100 95 92" stroke="#3a3a42" stroke-width="5" fill="none"/>
+<path d="M33 48 Q64 56 95 48 M33 90 Q64 98 95 90" stroke="#9a9aa6" stroke-width="1.5" fill="none"/>
+<polygon points="64 62 65.9 68.4 71.8 65.2 68.6 71.1 75 73 68.6 74.9 71.8 80.8 65.9 77.6 64 84 62.1 77.6 56.2 80.8 59.4 74.9 53 73 59.4 71.1 56.2 65.2 62.1 68.4" fill="#2a1a10" stroke="#2a1a10" stroke-width="1" stroke-linejoin="round"/>
+<ellipse cx="64" cy="34" rx="28" ry="9" fill="url(#havoc_powder-lid)" stroke="#3e2410" stroke-width="2.5"/>
+<circle cx="74" cy="33" r="3" fill="#2a1a0a"/>
+<path d="M74 32 C76 22 84 18 92 16" stroke="#2a1a10" stroke-width="3" fill="none" stroke-linecap="round"/>
+<circle cx="93" cy="15" r="11" fill="url(#havoc_powder-spark)"/>
+<polygon points="93 8 94.5 12.4 99.1 11.5 96 15 99.1 18.5 94.5 17.6 93 22 91.5 17.6 86.9 18.5 90 15 86.9 11.5 91.5 12.4" fill="#fff6b0" stroke="#e08a1a" stroke-width="1"/>
+<path d="M84 112 Q94 100 108 104 Q122 108 118 114 Z" fill="#2a2a30" stroke="#121216" stroke-width="1.5"/>
+<path d="M40 60 Q38 80 42 98" stroke="#f0c890" stroke-width="2.5" fill="none" stroke-linecap="round" opacity=".5"/>
+</svg>

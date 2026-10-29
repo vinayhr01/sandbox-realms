@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<radialGradient id="omen_goo_spread-goo" cx=".4" cy=".3" r=".75"><stop offset="0" stop-color="#d8ff9a"/><stop offset=".5" stop-color="#7ad83a"/><stop offset="1" stop-color="#2e8a1e"/></radialGradient>
+<ellipse cx="64" cy="110" rx="54" ry="10" fill="#5ab82a" stroke="#1e5a12" stroke-width="2.2"/>
+<circle cx="116" cy="100" r="6" fill="url(#omen_goo_spread-goo)" stroke="#1e5a12" stroke-width="2"/>
+<circle cx="12" cy="102" r="5" fill="url(#omen_goo_spread-goo)" stroke="#1e5a12" stroke-width="2"/>
+<path d="M18 108 C14 90 22 72 34 62 C38 40 52 24 66 24 C84 24 96 42 98 60 C110 70 116 90 110 108 Z" fill="url(#omen_goo_spread-goo)" stroke="#1e5a12" stroke-width="2.5" stroke-linejoin="round"/>
+<ellipse cx="52" cy="64" rx="9" ry="11" fill="#fff" stroke="#1e3a12" stroke-width="2"/>
+<ellipse cx="78" cy="64" rx="9" ry="11" fill="#fff" stroke="#1e3a12" stroke-width="2"/>
+<circle cx="54" cy="67" r="5" fill="#10200a"/><circle cx="80" cy="67" r="5" fill="#10200a"/>
+<path d="M54 86 Q66 94 78 86" stroke="#1e3a12" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<path d="M48 36 Q56 30 64 31" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" opacity=".8"/>
+<circle cx="40" cy="50" r="3" fill="#fff" opacity=".7"/>
+<g fill="#c8ff8a" stroke="#1e5a12" stroke-width="1.2"><circle cx="96" cy="88" r="4"/><circle cx="30" cy="92" r="3"/></g>
+</svg>

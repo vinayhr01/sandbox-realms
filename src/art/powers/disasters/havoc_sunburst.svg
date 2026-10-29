@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<radialGradient id="havoc_sunburst-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff8c0" stop-opacity=".95"/><stop offset=".5" stop-color="#ffd050" stop-opacity=".6"/><stop offset="1" stop-color="#ffb02e" stop-opacity="0"/></radialGradient>
+<linearGradient id="havoc_sunburst-ray" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2a0"/><stop offset=".5" stop-color="#ffb028"/><stop offset="1" stop-color="#f0701a"/></linearGradient>
+<radialGradient id="havoc_sunburst-core" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffffff"/><stop offset=".5" stop-color="#fff4b0"/><stop offset="1" stop-color="#ffd040"/></radialGradient>
+<circle cx="64" cy="64" r="63" fill="url(#havoc_sunburst-glow)"/>
+<polygon points="64 4 71.8 35 94 12 85.2 42.8 116 34 93 56.2 124 64 93 71.8 116 94 85.2 85.2 94 116 71.8 93 64 124 56.2 93 34 116 42.8 85.2 12 94 35 71.8 4 64 35 56.2 12 34 42.8 42.8 34 12 56.2 35" fill="url(#havoc_sunburst-ray)" stroke="#a8501a" stroke-width="2.2" stroke-linejoin="round"/>
+<polygon points="74.9 23.4 77 41.5 93.7 34.3 86.5 51 104.6 53.1 90 64 104.6 74.9 86.5 77 93.7 93.7 77 86.5 74.9 104.6 64 90 53.1 104.6 51 86.5 34.3 93.7 41.5 77 23.4 74.9 38 64 23.4 53.1 41.5 51 34.3 34.3 51 41.5 53.1 23.4 64 38" fill="#ffe07a" stroke="#c8701a" stroke-width="1.5" stroke-linejoin="round"/>
+<circle cx="64" cy="64" r="22" fill="url(#havoc_sunburst-core)" stroke="#c8701a" stroke-width="2"/>
+<path d="M52 56 Q56 48 64 47" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".9"/>
+</svg>

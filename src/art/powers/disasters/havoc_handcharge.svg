@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<radialGradient id="havoc_handcharge-body" cx=".38" cy=".32" r=".75"><stop offset="0" stop-color="#a8b86a"/><stop offset=".55" stop-color="#5e6e32"/><stop offset="1" stop-color="#2c3616"/></radialGradient>
+<linearGradient id="havoc_handcharge-metal" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e8eaf0"/><stop offset=".5" stop-color="#a8acb8"/><stop offset="1" stop-color="#5e6270"/></linearGradient>
+<ellipse cx="60" cy="116" rx="30" ry="5" fill="#1a1208" opacity=".3"/>
+<ellipse cx="60" cy="78" rx="29" ry="34" fill="url(#havoc_handcharge-body)" stroke="#1f2a12" stroke-width="2.5"/>
+<path d="M33 64 H87 M31 80 H89 M35 96 H85 M50 46 Q43 78 50 110 M70 46 Q77 78 70 110" stroke="#26320f" stroke-width="2" fill="none" opacity=".65"/>
+<rect x="49" y="36" width="22" height="13" rx="2.5" fill="url(#havoc_handcharge-metal)" stroke="#2e3038" stroke-width="2.2"/>
+<path d="M66 38 L84 38 Q92 40 90 54 L86 92 Q84 98 80 95 L82 56 Q82 47 74 45 L66 45 Z" fill="url(#havoc_handcharge-metal)" stroke="#2e3038" stroke-width="2.2" stroke-linejoin="round"/>
+<circle cx="42" cy="34" r="10" fill="none" stroke="#2e3038" stroke-width="6"/>
+<circle cx="42" cy="34" r="10" fill="none" stroke="#d8dae2" stroke-width="3"/>
+<ellipse cx="46" cy="62" rx="8" ry="5" transform="rotate(-35 46 62)" fill="#fff" opacity=".35"/>
+</svg>

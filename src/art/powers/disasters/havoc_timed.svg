@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<linearGradient id="havoc_timed-stick" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a1a14"/><stop offset=".4" stop-color="#e04a3a"/><stop offset=".55" stop-color="#ff7a64"/><stop offset="1" stop-color="#9a1e18"/></linearGradient>
+<radialGradient id="havoc_timed-face" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e2ddd2"/></radialGradient>
+<linearGradient id="havoc_timed-brass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd860"/><stop offset="1" stop-color="#b07a10"/></linearGradient>
+<path d="M36 22 q-2 -8 4 -12 M64 22 q2 -8 -2 -12 M92 22 q2 -8 6 -10" stroke="#2a1a10" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<rect x="24" y="22" width="24" height="86" rx="6" fill="url(#havoc_timed-stick)" stroke="#3a0a08" stroke-width="2.2"/>
+<rect x="80" y="22" width="24" height="86" rx="6" fill="url(#havoc_timed-stick)" stroke="#3a0a08" stroke-width="2.2"/>
+<rect x="52" y="22" width="24" height="86" rx="6" fill="url(#havoc_timed-stick)" stroke="#3a0a08" stroke-width="2.2"/>
+<rect x="20" y="36" width="88" height="8" rx="2" fill="#3a3a44" stroke="#18181e" stroke-width="1.5"/>
+<rect x="20" y="96" width="88" height="8" rx="2" fill="#3a3a44" stroke="#18181e" stroke-width="1.5"/>
+<path d="M44 92 Q34 100 28 90" stroke="#ffd040" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<path d="M84 92 Q96 102 100 88" stroke="#3a8ad8" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<circle cx="46" cy="54" r="8" fill="url(#havoc_timed-brass)" stroke="#4a3008" stroke-width="2"/>
+<circle cx="82" cy="54" r="8" fill="url(#havoc_timed-brass)" stroke="#4a3008" stroke-width="2"/>
+<circle cx="64" cy="72" r="24" fill="url(#havoc_timed-brass)" stroke="#4a3008" stroke-width="2.5"/>
+<circle cx="64" cy="72" r="18" fill="url(#havoc_timed-face)" stroke="#7a5a20" stroke-width="1.5"/>
+<path d="M64 56 v4 M64 84 v4 M48 72 h4 M76 72 h4" stroke="#3a2a1a" stroke-width="2" stroke-linecap="round"/>
+<path d="M64 72 V61 M64 72 L73 77" stroke="#1a1a1a" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="64" cy="72" r="2.5" fill="#e03a2a"/>
+<path d="M30 30 V90" stroke="#ffb0a0" stroke-width="2.5" stroke-linecap="round" opacity=".5"/>
+</svg>

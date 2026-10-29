@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<linearGradient id="omen_skiff_visitors-hull" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef2fa"/><stop offset=".55" stop-color="#a8b4c8"/><stop offset="1" stop-color="#5a6478"/></linearGradient>
+<radialGradient id="omen_skiff_visitors-dome" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#e8fff4" stop-opacity=".85"/><stop offset=".5" stop-color="#8ae8c0" stop-opacity=".6"/><stop offset="1" stop-color="#2a9a7a" stop-opacity=".75"/></radialGradient>
+<linearGradient id="omen_skiff_visitors-beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8ff8a" stop-opacity=".85"/><stop offset="1" stop-color="#c8ff8a" stop-opacity="0"/></linearGradient>
+<path d="M48 68 L18 124 H110 L80 68 Z" fill="url(#omen_skiff_visitors-beam)"/>
+<ellipse cx="64" cy="44" rx="7" ry="8" fill="#6ac85a" stroke="#1a4a1a" stroke-width="1.2"/>
+<ellipse cx="61" cy="43" rx="2" ry="3" fill="#10200a"/><ellipse cx="67" cy="43" rx="2" ry="3" fill="#10200a"/>
+<path d="M38 54 C38 28 90 28 90 54 Z" fill="url(#omen_skiff_visitors-dome)" stroke="#1a3a3a" stroke-width="2.2"/>
+<path d="M46 44 Q50 36 58 34" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" opacity=".9"/>
+<ellipse cx="64" cy="70" rx="18" ry="6" fill="#8a94a8" stroke="#1e2434" stroke-width="2"/>
+<ellipse cx="64" cy="58" rx="56" ry="14" fill="url(#omen_skiff_visitors-hull)" stroke="#1e2434" stroke-width="2.5"/>
+<path d="M10 60 Q64 78 118 60" stroke="#5a6478" stroke-width="2" fill="none"/>
+<g stroke="#1e2434" stroke-width="1.2"><circle cx="24" cy="63" r="4" fill="#ffe14d"/><circle cx="44" cy="67" r="4" fill="#ff6a6a"/><circle cx="64" cy="68" r="4" fill="#6ae8ff"/><circle cx="84" cy="67" r="4" fill="#ff6a6a"/><circle cx="104" cy="63" r="4" fill="#ffe14d"/></g>
+<path d="M22 52 Q40 47 56 47" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/>
+<polygon points="16 12 17.5 16.5 22 18 17.5 19.5 16 24 14.5 19.5 10 18 14.5 16.5" fill="#fff8c8" stroke="#a8a070" stroke-width="1.2" stroke-linejoin="round"/>
+<polygon points="110 17 111.2 20.8 115 22 111.2 23.2 110 27 108.8 23.2 105 22 108.8 20.8" fill="#fff8c8" stroke="#a8a070" stroke-width="1.2" stroke-linejoin="round"/>
+</svg>

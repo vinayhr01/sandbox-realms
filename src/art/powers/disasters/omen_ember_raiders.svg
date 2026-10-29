@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<linearGradient id="omen_ember_raiders-flame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3a0"/><stop offset=".45" stop-color="#ffb030"/><stop offset="1" stop-color="#e8461c"/></linearGradient>
+<linearGradient id="omen_ember_raiders-iron" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a9eaa"/><stop offset=".5" stop-color="#4a4e5a"/><stop offset="1" stop-color="#22252e"/></linearGradient>
+<linearGradient id="omen_ember_raiders-horn" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0d0"/><stop offset=".5" stop-color="#d8b88a"/><stop offset="1" stop-color="#8a6a3a"/></linearGradient>
+<path d="M64 4 C72 18 84 20 86 36 C92 28 96 20 94 12 C106 26 108 46 98 60 H30 C20 46 22 26 34 12 C32 20 36 28 42 36 C44 20 56 18 64 4 Z" fill="url(#omen_ember_raiders-flame)" stroke="#a8301a" stroke-width="2" stroke-linejoin="round"/>
+<path d="M34 64 C20 60 10 46 12 26 C18 40 26 46 38 50 Z M94 64 C108 60 118 46 116 26 C110 40 102 46 90 50 Z" fill="url(#omen_ember_raiders-horn)" stroke="#4a3010" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M30 74 C30 48 44 36 64 36 C84 36 98 48 98 74 Z" fill="url(#omen_ember_raiders-iron)" stroke="#10121a" stroke-width="2.5"/>
+<path d="M64 38 V72" stroke="#b07a3a" stroke-width="5"/>
+<path d="M34 84 H94 L90 108 Q80 116 72 112 L70 98 H58 L56 112 Q48 116 38 108 Z" fill="url(#omen_ember_raiders-iron)" stroke="#10121a" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M40 86 H59 L57 96 H42 Z M69 86 H88 L86 96 H71 Z" fill="#1a0a06"/>
+<circle cx="50" cy="91" r="3" fill="#ffb030"/><circle cx="78" cy="91" r="3" fill="#ffb030"/>
+<rect x="26" y="70" width="76" height="13" rx="4" fill="#b07a3a" stroke="#3e2410" stroke-width="2.2"/>
+<g fill="#ffe0a0" stroke="#3e2410" stroke-width="1"><circle cx="36" cy="76.5" r="2.2"/><circle cx="50" cy="76.5" r="2.2"/><circle cx="78" cy="76.5" r="2.2"/><circle cx="92" cy="76.5" r="2.2"/></g>
+<rect x="61" y="80" width="6" height="22" rx="2" fill="#b07a3a" stroke="#3e2410" stroke-width="1.5"/>
+<path d="M40 62 Q42 48 54 42" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".5"/>
+</svg>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<linearGradient id="omen_wailwisp_wake-sheet" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#d8e6f8"/><stop offset="1" stop-color="#9ab0d8"/></linearGradient>
+<radialGradient id="omen_wailwisp_wake-aura" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#c8e0ff" stop-opacity=".75"/><stop offset="1" stop-color="#8ab0ff" stop-opacity="0"/></radialGradient>
+<circle cx="64" cy="60" r="60" fill="url(#omen_wailwisp_wake-aura)"/>
+<path d="M26 64 Q12 70 14 84 Q22 78 30 80 Z M102 64 Q116 70 114 84 Q106 78 98 80 Z" fill="url(#omen_wailwisp_wake-sheet)" stroke="#3a4a6e" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M26 112 V56 C26 32 44 16 64 16 C84 16 102 32 102 56 V112 Q96 104 89 112 Q83 120 77 110 Q71 102 64 112 Q57 120 51 110 Q45 102 39 112 Q32 120 26 112 Z" fill="url(#omen_wailwisp_wake-sheet)" stroke="#3a4a6e" stroke-width="2.5" stroke-linejoin="round"/>
+<ellipse cx="51" cy="50" rx="6.5" ry="9.5" fill="#1e2440"/>
+<ellipse cx="77" cy="50" rx="6.5" ry="9.5" fill="#1e2440"/>
+<circle cx="49" cy="46" r="2" fill="#fff"/><circle cx="75" cy="46" r="2" fill="#fff"/>
+<ellipse cx="64" cy="76" rx="8" ry="12" fill="#1e2440"/>
+<path d="M36 42 Q40 28 54 22" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round" opacity=".9"/>
+<g fill="#e8f2ff" stroke="#7a8ab8" stroke-width="1"><circle cx="12" cy="30" r="3"/><circle cx="116" cy="26" r="3.5"/><circle cx="110" cy="108" r="2.5"/></g>
+</svg>

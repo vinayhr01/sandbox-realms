@@ -151,8 +151,9 @@ export class SimClient {
     const seq = this.seq++;
     const full = { ...command, seq } as Command;
     this.worker.postMessage(full, transfer);
-    // Pings arrive every 2 s and would push the e2e command log out, so they are not logged.
-    if (full.kind !== Cmd.Ping) {
+    // Pings (every 2 s) and buffer returns (one per snapshot) would push the player's commands out of the 64-entry
+    // e2e log on a slow machine, so neither is logged.
+    if (full.kind !== Cmd.Ping && full.kind !== Cmd.ReturnBuffer) {
       this.sent.push(full.kind);
       if (this.sent.length > SENT_LOG_MAX) this.sent.shift();
     }

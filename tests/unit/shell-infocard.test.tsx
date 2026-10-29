@@ -73,7 +73,7 @@ describe('InfoCard', () => {
     locateInfo.mockReturnValue({ x: 1, y: 2, name: 'Burrfleece', facts: 'Child, Idle', detailed: false });
     store.info.value = { kind: 'being', id: '7' };
     render(<InfoCard store={store} actions={actions as unknown as ShellActions} />, host);
-    await settle();
+    await vi.waitFor(() => buttonNamed(host, 'More'));
     const more = buttonNamed(host, 'More');
     expect(more.disabled).toBe(true);
     more.click();
@@ -88,7 +88,8 @@ describe('InfoCard', () => {
   it('calls the shell actions with the being id', async () => {
     store.info.value = { kind: 'being', id: '7' };
     render(<InfoCard store={store} actions={actions as unknown as ShellActions} />, host);
-    await settle();
+    // More is enabled once the frame loop has located the being in the detail sample.
+    await vi.waitFor(() => expect(buttonNamed(host, 'More').disabled).toBe(false));
     buttonNamed(host, 'Follow').click();
     buttonNamed(host, 'Possess').click();
     buttonNamed(host, 'More').click();
@@ -126,7 +127,7 @@ describe('InfoCard', () => {
   it('Close clears the info target', async () => {
     store.info.value = { kind: 'being', id: '7' };
     render(<InfoCard store={store} actions={actions as unknown as ShellActions} />, host);
-    await settle();
+    await vi.waitFor(() => buttonNamed(host, 'Close'));
     buttonNamed(host, 'Close').click();
     expect(store.info.value).toBeNull();
   });
@@ -173,11 +174,12 @@ describe('InfoCard', () => {
     locateInfo.mockReturnValue({ x: 2, y: 240, name: 'Burrfleece', facts: 'Adult, Walking', detailed: true });
     store.info.value = { kind: 'being', id: '7' };
     render(<InfoCard store={store} actions={actions as unknown as ShellActions} />, host);
-    await settle();
-    const card = host.querySelector<HTMLElement>('.info-card');
     // jsdom measures 0 x 0, so the left clamp is the margin (8px) and the top clamp is the margin plus the gap (20px).
-    expect(card?.style.getPropertyValue('--card-x')).toBe('8px');
-    expect(card?.style.getPropertyValue('--card-y')).toBe('240px');
+    await vi.waitFor(() => {
+      const card = host.querySelector<HTMLElement>('.info-card');
+      expect(card?.style.getPropertyValue('--card-x')).toBe('8px');
+      expect(card?.style.getPropertyValue('--card-y')).toBe('240px');
+    });
   });
 
   it('is hidden while its target is off-screen, and shown again when it is back', async () => {

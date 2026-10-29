@@ -68,7 +68,7 @@ export interface SlotMeta extends SlotInfo {
   valid: boolean | 'unknown';
 }
 
-export type SaveErrorCode = 'invalid_slot' | 'too_large' | 'corrupt' | 'not_found' | 'unavailable';
+export type SaveErrorCode = 'invalid_slot' | 'too_large' | 'corrupt' | 'not_found' | 'unavailable' | 'blocked' | 'timeout' | 'private' | 'quota' | 'storage';
 
 export class SaveError extends Error {
   constructor(
@@ -350,6 +350,8 @@ export type SaveBackendMode = 'indexeddb' | 'memory';
 /** Storage facade. Every write is atomic: the new blob and metadata commit together, or nothing changes. */
 export interface SaveBackend {
   readonly mode: SaveBackendMode;
+  /** True once the connection was closed under us (another tab upgraded the database); the store must be reopened. */
+  readonly stale?: boolean;
   list(): Promise<SlotMeta[]>;
   /** Writes a slot. The previous blob of the same slot moves to `prev`. `prune` ids are deleted in the same commit. */
   write(slotId: string, bytes: Uint8Array, meta: SlotMeta, prune: readonly string[]): Promise<void>;
@@ -382,26 +384,80 @@ function transactionDone(tx: IDBTransaction): Promise<void> {
   });
 }
 
-/** Opens (and upgrades) the save database. Rejects when storage is blocked or unavailable. */
-export function openSaveDatabase(factory: IDBFactory, name: string = DB_NAME): Promise<IDBDatabase> {
+/** How long the database open may take before saving reports a problem instead of waiting. */
+export const DB_OPEN_TIMEOUT_MS = 5_000;
+
+/** Turns whatever IndexedDB threw into a SaveError with a code the UI can explain. */
+export function classifyStorageError(err: unknown): SaveError | null {
+  if (err instanceof SaveError) return err;
+  const name = err instanceof Error ? err.name : '';
+  const text = err instanceof Error ? err.message : '';
+  if (name === 'QuotaExceededError' || /quota/i.test(text)) return new SaveError('quota', text || 'storage is full');
+  if (name === 'SecurityError') return new SaveError('private', text || 'storage is blocked by the browser');
+  // A closing or dropped connection, or an engine fault: worth another try, not a private-mode verdict.
+  if (name === 'InvalidStateError' || name === 'UnknownError' || name === 'NotAllowedError' || name === 'TransactionInactiveError') {
+    return new SaveError('storage', text || 'storage error');
+  }
+  return null;
+}
+
+/** Opens (and upgrades) the save database. Rejects when storage is blocked, unavailable or too slow. */
+export function openSaveDatabase(factory: IDBFactory, name: string = DB_NAME, timeoutMs: number = DB_OPEN_TIMEOUT_MS): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const req = factory.open(name, DB_VERSION);
+    let settled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const fail = (err: SaveError): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      reject(err);
+    };
+    let req: IDBOpenDBRequest;
+    try {
+      req = factory.open(name, DB_VERSION);
+    } catch (err) {
+      fail(classifyStorageError(err) ?? new SaveError('unavailable', 'IndexedDB open failed'));
+      return;
+    }
+    timer = setTimeout(() => fail(new SaveError('timeout', 'IndexedDB open timed out')), timeoutMs);
     req.onupgradeneeded = () => {
       const db = req.result;
       if (!db.objectStoreNames.contains('slots')) db.createObjectStore('slots', { keyPath: 'slotId' });
       if (!db.objectStoreNames.contains('blobs')) db.createObjectStore('blobs', { keyPath: 'slotId' });
       if (!db.objectStoreNames.contains('prev')) db.createObjectStore('prev', { keyPath: 'slotId' });
     };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error ?? new SaveError('unavailable', 'IndexedDB open failed'));
-    req.onblocked = () => reject(new SaveError('unavailable', 'IndexedDB open blocked'));
+    req.onsuccess = () => {
+      const db = req.result;
+      if (settled) {
+        // The open finished after we gave up (the other tab let go): do not keep the connection.
+        db.close();
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      // A newer build in another tab wants to upgrade: let go so it is not blocked by this one.
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
+    req.onerror = () => fail(classifyStorageError(req.error) ?? new SaveError('unavailable', req.error?.message || 'IndexedDB open failed'));
+    req.onblocked = () => fail(new SaveError('blocked', 'IndexedDB open blocked'));
   });
 }
 
 class IndexedDbBackend implements SaveBackend {
   readonly mode = 'indexeddb' as const;
 
-  constructor(private readonly db: IDBDatabase) {}
+  stale = false;
+
+  constructor(private readonly db: IDBDatabase) {
+    db.onversionchange = () => {
+      this.stale = true;
+      db.close();
+    };
+    db.onclose = () => {
+      this.stale = true;
+    };
+  }
 
   list(): Promise<SlotMeta[]> {
     const tx = this.db.transaction('slots', 'readonly');
@@ -527,14 +583,17 @@ class MemoryBackend implements SaveBackend {
  * Opens IndexedDB when it works and falls back to memory-only mode otherwise. `fallbackReason` is
  * the message to show in the banner ("saving to this device is unavailable").
  */
-export async function openSaveBackend(factory: IDBFactory | undefined): Promise<{ backend: SaveBackend; fallbackReason: string | null }> {
-  if (!factory) return { backend: new MemoryBackend(), fallbackReason: 'IndexedDB is not available in this browser' };
+export async function openSaveBackend(
+  factory: IDBFactory | undefined,
+  openTimeoutMs: number = DB_OPEN_TIMEOUT_MS,
+): Promise<{ backend: SaveBackend; fallbackReason: string | null; fallbackCode: SaveErrorCode | null }> {
+  if (!factory) return { backend: new MemoryBackend(), fallbackReason: 'IndexedDB is not available in this browser', fallbackCode: 'unavailable' };
   try {
-    const db = await openSaveDatabase(factory);
-    return { backend: new IndexedDbBackend(db), fallbackReason: null };
+    const db = await openSaveDatabase(factory, DB_NAME, openTimeoutMs);
+    return { backend: new IndexedDbBackend(db), fallbackReason: null, fallbackCode: null };
   } catch (err) {
     const reason = err instanceof Error ? err.message : 'IndexedDB failed to open';
-    return { backend: new MemoryBackend(), fallbackReason: reason };
+    return { backend: new MemoryBackend(), fallbackReason: reason, fallbackCode: err instanceof SaveError ? err.code : 'unavailable' };
   }
 }
 
@@ -547,6 +606,8 @@ export interface SaveEnvironment {
   isPhone: boolean;
   /** navigator.storage, when present. Its estimate() feeds the quota plan. */
   storage?: Pick<StorageManager, 'estimate'>;
+  /** Overrides DB_OPEN_TIMEOUT_MS (tests). */
+  openTimeoutMs?: number;
 }
 
 export type SaveResult =
@@ -565,16 +626,23 @@ export class SaveService {
     private readonly backend: SaveBackend,
     readonly fallbackReason: string | null,
     private readonly env: SaveEnvironment,
+    /** Why IndexedDB was not used: 'blocked' and 'timeout' can clear by themselves, so callers may reopen. */
+    readonly fallbackCode: SaveErrorCode | null = null,
   ) {}
 
   /** Opens the store. Never rejects: on failure it falls back to memory-only mode. */
   static async open(factory: IDBFactory | undefined, env: SaveEnvironment): Promise<SaveService> {
-    const { backend, fallbackReason } = await openSaveBackend(factory);
-    return new SaveService(backend, fallbackReason, env);
+    const { backend, fallbackReason, fallbackCode } = await openSaveBackend(factory, env.openTimeoutMs);
+    return new SaveService(backend, fallbackReason, env, fallbackCode);
   }
 
   get mode(): SaveBackendMode {
     return this.backend.mode;
+  }
+
+  /** True when the database connection was closed by the browser or another tab: open the store again. */
+  get stale(): boolean {
+    return this.backend.stale === true;
   }
 
   /** Slot list for the UI, newest first. */
@@ -676,8 +744,22 @@ export class SaveService {
   }
 
   private async softCap(): Promise<number> {
-    const estimate = await this.env.storage?.estimate().catch(() => undefined);
+    const estimate = await settleEstimate(this.env.storage);
     const quota = estimate?.quota;
     return quota === undefined ? Number.POSITIVE_INFINITY : softCapBytes(quota, this.env.isPhone);
+  }
+}
+
+/** navigator.storage.estimate(), but a rejection, a throw or a hang (2 s) means "no limit known" rather than a stuck save. */
+async function settleEstimate(storage: SaveEnvironment['storage']): Promise<StorageEstimate | undefined> {
+  if (!storage) return undefined;
+  try {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<undefined>((resolve) => {
+      timer = setTimeout(() => resolve(undefined), 2_000);
+    });
+    return await Promise.race([storage.estimate().catch(() => undefined), timeout]).finally(() => clearTimeout(timer));
+  } catch {
+    return undefined;
   }
 }

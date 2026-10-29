@@ -32,7 +32,17 @@ export interface Toast {
   kind: 'info' | 'new';
   /** When the toast was pushed (ms, same clock as pruneToasts). */
   at: number;
+  /** An optional button; a toast with one stays up for ACTION_TOAST_MS. */
+  action?: ToastAction;
 }
+
+export interface ToastAction {
+  label: string;
+  run: () => void;
+}
+
+/** How long a toast with a button stays up (ms). */
+export const ACTION_TOAST_MS = 30_000;
 
 /** What the floating info card points at: a being, a tile, a hamlet or a dominion. */
 export interface InfoTarget {
@@ -114,14 +124,20 @@ export function createStore(): UiStore {
 let nextToastId = 1;
 
 /** Adds a toast. `now` is the clock in ms (defaults to Date.now()). */
-export function pushToast(store: UiStore, text: string, kind: 'info' | 'new' = 'info', now: number = Date.now()): void {
-  const toast: Toast = { id: nextToastId++, text, kind, at: now };
+export function pushToast(
+  store: UiStore,
+  text: string,
+  kind: 'info' | 'new' = 'info',
+  now: number = Date.now(),
+  action?: ToastAction,
+): void {
+  const toast: Toast = { id: nextToastId++, text, kind, at: now, ...(action ? { action } : {}) };
   store.toasts.value = [...store.toasts.value, toast];
 }
 
 /** Drops toasts that are at least TOAST_MS old at `now`. Returns true when something was removed. */
 export function pruneToasts(store: UiStore, now: number): boolean {
-  const live = store.toasts.value.filter((t) => now - t.at < TOAST_MS);
+  const live = store.toasts.value.filter((t) => now - t.at < (t.action ? ACTION_TOAST_MS : TOAST_MS));
   if (live.length === store.toasts.value.length) return false;
   store.toasts.value = live;
   return true;

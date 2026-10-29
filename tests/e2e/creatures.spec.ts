@@ -102,6 +102,7 @@ test('follow a being beyond the old sample', async ({ page }) => {
 });
 
 test('hover names a being beyond the snapshot sample', async ({ page }) => {
+  test.slow(); // Software-GL runners are slow: triple the timeout as a margin.
   const call = await openRealm(page);
   // A grid of spawns around the first land Being near the centre; the sim refuses a spawn on water, so some are missed.
   await call('spawnMany', 'burrfleece', 1);
@@ -109,9 +110,16 @@ test('hover names a being beyond the snapshot sample', async ({ page }) => {
   expect(first).toBeDefined();
   const cx = Math.round(first!.x);
   const cy = Math.round(first!.y);
-  for (let dy = -8; dy <= 8; dy += 1) {
-    for (let dx = -8; dx <= 8; dx += 1) await call("spawnMany", "burrfleece", 1, cx + dx, cy + dy);
-  }
+  // The whole 17 x 17 grid runs inside the page: one round trip instead of 289.
+  await page.evaluate(
+    ({ cx, cy }) => {
+      const hooks = (window as unknown as { __sr: { spawnMany: (...a: unknown[]) => unknown } }).__sr;
+      for (let dy = -8; dy <= 8; dy += 1) {
+        for (let dx = -8; dx <= 8; dx += 1) hooks.spawnMany('burrfleece', 1, cx + dx, cy + dy);
+      }
+    },
+    { cx, cy },
+  );
   await expect.poll(() => call<number>('creatureCount'), { timeout: 20_000 }).toBeGreaterThan(96);
   // Paused, the Beings hold still while the test zooms and hovers.
   await page.locator('#pause').click();
@@ -146,9 +154,17 @@ test('hover names a being beyond the snapshot sample', async ({ page }) => {
   await expect
     .poll(
       async () => {
-        const now = (await call<{ id: number; x: number; y: number }[]>('beingPoints')).find((b) => b.id === picked.id);
-        if (!now) return 'gone';
-        const screen = await call<{ x: number; y: number }>('tileToScreen', now.x, now.y);
+        // One round trip: find the Being's current tile and its screen point inside the page.
+        const screen = await page.evaluate(
+          ({ id }) => {
+            const hooks = (window as unknown as { __sr: Record<string, (...a: unknown[]) => unknown> }).__sr;
+            const now = (hooks['beingPoints']!() as { id: number; x: number; y: number }[]).find((b) => b.id === id);
+            if (!now) return null;
+            return hooks['tileToScreen']!(now.x, now.y) as { x: number; y: number };
+          },
+          { id: picked.id },
+        );
+        if (!screen) return 'gone';
         await page.mouse.move(screen.x, screen.y);
         // The tooltip is drawn in the next frame after the pointer moves.
         await page.waitForTimeout(150);

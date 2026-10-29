@@ -1,6 +1,6 @@
 /** Toast cards and their expiry (replaces the old #toasts host). */
 import { useEffect } from 'preact/hooks';
-import { pruneToasts, type ShellActions, type UiStore } from './store.ts';
+import { pruneToasts, type ShellActions, type Toast, type UiStore } from './store.ts';
 import { Coach } from './Coach.tsx';
 
 /** How often expired toasts are dropped (ms). */
@@ -19,9 +19,23 @@ export function Toasts({ store, actions }: { store: UiStore; actions: ShellActio
         {store.toasts.value.map((toast) => (
           <div key={toast.id} class={toast.kind === 'new' ? 'toast toast-new' : 'toast'}>
             {toast.text}
+            {toast.action && (
+              <>
+                {' '}
+                <button type="button" class="btn" onClick={() => runAction(store, toast)}>
+                  {toast.action.label}
+                </button>
+              </>
+            )}
           </div>
         ))}
       </div>
     </div>
   );
+}
+
+/** Removes the toast, then runs its button's action. */
+function runAction(store: UiStore, toast: Toast): void {
+  store.toasts.value = store.toasts.value.filter((t) => t.id !== toast.id);
+  toast.action?.run();
 }

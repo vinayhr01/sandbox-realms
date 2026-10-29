@@ -10,11 +10,15 @@ import {
   AUTOSAVE_RETRY_MS,
   AUTOSAVE_RING,
   AutosaveClock,
+  SaveError,
   SaveService,
+  classifyStorageError,
   decideAutosave,
   decideSuspend,
   exportFileName,
   firstFreeManualSlot,
+  manualSlotId,
+  QUICK_SLOT_ID,
   type AutosaveContext,
   type SaveBackendMode,
   type SaveResult,
@@ -68,7 +72,16 @@ export interface ExportFile {
   bytes: Uint8Array;
 }
 
+/** How long a capture may take before a manual save gives up. */
+export const CAPTURE_TIMEOUT_MS = 15_000;
+/** How long the store may take to write a save before a manual save gives up. */
+export const WRITE_TIMEOUT_MS = 10_000;
+/** How long the store may take to list slots before the window reports it cannot read them. */
+export const LIST_TIMEOUT_MS = 10_000;
+
 export interface SaveControllerOptions {
+  captureTimeoutMs?: number;
+  writeTimeoutMs?: number;
   now?: () => number;
   /** Called after a successful autosave, so the caller can clear its dirty flag. */
   onAutosaved?: () => void;
@@ -77,14 +90,23 @@ export interface SaveControllerOptions {
 const ok = (message: string): ActionOutcome => ({ ok: true, message });
 const fail = (message: string): ActionOutcome => ({ ok: false, message });
 
-function writeOutcome(result: SaveResult, label: string): ActionOutcome {
-  if (result.ok) return ok(`Saved ${label}.`);
+function writeOutcome(result: SaveResult, label: string, memoryReason: string | null = null): ActionOutcome {
+  if (result.ok) {
+    return ok(
+      memoryReason === null
+        ? `Saved ${label}.`
+        : `Saved ${label}, but only until this tab closes: this browser is not letting the game keep saves on this device (${memoryReason}).`,
+    );
+  }
   const biggest = result.biggest.length > 0 ? ` Largest saves: ${result.biggest.join(', ')}.` : '';
   return fail(`Not enough room to save ${label}. Delete a save first.${biggest}`);
 }
 
 /** How long a restore may wait for the sim to answer before the attempt is given up. */
 export const RESTORE_TIMEOUT_MS = 10_000;
+/** The boot resume waits longer: a big realm decodes slowly, and the page shows "Resuming..." meanwhile. */
+export const RESUME_TIMEOUT_MS = 30_000;
+export const STILL_RESUMING = 'Still resuming your world…';
 
 /**
  * The autosaves as restore candidates. Manual, quick and suspend slots are not offered here. The
@@ -96,6 +118,15 @@ export function autosaveCandidates(metas: readonly SlotMeta[]): RestoreCandidate
     .filter((m) => m.kind === 'auto')
     .sort((a, b) => b.savedAtMs - a.savedAtMs || (b.seq ?? 0) - (a.seq ?? 0))
     .map((m, i): RestoreCandidate => ({ slotId: m.slotId, savedAtMs: m.savedAtMs, valid: m.valid, generation: i === 0 ? 'current' : 'previous' }));
+}
+
+/** Rejects with a 'timeout' SaveError when the promise does not settle within `ms`. */
+function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new SaveError('timeout', what)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 /** Resolves to the promise's value, or null when it does not settle within `ms`. */
@@ -114,6 +145,8 @@ export class SaveController {
   private autosaveOn = true;
   private autosaveKeep = AUTOSAVE_RING;
   private readonly now: () => number;
+  private readonly captureTimeoutMs: number;
+  private readonly writeTimeoutMs: number;
   private readonly onAutosaved: (() => void) | null;
   private state: AutosaveState = { dirty: false, modalOpen: false, gestureActive: false, degradeLevel: 0 };
   private failures = 0;
@@ -124,6 +157,9 @@ export class SaveController {
   private lastAutosaveMs: number | null = null;
   private lastSuspendMs: number | null = null;
   private lastEmergencyMs: number | null = null;
+  /** True from the start of the boot resume until it lands: nothing may capture the throwaway default world meanwhile. */
+  private resuming = false;
+  private lastResumed: { meta: SlotMeta; bytes: Uint8Array } | null = null;
 
   constructor(
     private readonly open: () => Promise<SaveService>,
@@ -131,6 +167,8 @@ export class SaveController {
     options: SaveControllerOptions = {},
   ) {
     this.now = options.now ?? (() => Date.now());
+    this.captureTimeoutMs = options.captureTimeoutMs ?? CAPTURE_TIMEOUT_MS;
+    this.writeTimeoutMs = options.writeTimeoutMs ?? WRITE_TIMEOUT_MS;
     this.onAutosaved = options.onAutosaved ?? null;
     this.loadedAtMs = this.now();
     // Autosave needs a capture. Without one the timer stays off rather than failing every interval.
@@ -144,9 +182,42 @@ export class SaveController {
     this.clock.setInterval(on && this.source.canCapture ? minutes * 60_000 : 0);
   }
 
-  private service(): Promise<SaveService> {
+  private async service(): Promise<SaveService> {
     this.store ??= this.open();
+    const svc = await this.store;
+    if (!svc.stale) return svc;
+    // The browser closed the connection (another tab upgraded the database): open it again.
+    this.store = this.open();
     return this.store;
+  }
+
+  /** Called before the first realm is made on a page that will try to resume: saves hold off until resumeNewest finishes. */
+  beginResume(): void {
+    this.resuming = true;
+  }
+
+  get isResuming(): boolean {
+    return this.resuming;
+  }
+
+  /**
+   * The store for a save the player asked for. When the last open fell back to memory because it was
+   * blocked or timed out, that may have cleared (the other tab closed), so the open is tried again.
+   */
+  private async freshService(): Promise<SaveService> {
+    const svc = await this.service();
+    if (svc.mode === 'memory' && (svc.fallbackCode === 'blocked' || svc.fallbackCode === 'timeout')) {
+      this.store = null;
+      return this.service();
+    }
+    return svc;
+  }
+
+  /** A save cannot go ahead when the database is blocked, refused or too slow: say so rather than saving to memory. */
+  private blockedOutcome(svc: SaveService): ActionOutcome | null {
+    const code = svc.fallbackCode;
+    if (svc.mode === 'memory' && (code === 'blocked' || code === 'private' || code === 'timeout')) return fail(this.describe(new SaveError(code, ''), 'save'));
+    return null;
   }
 
   /** Storage mode and, when IndexedDB is not used, the reason for the banner. */
@@ -165,7 +236,11 @@ export class SaveController {
 
   /** Slot list, newest first. */
   list(): Promise<SlotMeta[]> {
-    return this.service().then((svc) => svc.list());
+    return withTimeout(
+      this.service().then((svc) => svc.list()),
+      LIST_TIMEOUT_MS,
+      'listing saves timed out',
+    );
   }
 
   /**
@@ -207,7 +282,77 @@ export class SaveController {
       }
       return fail('No autosave could be loaded.');
     } catch (err) {
-      return fail(this.describe(err));
+      return fail(this.describe(err, 'load'));
+    }
+  }
+
+  /**
+   * Loads the newest save of any kind into the live realm, as the page does on start. Does nothing in
+   * Safe Mode. A save that cannot be read is skipped for the next one. The message names realm and year.
+   */
+  async resumeNewest(safeMode: boolean, onLate?: (out: ActionOutcome) => void): Promise<ActionOutcome> {
+    this.resuming = true;
+    try {
+      return await this.resumeNewestInner(safeMode, onLate);
+    } finally {
+      this.resuming = false;
+    }
+  }
+
+  /** Copies the resumed realm into a manual slot before the player starts a new world. Null when it already is one. */
+  async keepResumedBeforeNewWorld(): Promise<ActionOutcome | null> {
+    const kept = this.lastResumed;
+    if (!kept || kept.meta.kind === 'manual') return null;
+    this.lastResumed = null;
+    try {
+      const svc = await this.service();
+      const n = firstFreeManualSlot(await svc.list());
+      if (n === null) return fail('All 12 manual slots are full, so the old world was not kept.');
+      const info = { realmName: `${kept.meta.realmName} (before new world)`, tick: kept.meta.tick, year: kept.meta.year };
+      return writeOutcome(await svc.writeManual(n, kept.bytes, info, this.now()), `the old world in slot ${n}`);
+    } catch (err) {
+      return fail(this.describe(err, 'save'));
+    }
+  }
+
+  private async resumeNewestInner(safeMode: boolean, onLate?: (out: ActionOutcome) => void): Promise<ActionOutcome> {
+    if (safeMode || !this.source.canRestore) return fail('Resuming is off.');
+    try {
+      const svc = await this.service();
+      const metas = await withTimeout(svc.list(), LIST_TIMEOUT_MS, 'listing saves timed out');
+      const candidates = metas.map((m): RestoreCandidate => ({ slotId: m.slotId, savedAtMs: m.savedAtMs, valid: m.valid, generation: 'current' }));
+      for (const offer of restoreOffers(candidates, false)) {
+        const meta = metas.find((m) => m.slotId === offer.slotId);
+        if (!meta) continue;
+        let bytes: Uint8Array | null;
+        try {
+          bytes = await svc.read(meta.slotId);
+        } catch {
+          continue;
+        }
+        if (!bytes) continue;
+        const pending = this.source.restore(bytes);
+        const loaded = await settleWithin(pending, RESUME_TIMEOUT_MS);
+        if (loaded === null) {
+          // Gave up waiting, but the restore may still land: announce it then.
+          void pending.then(
+            (late) => {
+              if (!late) return;
+              this.lastResumed = { meta, bytes };
+              onLate?.(ok(`Resumed ${meta.realmName}, year ${meta.year}.`));
+            },
+            () => undefined,
+          );
+          return fail('The simulation did not answer, so the save was not loaded.');
+        }
+        if (loaded) {
+          this.lastResumed = { meta, bytes };
+          return ok(`Resumed ${meta.realmName}, year ${meta.year}.`);
+        }
+      }
+      return fail('There is no save to resume.');
+    } catch (err) {
+      return fail(this.describe(err, 'load'));
     }
   }
 
@@ -234,13 +379,16 @@ export class SaveController {
       return outcome;
     } catch (err) {
       if (action === 'save' || action === 'quick') crumb('SAVE_DONE', `${action} failed`);
-      return fail(this.describe(err));
+      return fail(this.describe(err, action));
     }
   }
 
   private async saveManual(slotId: string): Promise<ActionOutcome> {
     if (!this.source.canCapture) return fail(CANNOT_CAPTURE);
-    const svc = await this.service();
+    if (this.resuming) return fail(STILL_RESUMING);
+    const svc = await this.freshService();
+    const blocked = this.blockedOutcome(svc);
+    if (blocked) return blocked;
     let n: number | null;
     if (slotId === 'new') {
       n = firstFreeManualSlot(await svc.list());
@@ -249,17 +397,42 @@ export class SaveController {
       n = Number(/^manual:(\d+)$/.exec(slotId)?.[1] ?? NaN);
       if (!Number.isInteger(n)) return fail('That slot does not exist.');
     }
-    const captured = await this.source.capture();
+    const captured = await withTimeout(this.source.capture(), this.captureTimeoutMs, 'capture timed out');
     if (!captured) return fail(CANNOT_CAPTURE);
-    return writeOutcome(await svc.writeManual(n, captured.bytes, captured.info, this.now()), `slot ${n}`);
+    const atMs = this.now();
+    return this.confirmedWrite(svc, manualSlotId(n), atMs, `slot ${n}`, () => svc.writeManual(n, captured.bytes, captured.info, atMs));
   }
 
   private async saveQuick(): Promise<ActionOutcome> {
     if (!this.source.canCapture) return fail(CANNOT_CAPTURE);
-    const captured = await this.source.capture();
+    if (this.resuming) return fail(STILL_RESUMING);
+    const svc = await this.freshService();
+    const blocked = this.blockedOutcome(svc);
+    if (blocked) return blocked;
+    const captured = await withTimeout(this.source.capture(), this.captureTimeoutMs, 'capture timed out');
     if (!captured) return fail(CANNOT_CAPTURE);
-    const svc = await this.service();
-    return writeOutcome(await svc.writeQuick(captured.bytes, captured.info, this.now()), 'the quick save');
+    const atMs = this.now();
+    return this.confirmedWrite(svc, QUICK_SLOT_ID, atMs, 'the quick save', () => svc.writeQuick(captured.bytes, captured.info, atMs));
+  }
+
+  /**
+   * Runs a write with a time limit. A write that outlives the limit may still commit, so the slot is
+   * looked up again: found means saved, not found means "slow", never a hard failure.
+   */
+  private async confirmedWrite(svc: SaveService, slotId: string, atMs: number, label: string, write: () => Promise<SaveResult>): Promise<ActionOutcome> {
+    try {
+      const result = await withTimeout(write(), this.writeTimeoutMs, 'write timed out');
+      return writeOutcome(result, label, svc.mode === 'memory' ? svc.fallbackReason : null);
+    } catch (err) {
+      if (!(err instanceof SaveError) || err.code !== 'timeout') throw err;
+      try {
+        const metas = await withTimeout(svc.list(), this.writeTimeoutMs, 'listing saves timed out');
+        if (metas.some((m) => m.slotId === slotId && m.savedAtMs === atMs)) return ok(`Saved ${label}.`);
+      } catch {
+        // The store is not answering either: fall through to the slow message.
+      }
+      return fail('Saving is taking long — check the list in a moment.');
+    }
   }
 
   private async load(slotId: string): Promise<ActionOutcome> {
@@ -324,7 +497,7 @@ export class SaveController {
   }
 
   private async autosave(): Promise<void> {
-    if (!this.source.canCapture || !this.autosaveOn) return;
+    if (!this.source.canCapture || !this.autosaveOn || this.resuming) return;
     const ctx: AutosaveContext = {
       dirty: this.state.dirty,
       inFlight: this.inFlight,
@@ -380,7 +553,7 @@ export class SaveController {
 
   /** The suspend save on hide or pagehide (15 section 5). Throttled, and skipped after a recent autosave. */
   async suspend(): Promise<void> {
-    if (!this.source.canCapture) return;
+    if (!this.source.canCapture || this.resuming) return;
     const nowMs = this.now();
     if (decideSuspend({ nowMs, lastSuspendMs: this.lastSuspendMs, lastAutosaveMs: this.lastAutosaveMs }) === 'skip') return;
     crumb('SAVE_START', 'suspend');
@@ -400,6 +573,7 @@ export class SaveController {
    */
   async emergencySave(budgetMs: number = EMERGENCY_SAVE_BUDGET_MS): Promise<string> {
     if (!this.source.canCapture) return 'emergency_save_unavailable';
+    if (this.resuming) return 'emergency_save_resuming';
     const nowMs = this.now();
     if (this.lastEmergencyMs !== null && nowMs - this.lastEmergencyMs < EMERGENCY_SAVE_MIN_MS) return 'emergency_save_throttled';
     this.lastEmergencyMs = nowMs;
@@ -419,7 +593,28 @@ export class SaveController {
     return outcome;
   }
 
-  private describe(err: unknown): string {
+  private describe(err: unknown, action: SaveAction): string {
+    const verb = action === 'save' || action === 'quick' ? 'save' : action === 'delete' ? 'delete' : 'load';
+    const gerund = verb === 'save' ? 'saving to' : verb === 'delete' ? 'deleting from' : 'loading from';
+    const lead = `Couldn't ${verb}: `;
+    const known = classifyStorageError(err);
+    switch (known?.code) {
+      case 'blocked':
+        return `${lead}storage is blocked by another open tab of the game — close it and try again.`;
+      case 'quota':
+        return `${lead}storage is full — delete a save or free space on this device.`;
+      case 'private':
+        return `${lead}this browser blocks saving in private mode.`;
+      case 'storage':
+        // A dropped connection: forget the cached store so the next try opens a fresh one.
+        this.store = null;
+        return `${lead}storage error, try again.`;
+      case 'timeout':
+        if (/capture/.test(known.message)) return `${lead}the world took too long to capture.`;
+        return `${lead}${gerund} this device timed out — close other tabs of the game and try again.`;
+      default:
+        break;
+    }
     if (err instanceof Error && err.name === 'SaveError') {
       if (/checksum/.test(err.message)) return 'That save is damaged and cannot be read.';
       return err.message;

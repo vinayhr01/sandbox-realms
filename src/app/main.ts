@@ -452,6 +452,18 @@ async function boot(): Promise<void> {
   client.onRespawn(() => {
     if (autosaveRecovery) void autosaveRecovery.restore();
   });
+  /** True from boot until the resume of the newest save has landed; map input is ignored meanwhile. */
+  let resumingWorld = false;
+  window.addEventListener(
+    'pointerdown',
+    (e: PointerEvent) => {
+      if (resumingWorld && e.target === renderer.app.canvas) {
+        e.stopImmediatePropagation();
+        setStatus('Resuming…');
+      }
+    },
+    true,
+  );
   restartRealm = () => {
     void client.newRealm(Math.floor(Math.random() * 0x7fffffff), DEFAULT_SIZE_STEP);
   };
@@ -1181,11 +1193,15 @@ async function boot(): Promise<void> {
     restore: (bytes) => client.restore(bytes),
   };
   const saveController = new SaveController(
-    () =>
-      SaveService.open(window.indexedDB, {
+    async () => {
+      const service = await SaveService.open(window.indexedDB, {
         isPhone: window.matchMedia('(pointer: coarse)').matches,
         storage: navigator.storage,
-      }),
+      });
+      // Ask the browser not to evict the saves under storage pressure (best effort; refusal changes nothing).
+      if (service.mode === 'indexeddb') void navigator.storage?.persist?.().catch(() => undefined);
+      return service;
+    },
     liveRealm,
     {
       onAutosaved: () => {
@@ -1227,6 +1243,7 @@ async function boot(): Promise<void> {
   const windowDeps: WindowDeps = {
     options: () => options,
     saves: () => saveController.list(),
+    notify: (text) => pushToast(store, text),
     chronicle,
     exportCrash: exportCrashToFile,
     setOption: (id, value) => changeOption(id, value),
@@ -1985,7 +2002,38 @@ async function boot(): Promise<void> {
     showFatal('Build mismatch', 'This page and its simulation come from different builds, so no Realm was started. Reload the page to get the current build.');
     return;
   }
+  // Resume where the player left off: a ?seed= or ?new in the address starts a fresh world, Safe Mode and
+  // the boot-loop dialog leave the choice to the player, and otherwise the newest save (autosave, quick,
+  // suspend or manual slot) is loaded into the live realm.
+  const wantsFreshWorld = params.has('seed') || params.has('new') || guard.loop || safeMode;
+  // Until the resume lands, the throwaway default world must not be saved over the newest save, and the
+  // map ignores input (saveController holds every save; the capture listener below holds the pointer).
+  if (!wantsFreshWorld) {
+    saveController.beginResume();
+    resumingWorld = true;
+    setStatus('Resuming…');
+  }
   await client.newRealm(seed, sizeStep);
+  if (!wantsFreshWorld) {
+    // Not awaited: a slow or blocked store must not hold up the start of play.
+    const announceResumed = (resumed: { ok: boolean; message: string }): void => {
+      resumingWorld = false;
+      // The message is announced once, by the toast; the status line only drops "Resuming…".
+      setStatus('Tap a tile to inspect it.');
+      if (!resumed.ok) return;
+      pushToast(store, resumed.message, 'info', Date.now(), {
+        label: 'Start a new world instead',
+        run: () => {
+          // The resumed realm is kept in a manual slot first, so choosing a new world never loses it.
+          void saveController.keepResumedBeforeNewWorld().then((kept) => {
+            if (kept) pushToast(store, kept.message);
+            restartRealm?.();
+          });
+        },
+      });
+    };
+    void saveController.resumeNewest(false, announceResumed).then(announceResumed);
+  }
   client.setSpeed(state.paused ? 0 : state.speed);
   applySpeed();
   setArmed(null);

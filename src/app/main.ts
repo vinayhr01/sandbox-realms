@@ -3,6 +3,8 @@ import type { Ticker } from 'pixi.js';
 import { TerrainRenderer, type CursorState } from '../render/terrain.ts';
 import { MarkLayer } from '../render/marks.ts';
 import { CreatureLayer, resetCreatureView } from '../render/creatures.ts';
+import { EffectsLayer } from '../render/effects.ts';
+import { recipeFor } from '../render/effectRecipes.ts';
 import { FeedInterp, type DrawBeing } from '../render/feed-interp.ts';
 import { BeingState } from '../shared/being-feed.ts';
 import { InsightLayer } from '../render/insight-layers.ts';
@@ -410,6 +412,8 @@ async function boot(): Promise<void> {
   // Creatures (beings, buildings, boats) and map marks: added after the terrain so they draw on top of it, marks over creatures.
   const creatures = new CreatureLayer(renderer.app);
   const marks = new MarkLayer(renderer.app);
+  // Deploy effects sit above the beings and marks (spec F).
+  const effects = new EffectsLayer(renderer.app);
   // The being feed (Ev.Beings), smoothed for drawing. The first beingCount entries of drawBeings are this frame's beings.
   const interp = new FeedInterp({ coalesce: true });
   const drawBeings: DrawBeing[] = [];
@@ -599,6 +603,7 @@ async function boot(): Promise<void> {
     degradeLevel = level;
     degradedOff.clear();
     for (let k = 0; k < level && k < DEGRADE_OFF.length; k++) degradedOff.add(DEGRADE_OFF[k] ?? '');
+    effects.setEnabled(!degradedOff.has('map.effects'));
     renderer.setDetailToggles(!degradedOff.has('map.terrainMedium'), !degradedOff.has('map.terrainClose'));
     renderer.setRenderScale(effectiveRenderScale());
     journal('DEGRADE', `level ${level} at mean frame ${meanMs.toFixed(1)} ms; off: ${[...degradedOff].join(', ') || 'none'}; render scale ${effectiveRenderScale()}%`);
@@ -1120,6 +1125,8 @@ async function boot(): Promise<void> {
     const op = strokeOp(power);
     if (op) client.stroke(op, state.shape, brushRadius(), x, y, x, y, true);
     else client.power(power.id, x, y);
+    // The effect plays only for a command that was sent (spec call 6): not on cooldown, not for a rule or a window.
+    effects.play(recipeFor(power), x, y, power.kind === 'brush' ? brushRadius() : 1);
     if (power.handler === 'spawn_being') feedTutorial('spawned');
     crumb('POWER_APPLY', power.id);
     playCueAt(op ? CUE.paint : CUE.power, x);
@@ -1857,6 +1864,7 @@ async function boot(): Promise<void> {
       const drawT0 = performance.now();
       creatures.draw(drawBeings, beingCount, view, beingNowMs);
       frameCostMs += performance.now() - drawT0;
+      effects.update(ticker.deltaMS, view);
       costRing[costWritten++ % COST_RING] = frameCostMs;
       marks.update(
         simView.current,

@@ -21,8 +21,9 @@ import {
 import { SETTING_BY_ID } from '../../src/ui/panels/options.ts';
 
 describe('degradation ladder', () => {
-  it('turns off the eight runtime map effects in order, one per level', () => {
+  it('turns off the nine runtime map effects in order, one per level, deploy effects first', () => {
     expect(DEGRADE_OFF).toEqual([
+      'map.effects',
       'map.crowdAnim',
       'map.dust',
       'map.terrainClose',
@@ -32,12 +33,12 @@ describe('degradation ladder', () => {
       'map.particles',
       'map.shadows',
     ]);
-    expect(DEGRADE_MAX_LEVEL).toBe(9);
-    expect(DEGRADE_RENDER_SCALE_LEVEL).toBe(9);
+    expect(DEGRADE_MAX_LEVEL).toBe(10);
+    expect(DEGRADE_RENDER_SCALE_LEVEL).toBe(10);
   });
 
   it('keeps the new runtime flags out of the saved settings and the Options UI', () => {
-    for (const id of ['map.crowdAnim', 'map.dust', 'map.terrainClose', 'map.terrainMedium', 'map.creatureAnim']) {
+    for (const id of ['map.effects', 'map.crowdAnim', 'map.dust', 'map.terrainClose', 'map.terrainMedium', 'map.creatureAnim']) {
       expect(SETTING_BY_ID.has(id)).toBe(false);
     }
   });

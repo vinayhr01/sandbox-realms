@@ -164,13 +164,14 @@ export const DEGRADE_UP_SECONDS = 8;
 export const DEGRADE_HOLD_SECONDS = 2;
 /** Frames longer than this are gaps (hidden tab, debugger pause), not load; they are not sampled. */
 export const DEGRADE_MAX_FRAME_MS = 500;
-/** Highest degradation level. */
-export const DEGRADE_MAX_LEVEL = 9;
+/** Highest degradation level: nine map effects off, then the render scale cap. */
+export const DEGRADE_MAX_LEVEL = 10;
 /**
  * Runtime-only map effects turned off, one per level from level 1 up. They are not settings: they are never saved
  * and never shown in the Options UI (the saved settings are never written).
  */
 export const DEGRADE_OFF: readonly string[] = [
+  'map.effects',
   'map.crowdAnim',
   'map.dust',
   'map.terrainClose',
@@ -181,7 +182,7 @@ export const DEGRADE_OFF: readonly string[] = [
   'map.shadows',
 ];
 /** From this level on, the render scale is capped at DEGRADE_RENDER_SCALE percent. */
-export const DEGRADE_RENDER_SCALE_LEVEL = 9;
+export const DEGRADE_RENDER_SCALE_LEVEL = 10;
 export const DEGRADE_RENDER_SCALE = 50;
 
 export interface DegradeTrack {

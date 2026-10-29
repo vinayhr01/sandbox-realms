@@ -210,13 +210,23 @@ test('tapping a being opens its info card; a pan keeps it; Esc closes it', async
   const call = await openRealm(page);
   await call('spawnMany', 'burrfleece', 20);
   await expect.poll(() => call<number>('creatureCount'), { timeout: 20_000 }).toBeGreaterThan(0);
-  const first = (await call<{ x: number; y: number; species: number }[]>('beingPoints'))[0];
-  expect(first).toBeDefined();
-  const at = await call<{ x: number; y: number }>('tileToScreen', Math.round(first!.x), Math.round(first!.y));
-  await page.mouse.click(at.x, at.y);
   const card = page.locator('.info-card');
-  await expect(card).toBeVisible();
-  await expect(card.locator('.info-card-name')).toContainText(plainName('species', SPECIES[first!.species]!.id));
+  // Beings walk, and slow runners lag between reading a point and clicking it: retry with a fresh point that
+  // lands on the map canvas (not under the pills, sheet or coach) until a card opens.
+  let species = -1;
+  await expect(async () => {
+    const points = await call<{ x: number; y: number; species: number }[]>('beingPoints');
+    for (const p of points) {
+      const at = await call<{ x: number; y: number }>('tileToScreen', Math.round(p.x), Math.round(p.y));
+      const onMap = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName === 'CANVAS', at);
+      if (!onMap) continue;
+      species = p.species;
+      await page.mouse.click(at.x, at.y);
+      break;
+    }
+    await expect(card).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
+  await expect(card.locator('.info-card-name')).toContainText(plainName('species', SPECIES[species]!.id));
   // A pan (arrow key) moves the map but keeps the card open.
   await page.keyboard.down('ArrowRight');
   await page.waitForTimeout(300);

@@ -16,7 +16,7 @@ import { Minimap, type MinimapView } from '../ui/minimap.ts';
 import { SaveService } from './saves.ts';
 import { CANNOT_CAPTURE, CANNOT_RESTORE, STILL_RESUMING, SaveController, type ActionOutcome, type AutosaveState, type ChronicleSource } from './save-controller.ts';
 import { setDebug } from '../ui/hud.ts';
-import { createStore, pushToast, type ShellActions } from '../ui/shell/store.ts';
+import { createStore, pushToast, type InfoTarget, type LocatedInfo, type ShellActions } from '../ui/shell/store.ts';
 import { dispatchKey, focusSheetSearch, isTyping, panBlocked, shellKeysBlocked, type KeyContext } from '../ui/shell/keymap.ts';
 import { recentRow } from '../ui/shell/powerCatalog.ts';
 import { chipsFor, discoveryToast, evaluate, DISCOVERY_KEY, newDiscovery, parseDiscovery, type DiscoveryState } from '../ui/shell/discovery.ts';
@@ -24,7 +24,7 @@ import { loadPowerPrefs, savePowerPrefs } from '../ui/shell/powerPrefs.ts';
 import { effect } from '@preact/signals';
 import { mountShell, mountToasts } from '../ui/shell/mount.tsx';
 import { closeAtlas, currentAtlasKind, feedAtlas, mountAtlas, showAtlas } from '../ui/shell/Atlas.tsx';
-import { feedFacts } from '../ui/shell/InfoCard.tsx';
+import { feedFacts, hamletFacts } from '../ui/shell/InfoCard.tsx';
 import { favouriteBeing } from '../ui/session-memory.ts';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction } from '../ui/panels/powerBar.ts';
@@ -38,7 +38,7 @@ import { windowFor, type ChronicleActions, type ChronicleOutcome, type WindowDep
 import { SimView } from '../ui/sim-view.ts';
 import { SPECIES } from '../content/beasts.ts';
 import { POWER_BY_ID, POWERS, type PowerDef } from '../content/powers.ts';
-import { plainName } from '../content/plain-names.ts';
+import { humanize, plainName } from '../content/plain-names.ts';
 import { Ev, PING_LOST_MS, POSSESS_REFUSED, type BrushOp, type BrushShape, type Event as SimEvent, type Snapshot, type Speed } from '../shared/protocol.ts';
 import { MONTH_TICKS, YEAR_TICKS, DEFAULT_SIZE_STEP } from '../shared/constants.ts';
 import { RULE_BY_ID, RuleSet } from '../sim/rules.ts';
@@ -416,6 +416,8 @@ async function boot(): Promise<void> {
   };
 
   const host = $('map');
+  // The map host's screen rect, read on resize rather than every frame (the info card, the tooltip and tile maths use it).
+  let hostRect = host.getBoundingClientRect();
   const renderer = await TerrainRenderer.create(host);
   // Creatures (beings, buildings, boats) and map marks: added after the terrain so they draw on top of it, marks over creatures.
   const creatures = new CreatureLayer(renderer.app);
@@ -566,6 +568,8 @@ async function boot(): Promise<void> {
   /** Insight Hamlet Select: armed (the next tap picks a tile) and the hamlet picked (hamletsOf index, or -1). */
   let hamletPending = false;
   let selectedHamlet = -1;
+  /** The tile a hamlet's info card was tapped on: its anchor, since the snapshot's hamlet rows carry no tile. */
+  let hamletTile = { x: 0, y: 0 };
   /** Ties (Insight select step): waiting for a tap, and the dominion picked (-1 none). Not saved. */
   let dominionPending = false;
   let selectedDominion = -1;
@@ -1358,6 +1362,12 @@ async function boot(): Promise<void> {
     return null;
   };
 
+  /** The hamlet building standing on tile (x, y) in the latest snapshot, as its structure id (y * 1024 + x), or null. */
+  const buildingAt = (x: number, y: number): number | null => {
+    const hit = simView.current?.mapBuildings?.find((b) => b.x === x && b.y === y);
+    return hit ? hit.id : null;
+  };
+
   /** Reads one tile from the sim and reports it in the status line. Held presses say so. */
   const inspectTile = (t: { x: number; y: number }, held: boolean): void => {
     void client.query(t.x, t.y).then((r) => {
@@ -1516,10 +1526,22 @@ async function boot(): Promise<void> {
         return;
       }
       // Inspect (default tap with nothing armed): a being near the tap opens its floating info card (UX redesign,
-      // spec C). A tap on empty map closes the card and reads the tile as before.
+      // spec C). A hamlet building on the tapped tile, else the hamlet owning it, opens its card too (spec D). A tap on
+      // empty map closes the card and reads the tile as before.
       const hit = pickBeing(sx, sy);
       if (hit) {
         store.info.value = { kind: 'being', id: String(hit.id) };
+        return;
+      }
+      const building = buildingAt(t.x, t.y);
+      if (building !== null) {
+        store.info.value = { kind: 'building', id: String(building) };
+        return;
+      }
+      const owner = hamletAtTile(simView.current?.mapTiles, t.x, t.y);
+      if (owner >= 0) {
+        hamletTile = { x: t.x, y: t.y };
+        store.info.value = { kind: 'hamlet', id: String(owner) };
         return;
       }
       store.info.value = null;
@@ -1653,21 +1675,47 @@ async function boot(): Promise<void> {
       if (power) activatePower(power);
     },
     openWindow: (kind: string, params) => openWindow(kind, params),
-    locateBeing: (id: number) => {
-      const d = liveBeing(id);
-      if (!d || !camera) return null;
-      const rect = host.getBoundingClientRect();
-      const speciesId = SPECIES[d.species]?.id;
-      const name = speciesId ? plainName('species', speciesId) : 'Being';
-      // More opens the being's full page, which reads its row: the latest snapshot's sample, or a favourite's kept row.
-      const detailed = (simView.current?.detail?.notable?.beings ?? []).some((b) => b.id === id) || favouriteBeing(id) !== undefined;
-      return {
-        x: rect.left + camera.offX + (d.x + 0.5) * camera.zoom,
-        y: rect.top + camera.offY + (d.y + 0.5) * camera.zoom,
-        name,
-        facts: feedFacts(d),
-        detailed,
-      };
+    locateInfo: (target: InfoTarget): LocatedInfo | null => {
+      const cam = camera;
+      const id = Number(target.id);
+      // Screen point of a tile's centre, in client px (the map host's cached rect plus the view offset).
+      const screenOf = (tx: number, ty: number): { x: number; y: number } =>
+        cam ? { x: hostRect.left + cam.offX + (tx + 0.5) * cam.zoom, y: hostRect.top + cam.offY + (ty + 0.5) * cam.zoom } : { x: 0, y: 0 };
+      const snap = simView.current;
+      if (target.kind === 'being') {
+        const d = liveBeing(id);
+        if (!d || !cam) return null;
+        const speciesId = SPECIES[d.species]?.id;
+        const name = speciesId ? plainName('species', speciesId) : 'Being';
+        // More opens the being's full page, which reads its row: the latest snapshot's sample, or a favourite's kept row.
+        const detailed = (snap?.detail?.notable?.beings ?? []).some((b) => b.id === id) || favouriteBeing(id) !== undefined;
+        return { ...screenOf(d.x, d.y), name, facts: feedFacts(d), detailed };
+      }
+      if (!cam || !snap) return null;
+      if (target.kind === 'hamlet') {
+        // Gone once its index is past the snapshot's hamlets. A hamlet cut from the rows keeps its card, with no More.
+        if (id < 0 || id >= snap.hamletCount) return null;
+        const row = snap.hamlets[id];
+        return {
+          ...screenOf(hamletTile.x, hamletTile.y),
+          name: row?.name ?? `Hamlet ${id + 1}`,
+          facts: row ? hamletFacts(row) : 'Not in the latest realm overview',
+          detailed: row !== undefined,
+        };
+      }
+      if (target.kind === 'building') {
+        // Gone once it is no longer in the map's building list (the list is capped, so a building past the cap is not sampled).
+        const b = snap.mapBuildings?.find((m) => m.id === id);
+        if (!b) return null;
+        const kind = humanize(b.kind);
+        const owner = hamletAtTile(snap.mapTiles, b.x, b.y);
+        const ownerRow = owner >= 0 ? snap.hamlets[owner] : undefined;
+        const facts = ownerRow ? `${kind}, in ${ownerRow.name}` : kind;
+        // More opens the structure's page, which reads its row in the snapshot's notable structures.
+        const detailed = (snap.detail?.notable?.structures ?? []).some((s) => s.id === id);
+        return { ...screenOf(b.x, b.y), name: kind, facts, detailed };
+      }
+      return null;
     },
     followBeing: (id: number) => {
       const d = liveBeing(id);
@@ -1845,10 +1893,14 @@ async function boot(): Promise<void> {
     void saveController.suspend();
   });
 
-  // Keep the camera viewport in step with the map element.
+  // Keep the camera viewport in step with the map element, and the cached host rect.
   new ResizeObserver(() => {
     camera?.resize(renderer.app.screen.width, renderer.app.screen.height);
+    hostRect = host.getBoundingClientRect();
   }).observe(host);
+  window.addEventListener('resize', () => {
+    hostRect = host.getBoundingClientRect();
+  });
 
   // One loop: Pixi's ticker drives rendering, stroke flushing and HUD.
   const onFrame = (ticker: Ticker): void => {
@@ -1979,8 +2031,7 @@ async function boot(): Promise<void> {
         }
       }
       if (tip && cursorScreen) {
-        const rect = host.getBoundingClientRect();
-        worldTip.show(tip, rect.left + cursorScreen.x, rect.top + cursorScreen.y);
+        worldTip.show(tip, hostRect.left + cursorScreen.x, hostRect.top + cursorScreen.y);
       } else {
         worldTip.hide();
       }
@@ -2081,8 +2132,7 @@ async function boot(): Promise<void> {
     tileToScreen: (x: number, y: number) => {
       const cam = camera;
       if (!cam) return null;
-      const rect = host.getBoundingClientRect();
-      return { x: rect.left + cam.offX + (x + 0.5) * cam.zoom, y: rect.top + cam.offY + (y + 0.5) * cam.zoom };
+      return { x: hostRect.left + cam.offX + (x + 0.5) * cam.zoom, y: hostRect.top + cam.offY + (y + 0.5) * cam.zoom };
     },
     query: (x: number, y: number) => client.query(x, y),
     stroke: (x0: number, y0: number, x1: number, y1: number) => client.stroke('raise', 'circle', 5, x0, y0, x1, y1, true),

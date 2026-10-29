@@ -25,11 +25,14 @@ export function newDiscovery(): DiscoveryState {
   return { found: [], seen: [] };
 }
 
-/** Reads a saved state; anything unexpected starts again from nothing. */
+/**
+ * Reads a saved state; anything unexpected starts again from nothing. Only `found` is saved: `seen` is the per-realm memory
+ * of the extinction trigger, so an old save's `seen` (lifetime species) is dropped here, not carried into a new world.
+ */
 export function parseDiscovery(raw: unknown): DiscoveryState {
   const src = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
   const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
-  return { found: strings(src['found']), seen: strings(src['seen']) };
+  return { found: strings(src['found']), seen: [] };
 }
 
 /**

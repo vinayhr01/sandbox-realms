@@ -171,6 +171,36 @@ describe('Atlas', () => {
     expect(document.activeElement).toBe(pill);
   });
 
+  it('Esc clears the info card first, then collapses the expanded sheet to its handle', () => {
+    const handle = document.createElement('button');
+    handle.className = 'sheet-handle';
+    document.body.appendChild(handle);
+    store.sheet.value = 'expanded';
+    store.info.value = { kind: 'being', id: '3' };
+    esc();
+    expect(store.info.value).toBeNull();
+    expect(store.sheet.value).toBe('expanded');
+    esc();
+    expect(store.sheet.value).toBe('collapsed');
+    expect(document.activeElement).toBe(handle);
+    handle.remove();
+  });
+
+  it('Esc from the sheet search field collapses the sheet too', () => {
+    const handle = document.createElement('button');
+    handle.className = 'sheet-handle';
+    const field = document.createElement('input');
+    field.type = 'search';
+    document.body.append(handle, field);
+    store.sheet.value = 'expanded';
+    field.focus();
+    field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(store.sheet.value).toBe('collapsed');
+    expect(document.activeElement).toBe(handle);
+    field.remove();
+    handle.remove();
+  });
+
   it('Esc leaves a native dialog alone when one is open', async () => {
     openAtlas(store, 'world');
     await tick();

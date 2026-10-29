@@ -91,7 +91,8 @@ describe('chipsFor', () => {
 
 describe('parseDiscovery', () => {
   it('keeps the string lists and starts over from anything else', () => {
-    expect(parseDiscovery({ found: ['first-town', 3], seen: ['wolf'] })).toEqual({ found: ['first-town'], seen: ['wolf'] });
+    // `seen` is the per-realm memory: an old save's lifetime species are dropped, not carried into a new world.
+    expect(parseDiscovery({ found: ['first-town', 3], seen: ['wolf'] })).toEqual({ found: ['first-town'], seen: [] });
     expect(parseDiscovery('nonsense')).toEqual({ found: [], seen: [] });
   });
 });

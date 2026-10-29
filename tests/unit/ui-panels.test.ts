@@ -55,10 +55,10 @@ describe('tutorial', () => {
 });
 
 describe('power bar', () => {
-  it('favourites are capped at 12 and unique', () => {
+  it('favourites are capped at 9 (the recent row shows 9) and unique', () => {
     let list: string[] = [];
     for (let k = 0; k < 20; k++) list = favourite(list, `p${k}`);
-    expect(list.length).toBe(12);
+    expect(list.length).toBe(9);
     expect(favourite(list, 'p0')).toEqual(list);
   });
 

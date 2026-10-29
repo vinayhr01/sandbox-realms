@@ -68,6 +68,21 @@ export function isTyping(target: EventTarget | null): boolean {
   return target.isContentEditable === true;
 }
 
+/**
+ * True when the shell's shortcuts and the map pan stand aside for this press: the event was already taken (a tab list's
+ * arrows, a control's own key), or the Atlas or a native dialog is open. Esc is not covered: the Atlas layers take it first.
+ */
+export function shellKeysBlocked(e: KeyboardEvent, atlasOpen: boolean): boolean {
+  if (e.defaultPrevented || atlasOpen) return true;
+  return typeof document !== 'undefined' && document.querySelector('dialog[open]') !== null;
+}
+
+/** Focus in a tab list, a dialog or a text field: its arrows and letters belong there, so the map does not pan. */
+export function panBlocked(target: EventTarget | null): boolean {
+  if (isTyping(target)) return true;
+  return target instanceof Element && target.closest('[role="tablist"], [role="dialog"], dialog, [role="textbox"]') !== null;
+}
+
 /** The calls the shell keys make. main.ts supplies them; each one is the same call a click would make. */
 export interface KeyContext {
   /** The recent row, in order: key 1 is the first entry. */
@@ -96,6 +111,9 @@ export function dispatchKey(e: KeyboardEvent, ctx: KeyContext): boolean {
   const code = e.code;
   // A focused button takes Space as its own click, so Space does not also pause.
   if (code === 'Space' && e.target instanceof HTMLElement && e.target.closest('button, [role="tab"], [role="button"]')) return false;
+  // Toggles ignore auto-repeat, so a held key does not flip them back and forth. Zoom and brush steps repeat on purpose.
+  // This check runs before the digits, so a held 1 does not arm and disarm its power over and over.
+  if (e.repeat && !REPEATABLE.has(code)) return false;
   const digit = /^Digit([1-9])$/.exec(code);
   if (digit) {
     const id = ctx.recent()[Number(digit[1]) - 1];
@@ -103,8 +121,6 @@ export function dispatchKey(e: KeyboardEvent, ctx: KeyContext): boolean {
     ctx.arm(id);
     return true;
   }
-  // Toggles ignore auto-repeat, so a held key does not flip them back and forth. Zoom and brush steps repeat on purpose.
-  if (e.repeat && !REPEATABLE.has(code)) return false;
   switch (code) {
     case 'KeyQ':
       ctx.toggleSheet();

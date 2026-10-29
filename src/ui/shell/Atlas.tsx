@@ -128,7 +128,8 @@ export function feedAtlas(): void {
 /**
  * Document-level Esc, registered once. It runs before the game's own Escape (which disarms a power), and stops the
  * event when it takes it. A native dialog (a confirmation) answers Esc itself, so the Atlas stays out of its way.
- * Layer three clears the info card (UX redesign, spec D); the card itself renders in Task 4.
+ * Layer three clears the info card (UX redesign, spec D). Layer four collapses the expanded power sheet (spec B) and
+ * returns focus to its handle; it also runs from the sheet's search field, which the window handler does not see.
  */
 export function installAtlasKeys(store: UiStore): () => void {
   const onKey = (e: KeyboardEvent): void => {
@@ -140,6 +141,12 @@ export function installAtlasKeys(store: UiStore): () => void {
     }
     if (store.info.value !== null) {
       store.info.value = null;
+      e.stopPropagation();
+      return;
+    }
+    if (store.sheet.value === 'expanded') {
+      store.sheet.value = 'collapsed';
+      document.querySelector<HTMLElement>('.sheet-handle')?.focus();
       e.stopPropagation();
     }
   };

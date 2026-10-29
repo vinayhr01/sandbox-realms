@@ -89,8 +89,11 @@ export interface ShellActions {
   disarm(): void;
   setBrushSize(index: number): void;
   setBrushShape(shape: BrushShape): void;
-  /** Screen point (client px) and plain species name of a live being, or null once it has left the feed. */
-  locateBeing(id: number): { x: number; y: number; name: string } | null;
+  /**
+   * Screen point (client px), plain species name and the feed's key facts of a live being, or null once it has left the
+   * feed. `detailed` is true when its full page can open (it is in the latest snapshot's sample, or a favourite).
+   */
+  locateBeing(id: number): { x: number; y: number; name: string; facts: string; detailed: boolean } | null;
   followBeing(id: number): void;
   possessBeing(id: number): void;
   /** Zooms the map by a factor about the centre of the view. */

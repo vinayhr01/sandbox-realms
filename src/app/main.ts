@@ -17,13 +17,15 @@ import { SaveService } from './saves.ts';
 import { CANNOT_CAPTURE, CANNOT_RESTORE, SaveController, type ActionOutcome, type AutosaveState, type ChronicleSource } from './save-controller.ts';
 import { setDebug } from '../ui/hud.ts';
 import { createStore, pushToast, type ShellActions } from '../ui/shell/store.ts';
-import { dispatchKey, focusSheetSearch, isTyping, type KeyContext } from '../ui/shell/keymap.ts';
+import { dispatchKey, focusSheetSearch, isTyping, panBlocked, shellKeysBlocked, type KeyContext } from '../ui/shell/keymap.ts';
 import { recentRow } from '../ui/shell/powerCatalog.ts';
 import { chipsFor, discoveryToast, evaluate, DISCOVERY_KEY, newDiscovery, parseDiscovery, type DiscoveryState } from '../ui/shell/discovery.ts';
 import { loadPowerPrefs, savePowerPrefs } from '../ui/shell/powerPrefs.ts';
 import { effect } from '@preact/signals';
 import { mountShell, mountToasts } from '../ui/shell/mount.tsx';
 import { closeAtlas, currentAtlasKind, feedAtlas, mountAtlas, showAtlas } from '../ui/shell/Atlas.tsx';
+import { feedFacts } from '../ui/shell/InfoCard.tsx';
+import { favouriteBeing } from '../ui/session-memory.ts';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction } from '../ui/panels/powerBar.ts';
 import { mountPossessPad, possessActionOfCode, type PossessAction } from '../ui/panels/possessControls.ts';
@@ -352,7 +354,10 @@ function saveTutorial(state: TutorialState): void {
   }
 }
 
-/** Lifetime discovery state (src/ui/shell/discovery.ts). A missing or unreadable state starts from nothing. */
+/**
+ * Lifetime discovery state (src/ui/shell/discovery.ts): only the met entries are saved. The seen-species memory is per
+ * realm and in memory (setRealmSide clears it). A missing or unreadable state starts from nothing.
+ */
 function loadDiscovery(): DiscoveryState {
   try {
     const raw = safeStorage()?.getItem(DISCOVERY_KEY);
@@ -364,7 +369,8 @@ function loadDiscovery(): DiscoveryState {
 
 function saveDiscovery(state: DiscoveryState): void {
   try {
-    safeStorage()?.setItem(DISCOVERY_KEY, JSON.stringify(state));
+    // Only the met entries persist; `seen` is per realm and in memory.
+    safeStorage()?.setItem(DISCOVERY_KEY, JSON.stringify({ found: state.found }));
   } catch {
     // Not saved: discoveries are met again on the next visit (old saves meet them at once).
   }
@@ -759,6 +765,11 @@ async function boot(): Promise<void> {
     stepAnchor = null;
     followPending = false;
     followKey = null;
+    // The info card and the effects of the old realm go too: being ids are reused across realms.
+    store.info.value = null;
+    effects.clear();
+    // Extinctions are judged within one realm: the species seen alive in the old one do not count in this one (spec E).
+    discovery = { ...discovery, seen: [] };
     // A new, loaded or respawned realm has new Beings and buildings: the feed of the old one is dropped.
     resetCreatureView(interp, creatures, creatureReset);
     beingCount = 0;
@@ -845,6 +856,8 @@ async function boot(): Promise<void> {
 
   /** Evaluates the discovery triggers on each snapshot: chips come forward, and one card names what was met. */
   const noteDiscoveries = (snap: Snapshot): void => {
+    // While a saved world resumes, the snapshots are the throwaway default world's: they are not judged (no false extinctions).
+    if (resumingWorld) return;
     const next = evaluate(discovery, snap, { counters: snap.counters, sets: {} });
     if (next.state === discovery) return;
     discovery = next.state;
@@ -1134,8 +1147,11 @@ async function boot(): Promise<void> {
       setStatus(`${power.name} is ready in ${cooldownSecondsLeft(now, readyAt)} s.`);
       return;
     }
-    if (power.cooldownMs > 0) cooldownUntil.set(power.id, now + power.cooldownMs);
-    store.cooldowns.value = Object.fromEntries(cooldownUntil);
+    // Only a power that has a cooldown changes the map of cooldowns; publishing for the others re-renders the sheet on every hold tick.
+    if (power.cooldownMs > 0) {
+      cooldownUntil.set(power.id, now + power.cooldownMs);
+      store.cooldowns.value = Object.fromEntries(cooldownUntil);
+    }
     const op = strokeOp(power);
     if (op) client.stroke(op, state.shape, brushRadius(), x, y, x, y, true);
     else client.power(power.id, x, y);
@@ -1641,7 +1657,15 @@ async function boot(): Promise<void> {
       const rect = host.getBoundingClientRect();
       const speciesId = SPECIES[d.species]?.id;
       const name = speciesId ? plainName('species', speciesId) : 'Being';
-      return { x: rect.left + camera.offX + (d.x + 0.5) * camera.zoom, y: rect.top + camera.offY + (d.y + 0.5) * camera.zoom, name };
+      // More opens the being's full page, which reads its row: the latest snapshot's sample, or a favourite's kept row.
+      const detailed = (simView.current?.detail?.notable?.beings ?? []).some((b) => b.id === id) || favouriteBeing(id) !== undefined;
+      return {
+        x: rect.left + camera.offX + (d.x + 0.5) * camera.zoom,
+        y: rect.top + camera.offY + (d.y + 0.5) * camera.zoom,
+        name,
+        facts: feedFacts(d),
+        detailed,
+      };
     },
     followBeing: (id: number) => {
       const d = liveBeing(id);
@@ -1773,8 +1797,9 @@ async function boot(): Promise<void> {
     brushStep: (step: -1 | 1) => setBrushIndex(Math.max(0, Math.min(BRUSH_RADII.length - 1, state.sizeIndex + step))),
   };
   window.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (isTyping(e.target)) return;
-    keysDown.add(e.code);
+    // The Atlas, a native dialog, and any control that already took the key (a tab list's arrows) own it: no shortcut, no pan.
+    if (shellKeysBlocked(e, store.atlas.value.open) || isTyping(e.target)) return;
+    if (!panBlocked(e.target)) keysDown.add(e.code);
     // Possession keys (13 section 10, DECISIONS "Possession controls close 14"): J holds attack, K/L/U/T/Y/N are one-shot
     // abilities. Modifier chords and auto-repeat do not fire them. They do nothing unless a Being is held.
     const control = possessActionOfCode(e.code);

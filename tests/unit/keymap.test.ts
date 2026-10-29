@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { dispatchKey, isTyping, KEYMAP, keyRows, type KeyContext } from '../../src/ui/shell/keymap.ts';
+import { dispatchKey, isTyping, KEYMAP, keyRows, panBlocked, shellKeysBlocked, type KeyContext } from '../../src/ui/shell/keymap.ts';
 
 type Spies = { [K in keyof KeyContext]: ReturnType<typeof vi.fn> };
 
@@ -113,6 +113,63 @@ describe('typing guard', () => {
   it('a map tap target is not typing', () => {
     expect(isTyping(document.body)).toBe(false);
     expect(isTyping(null)).toBe(false);
+  });
+});
+
+describe('auto-repeat and the digits', () => {
+  it('a held digit does not arm its power again on each repeat', () => {
+    const ctx = context(['raise']);
+    expect(dispatchKey(press('Digit1', { repeat: true }), ctx)).toBe(false);
+    expect(ctx.arm).not.toHaveBeenCalled();
+    expect(dispatchKey(press('Digit1'), ctx)).toBe(true);
+    expect(ctx.arm).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('shellKeysBlocked: the Atlas, dialogs and taken keys stand the shortcuts aside', () => {
+  it('blocks every press while the Atlas is open', () => {
+    expect(shellKeysBlocked(press('Digit1'), true)).toBe(true);
+    expect(shellKeysBlocked(press('KeyQ'), true)).toBe(true);
+    expect(shellKeysBlocked(press('KeyW'), true)).toBe(true);
+  });
+
+  it('blocks a press another control already took (preventDefault), and any open native dialog', () => {
+    const taken = new KeyboardEvent('keydown', { code: 'ArrowLeft', cancelable: true });
+    taken.preventDefault();
+    expect(shellKeysBlocked(taken, false)).toBe(true);
+    const dialog = document.createElement('dialog');
+    dialog.setAttribute('open', '');
+    document.body.appendChild(dialog);
+    expect(shellKeysBlocked(press('KeyQ'), false)).toBe(true);
+    dialog.remove();
+  });
+
+  it('lets the shell keys run with nothing open', () => {
+    expect(shellKeysBlocked(press('Digit1'), false)).toBe(false);
+  });
+});
+
+describe('panBlocked: arrows and WASD do not pan while focus is in a tab list, dialog or text field', () => {
+  it('blocks a tab list, a dialog, a textbox and a text field', () => {
+    const tablist = document.createElement('div');
+    tablist.setAttribute('role', 'tablist');
+    const tab = document.createElement('button');
+    tab.setAttribute('role', 'tab');
+    tablist.appendChild(tab);
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    const button = document.createElement('button');
+    dialog.appendChild(button);
+    const box = document.createElement('div');
+    box.setAttribute('role', 'textbox');
+    const input = document.createElement('input');
+    for (const el of [tablist, dialog, box]) document.body.appendChild(el);
+    expect(panBlocked(tab)).toBe(true);
+    expect(panBlocked(button)).toBe(true);
+    expect(panBlocked(box)).toBe(true);
+    expect(panBlocked(input)).toBe(true);
+    expect(panBlocked(document.body)).toBe(false);
+    for (const el of [tablist, dialog, box]) el.remove();
   });
 });
 

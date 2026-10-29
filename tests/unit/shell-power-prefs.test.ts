@@ -32,13 +32,13 @@ describe('power preferences (favourites and recent, persisted)', () => {
     expect(loadPowerPrefs(storage)).toEqual({ favourites: ['sky_rain'], recent: ['fav_vigor'] });
   });
 
-  it('caps the recent row at 9 and favourites at 12', () => {
+  it('caps the recent row at 9 and favourites at 9 (the pins the row can show)', () => {
     const storage = memory();
     const ids = ['sky_rain', 'sky_snow', 'sky_ignite', 'sky_quench', 'sky_warm', 'sky_chill', 'havoc_bomb', 'havoc_bolt', 'fav_vigor', 'fav_ward'];
     storage.setItem(POWER_PREFS_KEY, JSON.stringify({ favourites: ids, recent: ids }));
     const loaded = loadPowerPrefs(storage);
     expect(loaded.recent.length).toBe(9);
-    expect(loaded.favourites.length).toBe(10);
+    expect(loaded.favourites.length).toBe(9);
   });
 
   it('a corrupt or missing value loads as empty lists', () => {

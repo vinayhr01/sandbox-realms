@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><linearGradient id="ins_overlay_ticker-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8783a"/><stop offset="0.5" stop-color="#8a5224"/><stop offset="1" stop-color="#5a3012"/></linearGradient><linearGradient id="ins_overlay_ticker-gl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#eaf8ff"/><stop offset="1" stop-color="#b8e0f4"/></linearGradient><linearGradient id="ins_overlay_ticker-sd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#e0a030"/></linearGradient></defs>
+<path d="M40 24H88Q88 52 68 64Q88 76 88 104H40Q40 76 60 64Q40 52 40 24Z" fill="url(#ins_overlay_ticker-gl)" fill-opacity=".85" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M46 38H82Q78 52 64 62Q50 52 46 38Z" fill="url(#ins_overlay_ticker-sd)"/>
+<path d="M64 62V98" stroke="#e0a030" stroke-width="2.5"/>
+<path d="M42 103Q64 78 86 103Z" fill="url(#ins_overlay_ticker-sd)"/>
+<path d="M46 30Q46 46 56 54" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>
+<rect x="29" y="24" width="7" height="80" rx="3" fill="url(#ins_overlay_ticker-w)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="92" y="24" width="7" height="80" rx="3" fill="url(#ins_overlay_ticker-w)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="22" y="10" width="84" height="14" rx="5" fill="url(#ins_overlay_ticker-w)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="22" y="104" width="84" height="14" rx="5" fill="url(#ins_overlay_ticker-w)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M28 15H100" stroke="#fff" stroke-opacity=".35" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

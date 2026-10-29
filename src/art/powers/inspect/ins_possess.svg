@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><radialGradient id="ins_possess-ball" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#e8d8ff"/><stop offset="0.5" stop-color="#8a5ad8"/><stop offset="1" stop-color="#3a1a7a"/></radialGradient><linearGradient id="ins_possess-st" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c88444"/><stop offset="0.5" stop-color="#8a5224"/><stop offset="1" stop-color="#4a2410"/></linearGradient><radialGradient id="ins_possess-ir" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fff4a8"/><stop offset="0.5" stop-color="#f0a020"/><stop offset="1" stop-color="#b04a10"/></radialGradient><radialGradient id="ins_possess-g" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#c8a8ff" stop-opacity=".85"/><stop offset="1" stop-color="#c8a8ff" stop-opacity="0"/></radialGradient></defs>
+<circle cx="64" cy="56" r="58" fill="url(#ins_possess-g)"/>
+<circle cx="64" cy="56" r="42" fill="url(#ins_possess-ball)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M34 70Q50 86 76 80M40 40Q52 30 70 32" stroke="#e0c8ff" stroke-opacity=".6" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<path d="M38 58Q64 34 90 58Q64 82 38 58Z" fill="#fbf6ff" stroke="#2a1050" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="64" cy="58" r="11" fill="url(#ins_possess-ir)" stroke="#2a1050" stroke-width="2"/>
+<circle cx="64" cy="58" r="4.5" fill="#1a0830"/>
+<circle cx="68" cy="54" r="2" fill="#fff"/>
+<ellipse cx="46" cy="32" rx="10" ry="6" fill="#fff" opacity=".55" transform="rotate(-35 46 32)"/>
+<path d="M36 100Q40 92 50 92H78Q88 92 92 100L100 114H28Z" fill="url(#ins_possess-st)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M38 104H90" stroke="#e8b84a" stroke-width="3"/>
+</svg>

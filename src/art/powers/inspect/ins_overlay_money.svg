@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><linearGradient id="ins_overlay_money-pu" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c88444"/><stop offset="0.5" stop-color="#8a5224"/><stop offset="1" stop-color="#5a3012"/></linearGradient><radialGradient id="ins_overlay_money-c" cx="0.4" cy="0.35" r="0.7"><stop offset="0" stop-color="#fff6b0"/><stop offset="0.5" stop-color="#f2c03a"/><stop offset="1" stop-color="#a86a10"/></radialGradient></defs>
+<path d="M40 52Q16 72 22 98Q28 116 62 116Q96 116 100 98Q106 72 82 52Z" fill="url(#ins_overlay_money-pu)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M44 40Q50 26 62 32Q74 26 80 40Q62 46 44 40Z" fill="url(#ins_overlay_money-pu)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M40 50Q62 42 84 50L82 56Q62 50 42 56Z" fill="#d83a2a" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M32 80Q34 66 46 60" stroke="#fff" stroke-opacity=".4" stroke-width="3" fill="none" stroke-linecap="round"/>
+<circle cx="62" cy="86" r="11" fill="url(#ins_overlay_money-c)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M62 80V92" stroke="#a86a10" stroke-width="2.5" stroke-linecap="round"/>
+<circle cx="88" cy="30" r="10" fill="url(#ins_overlay_money-c)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/><circle cx="88" cy="30" r="5.5" fill="none" stroke="#a86a10" stroke-width="1.5"/><circle cx="106" cy="14" r="8" fill="url(#ins_overlay_money-c)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/><circle cx="106" cy="14" r="4.4" fill="none" stroke="#a86a10" stroke-width="1.5"/><circle cx="114" cy="42" r="7" fill="url(#ins_overlay_money-c)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/><circle cx="114" cy="42" r="3.8500000000000005" fill="none" stroke="#a86a10" stroke-width="1.5"/>
+<path d="M66 30Q72 16 92 10" stroke="#e8b84a" stroke-width="3" stroke-dasharray="4 4" fill="none" stroke-linecap="round"/>
+</svg>

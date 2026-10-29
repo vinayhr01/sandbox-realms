@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><linearGradient id="ins_tips_beings-tg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fdf6e4"/><stop offset="1" stop-color="#e2cfa8"/></linearGradient><linearGradient id="ins_tips_beings-pp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4ab0a0"/><stop offset="1" stop-color="#1e6a60"/></linearGradient></defs>
+<path d="M8 22Q14 12 22 18Q28 24 30 40" stroke="#b02a20" stroke-width="3" fill="none" stroke-linecap="round"/>
+<path d="M44 26H112Q118 26 118 32V108Q118 114 112 114H44L18 70Z" fill="url(#ins_tips_beings-tg)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="34" cy="70" r="6" fill="#fff" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="34" cy="70" r="2" fill="#b02a20"/>
+<circle cx="80" cy="53.3" r="13.299999999999999" fill="url(#ins_tips_beings-pp)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/><path d="M55.3 104.6Q55.3 70.4 80 70.4Q104.7 70.4 104.7 104.6Z" fill="url(#ins_tips_beings-pp)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M48 30H108" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+<path d="M110 32V100" stroke="#b8a070" stroke-width="2" stroke-dasharray="4 4"/>
+</svg>

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><linearGradient id="ins_mark_armies-w" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b8783a"/><stop offset="0.5" stop-color="#8a5224"/><stop offset="1" stop-color="#5a3012"/></linearGradient><linearGradient id="ins_mark_armies-f" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e0503a"/><stop offset="0.5" stop-color="#b02a20"/><stop offset="1" stop-color="#6e1410"/></linearGradient><linearGradient id="ins_mark_armies-gd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0a8"/><stop offset="0.5" stop-color="#e8b84a"/><stop offset="1" stop-color="#9a6614"/></linearGradient></defs>
+<rect x="24" y="16" width="9" height="104" rx="3" fill="url(#ins_mark_armies-w)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M28.5 2L36 16H21Z" fill="url(#ins_mark_armies-gd)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M33 20Q62 12 110 22L96 46L112 72Q70 64 33 78Z" fill="url(#ins_mark_armies-f)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M33 66Q66 56 104 64" stroke="#3a1f10" stroke-width="1.5" fill="none" opacity=".35"/>
+<path d="M58 32H82V48Q82 60 70 64Q58 60 58 48Z" fill="url(#ins_mark_armies-gd)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M70 36V58M62 44H78" stroke="#8a1c14" stroke-width="3" stroke-linecap="round"/>
+<path d="M38 26Q60 19 92 24" stroke="#fff" stroke-opacity=".4" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

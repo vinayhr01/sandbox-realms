@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><linearGradient id="ins_mark_boats-hl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8783a"/><stop offset="0.5" stop-color="#8a5224"/><stop offset="1" stop-color="#5a3012"/></linearGradient><linearGradient id="ins_mark_boats-sl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#f0e4c8"/><stop offset="1" stop-color="#cdb88a"/></linearGradient><linearGradient id="ins_mark_boats-wv" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cc4e8"/><stop offset="1" stop-color="#2c6a9a"/></linearGradient></defs>
+<rect x="61" y="10" width="6" height="80" rx="2" fill="#7a4218" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M67 12L82 18L67 24Z" fill="#d83a2a" stroke="#3a1f10" stroke-width="2" stroke-linejoin="round"/>
+<path d="M70 26Q100 48 108 80H70Z" fill="url(#ins_mark_boats-sl)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M58 30V80H24Q38 54 58 30Z" fill="url(#ins_mark_boats-sl)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M80 50Q92 60 98 74" stroke="#cdb88a" stroke-width="2" fill="none"/>
+<path d="M12 82H116Q106 106 82 106H46Q22 106 12 82Z" fill="url(#ins_mark_boats-hl)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M20 90H108" stroke="#e8b84a" stroke-width="3"/>
+<path d="M4 110Q14 102 24 110T44 110T64 110T84 110T104 110T124 110V124H4Z" fill="url(#ins_mark_boats-wv)" stroke="#1a4a7a" stroke-width="2" stroke-linejoin="round"/>
+</svg>

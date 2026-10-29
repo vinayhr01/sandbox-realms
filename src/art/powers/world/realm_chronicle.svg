@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="realm_chronicle-feather" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#e8e0d0"/><stop offset="1" stop-color="#b8a888"/></linearGradient>
+<linearGradient id="realm_chronicle-jar" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3a4a72"/><stop offset=".35" stop-color="#5a74b0"/><stop offset="1" stop-color="#1c2440"/></linearGradient>
+<linearGradient id="realm_chronicle-brass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe49a"/><stop offset="1" stop-color="#b07a20"/></linearGradient>
+</defs>
+<path d="M60 76 C62 46 82 20 114 8 C108 34 88 60 64 76 Z" fill="url(#realm_chronicle-feather)" stroke="#5a4a32" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M58 82 Q84 44 114 8" stroke="#7a5a34" stroke-width="2" fill="none"/>
+<path d="M70 58 L78 60 M76 48 L86 50 M84 38 L94 38 M92 28 L102 26 M66 62 L64 52 M74 50 L70 40 M84 36 L82 26" stroke="#9a8a6a" stroke-width="1.4" opacity=".7"/>
+<path d="M30 88 Q30 76 42 74 H82 Q94 76 94 88 V104 Q94 114 82 114 H42 Q30 114 30 104 Z" fill="url(#realm_chronicle-jar)" stroke="#121830" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="46" y="64" width="32" height="12" rx="3" fill="url(#realm_chronicle-brass)" stroke="#5a3608" stroke-width="2.2"/>
+<path d="M38 86 Q38 80 44 80" stroke="#c8d8ff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/>
+<path d="M50 96 Q60 90 70 96 Q80 102 86 96" stroke="#8aa0d8" stroke-width="2" fill="none" opacity=".5"/>
+</svg>

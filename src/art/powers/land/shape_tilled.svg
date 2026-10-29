@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="shape_tilled-soil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a6a42"/><stop offset="1" stop-color="#5e3a20"/></linearGradient>
+<linearGradient id="shape_tilled-crop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8e070"/><stop offset="1" stop-color="#6aa83a"/></linearGradient>
+<linearGradient id="shape_tilled-wheat" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe58a"/><stop offset="1" stop-color="#d89a2a"/></linearGradient>
+</defs>
+<path d="M6 114 L32 50 H96 L122 114 Z" fill="url(#shape_tilled-soil)" stroke="#3a2010" stroke-width="2.5" stroke-linejoin="round"/>
+<g fill="url(#shape_tilled-crop)" stroke="#2e5018" stroke-width="1.6" stroke-linejoin="round">
+<path d="M14 112 L37 52 H42 L26 112 Z"/>
+<path d="M38 112 L49 52 H54 L50 112 Z"/>
+<path d="M58 112 L61 52 H67 L70 112 Z"/>
+<path d="M78 112 L74 52 H79 L90 112 Z"/>
+<path d="M102 112 L86 52 H91 L114 112 Z"/>
+</g>
+<path d="M32 50 H96" stroke="#3a2010" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M64 46 V18" stroke="#b07a1e" stroke-width="2.4" stroke-linecap="round"/>
+<g fill="url(#shape_tilled-wheat)" stroke="#8a5a10" stroke-width="1.4">
+<ellipse cx="64" cy="14" rx="3.6" ry="6"/>
+<ellipse cx="58" cy="22" rx="3.4" ry="5.6" transform="rotate(-30 58 22)"/>
+<ellipse cx="70" cy="22" rx="3.4" ry="5.6" transform="rotate(30 70 22)"/>
+<ellipse cx="58" cy="32" rx="3.4" ry="5.6" transform="rotate(-30 58 32)"/>
+<ellipse cx="70" cy="32" rx="3.4" ry="5.6" transform="rotate(30 70 32)"/>
+</g>
+</svg>

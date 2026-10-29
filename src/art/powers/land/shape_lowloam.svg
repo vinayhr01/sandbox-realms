@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="shape_lowloam-mound" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b4e07a"/><stop offset="1" stop-color="#5f9a3c"/></linearGradient>
+<linearGradient id="shape_lowloam-blade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8f08a"/><stop offset=".5" stop-color="#6cb244"/><stop offset="1" stop-color="#3e7a26"/></linearGradient>
+<radialGradient id="shape_lowloam-bud" cx=".4" cy=".4" r=".6"><stop offset="0" stop-color="#fff3a0"/><stop offset="1" stop-color="#f0a820"/></radialGradient>
+</defs>
+<path d="M6 112 Q20 82 64 80 Q108 82 122 112 Z" fill="url(#shape_lowloam-mound)" stroke="#36581e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M30 90 Q50 84 70 86" stroke="#e4ffb8" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".7"/>
+<path d="M28 98 Q28 72 18 52 Q34 66 40 86 Q40 56 34 30 Q50 52 52 84 Q56 48 64 18 Q70 50 66 84 Q74 54 92 36 Q82 62 78 88 Q86 70 104 60 Q92 78 90 98 Z" fill="url(#shape_lowloam-blade)" stroke="#2c4e18" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M52 82 Q56 56 62 34 M68 82 Q74 62 86 46" stroke="#e4ffb8" stroke-width="1.6" fill="none" opacity=".6"/>
+<path d="M100 98 Q100 82 104 70" stroke="#3e7a26" stroke-width="2.4" fill="none"/>
+<g fill="#fff" stroke="#8a6a3a" stroke-width="1.2">
+<ellipse cx="104" cy="60" rx="4" ry="7"/><ellipse cx="104" cy="76" rx="4" ry="7"/>
+<ellipse cx="96" cy="68" rx="7" ry="4"/><ellipse cx="112" cy="68" rx="7" ry="4"/>
+</g>
+<circle cx="104" cy="68" r="5" fill="url(#shape_lowloam-bud)" stroke="#8a5a10" stroke-width="1.2"/>
+<g fill="#ffd84a" stroke="#8a5a10" stroke-width="1"><circle cx="20" cy="104" r="3"/><circle cx="114" cy="106" r="2.5"/></g>
+</svg>

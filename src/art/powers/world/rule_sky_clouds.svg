@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="rule_sky_clouds-sun" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff6c0"/><stop offset=".6" stop-color="#ffc840"/><stop offset="1" stop-color="#f08a20"/></radialGradient>
+<linearGradient id="rule_sky_clouds-cloud" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#dfe8f6"/><stop offset="1" stop-color="#a8b8d2"/></linearGradient>
+</defs>
+<path d="M88 8 V18 M88 66 V72 M58 38 H66 M112 38 H120 M66 16 L72 22 M110 16 L104 22 M110 60 L104 54" stroke="#f0a020" stroke-width="4" stroke-linecap="round"/>
+<circle cx="88" cy="38" r="20" fill="url(#rule_sky_clouds-sun)" stroke="#a85a10" stroke-width="2.4"/>
+<path d="M22 102 A18 18 0 0 1 22 66 A24 24 0 0 1 66 54 A22 22 0 0 1 104 70 A16 16 0 0 1 106 102 Z" fill="url(#rule_sky_clouds-cloud)" stroke="#4f5f7c" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M30 74 Q36 64 48 64 M70 62 Q82 60 90 70" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round" opacity=".9"/>
+<path d="M30 94 Q60 100 98 94" stroke="#8a9ab8" stroke-width="2" fill="none" stroke-linecap="round" opacity=".6"/>
+</svg>

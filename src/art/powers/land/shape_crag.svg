@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="shape_crag-lit" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c4b6a2"/><stop offset="1" stop-color="#8a7a66"/></linearGradient>
+<linearGradient id="shape_crag-shade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6e6052"/><stop offset="1" stop-color="#463a30"/></linearGradient>
+<linearGradient id="shape_crag-boulder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a89a88"/><stop offset="1" stop-color="#5e5246"/></linearGradient>
+</defs>
+<path d="M8 112 L28 80 L36 84 L50 46 L58 54 L68 20 L80 42 L88 38 L102 74 L110 70 L120 112 Z" fill="url(#shape_crag-lit)" stroke="#2e241c" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M68 20 L80 42 L88 38 L102 74 L110 70 L120 112 H72 L76 84 L66 70 L72 50 Z" fill="url(#shape_crag-shade)"/>
+<path d="M8 112 L28 80 L36 84 L50 46 L58 54 L68 20 L80 42 L88 38 L102 74 L110 70 L120 112 Z" fill="none" stroke="#2e241c" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M50 46 L46 66 L54 76 M36 84 L40 98 M88 38 L84 58 M58 54 L60 68" stroke="#2e241c" stroke-width="1.6" fill="none" opacity=".55" stroke-linejoin="round"/>
+<path d="M66 26 L60 44 M48 52 L42 66" stroke="#f0e6d6" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+<path d="M16 112 Q18 98 30 98 Q42 98 42 112 Z" fill="url(#shape_crag-boulder)" stroke="#2e241c" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M92 112 Q94 102 102 102 Q110 102 110 112 Z" fill="url(#shape_crag-boulder)" stroke="#2e241c" stroke-width="2" stroke-linejoin="round"/>
+<path d="M8 112 H120" stroke="#2e241c" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

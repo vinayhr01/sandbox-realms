@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="shape_lower-grass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a6d470"/><stop offset="1" stop-color="#5f9a3c"/></linearGradient>
+<linearGradient id="shape_lower-soil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b08458"/><stop offset="1" stop-color="#5a3a24"/></linearGradient>
+<linearGradient id="shape_lower-pit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3e281c"/><stop offset="1" stop-color="#7a5638"/></linearGradient>
+<linearGradient id="shape_lower-arrow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d6efff"/><stop offset="1" stop-color="#4a8fd6"/></linearGradient>
+</defs>
+<path d="M8 64 H42 Q52 66 55 80 Q64 106 73 80 Q76 66 86 64 H120 V114 H8 Z" fill="url(#shape_lower-soil)" stroke="#3a2416" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M53 74 Q64 108 75 74 Q64 84 53 74 Z" fill="url(#shape_lower-pit)" stroke="#3a2416" stroke-width="1.5"/>
+<path d="M14 84 Q30 80 44 86 M86 88 Q100 82 114 86 M18 100 Q40 96 58 102 Q80 108 110 100" stroke="#3a2416" stroke-width="1.5" fill="none" opacity=".45"/>
+<circle cx="28" cy="94" r="3" fill="#8a6a50" stroke="#3a2416" stroke-width="1"/>
+<circle cx="98" cy="96" r="2.5" fill="#8a6a50" stroke="#3a2416" stroke-width="1"/>
+<path d="M8 58 H40 Q50 58 55 74 Q48 68 40 68 H8 Z" fill="url(#shape_lower-grass)" stroke="#3a5f22" stroke-width="2" stroke-linejoin="round"/>
+<path d="M120 58 H88 Q78 58 73 74 Q80 68 88 68 H120 Z" fill="url(#shape_lower-grass)" stroke="#3a5f22" stroke-width="2" stroke-linejoin="round"/>
+<path d="M56 12 H72 V32 H84 L64 56 L44 32 H56 Z" fill="url(#shape_lower-arrow)" stroke="#1f4f86" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M60 16 V32" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".7"/>
+</svg>

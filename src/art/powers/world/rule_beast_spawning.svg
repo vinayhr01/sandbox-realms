@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="rule_beast_spawning-shell" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset=".6" stop-color="#f0e2c4"/><stop offset="1" stop-color="#c8ae84"/></linearGradient>
+<radialGradient id="rule_beast_spawning-baby" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#ffd890"/><stop offset="1" stop-color="#e08a3a"/></radialGradient>
+</defs>
+<circle cx="64" cy="64" r="22" fill="url(#rule_beast_spawning-baby)" stroke="#6a3a14" stroke-width="2.2"/>
+<path d="M48 48 L44 38 L54 44 Z M80 48 L84 38 L74 44 Z" fill="url(#rule_beast_spawning-baby)" stroke="#6a3a14" stroke-width="2" stroke-linejoin="round"/>
+<circle cx="56" cy="60" r="4.5" fill="#2a1a10"/><circle cx="72" cy="60" r="4.5" fill="#2a1a10"/>
+<circle cx="57.5" cy="58.5" r="1.6" fill="#fff"/><circle cx="73.5" cy="58.5" r="1.6" fill="#fff"/>
+<path d="M60 68 Q64 72 68 68" stroke="#6a3a14" stroke-width="2" fill="none" stroke-linecap="round"/>
+<path d="M28 74 L36 64 L44 74 L52 62 L60 72 L68 62 L76 72 L84 62 L92 74 L100 66 C102 96 88 116 64 116 C40 116 26 98 28 74 Z" fill="url(#rule_beast_spawning-shell)" stroke="#6a4a24" stroke-width="2.5" stroke-linejoin="round"/>
+<g fill="#c8a070" opacity=".7"><ellipse cx="46" cy="92" rx="3.5" ry="2.5"/><ellipse cx="78" cy="100" rx="4" ry="2.6"/><ellipse cx="86" cy="84" rx="2.6" ry="2"/><ellipse cx="58" cy="106" rx="2.4" ry="1.8"/></g>
+<path d="M36 84 Q36 98 46 106" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/>
+<path d="M36 34 Q48 6 76 14 L72 22 L66 18 L62 28 L54 22 L48 32 Z" fill="url(#rule_beast_spawning-shell)" stroke="#6a4a24" stroke-width="2.2" stroke-linejoin="round" transform="rotate(-14 56 22)"/>
+<g fill="#ffe27a" stroke="#c08a1a" stroke-width="1.2">
+<path d="M104 30 l2 6 6 2 -6 2 -2 6 -2 -6 -6 -2 6 -2Z"/>
+<path d="M18 52 l1.6 4.4 4.4 1.6 -4.4 1.6 -1.6 4.4 -1.6 -4.4 -4.4 -1.6 4.4 -1.6Z"/>
+</g>
+</svg>

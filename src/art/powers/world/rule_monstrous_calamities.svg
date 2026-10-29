@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="rule_monstrous_calamities-skin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a87ad8"/><stop offset=".6" stop-color="#7a4ab0"/><stop offset="1" stop-color="#4e2878"/></linearGradient>
+<linearGradient id="rule_monstrous_calamities-horn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6e0"/><stop offset="1" stop-color="#c8a878"/></linearGradient>
+<radialGradient id="rule_monstrous_calamities-eye" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff8a0"/><stop offset="1" stop-color="#f0a020"/></radialGradient>
+</defs>
+<g fill="url(#rule_monstrous_calamities-horn)" stroke="#4a3018" stroke-width="2.2" stroke-linejoin="round">
+<path d="M36 46 Q14 34 16 8 Q28 28 50 36 Z"/>
+<path d="M92 46 Q114 34 112 8 Q100 28 78 36 Z"/>
+</g>
+<path d="M22 72 Q20 32 64 30 Q108 32 106 72 Q106 108 64 112 Q22 108 22 72 Z" fill="url(#rule_monstrous_calamities-skin)" stroke="#2a1040" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M40 40 Q52 34 62 36" stroke="#d8b8ff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".6"/>
+<path d="M32 56 L56 62 M96 56 L72 62" stroke="#2a1040" stroke-width="4.5" stroke-linecap="round"/>
+<ellipse cx="46" cy="68" rx="10" ry="7" fill="url(#rule_monstrous_calamities-eye)" stroke="#2a1040" stroke-width="2"/>
+<ellipse cx="82" cy="68" rx="10" ry="7" fill="url(#rule_monstrous_calamities-eye)" stroke="#2a1040" stroke-width="2"/>
+<path d="M46 62 V74 M82 62 V74" stroke="#1a0a10" stroke-width="3" stroke-linecap="round"/>
+<path d="M36 84 Q64 94 92 84 Q88 106 64 106 Q40 106 36 84 Z" fill="#3a0e20" stroke="#2a1040" stroke-width="2.2" stroke-linejoin="round"/>
+<g fill="#fffaf0" stroke="#4a3018" stroke-width="1.4" stroke-linejoin="round">
+<path d="M44 87 L48 99 L53 89 Z"/>
+<path d="M84 87 L80 99 L75 89 Z"/>
+<path d="M58 104 L62 96 L66 104 Z"/>
+</g>
+</svg>

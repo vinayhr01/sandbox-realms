@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="realm_ages-stone" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6ddcc"/><stop offset="1" stop-color="#a89c88"/></linearGradient>
+<linearGradient id="realm_ages-side" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9a8e7a"/><stop offset=".5" stop-color="#c4b8a2"/><stop offset="1" stop-color="#6e6454"/></linearGradient>
+<linearGradient id="realm_ages-bronze" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0c070"/><stop offset="1" stop-color="#9a5a1e"/></linearGradient>
+<radialGradient id="realm_ages-sun" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff6c0"/><stop offset=".6" stop-color="#ffc840"/><stop offset="1" stop-color="#f08a20"/></radialGradient>
+</defs>
+<circle cx="104" cy="22" r="11" fill="url(#realm_ages-sun)" stroke="#a85a10" stroke-width="2"/>
+<path d="M104 4 V8 M120 22 H124 M116 10 L119 7 M88 10 L91 13" stroke="#f0a020" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M50 116 H78 L72 82 H56 Z" fill="url(#realm_ages-side)" stroke="#3e3428" stroke-width="2.4" stroke-linejoin="round"/>
+<rect x="42" y="110" width="44" height="8" rx="3" fill="url(#realm_ages-side)" stroke="#3e3428" stroke-width="2.2"/>
+<path d="M14 70 V78 Q64 104 114 78 V70 Z" fill="url(#realm_ages-side)" stroke="#3e3428" stroke-width="2.4" stroke-linejoin="round"/>
+<ellipse cx="64" cy="70" rx="50" ry="20" fill="url(#realm_ages-stone)" stroke="#3e3428" stroke-width="2.5"/>
+<ellipse cx="64" cy="70" rx="40" ry="14" fill="none" stroke="#6e6454" stroke-width="1.5" opacity=".6"/>
+<path d="M24 70 H30 M98 70 H104 M64 56 V60 M64 80 V84 M36 60 L40 62 M92 60 L88 62 M36 80 L40 78 M92 80 L88 78" stroke="#3e3428" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M64 70 L34 76" stroke="#3e3428" stroke-width="5" stroke-linecap="round" opacity=".35"/>
+<path d="M52 72 L80 72 L56 30 Z" fill="url(#realm_ages-bronze)" stroke="#4a2a0c" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M58 40 L60 66" stroke="#ffe0a0" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+</svg>

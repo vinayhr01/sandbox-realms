@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="fav_ward-glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#8fd0ff" stop-opacity="0.75"/><stop offset="1" stop-color="#8fd0ff" stop-opacity="0"/></radialGradient>
+<linearGradient id="fav_ward-face" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#6cb4f0"/><stop offset="0.55" stop-color="#2f6fbe"/><stop offset="1" stop-color="#1c3f80"/></linearGradient>
+<linearGradient id="fav_ward-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0a8"/><stop offset="1" stop-color="#d08e1e"/></linearGradient>
+</defs>
+<circle cx="64" cy="62" r="62" fill="url(#fav_ward-glow)"/>
+<path d="M64 10C80 19 96 21 108 21C108 66 94 98 64 118C34 98 20 66 20 21C32 21 48 19 64 10Z" fill="url(#fav_ward-gold)" stroke="#6a3a10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M64 20C77 27 89 29 99 29C98 66 86 90 64 107C42 90 30 66 29 29C39 29 51 27 64 20Z" fill="url(#fav_ward-face)" stroke="#6a3a10" stroke-width="2"/>
+<path d="M58 36H70V54H86V66H70V92H58V66H42V54H58Z" fill="url(#fav_ward-gold)" stroke="#6a3a10" stroke-width="2" stroke-linejoin="round"/>
+<path d="M34 34C40 33 50 31 58 27C50 36 42 56 40 72C36 60 34 46 34 34Z" fill="#fff" opacity=".35"/>
+</svg>

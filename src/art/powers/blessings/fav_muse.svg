@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="fav_muse-glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffd76a" stop-opacity="0.75"/><stop offset="1" stop-color="#ffd76a" stop-opacity="0"/></radialGradient>
+<linearGradient id="fav_muse-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff2b0"/><stop offset="0.5" stop-color="#f0bb3c"/><stop offset="1" stop-color="#b0701a"/></linearGradient>
+<linearGradient id="fav_muse-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b77442"/><stop offset="1" stop-color="#6e3a18"/></linearGradient>
+</defs>
+<circle cx="64" cy="62" r="60" fill="url(#fav_muse-glow)"/>
+<g stroke="#fff4d0" stroke-width="1.8"><path d="M52 44V100M60 44V103M68 44V103M76 44V100"/></g>
+<path d="M30 24C20 22 20 36 30 38C40 42 38 60 40 80C42 96 52 104 64 104C76 104 86 96 88 80C90 60 88 42 98 38C108 36 108 22 98 24" fill="none" stroke="#6a3a10" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M30 24C20 22 20 36 30 38C40 42 38 60 40 80C42 96 52 104 64 104C76 104 86 96 88 80C90 60 88 42 98 38C108 36 108 22 98 24" fill="none" stroke="url(#fav_muse-gold)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M36 34Q40 46 40 62" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".6"/>
+<rect x="30" y="38" width="68" height="9" rx="4.5" fill="url(#fav_muse-wood)" stroke="#4a2408" stroke-width="2.2"/>
+<rect x="46" y="100" width="36" height="14" rx="5" fill="url(#fav_muse-wood)" stroke="#4a2408" stroke-width="2.2"/>
+<g fill="#8a4ad0" stroke="#3a1a5e" stroke-width="1.8"><ellipse cx="110" cy="64" rx="6" ry="4.5" transform="rotate(-20 110 64)"/><path d="M115 62V42Q120 46 122 50" fill="none" stroke-linecap="round"/></g>
+<g fill="#fff6c4" stroke="#e0a22a" stroke-width="1.2" stroke-linejoin="round"><path d="M14 56l1.8 4.2 4.2 1.8 -4.2 1.8 -1.8 4.2 -1.8 -4.2 -4.2 -1.8 4.2 -1.8Z"/><path d="M64 4l1.8 4.2 4.2 1.8 -4.2 1.8 -1.8 4.2 -1.8 -4.2 -4.2 -1.8 4.2 -1.8Z"/></g>
+</svg>

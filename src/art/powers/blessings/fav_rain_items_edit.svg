@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="fav_rain_items_edit-glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffd78a" stop-opacity="0.75"/><stop offset="1" stop-color="#ffd78a" stop-opacity="0"/></radialGradient>
+<linearGradient id="fav_rain_items_edit-paper" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff8e6"/><stop offset="1" stop-color="#e2cc98"/></linearGradient>
+<linearGradient id="fav_rain_items_edit-roll" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e8d2a0"/><stop offset="0.5" stop-color="#fff6dc"/><stop offset="1" stop-color="#b89a5e"/></linearGradient>
+<linearGradient id="fav_rain_items_edit-quill" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c8c0e8"/></linearGradient>
+</defs>
+<circle cx="64" cy="64" r="60" fill="url(#fav_rain_items_edit-glow)"/>
+<rect x="26" y="20" width="66" height="88" rx="2" fill="url(#fav_rain_items_edit-paper)" stroke="#6a4a20" stroke-width="2.5"/>
+<rect x="20" y="12" width="78" height="14" rx="7" fill="url(#fav_rain_items_edit-roll)" stroke="#6a4a20" stroke-width="2.5"/>
+<rect x="20" y="102" width="78" height="14" rx="7" fill="url(#fav_rain_items_edit-roll)" stroke="#6a4a20" stroke-width="2.5"/>
+<g stroke="#6a4a20" stroke-width="2"><rect x="34" y="36" width="9" height="9" rx="2" fill="#ff8a5a"/><rect x="34" y="56" width="9" height="9" rx="2" fill="#7ad0ff"/><rect x="34" y="76" width="9" height="9" rx="2" fill="#9ae07a"/></g>
+<path d="M50 41H80M50 61H76M50 81H72" stroke="#8a7a5a" stroke-width="3" stroke-linecap="round"/>
+<path d="M120 10C104 14 88 30 80 52L76 64L84 58C100 50 116 30 120 10Z" fill="url(#fav_rain_items_edit-quill)" stroke="#3a2e5a" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M118 14L80 60" stroke="#3a2e5a" stroke-width="1.6"/>
+<path d="M80 60L72 76" stroke="#2a2030" stroke-width="3" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="fav_wake-glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#b8f06a" stop-opacity="0.75"/><stop offset="1" stop-color="#b8f06a" stop-opacity="0"/></radialGradient>
+<linearGradient id="fav_wake-leaf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c6f07a"/><stop offset="0.6" stop-color="#5aae3a"/><stop offset="1" stop-color="#2e6e22"/></linearGradient>
+<linearGradient id="fav_wake-soil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9a6a42"/><stop offset="1" stop-color="#4e3018"/></linearGradient>
+</defs>
+<circle cx="64" cy="60" r="60" fill="url(#fav_wake-glow)"/>
+<path d="M64 104C62 86 60 66 64 50" fill="none" stroke="#24561a" stroke-width="9" stroke-linecap="round"/>
+<path d="M64 104C62 86 60 66 64 50" fill="none" stroke="#6ab840" stroke-width="5" stroke-linecap="round"/>
+<path d="M62 62C50 66 30 64 22 46C34 36 56 40 62 62Z" fill="url(#fav_wake-leaf)" stroke="#1e4a14" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M65 52C70 36 88 22 108 26C106 44 88 56 65 52Z" fill="url(#fav_wake-leaf)" stroke="#1e4a14" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M60 60Q42 54 28 47M68 50Q86 38 102 30" fill="none" stroke="#1e4a14" stroke-width="1.6" stroke-linecap="round" opacity=".6"/>
+<path d="M64 50C60 42 64 34 70 32C70 40 68 46 64 50Z" fill="#a6e05a" stroke="#1e4a14" stroke-width="2" stroke-linejoin="round"/>
+<path d="M14 116C20 98 44 94 64 96C84 94 108 98 114 116Z" fill="url(#fav_wake-soil)" stroke="#3a200c" stroke-width="2.5" stroke-linejoin="round"/>
+<g fill="#3a200c" opacity=".5"><circle cx="40" cy="106" r="2"/><circle cx="86" cy="104" r="2"/><circle cx="64" cy="110" r="1.6"/></g>
+<g fill="none" stroke="#fff6a0" stroke-width="2.5" stroke-linecap="round"><path d="M28 24q-4 6 -2 12M100 64q6 4 8 10M34 80q-8 0 -12 -6"/></g>
+</svg>

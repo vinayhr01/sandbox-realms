@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="fav_slumber-glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#7a8aff" stop-opacity="0.75"/><stop offset="1" stop-color="#7a8aff" stop-opacity="0"/></radialGradient>
+<linearGradient id="fav_slumber-m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff6d0"/><stop offset="0.6" stop-color="#f6d86a"/><stop offset="1" stop-color="#d8a030"/></linearGradient>
+</defs>
+<circle cx="60" cy="64" r="60" fill="url(#fav_slumber-glow)"/>
+<path d="M76 16A48 48 0 1 0 110 92A44 44 0 0 1 76 16Z" fill="url(#fav_slumber-m)" stroke="#6a4210" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M38 64Q44 70 50 64" fill="none" stroke="#6a4210" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="42" cy="76" r="4" fill="#ff9a8a" opacity=".6"/>
+<path d="M40 34Q30 46 30 60" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+<g fill="none" stroke="#3a3a7a" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"><path d="M84 16H100L84 32H100M104 40H114L104 50H114"/></g>
+<g fill="none" stroke="#e8ecff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M84 16H100L84 32H100M104 40H114L104 50H114"/></g>
+<g fill="#f4f6ff" stroke="#7a8ad8" stroke-width="1.2" stroke-linejoin="round"><path d="M112 107l1.5 3.5 3.5 1.5 -3.5 1.5 -1.5 3.5 -1.5 -3.5 -3.5 -1.5 3.5 -1.5Z"/><path d="M18 15l1.5 3.5 3.5 1.5 -3.5 1.5 -1.5 3.5 -1.5 -3.5 -3.5 -1.5 3.5 -1.5Z"/></g>
+</svg>

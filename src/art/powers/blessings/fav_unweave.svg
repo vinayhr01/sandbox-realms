@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="fav_unweave-glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#c070ff" stop-opacity="0.75"/><stop offset="1" stop-color="#c070ff" stop-opacity="0"/></radialGradient>
+<radialGradient id="fav_unweave-y" cx="0.38" cy="0.35" r="0.65"><stop offset="0" stop-color="#f0b8ff"/><stop offset="0.6" stop-color="#b052d8"/><stop offset="1" stop-color="#6a1e8a"/></radialGradient>
+</defs>
+<circle cx="60" cy="60" r="60" fill="url(#fav_unweave-glow)"/>
+<path d="M82 88C96 96 88 108 100 112C110 115 112 106 120 110" fill="none" stroke="#3e0e52" stroke-width="7" stroke-linecap="round"/>
+<path d="M82 88C96 96 88 108 100 112C110 115 112 106 120 110" fill="none" stroke="#c870ea" stroke-width="3.5" stroke-linecap="round"/>
+<circle cx="56" cy="58" r="40" fill="url(#fav_unweave-y)" stroke="#3e0e52" stroke-width="2.5"/>
+<g fill="none" stroke="#4e1268" stroke-width="2" stroke-linecap="round" opacity=".75"><path d="M20 48Q56 26 92 44M17 62Q56 40 95 60M22 80Q58 56 94 76M32 92Q60 74 86 90"/><path d="M38 22Q62 56 42 94M60 18Q84 54 70 98"/></g>
+<ellipse cx="40" cy="38" rx="9" ry="5" transform="rotate(-30 40 38)" fill="#fff" opacity=".45"/>
+<g fill="#f6e0ff" stroke="#9a40c8" stroke-width="1"><circle cx="108" cy="92" r="2.5"/><circle cx="114" cy="80" r="2"/><circle cx="104" cy="122" r="2"/></g>
+<g fill="#f6e0ff" stroke="#9a40c8" stroke-width="1.2" stroke-linejoin="round"><path d="M108 19l2.1 4.9 4.9 2.1 -4.9 2.1 -2.1 4.9 -2.1 -4.9 -4.9 -2.1 4.9 -2.1Z"/></g>
+</svg>

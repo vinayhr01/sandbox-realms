@@ -5,6 +5,9 @@
 import type { PowerDef } from '../../content/powers.ts';
 import { chipOf, type ChipId } from './powerCatalog.ts';
 
+/** The glyph of a power with no chip (World powers). */
+const FALLBACK_PATH = 'M5 5 H19 V19 H5 Z';
+
 const CHIP_PATH: Readonly<Record<ChipId, string>> = {
   land: 'M2 20 L9 8 L13 14 L16 10 L22 20 Z',
   nature: 'M12 3 C17 7 18 12 12 21 C6 12 7 7 12 3 Z M12 21 V11',
@@ -14,7 +17,6 @@ const CHIP_PATH: Readonly<Record<ChipId, string>> = {
   blessings: 'M12 2 L14 9 L21 12 L14 15 L12 22 L10 15 L3 12 L10 9 Z',
   peoples: 'M3 11 L12 4 L21 11 M5 10 V20 H19 V10',
   inspect: 'M10 4 A6 6 0 1 0 10 16 A6 6 0 1 0 10 4 Z M15 15 L21 21',
-  windows: 'M4 4 H10 V10 H4 Z M14 4 H20 V10 H14 Z M4 14 H10 V20 H4 Z M14 14 H20 V20 H14 Z',
 };
 
 const POWER_PATH: Readonly<Record<string, string>> = {
@@ -37,7 +39,7 @@ export function glyphPath(power: PowerDef): string {
   if (override) return override;
   if (power.tab === 'shape') return GROUND_PATH;
   const chip = chipOf(power);
-  return CHIP_PATH[chip ?? 'windows'];
+  return chip === null ? FALLBACK_PATH : CHIP_PATH[chip];
 }
 
 /** The icon of a power without creature art: a line glyph in currentColor. */

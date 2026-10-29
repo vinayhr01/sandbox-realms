@@ -9,7 +9,7 @@ import type { BrushShape } from '../../shared/protocol.ts';
 import { POWER_BY_ID, type PowerDef } from '../../content/powers.ts';
 import { artFor, chunkOf, loadArt, type ArtChunk } from '../../art/load.ts';
 import { favourite, unfavourite } from '../panels/powerBar.ts';
-import { CHIP_IDS, CHIP_LABELS, WINDOW_LAUNCHERS, groupsOf, recentRow, searchPowers, type ChipId } from './powerCatalog.ts';
+import { CHIP_IDS, CHIP_LABELS, groupsOf, recentRow, searchPowers, type ChipId } from './powerCatalog.ts';
 import { PowerGlyph } from './glyphs.tsx';
 import type { ShellActions, UiStore } from './store.ts';
 import './PowerSheet.css';
@@ -19,8 +19,8 @@ const artVersion = signal(0);
 
 /** Holding a power this long pins or unpins it as a favourite (ms). */
 const LONG_PRESS_MS = 500;
-/** Chips in the order the More list shows them: the temporary Windows chip comes last. */
-const ALL_CHIPS: readonly ChipId[] = [...CHIP_IDS, 'windows'];
+/** Chips in the order the More list shows them. */
+const ALL_CHIPS: readonly ChipId[] = CHIP_IDS;
 const SHAPES: ReadonlyArray<{ id: BrushShape; label: string }> = [
   { id: 'circle', label: 'Circle' },
   { id: 'square', label: 'Square' },
@@ -357,19 +357,6 @@ export function PowerSheet({ store, actions }: { store: UiStore; actions: ShellA
               </h3>
               <div class="power-grid" role="group" aria-label="Search results">
                 {results.map(button)}
-              </div>
-            </section>
-          ) : activeChip === 'windows' ? (
-            <section class="power-group">
-              <h3 class="group-head">
-                Windows <span class="count">{WINDOW_LAUNCHERS.length}</span>
-              </h3>
-              <div class="window-grid" role="group" aria-label="Windows">
-                {WINDOW_LAUNCHERS.map(([name, windowId]) => (
-                  <button key={windowId} type="button" class="window-btn" aria-haspopup="dialog" data-window={windowId} onClick={() => actions.openWindow(windowId)}>
-                    {name}
-                  </button>
-                ))}
               </div>
             </section>
           ) : (

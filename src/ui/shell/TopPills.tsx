@@ -1,5 +1,6 @@
 /** The two floating pills over the top of the map: realm (opens the Atlas) and speed (pause and speeds). */
 import type { UiStore, ShellActions } from './store.ts';
+import { openAtlas } from './Atlas.tsx';
 import type { Speed } from '../../shared/protocol.ts';
 
 interface SpeedChoice {
@@ -29,9 +30,7 @@ export function TopPills({ store, actions }: { store: UiStore; actions: ShellAct
         class="pill realm-pill"
         aria-haspopup="dialog"
         aria-label={`Realm ${realm.name}, open Atlas`}
-        onClick={() => {
-          store.atlas.value = { ...store.atlas.value, open: true, tab: 'world' };
-        }}
+        onClick={() => openAtlas(store, 'world')}
       >
         <span id="realm-name" class="realm-name">
           {realm.name}

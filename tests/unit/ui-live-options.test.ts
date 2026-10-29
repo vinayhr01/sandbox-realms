@@ -13,8 +13,8 @@ describe('live options (13 section 15)', () => {
     // 72 spec 13 rows, three audio options from spec 16 (audio.mono, audio.visualCues, audio.reduceLoud), and three
     // Insight options (map.layer, map.layerMode, marks.armyLines). Counted from options.ts: 58 rows set live
     // (Settings close 4 flipped ui.happinessIcons, ui.taskIcons and privacy.errorReports from 55).
-    expect(SETTINGS.length).toBe(78);
-    expect(SETTINGS.filter((s) => s.live).length).toBe(58);
+    expect(SETTINGS.length).toBe(79);
+    expect(SETTINGS.filter((s) => s.live).length).toBe(59);
   });
 
   it('a live toggle changes its value and leaves the rest alone', () => {

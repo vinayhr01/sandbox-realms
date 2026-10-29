@@ -7,11 +7,11 @@ import { POWERS, POWER_BY_ID, type PowerDef } from '../../content/powers.ts';
 import { chunkOf, type ArtChunk } from '../../art/load.ts';
 import type { UiStore } from './store.ts';
 
-/** Chips in the sheet. 'windows' is temporary: it lists the old window launchers until the Atlas takes them (Task 3). */
-export type ChipId = 'land' | 'nature' | 'creatures' | 'weather' | 'disasters' | 'blessings' | 'peoples' | 'inspect' | 'windows';
+/** Chips in the sheet. The window launchers live in the Atlas (UX redesign, spec C), not here. */
+export type ChipId = 'land' | 'nature' | 'creatures' | 'weather' | 'disasters' | 'blessings' | 'peoples' | 'inspect';
 
-/** The chips the sheet shows (the temporary 'windows' chip is handled separately). */
-export const CHIP_IDS: readonly Exclude<ChipId, 'windows'>[] = ['land', 'nature', 'creatures', 'weather', 'disasters', 'blessings', 'peoples', 'inspect'];
+/** The chips the sheet shows, in order. */
+export const CHIP_IDS: readonly ChipId[] = ['land', 'nature', 'creatures', 'weather', 'disasters', 'blessings', 'peoples', 'inspect'];
 
 export const CHIP_LABELS: Readonly<Record<ChipId, string>> = {
   land: 'Land',
@@ -22,7 +22,6 @@ export const CHIP_LABELS: Readonly<Record<ChipId, string>> = {
   blessings: 'Blessings',
   peoples: 'Peoples',
   inspect: 'Inspect',
-  windows: 'Windows',
 };
 
 export interface PowerGroup {
@@ -93,7 +92,7 @@ function categoryOf(power: PowerDef): string {
 }
 
 /** Sub-groups of a non-creature chip. Each rule takes the powers its test accepts; the last rule takes the rest. */
-const GROUP_RULES: Readonly<Record<Exclude<ChipId, 'windows' | 'creatures'>, ReadonlyArray<readonly [string, (p: PowerDef) => boolean]>>> = {
+const GROUP_RULES: Readonly<Record<Exclude<ChipId, 'creatures'>, ReadonlyArray<readonly [string, (p: PowerDef) => boolean]>>> = {
   land: [
     ['Tools', (p) => p.id === 'ins_inspect' || p.id === 'shape_raise' || p.id === 'shape_lower'],
     ['Ground', () => true],
@@ -149,7 +148,6 @@ function slug(label: string): string {
 
 /** The sub-groups of a chip, in sheet order. Every power of the chip is in exactly one group; empty groups are left out. */
 export function groupsOf(chip: ChipId): PowerGroup[] {
-  if (chip === 'windows') return [];
   const inChip = POWERS.filter((p) => chipOf(p) === chip);
   if (chip === 'creatures') {
     return CHUNK_GROUPS.map(([id, label]) => ({
@@ -183,59 +181,3 @@ export function searchPowers(query: string): PowerDef[] {
   if (q === '') return [];
   return POWERS.filter((p) => p.name.toLowerCase().includes(q) || categoryOf(p).toLowerCase().includes(q));
 }
-
-/**
- * The temporary Windows chip (call 8): the old window launchers, with the names they had as buttons. The 46 nav buttons
- * come first; Realm Rules and Ages were World-tab powers with no nav button, and stay reachable here until Task 3 moves
- * every window into the Atlas.
- */
-export const WINDOW_LAUNCHERS: ReadonlyArray<readonly [name: string, windowId: string]> = [
-  ['All powers', 'win_power_catalogue'],
-  ['Achievements', 'win_trophies'],
-  ['Realm overview', 'win_realm'],
-  ['New realm', 'win_new_realm'],
-  ['Tutorial', 'win_tutorial'],
-  ['Keys', 'win_keys'],
-  ['Privacy', 'win_privacy'],
-  ['Chronicle', 'win_chronicle'],
-  ['Help', 'win_help'],
-  ['Population', 'win_population'],
-  ['Beings', 'win_beings'],
-  ['Figures', 'win_figures'],
-  ['Lifetime stats', 'win_stats_lifetime'],
-  ['Codex', 'list_codex'],
-  ['Dominions', 'list_dominions'],
-  ['Hamlets', 'list_hamlets'],
-  ['Culture', 'win_culture'],
-  ['Campaigns', 'list_campaigns'],
-  ['Creeds', 'list_creeds'],
-  ['Customs', 'list_customs'],
-  ['Dialects', 'list_dialects'],
-  ['Families', 'list_households'],
-  ['Intrigues', 'list_intrigues'],
-  ['Strains', 'list_strains'],
-  ['Brushes', 'win_brushes'],
-  ['Language', 'win_language'],
-  ['Credits', 'win_credits'],
-  ['Install', 'win_install'],
-  ['Welcome', 'win_welcome'],
-  ['Armies', 'list_hosts'],
-  ['Pacts', 'list_pacts'],
-  ['Clans', 'list_kinbands'],
-  ['Favourite beings', 'list_fav_beings'],
-  ['Favourite items', 'list_fav_items'],
-  ['Compare', 'win_compare'],
-  ['Annals', 'win_annals'],
-  ['Trait rain', 'win_trait_rain_edit'],
-  ['Item rain', 'win_item_rain_edit'],
-  ['Trait editor', 'win_trait_editor'],
-  ['Gear editor', 'win_gear_editor'],
-  ['Patch notes', 'win_patch_notes'],
-  ['Error details', 'win_error'],
-  ['Leave realm', 'win_confirm_quit'],
-  ['Update', 'win_update'],
-  ['Developer console', 'win_dev_console'],
-  ['Developer tools', 'win_dev_tools'],
-  ['Realm Rules', 'win_rules'],
-  ['Ages', 'win_ages'],
-];

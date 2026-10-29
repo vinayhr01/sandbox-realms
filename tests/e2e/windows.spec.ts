@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openChip, openWindowButton, powerButton } from './helpers.ts';
+import { openAtlasTab, openChip, openWindowButton, powerButton } from './helpers.ts';
 
 /**
  * Windows and the first-run tutorial (13 section 7, 15, 17): the Realm Rules toggles reach the sim,
@@ -68,7 +68,7 @@ test('Achievements: the catalogue lists all 63 and search narrows it', async ({ 
 
 test('Settings: the spec groups show and a setting that is not active yet says so', async ({ page }) => {
   await openRealm(page);
-  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await openAtlasTab(page, 'Settings');
   const dialog = page.getByRole('dialog', { name: 'Settings' });
   await expect(dialog.getByRole('group')).toHaveCount(11);
   await expect(dialog.getByRole('group', { name: 'Map' })).toBeVisible();
@@ -99,7 +99,7 @@ test('Tutorial: the coach strip follows the steps, and skipping keeps it hidden 
 
 test('All powers: the catalogue filters to available powers and a tap arms one', async ({ page }) => {
   await openRealm(page);
-  await openWindowButton(page, 'All powers');
+  await openWindowButton(page, 'Power catalogue');
   const dialog = page.getByRole('dialog', { name: 'Power catalogue' });
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: 'Available', exact: true }).click();

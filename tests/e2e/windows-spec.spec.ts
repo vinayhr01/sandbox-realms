@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openWindowButton } from './helpers.ts';
+import { openConfirmation, openWindowButton } from './helpers.ts';
 
 /**
  * Windows added for the spec table (13 section 7.1): each opens from the Powers tab's Windows group
@@ -20,7 +20,7 @@ const WINDOWS: ReadonlyArray<[button: string, title: string]> = [
   ['Trait editor', 'Trait editor'],
   ['Gear editor', 'Gear editor'],
   ['Patch notes', 'Patch notes'],
-  ['Error details', 'Error'],
+  ['Error', 'Error'],
   ['Leave realm', 'Leave realm'],
   ['Update', 'Update'],
   ['Developer console', 'Developer console'],
@@ -33,11 +33,10 @@ async function openRealm(page: Page, options?: Record<string, boolean>): Promise
   page.on('console', (msg) => {
     if (msg.type() === 'error') errors.push(msg.text());
   });
-  if (options) {
-    await page.addInitScript((value) => {
-      window.localStorage.setItem('settings', JSON.stringify(value));
-    }, options);
-  }
+  // The developer windows are listed in Settings only while Show developer tools is on, so every run of this spec turns it on.
+  await page.addInitScript((value) => {
+    window.localStorage.setItem('settings', JSON.stringify(value));
+  }, { 'ui.devTools': true, ...options });
   await page.goto('/?seed=42&size=4');
   await page.waitForFunction(() => Boolean((window as unknown as { __sr?: unknown }).__sr));
   await expect(page.locator('#realm-name')).toContainText('Realm');
@@ -45,6 +44,11 @@ async function openRealm(page: Page, options?: Record<string, boolean>): Promise
 }
 
 async function openFromPowers(page: Page, name: string): Promise<void> {
+  // Leave realm is a confirmation: it has no Atlas section, so it opens through the window hook.
+  if (name === 'Leave realm') {
+    await openConfirmation(page, 'win_confirm_quit');
+    return;
+  }
   await openWindowButton(page, name);
 }
 
@@ -154,7 +158,7 @@ test('the quit window keeps saving and leaving disabled, and the error window co
   await expect(quit.getByRole('button', { name: 'Leave without saving', exact: true })).toBeDisabled();
   await quit.getByRole('button', { name: 'Keep playing', exact: true }).click();
   await expect(quit).toBeHidden();
-  await openFromPowers(page, 'Error details');
+  await openFromPowers(page, 'Error');
   const error = page.getByRole('dialog', { name: 'Error', exact: true });
   await expect(error.getByRole('button', { name: 'Copy details', exact: true })).toBeVisible();
   await expect(error.getByRole('button', { name: 'Send report', exact: true })).toBeDisabled();

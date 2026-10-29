@@ -237,24 +237,6 @@
   opacity: 0.6;
 }
 
-.window-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  gap: var(--space-2);
-}
-
-.window-btn {
-  min-height: var(--tap);
-  padding: 0 var(--space-2);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-m);
-  background: rgba(127, 127, 127, 0.12);
-  color: inherit;
-  font: inherit;
-  font-size: var(--text-s);
-  cursor: pointer;
-}
-
 .power-grid,
 .recent-items {
   display: grid;

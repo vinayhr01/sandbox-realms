@@ -37,7 +37,7 @@ describe('settings table', () => {
   it('covers the spec options: 72 rows, 3 audio rows and 3 Insight rows; 7 spec mark toggles plus marks.armyLines (13 section 15)', () => {
     // 72 spec 13 rows, three audio options from spec 16 (audio.mono, audio.visualCues, audio.reduceLoud), and three
     // Insight options (map.layer, map.layerMode, marks.armyLines). The marks group holds the 7 spec toggles and armyLines.
-    expect(SETTINGS.length).toBe(78);
+    expect(SETTINGS.length).toBe(79);
     expect(SETTINGS.filter((s) => s.id.startsWith('marks.')).length).toBe(8);
   });
 

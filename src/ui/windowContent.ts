@@ -10,7 +10,8 @@ import type { BrushShape, Command, Snapshot } from '../shared/protocol.ts';
 import { buildList } from './listView.ts';
 import { detailWindowFor } from './detailWindows.ts';
 import { staticWindowFor } from './staticWindows.ts';
-import { GROUP_LABELS, SETTINGS, boolOption, choiceLabel, resetGroup, type OptionGroup, type OptionValue, type Options, type SettingDef } from './panels/options.ts';
+import { boolOption, type OptionValue, type Options } from './panels/options.ts';
+import { mountSettingRows, mountSettings } from './shell/SettingsPanel.tsx';
 import { TUTORIAL_TEXT, TUTORIAL_STEPS, type TutorialState } from './panels/tutorial.ts';
 import { powerStatus } from './powerSupport.ts';
 import { snapshotWindowFor } from './snapshotWindows.ts';
@@ -119,106 +120,10 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, t
 /** Experimental rules (13 section 15, game.experimentalRules). */
 const EXPERIMENTAL_RULES: ReadonlySet<string> = new Set(['uplift_beasts', 'chaotic_minds', 'open_knowledge']);
 
-/** One settings control. Bool is a checkbox, int a range with its value shown, choice a select. */
-function settingControl(def: SettingDef, value: OptionValue, onChange: (v: OptionValue) => void): HTMLElement {
-  const note = def.live ? '' : ' (saved; not active yet)';
-  if (def.kind === 'bool') {
-    const row = el('label', 'option option-check');
-    const input = el('input');
-    input.type = 'checkbox';
-    input.checked = value === true;
-    input.addEventListener('change', () => onChange(input.checked));
-    row.append(input, el('span', undefined, def.label + note));
-    return row;
-  }
-  if (def.kind === 'int') {
-    const wrap = el('div', 'option');
-    const head = el('span', undefined, def.label);
-    const out = el('output', undefined, String(value));
-    const input = el('input');
-    input.type = 'range';
-    input.min = String(def.min ?? 0);
-    input.max = String(def.max ?? 100);
-    input.step = String(((def.max ?? 100) - (def.min ?? 0)) >= 50 ? 5 : 1);
-    input.value = String(value);
-    input.setAttribute('aria-label', def.label);
-    input.addEventListener('input', () => {
-      out.textContent = input.value;
-      onChange(Number(input.value));
-    });
-    head.append(' ', out);
-    if (note) head.append(el('span', 'option-note', note));
-    wrap.append(head, input);
-    return wrap;
-  }
-  const wrap = el('label', 'option');
-  const label = el('span', undefined, def.label);
-  if (note) label.append(el('span', 'option-note', note));
-  const select = el('select');
-  for (const choice of def.choices ?? []) {
-    const opt = el('option', undefined, choice === 0 && def.id === 'ui.fpsCap' ? 'display rate' : choiceLabel(def.id, choice));
-    opt.value = String(choice);
-    opt.selected = choice === value;
-    select.append(opt);
-  }
-  select.addEventListener('change', () => {
-    const picked = (def.choices ?? []).find((c) => String(c) === select.value);
-    if (picked !== undefined) onChange(picked);
-  });
-  wrap.append(label, select);
-  return wrap;
-}
-
-/** Settings controls. `ids` limits the list to some settings; otherwise every group is shown with a reset. */
-function settingsBody(body: HTMLElement, deps: WindowDeps, ids?: readonly string[], redraw?: () => void): void {
-  const apply = (id: string, value: OptionValue): void => deps.setOption(id, value);
-  if (ids) {
-    for (const s of SETTINGS.filter((x) => ids.includes(x.id))) {
-      body.append(settingControl(s, deps.options()[s.id] ?? s.def, (v) => apply(s.id, v)));
-    }
-    return;
-  }
-  for (const group of Object.keys(GROUP_LABELS) as OptionGroup[]) {
-    const fieldset = el('fieldset', 'settings-group');
-    fieldset.append(el('legend', undefined, GROUP_LABELS[group]));
-    for (const s of SETTINGS.filter((x) => x.group === group)) {
-      fieldset.append(settingControl(s, deps.options()[s.id] ?? s.def, (v) => apply(s.id, v)));
-    }
-    const reset = el('button', 'btn', `Reset ${GROUP_LABELS[group]}`);
-    reset.type = 'button';
-    reset.addEventListener('click', () => {
-      const next = resetGroup(deps.options(), group);
-      for (const s of SETTINGS) if (s.group === group) deps.setOption(s.id, next[s.id] ?? s.def);
-      redraw?.();
-    });
-    fieldset.append(reset);
-    body.append(fieldset);
-  }
-}
-
 function buildSettings(deps: WindowDeps): WindowBuild {
   return {
     title: windowTitle('win_settings'),
-    build: (body) => {
-      const groups = el('div', 'settings-groups');
-      const redraw = (): void => {
-        groups.replaceChildren();
-        settingsBody(groups, deps, undefined, redraw);
-      };
-      redraw();
-      body.append(groups);
-      const resetAll = el('button', 'btn', 'Reset all settings');
-      resetAll.type = 'button';
-      resetAll.addEventListener('click', () => {
-        for (const s of SETTINGS) deps.setOption(s.id, s.def);
-        redraw();
-      });
-      body.append(resetAll);
-      const done = el('button', 'btn primary', 'Done');
-      done.type = 'button';
-      done.addEventListener('click', () => deps.close());
-      body.append(done);
-    },
+    build: (body) => mountSettings(body, deps),
   };
 }
 
@@ -396,7 +301,7 @@ function buildPrivacy(deps: WindowDeps): WindowBuild {
           'Usage data is off. Crash reports stay on this device. This build has no report server, so nothing is sent. Ask every time shows a preview first.',
         ),
       );
-      settingsBody(body, deps, ['privacy.telemetry', 'privacy.errorReports']);
+      mountSettingRows(body, deps, ['privacy.telemetry', 'privacy.errorReports']);
     },
   };
 }

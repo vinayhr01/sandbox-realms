@@ -40,6 +40,12 @@ export interface InfoTarget {
   id: string;
 }
 
+/** One page open in the Atlas: the window kind and its parameters. */
+export interface AtlasPage {
+  kind: string;
+  params: WindowParams;
+}
+
 export interface UiStore {
   realm: Signal<RealmSummary>;
   speed: Signal<Speed>;
@@ -51,7 +57,7 @@ export interface UiStore {
   favourites: Signal<string[]>;
   discovered: Signal<string[]>;
   sheet: Signal<'collapsed' | 'expanded'>;
-  atlas: Signal<{ open: boolean; tab: AtlasTab; stack: string[] }>;
+  atlas: Signal<{ open: boolean; tab: AtlasTab; stack: AtlasPage[] }>;
   info: Signal<InfoTarget | null>;
   cooldowns: Signal<Record<string, number>>;
   /** Ids of powers that show a pressed state (an Insight toggle that is on). The armed power is in `armed`. */
@@ -83,7 +89,7 @@ export function createStore(): UiStore {
     favourites: signal<string[]>([]),
     discovered: signal<string[]>(['land', 'nature', 'creatures']),
     sheet: signal<'collapsed' | 'expanded'>('collapsed'),
-    atlas: signal({ open: false, tab: 'world' as AtlasTab, stack: [] as string[] }),
+    atlas: signal({ open: false, tab: 'world' as AtlasTab, stack: [] as AtlasPage[] }),
     info: signal<InfoTarget | null>(null),
     cooldowns: signal<Record<string, number>>({}),
     pressed: signal<string[]>([]),

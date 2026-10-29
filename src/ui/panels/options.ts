@@ -137,6 +137,8 @@ export const SETTINGS: readonly SettingDef[] = [
   C('privacy.errorReports', 'privacy', 'Crash reports', ['ask', 'always', 'never'], 'ask', true),
   // Developer
   B('dev.enabled', 'dev', 'Developer tools', false, true),
+  // Lists the developer windows in the Atlas Settings tab (UX redesign, spec C). The windows still gate on dev.enabled.
+  B('ui.devTools', 'dev', 'Show developer tools', false, true),
 ];
 
 export const SETTING_BY_ID = new Map(SETTINGS.map((s) => [s.id, s]));

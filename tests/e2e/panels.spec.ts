@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { collapsePowerSheet, openChip, openPowerSheet, powerButton } from './helpers.ts';
+import { collapsePowerSheet, openAtlasTab, openChip, openPowerSheet, powerButton } from './helpers.ts';
 
 /**
  * Options panel and power bar: the settings dialog persists UI scale and reduce motion, and arming
@@ -47,7 +47,7 @@ test('options: UI scale and reduce motion apply and persist across reload', asyn
   const dialog = page.getByRole('dialog', { name: 'Settings' });
   await expect(dialog).toBeHidden();
 
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await openAtlasTab(page, 'Settings');
   await expect(dialog).toBeVisible();
 
   // Range input: the arrow key steps by 5 (100 to 105) and fires the input event.
@@ -69,7 +69,7 @@ test('options: UI scale and reduce motion apply and persist across reload', asyn
   await expect.poll(() => uiScale(page)).toBe('1.05');
   await expect(page.locator('html')).toHaveAttribute('data-reduce-motion', '');
 
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await openAtlasTab(page, 'Settings');
   await expect(page.getByRole('slider', { name: /UI scale/ })).toHaveValue('105');
   await expect(page.getByRole('checkbox', { name: 'Reduce motion' })).toBeChecked();
 });

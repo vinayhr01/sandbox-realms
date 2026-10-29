@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openPowerSheet } from './helpers.ts';
+import { openPowerSheet, openWindowButton } from './helpers.ts';
 
 /**
  * The bottom power sheet (UX redesign, spec B): the starter chips, search arming a power, and the expanded sheet staying
@@ -67,14 +67,18 @@ for (const viewport of [
   });
 }
 
-test('no horizontal overflow at 1920x1080 with the sheet expanded and the Windows chip open', async ({ page }) => {
+test('no horizontal overflow at 1920x1080 with the sheet expanded, then with the Atlas open', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await openRealm(page);
   await openPowerSheet(page);
   await page.getByRole('button', { name: /^More/ }).click();
-  await page.getByRole('tab', { name: 'Windows', exact: true }).click();
+  await page.getByRole('tab', { name: 'Peoples', exact: true }).click();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   const sheet = await page.locator('.power-sheet').boundingBox();
   expect(sheet?.width ?? 0).toBeLessThanOrEqual(720);
+
+  await openWindowButton(page, 'Dominions');
+  const atlasOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(atlasOverflow).toBeLessThanOrEqual(1);
 });

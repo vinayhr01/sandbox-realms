@@ -18,6 +18,7 @@ import { createStore, pushToast, type ShellActions } from '../ui/shell/store.ts'
 import { loadPowerPrefs, savePowerPrefs } from '../ui/shell/powerPrefs.ts';
 import { effect } from '@preact/signals';
 import { mountShell, mountToasts } from '../ui/shell/mount.tsx';
+import { closeAtlas, currentAtlasKind, feedAtlas, mountAtlas, showAtlas } from '../ui/shell/Atlas.tsx';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction } from '../ui/panels/powerBar.ts';
 import { mountPossessPad, possessActionOfCode, type PossessAction } from '../ui/panels/possessControls.ts';
@@ -1106,14 +1107,14 @@ async function boot(): Promise<void> {
   const brushOp = (): BrushOp | null => strokeOp(state.armed);
 
   // Windows: one dialog, filled by windowContent. Settings, rules, ages, and the rest open from here.
+  // The window host routes each kind (atlasRoutes): confirmations open the modal dialog, the rest open in the Atlas.
   const openWindow = (id: string, params: WindowParams = {}): void => {
     crumb('WINDOW_OPEN', id);
-    const build = windowFor(id, windowDeps, params);
+    const build = windowHost.open(id, params);
     if (!build) {
       setStatus('That window is not available yet.');
       return;
     }
-    windowHost.open(id, build.title, build.build, build.live);
     playCue(CUE.windowOpen);
     // A live window asks for a snapshot now, so it has numbers while the sim is paused.
     if (build.live) client.requestSnapshot();
@@ -1219,14 +1220,26 @@ async function boot(): Promise<void> {
         openWindow('win_tutorial');
       },
     }),
-    close: () => windowHost.close(),
+    // Done buttons close whatever is open: a confirmation, else the Atlas.
+    close: () => {
+      if (windowHost.current !== null) windowHost.close();
+      else closeAtlas(store);
+    },
   };
 
-  const windowHost = new WindowHost($<HTMLDialogElement>('window'), $('window-title'), $('window-body'));
+  const windowHost = new WindowHost(
+    $<HTMLDialogElement>('window'),
+    $('window-title'),
+    $('window-body'),
+    {
+      build: (kind, params) => windowFor(kind, windowDeps, params),
+      toAtlas: (kind, params) => showAtlas(store, kind, params),
+    },
+  );
   // What the autosave timer and the pause and hide saves need to know about the UI right now.
   const autosaveState = (): AutosaveState => ({
     dirty: simTick !== savedTick,
-    modalOpen: windowHost.current !== null,
+    modalOpen: windowHost.current !== null || store.atlas.value.open,
     gestureActive: stroke !== null,
     degradeLevel: 0,
   });
@@ -1235,6 +1248,7 @@ async function boot(): Promise<void> {
     // The O07 feed reads each snapshot once as it arrives (in memory only, src/ui/historyTicker.ts).
     if (simView.current) historyFeed.push(simView.current);
     windowHost.feed();
+    feedAtlas();
   });
 
   /**
@@ -1558,6 +1572,7 @@ async function boot(): Promise<void> {
     setBrushShape: (shape: BrushShape) => setShape(shape),
   };
   mountShell($('ui-root'), store, shellActions);
+  mountAtlas($('atlas-root'), store, shellActions, windowDeps);
   mountToasts($('toast-root'), store);
   // Edge pan needs a hover position that is current: it clears when the pointer leaves the map or
   // when a press starts (a drag moves the camera by itself).
@@ -1890,7 +1905,9 @@ async function boot(): Promise<void> {
       applySpeed();
     },
     commands: () => [...client.sentKinds],
-    openWindow: () => windowHost.current,
+    openWindow: () => currentAtlasKind(store) ?? windowHost.current,
+    /** Opens a window kind as a player action would. The e2e tests use it for confirmations, which have no Atlas section. */
+    showWindow: (kind: string) => openWindow(kind),
     snapshot: () => simView.current,
     creatureCount: () => creatures.drawnCount(),
     /** Dot sprites shown by the latest draw (the far-zoom level). */

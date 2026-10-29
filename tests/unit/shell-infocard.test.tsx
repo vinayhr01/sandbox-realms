@@ -43,24 +43,30 @@ describe('InfoCard', () => {
   it('renders nothing without a target', async () => {
     render(<InfoCard store={store} actions={actions as unknown as ShellActions} />, host);
     await settle();
-    expect(host.querySelector('.info-card')).toBeNull();
+    await vi.waitFor(() => {
+      expect(host.querySelector('.info-card')).toBeNull();
+    });
   });
 
   it('shows the plain species name and the Follow, Possess and More actions', async () => {
     store.info.value = { kind: 'being', id: '7' };
     render(<InfoCard store={store} actions={actions as unknown as ShellActions} />, host);
     await settle();
-    expect(host.querySelector('.info-card-name')?.textContent).toContain('Burrfleece');
-    expect(buttonNamed(host, 'Follow')).toBeTruthy();
-    expect(buttonNamed(host, 'Possess')).toBeTruthy();
-    expect(buttonNamed(host, 'More')).toBeTruthy();
+    await vi.waitFor(() => {
+      expect(host.querySelector('.info-card-name')?.textContent).toContain('Burrfleece');
+      expect(buttonNamed(host, 'Follow')).toBeTruthy();
+      expect(buttonNamed(host, 'Possess')).toBeTruthy();
+      expect(buttonNamed(host, 'More')).toBeTruthy();
+    });
   });
 
   it('shows the feed key facts of the being', async () => {
     store.info.value = { kind: 'being', id: '7' };
     render(<InfoCard store={store} actions={actions as unknown as ShellActions} />, host);
     await settle();
-    expect(host.querySelector('.info-card-facts')?.textContent).toBe('Adult, Walking');
+    await vi.waitFor(() => {
+      expect(host.querySelector('.info-card-facts')?.textContent).toBe('Adult, Walking');
+    });
   });
 
   it('More is off for a being the latest snapshot does not sample, and does not open its page', async () => {
@@ -96,18 +102,23 @@ describe('InfoCard', () => {
     store.info.value = { kind: 'being', id: '9' };
     render(<InfoCard store={store} actions={actions as unknown as ShellActions} />, host);
     await settle();
-    expect(host.querySelector('.info-card-gone')).not.toBeNull();
-    expect(host.textContent).toContain('Gone');
-    expect(host.querySelector('.info-card-actions')).toBeNull();
+    await vi.waitFor(() => {
+      expect(host.querySelector('.info-card-gone')).not.toBeNull();
+      expect(host.textContent).toContain('Gone');
+      expect(host.querySelector('.info-card-actions')).toBeNull();
+    });
   });
 
   it('stops the frame loop once the target is gone', async () => {
     locateInfo.mockReturnValue(null);
     store.info.value = { kind: 'being', id: '9' };
     render(<InfoCard store={store} actions={actions as unknown as ShellActions} />, host);
-    await settle();
+    await vi.waitFor(() => {
+      expect(host.querySelector('.info-card-gone')).not.toBeNull();
+    });
     const calls = locateInfo.mock.calls.length;
     expect(calls).toBeGreaterThan(0);
+    await settle();
     await settle();
     expect(locateInfo.mock.calls.length).toBe(calls);
   });
@@ -125,10 +136,12 @@ describe('InfoCard', () => {
     store.info.value = { kind: 'hamlet', id: '2' };
     render(<InfoCard store={store} actions={actions as unknown as ShellActions} />, host);
     await settle();
-    expect(host.querySelector('.info-card-name')?.textContent).toContain('Riverside');
-    expect(host.querySelector('.info-card-facts')?.textContent).toBe('Town, 40 folk');
-    expect(locateInfo).toHaveBeenCalledWith({ kind: 'hamlet', id: '2' });
-    expect([...host.querySelectorAll('button')].map((b) => b.textContent?.trim())).not.toContain('Follow');
+    await vi.waitFor(() => {
+      expect(host.querySelector('.info-card-name')?.textContent).toContain('Riverside');
+      expect(host.querySelector('.info-card-facts')?.textContent).toBe('Town, 40 folk');
+      expect(locateInfo).toHaveBeenCalledWith({ kind: 'hamlet', id: '2' });
+      expect([...host.querySelectorAll('button')].map((b) => b.textContent?.trim())).not.toContain('Follow');
+    });
     buttonNamed(host, 'More').click();
     expect(actions.openWindow).toHaveBeenCalledWith('win_hamlet', { id: 2 });
   });
@@ -138,8 +151,10 @@ describe('InfoCard', () => {
     store.info.value = { kind: 'building', id: '3077' };
     render(<InfoCard store={store} actions={actions as unknown as ShellActions} />, host);
     await settle();
-    expect(host.querySelector('.info-card-facts')?.textContent).toBe('House, in Riverside');
-    expect(host.querySelector('.info-card-actions .btn')?.textContent).toBe('More');
+    await vi.waitFor(() => {
+      expect(host.querySelector('.info-card-facts')?.textContent).toBe('House, in Riverside');
+      expect(host.querySelector('.info-card-actions .btn')?.textContent).toBe('More');
+    });
     buttonNamed(host, 'More').click();
     expect(actions.openWindow).toHaveBeenCalledWith('win_structure', { id: 3077 });
   });
@@ -149,7 +164,9 @@ describe('InfoCard', () => {
     store.info.value = { kind: 'hamlet', id: '5' };
     render(<InfoCard store={store} actions={actions as unknown as ShellActions} />, host);
     await settle();
-    expect(host.textContent).toContain('Gone: this hamlet has left the realm.');
+    await vi.waitFor(() => {
+      expect(host.textContent).toContain('Gone: this hamlet has left the realm.');
+    });
   });
 
   it('writes the anchor clamped inside the viewport', async () => {
@@ -168,10 +185,14 @@ describe('InfoCard', () => {
     store.info.value = { kind: 'being', id: '7' };
     render(<InfoCard store={store} actions={actions as unknown as ShellActions} />, host);
     await settle();
-    expect(host.querySelector('.info-card-off')).not.toBeNull();
+    await vi.waitFor(() => {
+      expect(host.querySelector('.info-card-off')).not.toBeNull();
+    });
     locateInfo.mockReturnValue({ x: 120, y: 240, name: 'Burrfleece', facts: 'Adult, Walking', detailed: true });
     await settle();
-    expect(host.querySelector('.info-card-off')).toBeNull();
+    await vi.waitFor(() => {
+      expect(host.querySelector('.info-card-off')).toBeNull();
+    });
   });
 });
 

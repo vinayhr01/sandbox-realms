@@ -104,7 +104,7 @@ function writeOutcome(result: SaveResult, label: string, memoryReason: string | 
 
 /** How long a restore may wait for the sim to answer before the attempt is given up. */
 export const RESTORE_TIMEOUT_MS = 10_000;
-/** The boot resume waits longer: a big realm decodes slowly, and the page shows "Resuming..." meanwhile. */
+/** The boot resume shows "still resuming" after this long. Saves stay held until the restore settles, however long that is. */
 export const RESUME_TIMEOUT_MS = 30_000;
 export const STILL_RESUMING = 'Still resuming your world…';
 
@@ -289,11 +289,13 @@ export class SaveController {
   /**
    * Loads the newest save of any kind into the live realm, as the page does on start. Does nothing in
    * Safe Mode. A save that cannot be read is skipped for the next one. The message names realm and year.
+   * The save guard stays up until the restore settles, however long that takes. `onSlow` runs once
+   * after RESUME_TIMEOUT_MS while the restore is still going, so the UI can say so and free its input.
    */
-  async resumeNewest(safeMode: boolean, onLate?: (out: ActionOutcome) => void): Promise<ActionOutcome> {
+  async resumeNewest(safeMode: boolean, onSlow?: () => void): Promise<ActionOutcome> {
     this.resuming = true;
     try {
-      return await this.resumeNewestInner(safeMode, onLate);
+      return await this.resumeNewestInner(safeMode, onSlow);
     } finally {
       this.resuming = false;
     }
@@ -315,7 +317,7 @@ export class SaveController {
     }
   }
 
-  private async resumeNewestInner(safeMode: boolean, onLate?: (out: ActionOutcome) => void): Promise<ActionOutcome> {
+  private async resumeNewestInner(safeMode: boolean, onSlow?: () => void): Promise<ActionOutcome> {
     if (safeMode || !this.source.canRestore) return fail('Resuming is off.');
     try {
       const svc = await this.service();
@@ -331,19 +333,13 @@ export class SaveController {
           continue;
         }
         if (!bytes) continue;
-        const pending = this.source.restore(bytes);
-        const loaded = await settleWithin(pending, RESUME_TIMEOUT_MS);
-        if (loaded === null) {
-          // Gave up waiting, but the restore may still land: announce it then.
-          void pending.then(
-            (late) => {
-              if (!late) return;
-              this.lastResumed = { meta, bytes };
-              onLate?.(ok(`Resumed ${meta.realmName}, year ${meta.year}.`));
-            },
-            () => undefined,
-          );
-          return fail('The simulation did not answer, so the save was not loaded.');
+        // Waits for the restore to settle, not for a deadline: a half-restored realm must never be saved over.
+        const slow = setTimeout(() => onSlow?.(), RESUME_TIMEOUT_MS);
+        let loaded: boolean;
+        try {
+          loaded = await this.source.restore(bytes);
+        } finally {
+          clearTimeout(slow);
         }
         if (loaded) {
           this.lastResumed = { meta, bytes };

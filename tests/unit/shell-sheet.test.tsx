@@ -26,7 +26,7 @@ function moreButton(root: HTMLElement): HTMLButtonElement {
 describe('PowerSheet', () => {
   let host: HTMLElement;
   let store: UiStore;
-  let actions: { setSpeed: Spy; togglePause: Spy; activatePower: Spy; openWindow: Spy; disarm: Spy; setBrushSize: Spy; setBrushShape: Spy };
+  let actions: { setSpeed: Spy; togglePause: Spy; activatePower: Spy; openWindow: Spy; disarm: Spy; setBrushSize: Spy; setBrushShape: Spy; markPowersSeen: Spy };
 
   beforeEach(() => {
     host = document.createElement('div');
@@ -40,6 +40,7 @@ describe('PowerSheet', () => {
       disarm: vi.fn(),
       setBrushSize: vi.fn(),
       setBrushShape: vi.fn(),
+      markPowersSeen: vi.fn(),
     };
     render(<PowerSheet store={store} actions={actions as unknown as ShellActions} />, host);
   });
@@ -202,5 +203,43 @@ describe('PowerSheet', () => {
     const panel = host.querySelector('#sheet-panel');
     expect(panel?.getAttribute('role')).toBe('tabpanel');
     expect(panel?.getAttribute('aria-labelledby')).toBe('chip-land');
+  });
+
+  /** Opens the Weather chip (a chip that a discovery brings forward) in the expanded sheet. */
+  async function openWeather(): Promise<void> {
+    store.discovered.value = ['land', 'nature', 'creatures', 'weather'];
+    store.found.value = ['first-weather'];
+    store.sheet.value = 'expanded';
+    await tick();
+    const weather = [...host.querySelectorAll<HTMLElement>('[role="tab"]')].find((el) => el.textContent?.trim() === 'Weather');
+    weather?.click();
+    await tick();
+  }
+
+  it('a power of a discovered chip shows New, and the markers are saved as seen when the grid is left', async () => {
+    await openWeather();
+    const news = host.querySelectorAll('.power-new');
+    expect(news.length).toBeGreaterThan(0);
+    expect(actions.markPowersSeen).not.toHaveBeenCalled();
+    store.sheet.value = 'collapsed';
+    await tick();
+    expect(actions.markPowersSeen).toHaveBeenCalledTimes(1);
+    const ids = actions.markPowersSeen.mock.calls[0]?.[0] as string[];
+    expect(ids).toHaveLength(news.length);
+  });
+
+  it('the starter chips show no New marker', async () => {
+    store.sheet.value = 'expanded';
+    await tick();
+    expect(host.querySelectorAll('.power-new')).toHaveLength(0);
+  });
+
+  it('a power that is seen or used loses its New marker', async () => {
+    await openWeather();
+    const firstId = host.querySelector('button[data-power-id]')?.getAttribute('data-power-id') ?? '';
+    expect(host.querySelector(`button[data-power-id="${firstId}"] .power-new`)).not.toBeNull();
+    store.seenPowers.value = [firstId];
+    await tick();
+    expect(host.querySelector(`button[data-power-id="${firstId}"] .power-new`)).toBeNull();
   });
 });

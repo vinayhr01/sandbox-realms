@@ -17,7 +17,8 @@ export interface RealmSummary {
   year: number;
   month: number;
   creatures: number;
-  towns: number;
+  /** Hamlets (all of them, not only towns): the same count the first-town discovery reads. */
+  hamlets: number;
 }
 
 export interface ArmedState {
@@ -44,10 +45,21 @@ export interface ToastAction {
 /** How long a toast with a button stays up (ms). */
 export const ACTION_TOAST_MS = 30_000;
 
-/** What the floating info card points at: a being, a tile, a hamlet or a dominion. */
+/** What the floating info card points at: a being, a tile, a hamlet, a building or a dominion. */
 export interface InfoTarget {
-  kind: 'being' | 'tile' | 'hamlet' | 'dominion';
+  kind: 'being' | 'tile' | 'hamlet' | 'building' | 'dominion';
   id: string;
+}
+
+/** The info card's view of its target this frame (ShellActions.locateInfo). */
+export interface LocatedInfo {
+  /** Screen point (client px) the card sits above. */
+  x: number;
+  y: number;
+  name: string;
+  facts: string;
+  /** True when the target's full Atlas page can open from the latest snapshot (More is on). */
+  detailed: boolean;
 }
 
 /** One page open in the Atlas: the window kind and its parameters. */
@@ -68,10 +80,16 @@ export interface UiStore {
   discovered: Signal<string[]>;
   /** Ids of the discovery entries met so far (the Discoveries tab lists them). */
   found: Signal<string[]>;
+  /** Power ids seen in the grid or used (saved with the discovery state). The sheet shows "New" on the others. */
+  seenPowers: Signal<string[]>;
+  /** Counts the rule switches that changed; the realm pill pulses each time it goes up (spec F). */
+  rulePulses: Signal<number>;
   /** The first-launch coach step id to show, or null when the coach is hidden. */
   coach: Signal<string | null>;
   sheet: Signal<'collapsed' | 'expanded'>;
   atlas: Signal<{ open: boolean; tab: AtlasTab; stack: AtlasPage[] }>;
+  /** Hide interface (key H, the power of the same name, and the Atlas World switch): hides the shell, keeps the map. */
+  hidden: Signal<boolean>;
   info: Signal<InfoTarget | null>;
   cooldowns: Signal<Record<string, number>>;
   /** Ids of powers that show a pressed state (an Insight toggle that is on). The armed power is in `armed`. */
@@ -85,15 +103,17 @@ export interface ShellActions {
   setSpeed(speed: Speed): void;
   togglePause(): void;
   activatePower(id: string): void;
+  /** Marks powers as seen: their "New" markers clear and the seen set is saved. */
+  markPowersSeen(ids: readonly string[]): void;
   openWindow(kind: string, params?: WindowParams): void;
   disarm(): void;
   setBrushSize(index: number): void;
   setBrushShape(shape: BrushShape): void;
   /**
-   * Screen point (client px), plain species name and the feed's key facts of a live being, or null once it has left the
-   * feed. `detailed` is true when its full page can open (it is in the latest snapshot's sample, or a favourite).
+   * Where the info card sits for its target this frame, or null once the target is gone: the screen point (client px),
+   * the plain name, the key facts line, and `detailed` (true when its full Atlas page can open from the latest snapshot).
    */
-  locateBeing(id: number): { x: number; y: number; name: string; facts: string; detailed: boolean } | null;
+  locateInfo(target: InfoTarget): LocatedInfo | null;
   followBeing(id: number): void;
   possessBeing(id: number): void;
   /** Zooms the map by a factor about the centre of the view. */
@@ -104,7 +124,7 @@ export interface ShellActions {
 
 export function createStore(): UiStore {
   return {
-    realm: signal<RealmSummary>({ name: 'Realm', year: 1, month: 1, creatures: 0, towns: 0 }),
+    realm: signal<RealmSummary>({ name: 'Realm', year: 1, month: 1, creatures: 0, hamlets: 0 }),
     speed: signal<Speed>(1),
     paused: signal(false),
     armed: signal<ArmedState | null>(null),
@@ -114,9 +134,12 @@ export function createStore(): UiStore {
     favourites: signal<string[]>([]),
     discovered: signal<string[]>(['land', 'nature', 'creatures']),
     found: signal<string[]>([]),
+    seenPowers: signal<string[]>([]),
+    rulePulses: signal(0),
     coach: signal<string | null>(null),
     sheet: signal<'collapsed' | 'expanded'>('collapsed'),
     atlas: signal({ open: false, tab: 'world' as AtlasTab, stack: [] as AtlasPage[] }),
+    hidden: signal(false),
     info: signal<InfoTarget | null>(null),
     cooldowns: signal<Record<string, number>>({}),
     pressed: signal<string[]>([]),

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   BOOT_LOOP_WINDOW_MS,
+  DEGRADE_DOWN_SECONDS,
+  DEGRADE_HOLD_SECONDS,
   DEGRADE_MAX_LEVEL,
   DEGRADE_OFF,
   DEGRADE_RENDER_SCALE_LEVEL,
@@ -48,6 +50,27 @@ describe('degradation ladder', () => {
     for (let s = 0; s < 100; s++) track = stepDegrade(track, 100, 16.7);
     expect(track.level).toBe(DEGRADE_MAX_LEVEL);
     track = stepDegrade(track, 100, 16.7);
+    expect(track.level).toBe(DEGRADE_MAX_LEVEL);
+  });
+
+  it('steps over the map.effects step when no deploy effect is alive, so the next step frees work', () => {
+    let track: DegradeTrack = DEGRADE_START;
+    for (let s = 0; s < DEGRADE_DOWN_SECONDS; s++) track = stepDegrade(track, 100, 16.7, true);
+    expect(track.level).toBe(2);
+    // The step after it turns off crowdAnim, which is real work: the ladder is not stuck on the empty step.
+    for (let s = 0; s < Math.max(DEGRADE_HOLD_SECONDS, DEGRADE_DOWN_SECONDS); s++) track = stepDegrade(track, 100, 16.7, true);
+    expect(track.level).toBe(3);
+  });
+
+  it('takes the map.effects step when a deploy effect is alive', () => {
+    let track: DegradeTrack = DEGRADE_START;
+    for (let s = 0; s < DEGRADE_DOWN_SECONDS; s++) track = stepDegrade(track, 100, 16.7, false);
+    expect(track.level).toBe(1);
+  });
+
+  it('still reaches the top level under sustained load when the effects step is skipped', () => {
+    let track: DegradeTrack = DEGRADE_START;
+    for (let s = 0; s < 100; s++) track = stepDegrade(track, 100, 16.7, true);
     expect(track.level).toBe(DEGRADE_MAX_LEVEL);
   });
 });

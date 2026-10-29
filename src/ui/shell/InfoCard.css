@@ -3,7 +3,8 @@
 .info-card {
   position: fixed;
   z-index: 30;
-  left: clamp(var(--space-2), var(--card-x, 50%), calc(100vw - var(--space-2)));
+  /* --card-x / --card-y are already clamped inside the viewport by InfoCard.tsx (clampCardAnchor). */
+  left: var(--card-x, 50%);
   top: var(--card-y, 50%);
   transform: translate(-50%, calc(-100% - var(--space-3)));
   width: min(260px, calc(100vw - 2 * var(--space-2)));
@@ -70,6 +71,14 @@
 
 .info-card-gone .info-card-name {
   color: var(--text-dim);
+}
+
+/* Desktop: a card whose target is off-screen stays mounted (its position is still tracked) but is hidden. */
+@media (min-width: 600px) {
+  .info-card-off {
+    visibility: hidden;
+    pointer-events: none;
+  }
 }
 
 /* Phones: the card is a bottom sheet above the power sheet, not a float over the being. */

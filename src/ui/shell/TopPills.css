@@ -1,0 +1,26 @@
+/* The realm pill pulses once after a rule switch (spec F). A small scale bump, no colour flash; reduced motion gets none. */
+.realm-pill.is-pulsing {
+  animation: realm-pulse 600ms ease-out 1;
+}
+
+@keyframes realm-pulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .realm-pill.is-pulsing {
+    animation: none;
+  }
+}
+
+:root[data-reduce-motion] .realm-pill.is-pulsing {
+  animation: none;
+}

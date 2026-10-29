@@ -174,24 +174,61 @@ describe('resume cannot overwrite the save it is resuming', () => {
     expect(names).toContain('manual:Ash Vale (before new world)');
   });
 
-  it('still announces the resume when the restore lands after the wait', async () => {
+  it('(a) a restore that takes 40 s holds every save until it settles, then saves resume', async () => {
     vi.useFakeTimers();
     try {
       const service = await memService();
+      let captures = 0;
       let release: (v: boolean) => void = () => undefined;
-      const src: ChronicleSource = { ...source(okCapture), restore: () => new Promise<boolean>((r) => (release = r)) };
+      const src: ChronicleSource = {
+        canCapture: true,
+        canRestore: true,
+        capture: () => (captures++, Promise.resolve({ bytes, info })),
+        restore: () => new Promise<boolean>((r) => (release = r)),
+      };
       const c = new SaveController(() => Promise.resolve(service), src);
-      await service.writeSuspend(bytes, info, 5);
-      const late: string[] = [];
-      const first = c.resumeNewest(false, (o) => late.push(o.message));
+      await service.writeSuspend(bytes, { ...info, realmName: 'Old World' }, 5);
+      let slow = 0;
+      c.beginResume();
+      const resume = c.resumeNewest(false, () => slow++);
       await vi.advanceTimersByTimeAsync(31_000);
-      expect((await first).ok).toBe(false);
+      expect(slow).toBe(1);
+      expect(c.isResuming).toBe(true);
+      await c.suspend();
+      expect(captures).toBe(0);
+      expect((await c.perform('save', 'new')).message).toBe('Still resuming your world…');
+      expect(await c.emergencySave()).toBe('emergency_save_resuming');
+      await vi.advanceTimersByTimeAsync(9_000);
       release(true);
-      await vi.advanceTimersByTimeAsync(10);
-      expect(late).toEqual(['Resumed Ash Vale, year ' + info.year + '.']);
+      expect((await resume).ok).toBe(true);
+      expect(c.isResuming).toBe(false);
+      expect(slow).toBe(1);
+      await c.suspend();
+      expect(captures).toBe(1);
+      expect((await c.perform('save', 'new')).ok).toBe(true);
+      expect((await c.list()).map((m) => m.realmName)).toEqual(['Ash Vale', 'Ash Vale']);
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('(b) a restore that rejects clears the guard and saves work again', async () => {
+    const service = await memService();
+    let captures = 0;
+    const src: ChronicleSource = {
+      canCapture: true,
+      canRestore: true,
+      capture: () => (captures++, Promise.resolve({ bytes, info })),
+      restore: () => Promise.reject(new Error('decode failed')),
+    };
+    const c = new SaveController(() => Promise.resolve(service), src);
+    await service.writeSuspend(bytes, info, 5);
+    c.beginResume();
+    expect((await c.resumeNewest(false)).ok).toBe(false);
+    expect(c.isResuming).toBe(false);
+    await c.suspend();
+    expect(captures).toBe(1);
+    expect((await c.perform('save', 'new')).ok).toBe(true);
   });
 
   it('does not copy a resumed manual slot', async () => {

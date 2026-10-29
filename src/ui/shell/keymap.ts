@@ -19,11 +19,14 @@ export type KeyAction =
   | 'brush-smaller'
   | 'brush-larger'
   | 'escape'
-  | 'possess';
+  | 'possess'
+  | 'pin';
 
 export interface KeyBinding {
-  /** `KeyboardEvent.code` values that trigger the binding. */
+  /** `KeyboardEvent.code` values that trigger the binding. Empty for a pointer gesture, which sets `display`. */
   keys: readonly string[];
+  /** What the keys column shows, when it is not the key names (a pointer gesture: "Hold"). */
+  display?: string;
   /** One line for the Settings keys list and the Keys window. */
   label: string;
   action: KeyAction;
@@ -36,28 +39,40 @@ export const KEYMAP: readonly KeyBinding[] = [
   { keys: ['KeyQ'], label: 'Q: open or close the power sheet', action: 'toggle-sheet', whenTyping: false },
   { keys: ['Slash'], label: '/: search the powers', action: 'focus-search', whenTyping: false },
   { keys: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'], label: 'Arrows or WASD: pan the map', action: 'pan' },
-  { keys: ['Equal', 'NumpadAdd'], label: '+: zoom in', action: 'zoom-in', whenTyping: false },
-  { keys: ['Minus', 'NumpadSubtract'], label: '-: zoom out', action: 'zoom-out', whenTyping: false },
+  { keys: ['Equal', 'NumpadAdd'], label: '= or numpad +: zoom in', action: 'zoom-in', whenTyping: false },
+  { keys: ['Minus', 'NumpadSubtract'], label: '- or numpad -: zoom out', action: 'zoom-out', whenTyping: false },
   { keys: ['Space', 'KeyP'], label: 'Space or P: pause or resume', action: 'pause', whenTyping: false },
   { keys: ['KeyH'], label: 'H: hide or show the interface', action: 'hide-ui', whenTyping: false },
   { keys: ['BracketLeft'], label: '[: smaller brush', action: 'brush-smaller', whenTyping: false },
   { keys: ['BracketRight'], label: ']: larger brush', action: 'brush-larger', whenTyping: false },
+  { keys: ['KeyF'], label: 'F, on a focused power: pin or unpin it as a favourite', action: 'pin', whenTyping: false },
+  { keys: [], display: 'Hold', label: 'Hold a power, or right-click it: pin or unpin it as a favourite', action: 'pin' },
   { keys: ['Escape'], label: 'Esc: close the top layer, or disarm the power', action: 'escape' },
   { keys: ['KeyJ', 'KeyK', 'KeyL', 'KeyU', 'KeyT', 'KeyY', 'KeyN'], label: 'J K L U T Y N: possession controls', action: 'possess' },
 ];
 
 /** The keys list as (keys, label) rows, for the Settings section and the Keys window. */
 export function keyRows(): Array<{ keys: string; label: string }> {
-  return KEYMAP.map((b) => ({ keys: b.keys.map(keyName).join(' '), label: b.label }));
+  return KEYMAP.map((b) => ({ keys: b.display ?? b.keys.map(keyName).join(' '), label: b.label }));
 }
 
-/** A readable name for a `code`: Digit1 is 1, KeyQ is Q, BracketLeft is [. */
+/** A readable name for a `code`: Digit1 is 1, KeyQ is Q, BracketLeft is [, NumpadAdd is numpad +. */
 export function keyName(code: string): string {
   const digit = /^Digit(\d)$/.exec(code);
   if (digit) return digit[1] ?? code;
   const letter = /^Key([A-Z])$/.exec(code);
   if (letter) return letter[1] ?? code;
-  const named: Record<string, string> = { Slash: '/', Equal: '=', Minus: '-', BracketLeft: '[', BracketRight: ']', Space: 'Space', Escape: 'Esc' };
+  const named: Record<string, string> = {
+    Slash: '/',
+    Equal: '=',
+    Minus: '-',
+    BracketLeft: '[',
+    BracketRight: ']',
+    Space: 'Space',
+    Escape: 'Esc',
+    NumpadAdd: 'numpad +',
+    NumpadSubtract: 'numpad -',
+  };
   return named[code] ?? code.replace(/^Arrow/, '');
 }
 

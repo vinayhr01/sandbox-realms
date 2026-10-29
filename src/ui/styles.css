@@ -670,7 +670,7 @@ body {
   font-size: calc(14px * var(--ui-scale));
 }
 
-/* Toasts sit in #toast-root, outside #map, so they paint above .audio-cues (z-index 9). */
+/* Toasts sit in #toast-root, outside #map, so they paint above .audio-cues (z-index 9) and above the Atlas scrim (z-index 40). */
 .toasts {
   position: fixed;
   top: var(--shell-top);
@@ -681,10 +681,11 @@ body {
   align-items: center;
   gap: 6px;
   pointer-events: none;
-  z-index: 10;
+  z-index: 41;
 }
 
 .toast {
+  pointer-events: auto;
   zoom: var(--ui-scale-tooltips, 1);
   padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-m);
@@ -881,6 +882,15 @@ body {
 .hide-ui .zoom-stack,
 .hide-ui .minimap {
   display: none;
+}
+
+/* While the interface is hidden, this one button stays (touch has no H key). Set in the Atlas World tab or by H. */
+.restore-ui {
+  position: fixed;
+  top: var(--shell-top);
+  right: var(--space-3);
+  z-index: 20;
+  pointer-events: auto;
 }
 
 /* Reduce motion option (saved in settings) applies the same rule as the OS setting. */

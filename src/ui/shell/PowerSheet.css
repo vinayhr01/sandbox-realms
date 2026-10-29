@@ -295,6 +295,22 @@
   height: 30px;
 }
 
+/* "New" marker: a small gold tag on the icon of a power whose chip came forward and that is not seen or used yet. */
+.power-new {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  padding: 1px 4px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--gold-ink);
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
 .glyph {
   width: 24px;
   height: 24px;

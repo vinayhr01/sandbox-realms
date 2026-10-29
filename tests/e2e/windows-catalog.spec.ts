@@ -69,7 +69,8 @@ test('a list row opens its inspector, and Back returns to the list', async ({ pa
   await first.click();
   const inspector = page.getByRole('dialog', { name: /^Dominion \d+$/ });
   await expect(inspector).toBeVisible();
-  await inspector.getByRole('button', { name: 'Back to dominions' }).click();
+  // Back is the Atlas header button; the inspector has none of its own.
+  await page.getByRole('button', { name: 'Back', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Dominions', exact: true })).toBeVisible();
 });
 

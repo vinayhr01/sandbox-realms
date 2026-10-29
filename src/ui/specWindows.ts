@@ -138,7 +138,7 @@ function beingWindow(deps: WindowDeps, params: WindowParams): WindowBuild {
   return {
     title: windowTitle('win_being'),
     build: (body) => {
-      body.append(button('Back to realm overview', () => deps.open('win_realm')), section.mount());
+      body.append(section.mount());
     },
     live: () => section.refresh(),
   };
@@ -210,7 +210,7 @@ function structureWindow(deps: WindowDeps, params: WindowParams): WindowBuild {
   return {
     title: windowTitle('win_structure'),
     build: (body) => {
-      body.append(button('Back to hamlets', () => deps.open('list_hamlets')), section.mount());
+      body.append(section.mount());
     },
     live: () => section.refresh(),
   };
@@ -262,7 +262,7 @@ function pactWindow(deps: WindowDeps, params: WindowParams): WindowBuild {
   return {
     title: windowTitle('win_pact'),
     build: (body) => {
-      body.append(button('Back to pacts', () => deps.open('list_pacts')), section.mount());
+      body.append(section.mount());
     },
     live: () => section.refresh(),
   };
@@ -334,7 +334,7 @@ function clanWindow(deps: WindowDeps, params: WindowParams): WindowBuild {
   return {
     title: windowTitle('win_clan'),
     build: (body) => {
-      body.append(button('Back to clans', () => deps.open('list_kinbands')), section.mount());
+      body.append(section.mount());
     },
     live: () => section.refresh(),
   };
@@ -441,7 +441,7 @@ function itemWindow(deps: WindowDeps, params: WindowParams): WindowBuild {
   return {
     title: windowTitle('win_item'),
     build: (body) => {
-      body.append(button('Back to favourite items', () => deps.open('list_fav_items')), section.mount());
+      body.append(section.mount());
     },
     live: () => section.refresh(),
   };

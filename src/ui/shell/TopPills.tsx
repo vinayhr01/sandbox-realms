@@ -1,7 +1,18 @@
 /** The two floating pills over the top of the map: realm (opens the Atlas) and speed (pause and speeds). */
+import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { UiStore, ShellActions } from './store.ts';
 import { openAtlas } from './Atlas.tsx';
 import type { Speed } from '../../shared/protocol.ts';
+import './TopPills.css';
+
+/** How long the realm pill pulses after a rule switch (ms). */
+const PULSE_MS = 600;
+
+/** True when the player or the OS asks for less motion (the data attribute follows both): no pulse then (spec F). */
+function reducedMotion(): boolean {
+  if (document.documentElement.hasAttribute('data-reduce-motion')) return true;
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
 
 interface SpeedChoice {
   speed: Speed;
@@ -26,12 +37,24 @@ export function TopPills({ store, actions }: { store: UiStore; actions: ShellAct
   const realm = store.realm.value;
   const paused = store.paused.value;
   const speed = store.speed.value;
+  // The realm pill pulses once for each rule switch that changed. The count seen at mount is not a pulse.
+  const pulses = store.rulePulses.value;
+  const [pulsing, setPulsing] = useState(false);
+  const lastPulses = useRef(pulses);
+  useLayoutEffect(() => {
+    if (pulses === lastPulses.current) return;
+    lastPulses.current = pulses;
+    if (reducedMotion()) return;
+    setPulsing(true);
+    const timer = window.setTimeout(() => setPulsing(false), PULSE_MS);
+    return () => window.clearTimeout(timer);
+  }, [pulses]);
   return (
     <>
       <div class="top-pills">
         <button
           type="button"
-          class="pill realm-pill"
+          class={pulsing ? 'pill realm-pill is-pulsing' : 'pill realm-pill'}
           aria-haspopup="dialog"
           aria-label={`Realm ${realm.name}, open Atlas`}
           onClick={() => openAtlas(store, 'world')}
@@ -41,7 +64,7 @@ export function TopPills({ store, actions }: { store: UiStore; actions: ShellAct
           </span>
           <span class="realm-stat">Year {realm.year}</span>
           <span class="realm-stat realm-extra">{realm.creatures} creatures</span>
-          <span class="realm-stat realm-extra">{realm.towns} towns</span>
+          <span class="realm-stat realm-extra">{realm.hamlets} hamlets</span>
         </button>
         <div class="pill-end">
           <div class="pill speed-pill" role="group" aria-label="Simulation speed">

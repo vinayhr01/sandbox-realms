@@ -6,7 +6,8 @@
 import type { Snapshot } from '../../shared/protocol.ts';
 import type { StatsRecord } from '../../sim/stats.ts';
 import { DISCOVERIES, type DiscoveryEntry } from '../../content/discoveries.ts';
-import { CHIP_IDS, CHIP_LABELS, type ChipId } from './powerCatalog.ts';
+import { POWERS, type PowerDef } from '../../content/powers.ts';
+import { CHIP_IDS, CHIP_LABELS, chipOf as chipOfPower, type ChipId } from './powerCatalog.ts';
 
 /** Storage key for the discovery state (per device, lifetime). */
 export const DISCOVERY_KEY = 'sr.discovery.v1';
@@ -15,24 +16,29 @@ export const DISCOVERY_KEY = 'sr.discovery.v1';
 export const STARTER_CHIPS: readonly ChipId[] = ['land', 'nature', 'creatures'];
 
 export interface DiscoveryState {
-  /** Entry ids met so far, in the order they were met. */
+  /** Entry ids met so far, in the order they were met. Saved. */
   found: string[];
-  /** Species ids that had living beings at an earlier evaluation (the extinction trigger reads them). */
+  /** Power ids the player has seen in the expanded grid or used. Saved (lifetime); it clears the "New" markers. */
+  seenPowers: string[];
+  /** Species ids that had living beings at an earlier evaluation (the extinction trigger reads them). Per realm, not saved. */
   seen: string[];
+  /** The strain count at the last check that had snapshot detail (the first-strain trigger reads it). Per realm, not saved. */
+  strains: number | null;
 }
 
 export function newDiscovery(): DiscoveryState {
-  return { found: [], seen: [] };
+  return { found: [], seenPowers: [], seen: [], strains: null };
 }
 
 /**
- * Reads a saved state; anything unexpected starts again from nothing. Only `found` is saved: `seen` is the per-realm memory
- * of the extinction trigger, so an old save's `seen` (lifetime species) is dropped here, not carried into a new world.
+ * Reads a saved state; anything unexpected starts again from nothing. Only `found` and `seenPowers` are saved. `seen` and
+ * `strains` are the per-realm memory of the triggers, so an old save's values are dropped here, not carried into a new
+ * world. A save from before `seenPowers` existed reads as no powers seen.
  */
 export function parseDiscovery(raw: unknown): DiscoveryState {
   const src = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
   const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
-  return { found: strings(src['found']), seen: [] };
+  return { found: strings(src['found']), seenPowers: strings(src['seenPowers']), seen: [], strains: null };
 }
 
 /**
@@ -47,11 +53,28 @@ export function evaluate(
 ): { state: DiscoveryState; newly: string[] } {
   const known = new Set(state.found);
   const seen = new Set(state.seen);
-  const newly = entries.filter((e) => !known.has(e.id) && e.met(snap, stats, seen)).map((e) => e.id);
+  const newly = entries.filter((e) => !known.has(e.id) && e.met(snap, stats, seen, state.strains)).map((e) => e.id);
   const alive = snap.population.species.filter((row) => row.count > 0).map((row) => row.id);
   const seenNext = [...new Set([...state.seen, ...alive])];
-  if (newly.length === 0 && seenNext.length === state.seen.length) return { state, newly };
-  return { state: { found: [...state.found, ...newly], seen: seenNext }, newly };
+  // A snapshot without detail says nothing about strains, so the last count stays.
+  const strainsNext = snap.detail?.counts.strains ?? state.strains;
+  if (newly.length === 0 && seenNext.length === state.seen.length && strainsNext === state.strains) return { state, newly };
+  return { state: { ...state, found: [...state.found, ...newly], seen: seenNext, strains: strainsNext }, newly };
+}
+
+/**
+ * The power ids that carry a "New" marker: their chip came forward from a found entry (the starter chips never do) and the
+ * player has not seen or used the power yet. With "show all categories" on, only the chips that were met count.
+ */
+export function newPowerIds(found: readonly string[], seenPowers: readonly string[], powers: readonly PowerDef[] = POWERS, entries: readonly DiscoveryEntry[] = DISCOVERIES): Set<string> {
+  const brought = new Set<ChipId>(chipsFor(found, false, entries).filter((c) => !STARTER_CHIPS.includes(c)));
+  const seen = new Set(seenPowers);
+  const fresh = new Set<string>();
+  for (const power of powers) {
+    const chip = chipOfPower(power);
+    if (chip !== null && brought.has(chip) && !seen.has(power.id)) fresh.add(power.id);
+  }
+  return fresh;
 }
 
 /** The chip an entry brings forward, if it has one. */

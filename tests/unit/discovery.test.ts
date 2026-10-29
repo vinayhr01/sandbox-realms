@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { Snapshot } from '../../src/shared/protocol.ts';
 import type { StatsRecord } from '../../src/sim/stats.ts';
-import { chipsFor, discoveryToast, evaluate, newDiscovery, parseDiscovery, STARTER_CHIPS } from '../../src/ui/shell/discovery.ts';
-import { CHIP_IDS } from '../../src/ui/shell/powerCatalog.ts';
+import { POWERS } from '../../src/content/powers.ts';
+import { chipsFor, discoveryToast, evaluate, newDiscovery, newPowerIds, parseDiscovery, STARTER_CHIPS } from '../../src/ui/shell/discovery.ts';
+import { CHIP_IDS, chipOf } from '../../src/ui/shell/powerCatalog.ts';
 
 /** A snapshot with only the fields the triggers read. */
 function snap(over: { counters?: Record<string, number>; hamlets?: number; creeds?: number; species?: { id: string; count: number }[]; strains?: number } = {}): Snapshot {
@@ -51,9 +52,61 @@ describe('evaluate', () => {
     expect(gone.newly).toEqual(['first-extinction']);
   });
 
-  it('a strain counts only above the number of species', () => {
-    expect(evaluate(newDiscovery(), snap({ species: [{ id: 'a', count: 1 }], strains: 1 }), noStats).newly).toEqual([]);
-    expect(evaluate(newDiscovery(), snap({ species: [{ id: 'a', count: 1 }], strains: 2 }), noStats).newly).toEqual(['first-strain']);
+  it('first-strain fires when a new strain appears beside its species', () => {
+    const base = evaluate(newDiscovery(), snap({ species: [{ id: 'a', count: 1 }], strains: 1 }), noStats);
+    expect(base.newly).toEqual([]);
+    const born = evaluate(base.state, snap({ species: [{ id: 'a', count: 1 }], strains: 2 }), noStats);
+    expect(born.newly).toEqual(['first-strain']);
+  });
+
+  it('first-strain does not fire on an extinction: the species list shrinks, the strains do not rise', () => {
+    const base = evaluate(newDiscovery(), snap({ species: [{ id: 'a', count: 1 }, { id: 'b', count: 1 }, { id: 'c', count: 1 }], strains: 3 }), noStats);
+    expect(base.state.strains).toBe(3);
+    // c dies out: two species rows are left and three strains still exist, which the old count-against-species test read as a strain.
+    const gone = evaluate(base.state, snap({ species: [{ id: 'a', count: 1 }, { id: 'b', count: 1 }], strains: 3 }), noStats);
+    expect(gone.newly).toEqual(['first-extinction']);
+    expect(gone.newly).not.toContain('first-strain');
+  });
+
+  it('the strains already there at the first check do not fire first-strain', () => {
+    expect(evaluate(newDiscovery(), snap({ species: [{ id: 'a', count: 1 }], strains: 5 }), noStats).newly).toEqual([]);
+  });
+
+  it('a snapshot without detail says nothing about strains and keeps the last count', () => {
+    const base = evaluate(newDiscovery(), snap({ species: [{ id: 'a', count: 1 }], strains: 2 }), noStats);
+    const quiet = evaluate(base.state, snap({ species: [{ id: 'a', count: 1 }] }), noStats);
+    expect(quiet.newly).toEqual([]);
+    expect(quiet.state.strains).toBe(2);
+  });
+});
+
+describe('seen powers', () => {
+  it('evaluate keeps the seen powers as they are', () => {
+    const state = { ...newDiscovery(), seenPowers: ['shape_raise'] };
+    expect(evaluate(state, snap({ hamlets: 1 }), noStats).state.seenPowers).toEqual(['shape_raise']);
+  });
+});
+
+describe('newPowerIds', () => {
+  const weather = POWERS.filter((p) => chipOf(p) === 'weather').map((p) => p.id);
+  const land = POWERS.filter((p) => chipOf(p) === 'land').map((p) => p.id);
+
+  it('a discovered chip gives its powers the New marker', () => {
+    const fresh = newPowerIds(['first-weather'], []);
+    expect(weather.length).toBeGreaterThan(0);
+    for (const id of weather) expect(fresh.has(id)).toBe(true);
+  });
+
+  it('the starter chips never carry the marker', () => {
+    expect(newPowerIds([], []).size).toBe(0);
+    expect([...newPowerIds(['first-town'], [])].filter((id) => land.includes(id))).toEqual([]);
+  });
+
+  it('a power seen or used loses its marker, the others keep it', () => {
+    const [seen, ...rest] = weather;
+    const fresh = newPowerIds(['first-weather'], [seen ?? '']);
+    expect(fresh.has(seen ?? '')).toBe(false);
+    expect(rest.every((id) => fresh.has(id))).toBe(true);
   });
 });
 
@@ -91,8 +144,17 @@ describe('chipsFor', () => {
 
 describe('parseDiscovery', () => {
   it('keeps the string lists and starts over from anything else', () => {
-    // `seen` is the per-realm memory: an old save's lifetime species are dropped, not carried into a new world.
-    expect(parseDiscovery({ found: ['first-town', 3], seen: ['wolf'] })).toEqual({ found: ['first-town'], seen: [] });
-    expect(parseDiscovery('nonsense')).toEqual({ found: [], seen: [] });
+    // `seen` and `strains` are the per-realm memory: an old save's lifetime values are dropped, not carried into a new world.
+    expect(parseDiscovery({ found: ['first-town', 3], seenPowers: ['shape_raise', 7], seen: ['wolf'], strains: 9 })).toEqual({
+      found: ['first-town'],
+      seenPowers: ['shape_raise'],
+      seen: [],
+      strains: null,
+    });
+    expect(parseDiscovery('nonsense')).toEqual({ found: [], seenPowers: [], seen: [], strains: null });
+  });
+
+  it('a save from before the seen powers reads as none seen', () => {
+    expect(parseDiscovery({ found: ['first-weather'] })).toEqual({ found: ['first-weather'], seenPowers: [], seen: [], strains: null });
   });
 });

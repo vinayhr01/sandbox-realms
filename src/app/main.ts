@@ -14,7 +14,7 @@ import { edgePanVector } from '../ui/edgePan.ts';
 import { colourFilterMarkup, layoutMaxWidth, mapCanvasFilter, type ColourBlindPalette, type LayoutChoice } from '../ui/display.ts';
 import { Minimap, type MinimapView } from '../ui/minimap.ts';
 import { SaveService } from './saves.ts';
-import { CANNOT_CAPTURE, CANNOT_RESTORE, SaveController, type ActionOutcome, type AutosaveState, type ChronicleSource } from './save-controller.ts';
+import { CANNOT_CAPTURE, CANNOT_RESTORE, STILL_RESUMING, SaveController, type ActionOutcome, type AutosaveState, type ChronicleSource } from './save-controller.ts';
 import { setDebug } from '../ui/hud.ts';
 import { createStore, pushToast, type ShellActions } from '../ui/shell/store.ts';
 import { dispatchKey, focusSheetSearch, isTyping, panBlocked, shellKeysBlocked, type KeyContext } from '../ui/shell/keymap.ts';
@@ -2057,7 +2057,14 @@ async function boot(): Promise<void> {
         },
       });
     };
-    void saveController.resumeNewest(false, announceResumed).then(announceResumed);
+    // Past the wait, the map takes input again and the status says the world is still coming back. Saves
+    // stay held by saveController until the restore settles, and announceResumed runs then.
+    const slowResume = (): void => {
+      if (!resumingWorld) return;
+      resumingWorld = false;
+      setStatus(STILL_RESUMING);
+    };
+    void saveController.resumeNewest(false, slowResume).then(announceResumed);
   }
   client.setSpeed(state.paused ? 0 : state.speed);
   applySpeed();

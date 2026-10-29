@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="lm_fire_vent-rock" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a6a58"/><stop offset=".6" stop-color="#5e4438"/><stop offset="1" stop-color="#3c2a22"/></linearGradient>
+<linearGradient id="lm_fire_vent-lava" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe27a"/><stop offset=".45" stop-color="#ff9a2e"/><stop offset="1" stop-color="#d8401c"/></linearGradient>
+<radialGradient id="lm_fire_vent-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffb347" stop-opacity=".8"/><stop offset="1" stop-color="#ff6a1a" stop-opacity="0"/></radialGradient>
+</defs>
+<circle cx="64" cy="36" r="30" fill="url(#lm_fire_vent-glow)"/>
+<path d="M38 26c-6-6-2-14 6-12 2-8 14-8 16 0 6-4 14 2 10 9" fill="#9a9a9f" stroke="#5f5f66" stroke-width="2" opacity=".9"/>
+<path d="M10 112 L50 46 Q64 40 78 46 L118 112 Z" fill="url(#lm_fire_vent-rock)" stroke="#2e201a" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M50 46 Q64 54 78 46 Q64 40 50 46Z" fill="#ff7a24" stroke="#2e201a" stroke-width="2"/>
+<path d="M58 48 C56 62 48 70 50 84 C54 76 58 72 60 64 C62 76 70 82 68 98 C76 86 72 70 70 56 C69 52 66 49 64 49 Z" fill="url(#lm_fire_vent-lava)" stroke="#a8301a" stroke-width="1.5"/>
+<path d="M40 34 l4 -10 M64 30 l0 -14 M84 36 l6 -9" stroke="#ffcf5a" stroke-width="4" stroke-linecap="round"/>
+<path d="M24 100 q14 -6 22 0 M80 96 q12 -4 22 4" stroke="#2e201a" stroke-width="1.5" fill="none" opacity=".45"/>
+<path d="M10 112 H118" stroke="#2e201a" stroke-width="2.5"/>
+</svg>

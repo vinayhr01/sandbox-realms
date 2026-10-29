@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="grow_seed_biome-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#eaffb8" stop-opacity=".75"/><stop offset="1" stop-color="#9be05a" stop-opacity="0"/></radialGradient>
+<linearGradient id="grow_seed_biome-soil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#93653f"/><stop offset="1" stop-color="#4e321e"/></linearGradient>
+<radialGradient id="grow_seed_biome-seed" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#f4cc86"/><stop offset=".55" stop-color="#bf7e3e"/><stop offset="1" stop-color="#7a4620"/></radialGradient>
+<linearGradient id="grow_seed_biome-leaf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c6ee82"/><stop offset="1" stop-color="#4f9a34"/></linearGradient>
+</defs>
+<circle cx="64" cy="56" r="50" fill="url(#grow_seed_biome-glow)"/>
+<path d="M64 74 C63 62 62 52 65 40" fill="none" stroke="#2e5a1c" stroke-width="7" stroke-linecap="round"/>
+<path d="M64 74 C63 62 62 52 65 40" fill="none" stroke="#6cb444" stroke-width="3.5" stroke-linecap="round"/>
+<path d="M64 48 C52 50 38 44 32 30 C48 24 60 34 64 48Z" fill="url(#grow_seed_biome-leaf)" stroke="#2e5a1c" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M65 42 C70 30 84 20 98 24 C94 40 80 46 65 42Z" fill="url(#grow_seed_biome-leaf)" stroke="#2e5a1c" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M62 46 C54 42 46 38 40 32 M68 40 C76 34 84 30 92 27" fill="none" stroke="#2e5a1c" stroke-width="1.4" opacity=".5"/>
+<path d="M40 96 C40 78 52 68 64 68 C77 68 88 78 88 96 C88 108 77 114 64 114 C51 114 40 108 40 96Z" fill="url(#grow_seed_biome-seed)" stroke="#3e2210" stroke-width="2.5"/>
+<path d="M58 69 L62 78 L57 85 L63 92" fill="none" stroke="#3e2210" stroke-width="2" stroke-linejoin="round"/>
+<path d="M48 86 Q52 76 58 74" fill="none" stroke="#fff2d0" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+<path d="M8 116 Q18 100 40 104 Q64 112 88 104 Q110 100 120 116 Z" fill="url(#grow_seed_biome-soil)" stroke="#2e1c10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M22 109 q6 -3 12 0 M92 109 q6 -3 12 0" fill="none" stroke="#c49a6c" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+<g fill="#fffbd0" stroke="#b5c24a" stroke-width="1"><path d="M22 52 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2Z"/><path d="M106 54 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2Z"/><path d="M100 82 l1.5 4 4 1.5 -4 1.5 -1.5 4 -1.5 -4 -4 -1.5 4 -1.5Z"/></g>
+</svg>

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="lm_ice_spire-l" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#a8dcf6"/></linearGradient>
+<linearGradient id="lm_ice_spire-d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ad0f2"/><stop offset="1" stop-color="#3a86c0"/></linearGradient>
+<linearGradient id="lm_ice_spire-s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c8dcec"/></linearGradient>
+<radialGradient id="lm_ice_spire-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#d8f4ff" stop-opacity=".8"/><stop offset="1" stop-color="#8ad0f2" stop-opacity="0"/></radialGradient>
+</defs>
+<circle cx="64" cy="58" r="52" fill="url(#lm_ice_spire-glow)"/>
+<g stroke="#22506e" stroke-width="2.2" stroke-linejoin="round">
+<path d="M28 44 L22 62 L36 108 L46 107Z" fill="url(#lm_ice_spire-l)"/>
+<path d="M28 44 L40 58 L54 106 L46 107Z" fill="url(#lm_ice_spire-d)"/>
+<path d="M102 50 L88 64 L76 107 L88 108Z" fill="url(#lm_ice_spire-l)"/>
+<path d="M102 50 L108 70 L98 108 L88 108Z" fill="url(#lm_ice_spire-d)"/>
+<path d="M64 8 L49 34 L49 108 L65 108Z" fill="url(#lm_ice_spire-l)"/>
+<path d="M64 8 L79 34 L79 108 L65 108Z" fill="url(#lm_ice_spire-d)"/>
+</g>
+<path d="M56 38 V92 M30 60 L38 96 M94 70 L88 94" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity=".85"/>
+<path d="M72 40 V70" stroke="#d8f4ff" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+<path d="M8 118 Q18 102 40 104 Q64 98 88 104 Q110 102 120 118Z" fill="url(#lm_ice_spire-s)" stroke="#5a7a96" stroke-width="2.2" stroke-linejoin="round"/>
+<g fill="#ffffff" stroke="#6ab4e0" stroke-width="1"><path d="M20 26 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2Z"/><path d="M106 22 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2Z"/><path d="M90 30 l1.4 3.6 3.6 1.4 -3.6 1.4 -1.4 3.6 -1.4 -3.6 -3.6 -1.4 3.6 -1.4Z"/></g>
+</svg>

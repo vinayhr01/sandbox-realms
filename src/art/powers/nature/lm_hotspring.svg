@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="lm_hotspring-w" cx=".5" cy=".4" r=".6"><stop offset="0" stop-color="#c8f6ff"/><stop offset=".5" stop-color="#4cc0e0"/><stop offset="1" stop-color="#1f7aa8"/></radialGradient>
+<linearGradient id="lm_hotspring-r" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c8beb0"/><stop offset="1" stop-color="#6e6458"/></linearGradient>
+</defs>
+<ellipse cx="64" cy="94" rx="54" ry="24" fill="url(#lm_hotspring-r)" stroke="#3a3028" stroke-width="2.5"/>
+<ellipse cx="64" cy="92" rx="41" ry="15" fill="url(#lm_hotspring-w)" stroke="#1a4a66" stroke-width="2"/>
+<ellipse cx="64" cy="92" rx="22" ry="7" fill="none" stroke="#e8fbff" stroke-width="2" opacity=".6"/>
+<ellipse cx="64" cy="92" rx="10" ry="3" fill="none" stroke="#e8fbff" stroke-width="1.6" opacity=".7"/>
+<g fill="none" stroke-linecap="round"><path d="M44 88 C36 74 52 66 44 52 C38 42 48 34 44 24 M64 86 C56 70 72 62 64 46 C58 34 68 26 64 12 M84 88 C76 74 92 66 84 52 C78 42 88 36 84 26" stroke="#8f9db2" stroke-width="10"/><path d="M44 88 C36 74 52 66 44 52 C38 42 48 34 44 24 M64 86 C56 70 72 62 64 46 C58 34 68 26 64 12 M84 88 C76 74 92 66 84 52 C78 42 88 36 84 26" stroke="#f6f9ff" stroke-width="6"/></g>
+<g fill="url(#lm_hotspring-r)" stroke="#3a3028" stroke-width="2"><ellipse cx="22" cy="88" rx="9" ry="6"/><ellipse cx="106" cy="86" rx="9" ry="6"/><ellipse cx="26" cy="104" rx="11" ry="7"/><ellipse cx="46" cy="112" rx="12" ry="7"/><ellipse cx="70" cy="114" rx="13" ry="7"/><ellipse cx="93" cy="110" rx="12" ry="7"/><ellipse cx="108" cy="99" rx="9" ry="6"/></g>
+<path d="M20 101 q4 -3 9 -2 M42 109 q4 -3 9 -2 M66 111 q5 -3 10 -2 M89 107 q4 -3 9 -2" fill="none" stroke="#f0ebe2" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+<g fill="#e8fbff" stroke="#1a4a66" stroke-width="1"><circle cx="50" cy="94" r="2.5"/><circle cx="78" cy="90" r="2"/><circle cx="72" cy="96" r="1.6"/></g>
+</svg>

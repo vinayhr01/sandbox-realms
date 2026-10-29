@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="beacon_spore-col" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ecd6aa"/><stop offset=".6" stop-color="#c8a670"/><stop offset="1" stop-color="#8e6e40"/></linearGradient>
+<linearGradient id="beacon_spore-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0a0"/><stop offset=".6" stop-color="#f2c444"/><stop offset="1" stop-color="#c88a1e"/></linearGradient>
+<radialGradient id="beacon_spore-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff2b0" stop-opacity=".75"/><stop offset="1" stop-color="#f2c444" stop-opacity="0"/></radialGradient>
+<g id="beacon_spore-s"><path d="M64 76 V42" fill="none" stroke="#a87a22" stroke-width="3"/><path d="M64 46 C57 38 57 24 64 13 C71 24 71 38 64 46Z" fill="url(#beacon_spore-g)"/><path d="M60 36 l4 3 4 -3 M60 28 l4 3 4 -3 M61 21 l3 2.5 3 -2.5" fill="none" stroke-width="1.2" opacity=".6"/><path d="M64 13 V4" fill="none" stroke-width="1.2"/></g>
+</defs>
+<circle cx="64" cy="42" r="44" fill="url(#beacon_spore-glow)"/>
+<g stroke="#7a4a10" stroke-width="2" stroke-linejoin="round">
+<use href="#beacon_spore-s" transform="rotate(-36 64 76)"/>
+<use href="#beacon_spore-s" transform="rotate(36 64 76)"/>
+<use href="#beacon_spore-s" transform="rotate(-18 64 76)"/>
+<use href="#beacon_spore-s" transform="rotate(18 64 76)"/>
+<use href="#beacon_spore-s"/>
+</g>
+<path d="M60 66 L55 79 M64 66 V79 M68 66 L73 79" stroke="#a87a22" stroke-width="3" stroke-linecap="round"/>
+<path d="M53 61 Q64 57 75 61 L75 68 Q64 64 53 68Z" fill="#c4502e" stroke="#5a1e10" stroke-width="1.8" stroke-linejoin="round"/>
+<g stroke="#4a3418" stroke-width="2.5" stroke-linejoin="round" fill="url(#beacon_spore-col)">
+<path d="M36 78 H92 L88 86 H40Z"/>
+<rect x="44" y="86" width="40" height="22"/>
+<path d="M38 108 H90 L94 118 H34Z"/>
+</g>
+<path d="M52 89 V105 M60 89 V105 M68 89 V105 M76 89 V105" stroke="#4a3418" stroke-width="1.5" opacity=".45"/>
+<path d="M40 80.5 H70" stroke="#fff4dc" stroke-width="1.8" stroke-linecap="round" opacity=".7"/>
+</svg>

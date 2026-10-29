@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="grow_flora_toadstool-cap" cx=".4" cy=".25" r=".85"><stop offset="0" stop-color="#ff8a6a"/><stop offset=".5" stop-color="#e03a2a"/><stop offset="1" stop-color="#8e1a14"/></radialGradient>
+<linearGradient id="grow_flora_toadstool-st" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff8ea"/><stop offset=".6" stop-color="#ecdcc0"/><stop offset="1" stop-color="#c8b08c"/></linearGradient>
+</defs>
+<ellipse cx="64" cy="115" rx="40" ry="6" fill="#2a2a1a" opacity=".3"/>
+<path d="M50 68 C50 86 44 100 44 110 C44 116 84 116 84 110 C84 100 78 86 78 68Z" fill="url(#grow_flora_toadstool-st)" stroke="#5a3a24" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M47 82 Q64 92 81 82 L83 88 Q64 98 45 88Z" fill="#f4e8d0" stroke="#5a3a24" stroke-width="2" stroke-linejoin="round"/>
+<path d="M20 69 Q64 90 108 69 Q64 78 20 69Z" fill="#e8cfa8" stroke="#5a3a24" stroke-width="2"/>
+<path d="M14 68 C14 36 38 16 64 16 C90 16 114 36 114 68 Q64 78 14 68Z" fill="url(#grow_flora_toadstool-cap)" stroke="#4a120c" stroke-width="2.5" stroke-linejoin="round"/>
+<g fill="#fffaf0" stroke="#b8a490" stroke-width="1.4"><ellipse cx="40" cy="40" rx="7" ry="5"/><ellipse cx="64" cy="27" rx="8" ry="5"/><ellipse cx="88" cy="40" rx="7" ry="5"/><ellipse cx="53" cy="56" rx="6" ry="4"/><ellipse cx="78" cy="57" rx="6" ry="4"/><ellipse cx="27" cy="58" rx="4" ry="3"/><ellipse cx="101" cy="58" rx="4" ry="3"/></g>
+<path d="M28 44 Q36 28 52 22" stroke="#ffc8b0" stroke-width="3.5" fill="none" stroke-linecap="round" opacity=".6"/>
+<path d="M58 96 q-2 8 0 14" stroke="#c8b08c" stroke-width="2" fill="none" stroke-linecap="round"/>
+<path d="M30 116 l-4 -10 M35 116 l2 -12 M93 116 l4 -11 M98 116 l-1 -9" stroke="#4f8a2c" stroke-width="3" stroke-linecap="round"/>
+</svg>

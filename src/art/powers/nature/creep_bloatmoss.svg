@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="creep_bloatmoss-m" gradientUnits="userSpaceOnUse" x1="0" y1="78" x2="0" y2="120"><stop offset="0" stop-color="#9af07a"/><stop offset=".5" stop-color="#3fc03c"/><stop offset="1" stop-color="#1f7a24"/></linearGradient>
+<radialGradient id="creep_bloatmoss-h" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#eaffd4"/><stop offset=".5" stop-color="#6ad04a"/><stop offset="1" stop-color="#2a7a22"/></radialGradient>
+<g id="creep_bloatmoss-k"><circle cx="30" cy="100" r="14"/><circle cx="50" cy="94" r="16"/><circle cx="72" cy="92" r="17"/><circle cx="94" cy="98" r="15"/><circle cx="110" cy="106" r="10"/><circle cx="17" cy="108" r="9"/><ellipse cx="64" cy="110" rx="54" ry="9"/></g>
+</defs>
+<g fill="none" stroke-linecap="round"><path d="M44 94 C42 70 40 58 40 46 M62 92 C64 62 62 44 62 30 M80 92 C84 72 86 60 86 50 M32 98 C30 84 28 76 28 68 M100 98 C102 86 104 78 104 70 M70 90 Q72 74 71 64" stroke="#1a4a16" stroke-width="5"/><path d="M44 94 C42 70 40 58 40 46 M62 92 C64 62 62 44 62 30 M80 92 C84 72 86 60 86 50 M32 98 C30 84 28 76 28 68 M100 98 C102 86 104 78 104 70 M70 90 Q72 74 71 64" stroke="#b4ec94" stroke-width="2.4"/></g>
+<use href="#creep_bloatmoss-k" fill="#1a4a16" stroke="#1a4a16" stroke-width="5"/>
+<use href="#creep_bloatmoss-k" fill="url(#creep_bloatmoss-m)"/>
+<path d="M18 96 l-2 -5 M27 87 l0 -6 M40 80 l-1 -6 M54 78 l1 -6 M70 75 l0 -6 M86 82 l2 -6 M100 85 l2 -5 M112 97 l4 -4 M24 106 q4 3 8 0 M58 104 q5 3 10 0 M88 108 q4 3 8 0" fill="none" stroke="#1f6a20" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+<path d="M40 88 q6 -6 14 -6 M66 84 q6 -4 12 -2" fill="none" stroke="#dcffc4" stroke-width="2.5" stroke-linecap="round" opacity=".7"/>
+<g fill="url(#creep_bloatmoss-h)" stroke="#1a4a16" stroke-width="2"><circle cx="40" cy="42" r="8"/><circle cx="62" cy="26" r="9"/><circle cx="86" cy="46" r="8"/><circle cx="28" cy="64" r="6"/><circle cx="104" cy="66" r="6"/><circle cx="71" cy="60" r="5.5"/></g>
+<g fill="#f4ffe8"><circle cx="37.5" cy="39.5" r="2"/><circle cx="59" cy="23" r="2.4"/><circle cx="83.5" cy="43.5" r="2"/><circle cx="26.5" cy="62.5" r="1.4"/><circle cx="102.5" cy="64.5" r="1.4"/></g>
+<g fill="#b8f090" stroke="#1a4a16" stroke-width="1"><circle cx="20" cy="30" r="2.5"/><circle cx="106" cy="26" r="3"/><circle cx="46" cy="14" r="2"/><circle cx="116" cy="46" r="2"/><circle cx="84" cy="18" r="2"/></g>
+</svg>

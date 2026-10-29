@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openConfirmation, openWindowButton } from './helpers.ts';
+import { openAtlas, openConfirmation, openWindowButton } from './helpers.ts';
 
 /**
  * Windows added for the spec table (13 section 7.1): each opens from the Powers tab's Windows group
@@ -73,13 +73,19 @@ for (const [button, title] of WINDOWS) {
 }
 
 test('the developer windows say they are off by default', async ({ page }) => {
-  await openRealm(page);
-  await openFromPowers(page, 'Developer console');
+  // openRealm turns the switch on for the other tests; this one needs the switch off, as a new player has it.
+  await openRealm(page, { 'dev.enabled': false });
+  // Settings lists the developer windows only while the switch is on (atlasRoutes.ts), so with it off the Atlas has no section to click.
+  await openAtlas(page);
+  await expect(page.locator('.atlas').getByRole('button', { name: 'Developer console', exact: true })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  // The window still shows its gate when it is asked for, through the same window hook the confirmations use.
+  await openConfirmation(page, 'win_dev_console');
   const console = page.getByRole('dialog', { name: 'Developer console', exact: true });
   await expect(console.getByText('Developer tools are off.')).toBeVisible();
   await expect(console.getByRole('textbox', { name: 'Command' })).toHaveCount(0);
   await console.getByRole('button', { name: 'Close window' }).click();
-  await openFromPowers(page, 'Developer tools');
+  await openConfirmation(page, 'win_dev_tools');
   const tools = page.getByRole('dialog', { name: 'Developer tools', exact: true });
   await expect(tools.getByText('Developer tools are off.')).toBeVisible();
   await expect(tools.getByRole('tab')).toHaveCount(0);

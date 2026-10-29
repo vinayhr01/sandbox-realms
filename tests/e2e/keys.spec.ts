@@ -14,11 +14,12 @@ test('pressing 1 after arming two powers arms the most recent', async ({ page })
   await openChip(page, 'Land');
   await powerButton(page, 'Raise').click();
   await powerButton(page, 'Lower').click();
-  // Esc disarms, then key 1 arms the most recent power (Lower).
+  // Esc closes the top layer first (the expanded sheet), the next Esc disarms. Key 1 then arms the most recent power (Lower).
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await page.keyboard.press('Digit1');
-  await expect(powerButton(page, 'Lower')).toHaveAttribute('aria-pressed', 'true');
-  await expect(powerButton(page, 'Raise')).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.getByRole('button', { name: 'Disarm Lower', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Disarm Raise', exact: true })).toHaveCount(0);
 });
 
 test('Q opens and closes the power sheet', async ({ page }) => {

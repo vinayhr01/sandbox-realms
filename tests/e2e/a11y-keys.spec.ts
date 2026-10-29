@@ -38,13 +38,15 @@ test('keyboard only: sheet, chip tablist, arm, Atlas tabs, settings search, Esc'
   await expect(page.locator('.atlas-scrim')).toBeVisible();
 
   // 4. The Atlas tabs move with the arrows: World, Peoples, History, Discoveries, Settings.
-  const world = page.getByRole('tab', { name: 'World' });
+  // The sheet's chips stay in the DOM under the modal Atlas, so the tabs are read inside the Atlas only.
+  const atlas = page.locator('.atlas');
+  const world = atlas.getByRole('tab', { name: 'World' });
   await world.focus();
   await page.keyboard.press('ArrowRight');
-  await expect(page.getByRole('tab', { name: 'Peoples' })).toBeFocused();
-  await expect(page.getByRole('tab', { name: 'Peoples' })).toHaveAttribute('aria-selected', 'true');
+  await expect(atlas.getByRole('tab', { name: 'Peoples' })).toBeFocused();
+  await expect(atlas.getByRole('tab', { name: 'Peoples' })).toHaveAttribute('aria-selected', 'true');
   for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
-  await expect(page.getByRole('tab', { name: 'Settings' })).toBeFocused();
+  await expect(atlas.getByRole('tab', { name: 'Settings' })).toBeFocused();
   await page.keyboard.press('Enter');
 
   // 5. The settings search finds a setting.

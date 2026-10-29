@@ -532,9 +532,10 @@ body {
   text-decoration: line-through;
 }
 
-/* First-launch coach (UX redesign, spec E): the first card of the top-centre column, above the toasts. */
+/* First-launch coach (UX redesign, spec E): the first card of the top-centre column, above the toasts. It is a hint, not a
+ * modal: the card passes taps through to the map (a tutorial step asks the player to act on the map), and only Skip takes them. */
 .coach {
-  pointer-events: auto;
+  pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -566,6 +567,7 @@ body {
 .coach-skip {
   min-height: var(--tap);
   flex: none;
+  pointer-events: auto;
 }
 
 .discovery-list {

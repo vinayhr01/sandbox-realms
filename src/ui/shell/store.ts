@@ -17,7 +17,8 @@ export interface RealmSummary {
   year: number;
   month: number;
   creatures: number;
-  towns: number;
+  /** Hamlets (all of them, not only towns): the same count the first-town discovery reads. */
+  hamlets: number;
 }
 
 export interface ArmedState {
@@ -68,6 +69,10 @@ export interface UiStore {
   discovered: Signal<string[]>;
   /** Ids of the discovery entries met so far (the Discoveries tab lists them). */
   found: Signal<string[]>;
+  /** Power ids seen in the grid or used (saved with the discovery state). The sheet shows "New" on the others. */
+  seenPowers: Signal<string[]>;
+  /** Counts the rule switches that changed; the realm pill pulses each time it goes up (spec F). */
+  rulePulses: Signal<number>;
   /** The first-launch coach step id to show, or null when the coach is hidden. */
   coach: Signal<string | null>;
   sheet: Signal<'collapsed' | 'expanded'>;
@@ -85,6 +90,8 @@ export interface ShellActions {
   setSpeed(speed: Speed): void;
   togglePause(): void;
   activatePower(id: string): void;
+  /** Marks powers as seen: their "New" markers clear and the seen set is saved. */
+  markPowersSeen(ids: readonly string[]): void;
   openWindow(kind: string, params?: WindowParams): void;
   disarm(): void;
   setBrushSize(index: number): void;
@@ -104,7 +111,7 @@ export interface ShellActions {
 
 export function createStore(): UiStore {
   return {
-    realm: signal<RealmSummary>({ name: 'Realm', year: 1, month: 1, creatures: 0, towns: 0 }),
+    realm: signal<RealmSummary>({ name: 'Realm', year: 1, month: 1, creatures: 0, hamlets: 0 }),
     speed: signal<Speed>(1),
     paused: signal(false),
     armed: signal<ArmedState | null>(null),
@@ -114,6 +121,8 @@ export function createStore(): UiStore {
     favourites: signal<string[]>([]),
     discovered: signal<string[]>(['land', 'nature', 'creatures']),
     found: signal<string[]>([]),
+    seenPowers: signal<string[]>([]),
+    rulePulses: signal(0),
     coach: signal<string | null>(null),
     sheet: signal<'collapsed' | 'expanded'>('collapsed'),
     atlas: signal({ open: false, tab: 'world' as AtlasTab, stack: [] as AtlasPage[] }),

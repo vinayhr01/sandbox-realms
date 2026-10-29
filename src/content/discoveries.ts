@@ -15,9 +15,10 @@ export interface DiscoveryEntry {
   text: string;
   /**
    * True when the entry is met. `seenSpecies` holds the species ids that had living beings at an earlier evaluation,
-   * so an extinction can be told from a species that never existed.
+   * so an extinction can be told from a species that never existed. `strainsBefore` is the strain count at the last
+   * check that had snapshot detail (null before the first one), so a new strain can be told from a lost species.
    */
-  met(s: Snapshot, stats: StatsRecord, seenSpecies: ReadonlySet<string>): boolean;
+  met(s: Snapshot, stats: StatsRecord, seenSpecies: ReadonlySet<string>, strainsBefore: number | null): boolean;
 }
 
 /** A lifetime counter, or 0 when the counter has not moved yet. */
@@ -64,7 +65,11 @@ export const DISCOVERIES: readonly DiscoveryEntry[] = [
     id: 'first-strain',
     title: 'First strain',
     text: 'A new strain of beings has appeared beside its species.',
-    met: (s) => (s.detail?.counts.strains ?? 0) > s.population.species.length,
+    // The strain count must have risen since the last check: an extinction shrinks the species list, not the strains.
+    met: (s, _stats, _seen, strainsBefore) => {
+      const now = s.detail?.counts.strains;
+      return now !== undefined && strainsBefore !== null && now > strainsBefore && now > s.population.species.length;
+    },
   },
   {
     id: 'first-extinction',

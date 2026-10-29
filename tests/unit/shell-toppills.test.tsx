@@ -24,7 +24,7 @@ describe('TopPills', () => {
     host = document.createElement('div');
     document.body.appendChild(host);
     store = createStore();
-    store.realm.value = { name: 'Realm 16', year: 3, month: 4, creatures: 142, towns: 2 };
+    store.realm.value = { name: 'Realm 16', year: 3, month: 4, creatures: 142, hamlets: 2 };
     actions = { setSpeed: vi.fn(), togglePause: vi.fn(), activatePower: vi.fn(), openWindow: vi.fn(), disarm: vi.fn(), setBrushSize: vi.fn(), setBrushShape: vi.fn() };
     render(<TopPills store={store} actions={actions as unknown as ShellActions} />, host);
   });
@@ -34,11 +34,32 @@ describe('TopPills', () => {
     host.remove();
   });
 
-  it('shows the realm name, the year and the creature and town counts', () => {
+  it('shows the realm name, the year and the creature and hamlet counts', () => {
     expect(host.querySelector('#realm-name')?.textContent).toBe('Realm 16');
     expect(host.textContent).toContain('Year 3');
     expect(host.textContent).toContain('142 creatures');
-    expect(host.textContent).toContain('2 towns');
+    expect(host.textContent).toContain('2 hamlets');
+  });
+
+  it('the realm pill pulses once when a rule switch changes, and the pulse ends', async () => {
+    const pill = () => host.querySelector<HTMLButtonElement>('.realm-pill');
+    expect(pill()?.classList.contains('is-pulsing')).toBe(false);
+    store.rulePulses.value += 1;
+    await tick();
+    expect(pill()?.classList.contains('is-pulsing')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(pill()?.classList.contains('is-pulsing')).toBe(false);
+  });
+
+  it('no pulse under reduced motion', async () => {
+    document.documentElement.setAttribute('data-reduce-motion', '');
+    try {
+      store.rulePulses.value += 1;
+      await tick();
+      expect(host.querySelector('.realm-pill')?.classList.contains('is-pulsing')).toBe(false);
+    } finally {
+      document.documentElement.removeAttribute('data-reduce-motion');
+    }
   });
 
   it('clicking x5 sets speed 5', () => {

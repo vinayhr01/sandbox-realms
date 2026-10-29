@@ -3,13 +3,14 @@
  * Expanded it adds search, the grouped grid of icons and the recent row. The sheet only shows state and calls the shell
  * actions: `activatePower` and the brush setters stay in main.ts.
  */
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import type { BrushShape } from '../../shared/protocol.ts';
 import { POWER_BY_ID, type PowerDef } from '../../content/powers.ts';
 import { artFor, chipArtFor, chunkOf, loadArt, loadPowerArt, loadPowerArtFor, powerArtFor, type ArtChunk } from '../../art/load.ts';
 import { favourite, unfavourite } from '../panels/powerBar.ts';
 import { CHIP_IDS, CHIP_LABELS, groupsOf, recentRow, searchPowers, type ChipId } from './powerCatalog.ts';
+import { newPowerIds } from './discovery.ts';
 import { PowerGlyph } from './glyphs.tsx';
 import type { ShellActions, UiStore } from './store.ts';
 import './PowerSheet.css';
@@ -64,12 +65,13 @@ interface ButtonProps {
   unavailable: Readonly<Record<string, string>>;
   cooldowns: Readonly<Record<string, number>>;
   press: PressRef;
+  isNew: boolean;
   onActivate: (id: string) => void;
   onFavourite: (id: string) => void;
 }
 
-/** One power as an icon button: armed and pressed state, unavailable note, cooldown ring, long-press and right-click pin. */
-function PowerButton({ power, armedId, pressedIds, unavailable, cooldowns, press, onActivate, onFavourite }: ButtonProps) {
+/** One power as an icon button: armed and pressed state, unavailable note, cooldown ring, "New" marker, long-press and right-click pin. */
+function PowerButton({ power, armedId, pressedIds, unavailable, cooldowns, press, isNew, onActivate, onFavourite }: ButtonProps) {
   const id = power.id;
   const pressed = armedId === id || pressedIds.includes(id);
   const note = unavailable[id] ?? null;
@@ -139,6 +141,11 @@ function PowerButton({ power, armedId, pressedIds, unavailable, cooldowns, press
     >
       <span class="power-icon">
         <PowerIcon power={power} />
+        {isNew && (
+          <span class="power-new" aria-hidden="true">
+            New
+          </span>
+        )}
         {readyIn > 0 && (
           <svg class="ring" viewBox="0 0 40 40" aria-hidden="true" focusable="false">
             <circle cx="20" cy="20" r="17" pathLength={100} style={{ animationDuration: `${Math.ceil(readyIn)}ms` }} />
@@ -161,6 +168,16 @@ export function PowerSheet({ store, actions }: { store: UiStore; actions: ShellA
   const drag = useRef({ startY: 0, moved: false });
   const [clock, setClock] = useState(0);
   const cooldowns = store.cooldowns.value;
+  const fresh = newPowerIds(store.found.value, store.seenPowers.value);
+  // A "New" grid is seen when the player leaves it (a chip switch or a collapse): the markers show while it is open.
+  // The ids wait here until then; the shell saves them as seen (markPowersSeen).
+  const pendingSeen = useRef<string[]>([]);
+  const commitSeen = (): void => {
+    if (pendingSeen.current.length === 0) return;
+    actions.markPowersSeen(pendingSeen.current);
+    pendingSeen.current = [];
+  };
+  useEffect(() => () => commitSeen(), []);
   // A cooldown ring leaves when its cooldown ends: one timer re-renders the sheet at the next expiry, so the ring goes
   // even when reduced motion stops its animation.
   useEffect(() => {
@@ -182,6 +199,12 @@ export function PowerSheet({ store, actions }: { store: UiStore; actions: ShellA
   const groups = expanded && !searching ? groupsOf(activeChip) : [];
   const results = expanded && searching ? searchPowers(query) : [];
   const shown = searching ? results : groups.flatMap((g) => g.powers);
+  if (expanded) {
+    for (const power of shown) if (fresh.has(power.id) && !pendingSeen.current.includes(power.id)) pendingSeen.current.push(power.id);
+  }
+  useLayoutEffect(() => {
+    if (!expanded) commitSeen();
+  }, [expanded]);
   // Creature art loads per chunk, for the powers on screen (the grid or the search results) and the recent icons.
   const chunkKey = [...new Set([...shown, ...recent].flatMap((p) => (speciesOf(p) !== null ? [chunkOf(speciesOf(p) ?? '')] : [])))].sort().join(',');
 
@@ -212,6 +235,7 @@ export function PowerSheet({ store, actions }: { store: UiStore; actions: ShellA
     if (next === 'collapsed') setMoreOpen(false);
   };
   const selectChip = (chip: ChipId): void => {
+    commitSeen();
     setChip(chip);
     store.sheet.value = 'expanded';
   };
@@ -248,6 +272,7 @@ export function PowerSheet({ store, actions }: { store: UiStore; actions: ShellA
       unavailable={store.unavailable.value}
       cooldowns={store.cooldowns.value}
       press={press}
+      isNew={fresh.has(power.id)}
       onActivate={actions.activatePower}
       onFavourite={toggleFavourite}
     />

@@ -355,8 +355,8 @@ function saveTutorial(state: TutorialState): void {
 }
 
 /**
- * Lifetime discovery state (src/ui/shell/discovery.ts): only the met entries are saved. The seen-species memory is per
- * realm and in memory (setRealmSide clears it). A missing or unreadable state starts from nothing.
+ * Lifetime discovery state (src/ui/shell/discovery.ts): the met entries and the powers seen are saved. The seen-species
+ * and strain memory is per realm and in memory (setRealmSide clears it). A missing or unreadable state starts from nothing.
  */
 function loadDiscovery(): DiscoveryState {
   try {
@@ -369,8 +369,8 @@ function loadDiscovery(): DiscoveryState {
 
 function saveDiscovery(state: DiscoveryState): void {
   try {
-    // Only the met entries persist; `seen` is per realm and in memory.
-    safeStorage()?.setItem(DISCOVERY_KEY, JSON.stringify({ found: state.found }));
+    // The met entries and the powers seen persist; `seen` and `strains` are per realm and in memory.
+    safeStorage()?.setItem(DISCOVERY_KEY, JSON.stringify({ found: state.found, seenPowers: state.seenPowers }));
   } catch {
     // Not saved: discoveries are met again on the next visit (old saves meet them at once).
   }
@@ -768,8 +768,8 @@ async function boot(): Promise<void> {
     // The info card and the effects of the old realm go too: being ids are reused across realms.
     store.info.value = null;
     effects.clear();
-    // Extinctions are judged within one realm: the species seen alive in the old one do not count in this one (spec E).
-    discovery = { ...discovery, seen: [] };
+    // Extinctions and strains are judged within one realm: the species seen alive in the old one do not count in this one (spec E).
+    discovery = { ...discovery, seen: [], strains: null };
     // A new, loaded or respawned realm has new Beings and buildings: the feed of the old one is dropped.
     resetCreatureView(interp, creatures, creatureReset);
     beingCount = 0;
@@ -852,6 +852,16 @@ async function boot(): Promise<void> {
   const refreshChips = (): void => {
     store.discovered.value = chipsFor(discovery.found, boolOption(options, 'ui.allChips'));
     store.found.value = [...discovery.found];
+    store.seenPowers.value = [...discovery.seenPowers];
+  };
+
+  /** Marks powers as seen (the expanded grid showed them) or used. Their "New" markers clear and the seen set is saved. */
+  const markPowersSeen = (ids: readonly string[]): void => {
+    const fresh = ids.filter((id) => !discovery.seenPowers.includes(id));
+    if (fresh.length === 0) return;
+    discovery = { ...discovery, seenPowers: [...discovery.seenPowers, ...fresh] };
+    saveDiscovery(discovery);
+    refreshChips();
   };
 
   /** Evaluates the discovery triggers on each snapshot: chips come forward, and one card names what was met. */
@@ -924,6 +934,8 @@ async function boot(): Promise<void> {
     }
     // The recent row (spec B): the power just used moves to the front.
     store.recent.value = [power.id, ...store.recent.value.filter((id) => id !== power.id)].slice(0, 9);
+    // A used power has been seen too: its "New" marker goes.
+    markPowersSeen([power.id]);
     switch (power.handler) {
       case 'set_pause':
         togglePause();
@@ -1129,7 +1141,11 @@ async function boot(): Promise<void> {
       setStatus(`${plainName('rule', id)} cannot be turned off once on.`);
       return false;
     }
-    if (before !== on) client.setRule(id, on);
+    if (before !== on) {
+      client.setRule(id, on);
+      // A rule switch that changed pulses the realm pill once (spec F); the pill itself stays still for reduced motion.
+      store.rulePulses.value += 1;
+    }
     // Natural disasters is a mirror of its Realm Rule (13 section 15): the Settings row follows the rule.
     if (id === 'natural_calamities' && boolOption(options, 'game.disasters') !== on) {
       options = setOption(options, 'game.disasters', on);
@@ -1623,9 +1639,10 @@ async function boot(): Promise<void> {
         simView.apply(event.snap);
         {
           const creatures = event.snap.population.total;
-          const towns = event.snap.townCount ?? 0;
+          // Hamlets, not towns: the first-town discovery counts hamlets too, so the pill and the card agree (spec E).
+          const hamlets = event.snap.hamletCount;
           const realm = store.realm.value;
-          if (realm.creatures !== creatures || realm.towns !== towns) store.realm.value = { ...realm, creatures, towns };
+          if (realm.creatures !== creatures || realm.hamlets !== hamlets) store.realm.value = { ...realm, creatures, hamlets };
         }
         noteDiscoveries(event.snap);
         musicFeed.ingest(event.snap);
@@ -1646,6 +1663,7 @@ async function boot(): Promise<void> {
       feedTutorial('speed-changed');
     },
     togglePause,
+    markPowersSeen,
     activatePower: (id: string) => {
       const power = POWER_BY_ID.get(id);
       if (power) activatePower(power);

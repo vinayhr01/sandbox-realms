@@ -12,7 +12,7 @@ export type Route = { tab: AtlasTab; card?: true } | { modal: true } | { dev: tr
 /** Confirmations keep the modal dialog (and its focus return). */
 const MODAL: readonly string[] = ['win_chronicle_confirm', 'win_confirm_quit'];
 
-/** Developer windows: listed in Settings only when the developer switch (`ui.devTools`) is on. */
+/** Developer windows: listed in Settings only when the developer switch (`dev.enabled`) is on. */
 const DEV: readonly string[] = ['win_dev_console', 'win_dev_tools', 'win_error', 'win_update'];
 
 const TAB_KINDS: Readonly<Record<AtlasTab, readonly string[]>> = {

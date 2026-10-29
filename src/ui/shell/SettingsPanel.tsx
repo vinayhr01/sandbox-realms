@@ -70,7 +70,7 @@ export function SettingsPanel({ deps, onDone }: { deps: WindowDeps; onDone?: () 
   const [query, setQuery] = useState('');
   const [folded, setFolded] = useState<ReadonlySet<OptionGroup>>(() => new Set());
   const q = query.trim().toLowerCase();
-  const devTools = options['ui.devTools'] === true;
+  const devTools = options['dev.enabled'] === true;
 
   /** Writes one setting and re-reads the options so the row shows the stored value. */
   const write = (id: string, value: OptionValue): void => {

@@ -98,8 +98,6 @@ export const SETTINGS: readonly SettingDef[] = [
   B('ui.taskIcons', 'hud', 'Task icons', false, true),
   B('ui.moneyFlow', 'hud', 'Money flow', false),
   B('ui.cursorArrows', 'hud', 'Cursor arrows', false),
-  B('ui.autoOpenContextTab', 'hud', 'Open context tab on select', true),
-  B('ui.quickStrip', 'hud', 'Pinned quick strip', false),
   // Input
   B('input.touchOrder', 'input', 'Tap to order selected beings', false),
   B('input.stickyHold', 'input', 'Sticky hold', false, true),
@@ -136,10 +134,8 @@ export const SETTINGS: readonly SettingDef[] = [
   C('lang', 'lang', 'Language', ['auto', 'en'], 'auto'),
   B('privacy.telemetry', 'privacy', 'Share anonymous usage data', false),
   C('privacy.errorReports', 'privacy', 'Crash reports', ['ask', 'always', 'never'], 'ask', true),
-  // Developer
+  // Developer: the one switch. On, it lists the developer windows in the Atlas Settings tab and lets them open.
   B('dev.enabled', 'dev', 'Developer tools', false, true),
-  // Lists the developer windows in the Atlas Settings tab (UX redesign, spec C). The windows still gate on dev.enabled.
-  B('ui.devTools', 'dev', 'Show developer tools', false, true),
 ];
 
 export const SETTING_BY_ID = new Map(SETTINGS.map((s) => [s.id, s]));

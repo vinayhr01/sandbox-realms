@@ -36,7 +36,7 @@ async function openRealm(page: Page, options?: Record<string, boolean>): Promise
   // The developer windows are listed in Settings only while Show developer tools is on, so every run of this spec turns it on.
   await page.addInitScript((value) => {
     window.localStorage.setItem('settings', JSON.stringify(value));
-  }, { 'ui.devTools': true, ...options });
+  }, { 'dev.enabled': true, ...options });
   await page.goto('/?seed=42&size=4');
   await page.waitForFunction(() => Boolean((window as unknown as { __sr?: unknown }).__sr));
   await expect(page.locator('#realm-name')).toContainText('Realm');

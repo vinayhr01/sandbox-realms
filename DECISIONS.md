@@ -2968,3 +2968,20 @@ Smooth terrain, a being feed, and illustrated walking creatures and buildings (`
 - Ctrl+Z is not bound (spec call 5). The client keeps no record of the ground and elevation a stroke changed, and no worker command sets exact tile state back, so an undo would need a sim or save change. The second-finger "undo" keeps its old message.
 - Space and P both pause. A focused button keeps Space as its own click, so Space pauses only when no button has focus.
 - The keymap (src/ui/shell/keymap.ts) is the one list: the Keys window and the Settings keys section are generated from it.
+
+## UX redesign: Preact, the calls and the cleanup (2026-10-29)
+
+- Dependencies, exact pins: `preact` 11.1.0 and `@preact/signals` 2.11.4. Nothing else was added. The JSX setup is `react-jsx` with `preact` as the import source; components live in `src/ui/shell`, outside the sim config.
+- Calls made after the builder check (spec "Calls made after the builder check"):
+  1. Keys 1 to 9 arm the recent row (favourites first). Q opens the sheet. Today's bindings stay where they do not clash.
+  2. The chips are Land, Nature, Creatures, Weather, Disasters, Blessings, Peoples and Inspect. "More" lists the rest. Pause and speed sit in the speed pill; Rules, Ages and Chronicle sit in the Atlas.
+  3. Discovery state is lifetime, kept in safe storage under `sr.discovery.v1`. Triggers read snapshot data and lifetime counters only. An old save that meets several triggers gets one summary card.
+  4. `openWindow` stays as a shim that routes into the Atlas. Confirmations and the fatal dialog keep their modal behaviour.
+  5. Ctrl+Z is dropped (see the keymap entry above).
+  6. Cooldowns come from the client map. An effect plays only when the command is sent.
+  7. The info card opens on a tap, follows its being, and closes on Esc, its Close button, a tap on empty map or another card. Panning keeps it open. Long-press still shows the held tile.
+  8. Each delivery step kept its specs green.
+- Ruling R6, one developer switch: `dev.enabled` is the only setting. It lists the developer windows in Settings and lets them open. `ui.devTools` is retired.
+- Retired settings: `ui.quickStrip` and `ui.autoOpenContextTab` (inert). A saved file that still holds them loads without them (tests/unit/options-retired.test.ts).
+- Contrast: light `--gold-hi` moved from #a86f00 to #9c6700 so the toast and New card text clears 4.5:1 on glass. Tests cover all three themes (tests/a11y/contrast.test.ts).
+- Not built: the info card for a town or a building (only beings open it); the pill pulse for a toggle (toggles play no map effect).

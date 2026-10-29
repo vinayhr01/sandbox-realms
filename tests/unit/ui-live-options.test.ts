@@ -9,11 +9,11 @@ describe('live options (13 section 15)', () => {
     expect(DEFAULT_OPTIONS['game.confirmQuit']).toBe(true);
   });
 
-  it('the table has 78 rows and 58 of them are live', () => {
+  it('the table has 77 rows and 59 of them are live', () => {
     // 72 spec 13 rows, three audio options from spec 16 (audio.mono, audio.visualCues, audio.reduceLoud), and three
-    // Insight options (map.layer, map.layerMode, marks.armyLines). Counted from options.ts: 58 rows set live
-    // (Settings close 4 flipped ui.happinessIcons, ui.taskIcons and privacy.errorReports from 55).
-    expect(SETTINGS.length).toBe(79);
+    // Insight options (map.layer, map.layerMode, marks.armyLines). The UX redesign (Task 5) adds ui.allChips (live) and
+    // Task 8 retires ui.quickStrip, ui.autoOpenContextTab and ui.devTools (the last was live). 59 rows are live.
+    expect(SETTINGS.length).toBe(77);
     expect(SETTINGS.filter((s) => s.live).length).toBe(59);
   });
 

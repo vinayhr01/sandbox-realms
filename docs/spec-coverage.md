@@ -209,3 +209,15 @@ Not built (buildable; no spec blocker):
 - Systems: undo (needs a per-stroke journal in the sim), tax money movement, campaign ending, allied-hamlet defection, boat passengers, building damage, ranged wear, item spells, genome effects on stats, SAB mode, fatal invariant checks, the worker log ring.
 - Client: nameplates on Beings, i18n, dev-console commands, achievement popup and cross-Realm progress, render effects (night lights, shadows, bloom, particles), sprite atlases, audio feed for night and calamity, saves thumbnails and quarantine.
 - Checks: benchmark scenes and a perf gate in CI, tablet and phone-landscape in CI, Lighthouse, COOP and COEP, a chaos test, a device pass, a soak re-run, a browser run of the IndexedDB and dialog paths, and a lint for Math.exp, Math.pow and Math.hypot in the sim.
+
+## UX redesign (2026-10-28 spec, parts A to H)
+
+- A foundation: Preact shell over the Pixi map (`src/ui/shell`), the store (`store.ts`), tokens (`tokens.css`), top pills, toasts.
+- B power sheet: chips, grid, search, recent row and favourites, brush, cooldown rings (`PowerSheet.tsx`, `powerCatalog.ts`).
+- C Atlas: tabs and back stack hosting the window bodies, Settings grouped and searchable, Discoveries tab (`Atlas.tsx`, `atlasRoutes.ts`).
+- D info card and touch: `InfoCard.tsx`; a tap inspects at once; zoom buttons; toasts and the coach share the top column.
+- E progressive discovery: `src/content/discoveries.ts`, `src/ui/shell/discovery.ts`, the first-launch coach (`Coach.tsx`).
+- F deploy effects: `src/render/effects.ts`, `effectRecipes.ts`; the `map.effects` step is the first on the degrade ladder.
+- G keymap: `src/ui/shell/keymap.ts`; the Keys window and the Settings keys list come from it.
+- H accessibility: contrast across three themes (tests/a11y); keyboard walkthrough (tests/e2e/a11y-keys.spec.ts); retired settings removed.
+- Dropped or open: Ctrl+Z (DECISIONS.md); info cards for towns and buildings; the pill pulse for toggles.

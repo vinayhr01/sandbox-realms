@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<linearGradient id="omen_rogue_sorcerer-hat" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8a4ad8"/><stop offset=".6" stop-color="#4a1a8a"/><stop offset="1" stop-color="#24083e"/></linearGradient>
+<radialGradient id="omen_rogue_sorcerer-face" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#3a2a3a"/><stop offset="1" stop-color="#0e080e"/></radialGradient>
+<linearGradient id="omen_rogue_sorcerer-beard" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eeeef4"/><stop offset="1" stop-color="#9a9aaa"/></linearGradient>
+<radialGradient id="omen_rogue_sorcerer-eyeglow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff6a4a" stop-opacity=".9"/><stop offset="1" stop-color="#ff2a1a" stop-opacity="0"/></radialGradient>
+<path d="M36 68 C36 86 46 96 62 96 C78 96 88 86 88 68 Z" fill="url(#omen_rogue_sorcerer-face)" stroke="#120420" stroke-width="2"/>
+<circle cx="51" cy="80" r="8" fill="url(#omen_rogue_sorcerer-eyeglow)"/><circle cx="73" cy="80" r="8" fill="url(#omen_rogue_sorcerer-eyeglow)"/>
+<path d="M45 77 L56 80 L45 83 Z M79 77 L68 80 L79 83 Z" fill="#ffd0a0"/>
+<path d="M42 86 C44 102 52 118 62 124 C72 118 80 102 82 86 C74 94 50 94 42 86 Z" fill="url(#omen_rogue_sorcerer-beard)" stroke="#4a4a5a" stroke-width="2" stroke-linejoin="round"/>
+<path d="M54 98 Q58 108 60 116 M70 98 Q66 108 64 116" stroke="#8a8a9a" stroke-width="1.5" fill="none"/>
+<ellipse cx="62" cy="64" rx="52" ry="11" fill="url(#omen_rogue_sorcerer-hat)" stroke="#120420" stroke-width="2.5"/>
+<path d="M28 62 C40 52 46 32 54 22 C62 12 74 6 94 8 C82 12 74 20 72 30 C70 42 84 54 96 62 Z" fill="url(#omen_rogue_sorcerer-hat)" stroke="#120420" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M34 56 Q62 64 90 56 L93 62 Q62 70 31 62 Z" fill="#c8a03a" stroke="#4a3008" stroke-width="1.5" stroke-linejoin="round"/>
+<path d="M60 34 a8 8 0 1 0 9 11 a6.5 6.5 0 1 1 -9 -11 Z" fill="#ffe27a" stroke="#8a5a10" stroke-width="1.2"/>
+<path d="M44 52 Q50 36 56 28" stroke="#b890f0" stroke-width="2.5" fill="none" stroke-linecap="round" opacity=".7"/>
+<polygon points="106 23 107.7 28.3 113 30 107.7 31.7 106 37 104.3 31.7 99 30 104.3 28.3" fill="#c8ff8a" stroke="#3a7a1a" stroke-width="1.2" stroke-linejoin="round"/>
+<polygon points="18 34 19.5 38.5 24 40 19.5 41.5 18 46 16.5 41.5 12 40 16.5 38.5" fill="#e0b0ff" stroke="#6a2aa8" stroke-width="1.2" stroke-linejoin="round"/>
+<polygon points="112 91 113.2 94.8 117 96 113.2 97.2 112 101 110.8 97.2 107 96 110.8 94.8" fill="#e0b0ff" stroke="#6a2aa8" stroke-width="1.2" stroke-linejoin="round"/>
+</svg>

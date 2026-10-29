@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><radialGradient id="insight_lore-g" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff2b8" stop-opacity=".85"/><stop offset="1" stop-color="#fff2b8" stop-opacity="0"/></radialGradient><linearGradient id="insight_lore-cv" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b44a3a"/><stop offset="1" stop-color="#6e2018"/></linearGradient><linearGradient id="insight_lore-pg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fdf6e4"/><stop offset="1" stop-color="#e6d6b0"/></linearGradient></defs>
+<circle cx="64" cy="66" r="60" fill="url(#insight_lore-g)"/>
+<path d="M14 34Q40 26 64 38Q88 26 114 34V104Q88 96 64 108Q40 96 14 104Z" fill="url(#insight_lore-cv)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M20 32Q42 24 62 36V100Q42 90 20 98Z" fill="url(#insight_lore-pg)" stroke="#7a5a30" stroke-width="1.8"/>
+<path d="M108 32Q86 24 66 36V100Q86 90 108 98Z" fill="url(#insight_lore-pg)" stroke="#7a5a30" stroke-width="1.8"/>
+<path d="M28 46q14-4 26 2M28 56q14-4 26 2M28 66q14-4 26 2M28 76q14-4 26 2M74 48q12-6 26-2M74 58q12-6 26-2" stroke="#8a7a5a" stroke-width="2" fill="none" stroke-linecap="round"/>
+<circle cx="86" cy="76" r="8" fill="#e8b84a" stroke="#8a5a10" stroke-width="1.5"/>
+<path d="M64 36V108" stroke="#3e120c" stroke-width="2"/>
+<path d="M80 30V58l5-5 5 5V28" fill="#2f6fae" stroke="#16365a" stroke-width="1.5"/>
+<path d="M108 11Q109.26 16.74 115 18Q109.26 19.26 108 25Q106.74 19.26 101 18Q106.74 16.74 108 11Z" fill="#fff8d0"/><path d="M20 15Q20.9 19.1 25 20Q20.9 20.9 20 25Q19.1 20.9 15 20Q19.1 19.1 20 15Z" fill="#fff8d0"/>
+</svg>

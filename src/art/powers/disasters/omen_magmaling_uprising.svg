@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<linearGradient id="omen_magmaling_uprising-rock" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a5a56"/><stop offset="1" stop-color="#2a2020"/></linearGradient>
+<linearGradient id="omen_magmaling_uprising-lava" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2a0"/><stop offset=".45" stop-color="#ff9a2e"/><stop offset="1" stop-color="#d8401c"/></linearGradient>
+<radialGradient id="omen_magmaling_uprising-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ff8a2a" stop-opacity=".6"/><stop offset="1" stop-color="#ff6a1a" stop-opacity="0"/></radialGradient>
+<circle cx="64" cy="64" r="62" fill="url(#omen_magmaling_uprising-glow)"/>
+<g stroke="#120a08" stroke-width="2.5" stroke-linejoin="round" fill="url(#omen_magmaling_uprising-rock)">
+<path d="M42 92 L36 118 H56 L60 96 Z M86 92 L92 118 H72 L68 96 Z"/>
+<path d="M30 52 Q12 60 14 88 L28 92 Q28 72 38 66 Z M98 52 Q116 60 114 88 L100 92 Q100 72 90 66 Z"/>
+<path d="M30 50 Q64 36 98 50 L92 96 Q64 104 36 96 Z"/>
+<circle cx="20" cy="96" r="10"/><circle cx="108" cy="96" r="10"/>
+<path d="M48 20 Q64 12 80 20 L82 44 Q64 52 46 44 Z"/>
+</g>
+<path d="M52 30 L61 33 L59 38 L52 36 Z M76 30 L67 33 L69 38 L76 36 Z" fill="#ffe27a" stroke="#d8401c" stroke-width="1"/>
+<path d="M56 43 Q64 47 72 43" stroke="#ff9a2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<path d="M50 58 L60 70 L56 84 M78 56 L70 68 L76 86 M64 74 L64 94 M20 64 L25 78 M108 64 L103 78 M44 100 L46 112 M84 100 L82 112" stroke="url(#omen_magmaling_uprising-lava)" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="64" cy="68" r="7" fill="url(#omen_magmaling_uprising-lava)" stroke="#a8301a" stroke-width="1.5"/>
+<path d="M36 50 Q50 43 62 42 M50 20 Q58 16 66 16" stroke="#9a8a84" stroke-width="2" fill="none" stroke-linecap="round" opacity=".8"/>
+</svg>

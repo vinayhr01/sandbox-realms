@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <radialGradient id="chip_nature-leaf" cx=".4" cy=".3" r=".75"><stop offset="0" stop-color="#b6e67a"/><stop offset=".6" stop-color="#5fa83a"/><stop offset="1" stop-color="#3a7424"/></radialGradient>
+    <linearGradient id="chip_nature-trunk" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b07a48"/><stop offset="1" stop-color="#6a3e1c"/></linearGradient>
+  </defs>
+  <path d="M54 80 H74 L78 120 H50 Z" fill="url(#chip_nature-trunk)" stroke="#3a2010" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M30 86 A24 24 0 0 1 22 46 A28 28 0 0 1 64 10 A28 28 0 0 1 106 46 A24 24 0 0 1 98 86 Z" fill="url(#chip_nature-leaf)" stroke="#24501a" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M40 40 Q48 26 62 24" stroke="#eaffc8" stroke-width="6" stroke-linecap="round" fill="none" opacity=".8"/>
+</svg>

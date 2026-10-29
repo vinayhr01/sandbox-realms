@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="fav_kinship-glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ff8ab0" stop-opacity="0.75"/><stop offset="1" stop-color="#ff8ab0" stop-opacity="0"/></radialGradient>
+<linearGradient id="fav_kinship-a" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#ffb0c8"/><stop offset="1" stop-color="#d83a6a"/></linearGradient>
+<linearGradient id="fav_kinship-b" x1="0" y1="0" x2="0.4" y2="1"><stop offset="0" stop-color="#ff7a7a"/><stop offset="1" stop-color="#b81e32"/></linearGradient>
+</defs>
+<circle cx="64" cy="64" r="60" fill="url(#fav_kinship-glow)"/>
+<path d="M46 92C2 66 18 32 46 50C74 32 90 66 46 92Z" transform="rotate(-12 46 64)" fill="url(#fav_kinship-a)" stroke="#6a1a2e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M82 100C40 76 55 44 82 60C109 44 124 76 82 100Z" transform="rotate(12 82 74)" fill="url(#fav_kinship-b)" stroke="#6a1a2e" stroke-width="2.5" stroke-linejoin="round"/>
+<ellipse cx="32" cy="50" rx="7" ry="4" transform="rotate(-40 32 50)" fill="#fff" opacity=".6"/>
+<ellipse cx="70" cy="60" rx="7" ry="4" transform="rotate(-30 70 60)" fill="#fff" opacity=".55"/>
+<g fill="#fff0f4" stroke="#d8507a" stroke-width="1.2" stroke-linejoin="round"><path d="M106 23l2.1 4.9 4.9 2.1 -4.9 2.1 -2.1 4.9 -2.1 -4.9 -4.9 -2.1 4.9 -2.1Z"/><path d="M20 94l1.8 4.2 4.2 1.8 -4.2 1.8 -1.8 4.2 -1.8 -4.2 -4.2 -1.8 4.2 -1.8Z"/></g>
+</svg>

@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="shape_deepmere-water" cx=".5" cy=".35" r=".65"><stop offset="0" stop-color="#3d74c4"/><stop offset=".6" stop-color="#1c3f86"/><stop offset="1" stop-color="#0b1c46"/></radialGradient>
+<linearGradient id="shape_deepmere-iron" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e2e6ec"/><stop offset=".5" stop-color="#a4acb8"/><stop offset="1" stop-color="#5e6676"/></linearGradient>
+</defs>
+<circle cx="64" cy="66" r="54" fill="url(#shape_deepmere-water)" stroke="#0a1430" stroke-width="2.5"/>
+<path d="M16 46 Q28 38 40 46 T64 46 T88 46 T112 46" stroke="#9cc8ff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/>
+<path d="M22 30 Q30 24 40 28" stroke="#cfe6ff" stroke-width="2.5" fill="none" stroke-linecap="round" opacity=".7"/>
+<circle cx="64" cy="36" r="7.5" fill="none" stroke="#2e2a26" stroke-width="7"/>
+<circle cx="64" cy="36" r="7.5" fill="none" stroke="url(#shape_deepmere-iron)" stroke-width="3.5"/>
+<g stroke="#2e2a26" stroke-width="2.2" stroke-linejoin="round">
+<path d="M60 43 H68 V102 H60 Z" fill="url(#shape_deepmere-iron)"/>
+<rect x="46" y="50" width="36" height="7" rx="3.5" fill="url(#shape_deepmere-iron)"/>
+<path d="M28 76 L38 72 Q42 94 64 96 Q86 94 90 72 L100 76 Q96 110 64 112 Q32 110 28 76 Z" fill="url(#shape_deepmere-iron)"/>
+<path d="M24 70 L38 66 L34 82 Z M104 70 L90 66 L94 82 Z" fill="url(#shape_deepmere-iron)"/>
+</g>
+<g fill="#bfe0ff" stroke="#6aa0dc" stroke-width="1" opacity=".85">
+<circle cx="86" cy="34" r="4"/><circle cx="94" cy="24" r="2.6"/><circle cx="40" cy="62" r="3"/>
+</g>
+</svg>

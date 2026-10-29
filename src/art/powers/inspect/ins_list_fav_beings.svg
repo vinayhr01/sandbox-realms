@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><linearGradient id="ins_list_fav_beings-fr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0a8"/><stop offset="0.5" stop-color="#e8b84a"/><stop offset="1" stop-color="#9a6614"/></linearGradient><radialGradient id="ins_list_fav_beings-bg" cx="0.5" cy="0.35" r="0.7"><stop offset="0" stop-color="#bfe6e0"/><stop offset="0.5" stop-color="#5aa89a"/><stop offset="1" stop-color="#2c6a62"/></radialGradient><linearGradient id="ins_list_fav_beings-pp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a6a9a"/><stop offset="1" stop-color="#243a5e"/></linearGradient><radialGradient id="ins_list_fav_beings-h" cx="0.4" cy="0.35" r="0.7"><stop offset="0" stop-color="#ff8a9a"/><stop offset="0.5" stop-color="#e0304a"/><stop offset="1" stop-color="#901428"/></radialGradient><clipPath id="ins_list_fav_beings-c"><ellipse cx="64" cy="58" rx="29" ry="37"/></clipPath></defs>
+<ellipse cx="64" cy="58" rx="40" ry="48" fill="url(#ins_list_fav_beings-fr)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<ellipse cx="64" cy="58" rx="29" ry="37" fill="url(#ins_list_fav_beings-bg)" stroke="#7a4a10" stroke-width="2"/>
+<g clip-path="url(#ins_list_fav_beings-c)"><circle cx="64" cy="50" r="12" fill="url(#ins_list_fav_beings-pp)" stroke="#1a2a44" stroke-width="2"/><path d="M38 100Q40 70 64 68Q88 70 90 100Z" fill="url(#ins_list_fav_beings-pp)" stroke="#1a2a44" stroke-width="2"/></g>
+<path d="M32 40Q36 22 54 14" stroke="#fff" stroke-opacity=".6" stroke-width="3" fill="none" stroke-linecap="round"/>
+<path d="M0 10C-14 0-14-12-6-12C-2-12 0-9 0-6C0-9 2-12 6-12C14-12 14 0 0 10Z" transform="translate(94 96) scale(1.6)" fill="url(#ins_list_fav_beings-h)" stroke="#3a1f10" stroke-width="1.6" stroke-linejoin="round"/>
+<ellipse cx="88" cy="85" rx="3.5" ry="2.5" fill="#fff" opacity=".7"/>
+</svg>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="ins_layer_l06-leaf" cx=".4" cy=".3" r=".75"><stop offset="0" stop-color="#b8e480"/><stop offset=".6" stop-color="#5aa03a"/><stop offset="1" stop-color="#2e6a22"/></radialGradient>
+<linearGradient id="ins_layer_l06-bark" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9a6a3a"/><stop offset="1" stop-color="#5a3414"/></linearGradient>
+<radialGradient id="ins_layer_l06-fruit" cx=".38" cy=".32" r=".7"><stop offset="0" stop-color="#fff6c0"/><stop offset=".5" stop-color="#f2b234"/><stop offset="1" stop-color="#a8681a"/></radialGradient>
+</defs>
+<path d="M56 116 Q60 96 58 76 L46 64 L52 62 L60 70 L62 58 L66 58 L68 70 L78 60 L82 64 L70 78 Q68 96 74 116 Z" fill="url(#ins_layer_l06-bark)" stroke="#3a1e08" stroke-width="2.4" stroke-linejoin="round"/>
+<path d="M30 70 Q8 66 14 46 Q12 26 34 24 Q44 6 66 10 Q88 6 96 24 Q118 26 114 48 Q120 68 98 70 Q86 80 64 74 Q42 80 30 70 Z" fill="url(#ins_layer_l06-leaf)" stroke="#1e4a14" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M30 36 Q36 24 50 22" stroke="#e4f6c0" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/>
+<g fill="url(#ins_layer_l06-fruit)" stroke="#6a4210" stroke-width="2">
+<circle cx="64" cy="28" r="8"/>
+<circle cx="38" cy="50" r="8"/>
+<circle cx="90" cy="50" r="8"/>
+<circle cx="64" cy="56" r="7"/>
+</g>
+<path d="M64 36 V49 M45 54 L57 56 M83 54 L71 56" stroke="#6a4210" stroke-width="2" opacity=".7"/>
+<path d="M14 116 Q64 104 114 116" stroke="#5a9238" stroke-width="5" fill="none" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><linearGradient id="ins_arrow_a05-p1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6a9ae0"/><stop offset="1" stop-color="#2a5aa8"/></linearGradient><linearGradient id="ins_arrow_a05-p2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb870"/><stop offset="1" stop-color="#e07a20"/></linearGradient></defs>
+<path d="M10 116H118" stroke="#3e6a2a" stroke-width="4" stroke-linecap="round"/>
+<circle cx="40" cy="56" r="14" fill="url(#ins_arrow_a05-p1)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/><path d="M14 110Q14 74 40 74Q66 74 66 110Z" fill="url(#ins_arrow_a05-p1)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="94" cy="82.4" r="8.4" fill="url(#ins_arrow_a05-p2)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/><path d="M78.4 114.8Q78.4 93.2 94 93.2Q109.6 93.2 109.6 114.8Z" fill="url(#ins_arrow_a05-p2)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M94 66Q96 26 72 24" fill="none" stroke="#3a1f10" stroke-width="13" stroke-linecap="round"/><path d="M94 66Q96 26 72 24" fill="none" stroke="#e8b84a" stroke-width="8" stroke-linecap="round"/><path d="M58 24L73 13L73 35Z" fill="#e8b84a" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+</svg>

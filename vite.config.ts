@@ -9,10 +9,12 @@ export default defineConfig({
     rolldownOptions: {
       output: {
         // Each art chunk (src/art/<chunk>/, see src/art/load.ts) becomes art-<chunk>-<hash>.js. gaits.ts is not in
-        // those folders, so it stays in the main chunk.
+        // those folders, so it stays in the main chunk. Each power-art group (src/art/powers/<group>/) becomes art-p<group>.
+        // reuse.ts sits beside the groups, not in one, so it stays in the main chunk too.
         manualChunks(id) {
-          const m = /[\\/]src[\\/]art[\\/](folk|beast|bird|sea|insect|undead|monster|divine|buildings)[\\/]/.exec(id);
-          return m?.[1] ? `art-${m[1]}` : undefined;
+          const m = /[\\/]src[\\/]art[\\/](?:(folk|beast|bird|sea|insect|undead|monster|divine|buildings)|powers[\\/](chips|land|nature|weather|disasters|blessings|peoples|inspect|world))[\\/]/.exec(id);
+          if (!m) return undefined;
+          return m[1] ? `art-${m[1]}` : `art-p${m[2]}`;
         },
       },
     },

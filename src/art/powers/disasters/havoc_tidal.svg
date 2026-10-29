@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<linearGradient id="havoc_tidal-water" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7ad0f8"/><stop offset=".5" stop-color="#2f86d8"/><stop offset="1" stop-color="#164a8a"/></linearGradient>
+<linearGradient id="havoc_tidal-inner" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1a5aa0"/><stop offset="1" stop-color="#0e3a6a"/></linearGradient>
+<path d="M6 116 L6 92 C12 52 44 20 80 20 C104 20 120 36 118 58 C114 46 102 40 90 44 C76 50 74 68 88 76 C96 80 104 78 108 74 C104 92 90 104 70 106 C96 108 112 110 122 116 Z" fill="url(#havoc_tidal-water)" stroke="#0e2e5a" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M90 44 C76 50 74 68 88 76 C80 70 80 56 92 50 Z" fill="url(#havoc_tidal-inner)" opacity=".8"/>
+<path d="M80 20 C104 20 120 36 118 58 C114 46 102 40 90 44 C96 36 90 28 78 28 C70 28 62 32 56 36 C62 26 70 21 80 20 Z" fill="#f4fbff" stroke="#5a8ab8" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M20 92 C26 70 40 52 58 42 M30 104 C38 86 52 72 66 66" stroke="#bfe6ff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/>
+<g fill="#e8f6ff" stroke="#5a8ab8" stroke-width="1.2">
+<circle cx="112" cy="30" r="4"/><circle cx="104" cy="18" r="3"/><circle cx="122" cy="44" r="3"/><circle cx="96" cy="10" r="2.5"/>
+</g>
+<path d="M4 118 Q24 112 44 118 T84 118 T124 118" stroke="#f4fbff" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<radialGradient id="omen_gloom_bloom-flesh" cx=".4" cy=".35" r=".75"><stop offset="0" stop-color="#e88ab0"/><stop offset=".55" stop-color="#a83a6a"/><stop offset="1" stop-color="#4a0e2a"/></radialGradient>
+<radialGradient id="omen_gloom_bloom-nod" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#ffc0d8"/><stop offset=".6" stop-color="#d85a8a"/><stop offset="1" stop-color="#7a1a40"/></radialGradient>
+<path d="M20 112 C34 108 40 100 46 104 M108 112 C94 108 88 100 82 104 M64 112 C60 116 52 120 44 122 M8 104 C18 102 26 98 32 100 M120 104 C112 100 104 102 98 100" stroke="#6a1a3a" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M22 108 C14 92 22 74 36 70 C34 54 46 42 60 46 C66 30 88 30 94 46 C108 46 116 62 108 74 C118 82 116 102 104 108 Z" fill="url(#omen_gloom_bloom-flesh)" stroke="#2e0818" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M50 100 C56 90 54 80 62 74 M82 104 C80 96 88 92 94 88 M70 60 C72 54 76 52 78 48 M30 98 C34 92 36 90 40 84" stroke="#4a0e2a" stroke-width="2" fill="none" opacity=".8"/>
+<g stroke="#2e0818" stroke-width="2" fill="url(#omen_gloom_bloom-nod)">
+<circle cx="40" cy="84" r="11"/><circle cx="78" cy="46" r="9"/><circle cx="94" cy="88" r="13"/><circle cx="62" cy="74" r="8"/>
+</g>
+<g fill="#fff" opacity=".7"><circle cx="36" cy="80" r="2.5"/><circle cx="75" cy="43" r="2"/><circle cx="89" cy="83" r="3"/><circle cx="59" cy="71" r="1.8"/></g>
+<g fill="#8a3a6a" stroke="#3a0a20" stroke-width="1"><circle cx="30" cy="34" r="4"/><circle cx="46" cy="20" r="3"/><circle cx="104" cy="28" r="3.5"/><circle cx="114" cy="44" r="2.5"/></g>
+</svg>

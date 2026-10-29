@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><linearGradient id="ins_overlay_talk_bubbles-a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#ece0c4"/></linearGradient><linearGradient id="ins_overlay_talk_bubbles-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe2ff"/><stop offset="1" stop-color="#5a9ad8"/></linearGradient></defs>
+<path d="M10 30Q10 14 28 14H72Q90 14 90 30V52Q90 68 72 68H42L24 84L28 68Q10 68 10 52Z" fill="url(#ins_overlay_talk_bubbles-a)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="34" cy="42" r="5" fill="#5a3a20"/><circle cx="50" cy="42" r="5" fill="#5a3a20"/><circle cx="66" cy="42" r="5" fill="#5a3a20"/>
+<path d="M44 64Q44 50 60 50H102Q118 50 118 64V84Q118 98 102 98H98L104 114L84 98H60Q44 98 44 84Z" fill="url(#ins_overlay_talk_bubbles-b)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M60 70H102M60 80H90" stroke="#1a4a7a" stroke-width="4" stroke-linecap="round"/>
+<path d="M18 26Q22 20 34 20" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

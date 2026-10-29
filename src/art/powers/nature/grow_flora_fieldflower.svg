@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="grow_flora_fieldflower-pet" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#9a3cc0"/><stop offset=".6" stop-color="#d68af0"/><stop offset="1" stop-color="#f6d4ff"/></linearGradient>
+<radialGradient id="grow_flora_fieldflower-mid" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#fff6b0"/><stop offset=".6" stop-color="#ffc63a"/><stop offset="1" stop-color="#d8861a"/></radialGradient>
+<linearGradient id="grow_flora_fieldflower-leaf" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c6ee82"/><stop offset="1" stop-color="#4f9a34"/></linearGradient>
+<path id="grow_flora_fieldflower-p" d="M0 -6 C-9 -12 -10 -28 0 -34 C10 -28 9 -12 0 -6Z"/>
+</defs>
+<g fill="none" stroke-linecap="round"><path d="M58 56 C62 80 58 96 62 118 M63 98 C74 90 84 82 92 72" stroke="#2e5a1c" stroke-width="7"/><path d="M58 56 C62 80 58 96 62 118 M63 98 C74 90 84 82 92 72" stroke="#5c9a36" stroke-width="3.5"/></g>
+<g fill="url(#grow_flora_fieldflower-leaf)" stroke="#2e5a1c" stroke-width="2" stroke-linejoin="round"><path d="M60 92 C48 94 36 86 30 74 C46 70 58 80 60 92Z"/><path d="M62 110 C52 112 42 108 36 100 C48 96 58 100 62 110Z"/></g>
+<path d="M92 72 C84 70 84 58 92 52 C100 58 100 70 92 72Z" fill="url(#grow_flora_fieldflower-pet)" stroke="#5a1a78" stroke-width="2"/>
+<path d="M85 70 L92 64 L99 70 L92 74Z" fill="#5c9a36" stroke="#2e5a1c" stroke-width="1.6" stroke-linejoin="round"/>
+<g fill="url(#grow_flora_fieldflower-pet)" stroke="#5a1a78" stroke-width="2" stroke-linejoin="round">
+<use href="#grow_flora_fieldflower-p" transform="translate(58 44) rotate(22)"/>
+<use href="#grow_flora_fieldflower-p" transform="translate(58 44) rotate(67)"/>
+<use href="#grow_flora_fieldflower-p" transform="translate(58 44) rotate(112)"/>
+<use href="#grow_flora_fieldflower-p" transform="translate(58 44) rotate(157)"/>
+<use href="#grow_flora_fieldflower-p" transform="translate(58 44) rotate(202)"/>
+<use href="#grow_flora_fieldflower-p" transform="translate(58 44) rotate(247)"/>
+<use href="#grow_flora_fieldflower-p" transform="translate(58 44) rotate(292)"/>
+<use href="#grow_flora_fieldflower-p" transform="translate(58 44) rotate(337)"/>
+</g>
+<circle cx="58" cy="44" r="12" fill="url(#grow_flora_fieldflower-mid)" stroke="#8a4a10" stroke-width="2.2"/>
+<g fill="#a85a10" opacity=".55"><circle cx="54" cy="46" r="1.6"/><circle cx="60" cy="49" r="1.6"/><circle cx="63" cy="43" r="1.6"/><circle cx="57" cy="40" r="1.4"/></g>
+<path d="M51 40 q3 -5 8 -5" fill="none" stroke="#fffbe0" stroke-width="2.2" stroke-linecap="round"/>
+<path d="M48 118 l-4 -10 M54 118 l1 -9 M70 118 l3 -10 M76 118 l6 -8" stroke="#4f8a2c" stroke-width="3" stroke-linecap="round"/>
+</svg>

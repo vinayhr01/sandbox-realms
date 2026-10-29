@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="fav_vigor-glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ff9a3a" stop-opacity="0.75"/><stop offset="1" stop-color="#ff9a3a" stop-opacity="0"/></radialGradient>
+<linearGradient id="fav_vigor-skin" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#ffd2a6"/><stop offset="0.6" stop-color="#e8a070"/><stop offset="1" stop-color="#c27a4c"/></linearGradient>
+</defs>
+<circle cx="60" cy="64" r="60" fill="url(#fav_vigor-glow)"/>
+<g fill="none" stroke="#ffd36a" stroke-width="3.5" stroke-linecap="round"><path d="M44 30Q36 36 34 44M30 24Q20 34 18 46M108 60q6 8 6 18M116 52q8 12 6 28"/></g>
+<path d="M10 82C20 78 30 58 48 56C62 54 70 62 72 70C72 62 68 52 68 46C62 44 60 34 64 26C68 18 84 16 92 22C100 28 100 40 94 46C92 48 90 50 90 54C94 70 98 90 92 102C86 112 70 112 58 110C40 108 22 110 10 112Z" fill="url(#fav_vigor-skin)" stroke="#7a3f1e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M66 34Q76 30 86 33M66 41Q74 38 82 41M72 70Q76 77 82 75" fill="none" stroke="#9a5530" stroke-width="2" stroke-linecap="round"/>
+<ellipse cx="44" cy="66" rx="11" ry="5" fill="#fff" opacity=".45" transform="rotate(-14 44 66)"/>
+<ellipse cx="80" cy="24" rx="7" ry="3" fill="#fff" opacity=".45"/>
+<path d="M10 104q26 -4 48 0" fill="none" stroke="#a65e36" stroke-width="2" opacity=".5"/>
+</svg>

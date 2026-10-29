@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><linearGradient id="ins_mark_items-w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8783a"/><stop offset="0.5" stop-color="#8a5224"/><stop offset="1" stop-color="#5a3012"/></linearGradient><linearGradient id="ins_mark_items-lid" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c88444"/><stop offset="1" stop-color="#8a5224"/></linearGradient><linearGradient id="ins_mark_items-m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0a8"/><stop offset="0.5" stop-color="#e8b84a"/><stop offset="1" stop-color="#9a6614"/></linearGradient><radialGradient id="ins_mark_items-g" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffe27a" stop-opacity=".85"/><stop offset="1" stop-color="#ffe27a" stop-opacity="0"/></radialGradient></defs>
+<ellipse cx="64" cy="62" rx="56" ry="22" fill="url(#ins_mark_items-g)"/>
+<path d="M18 62V48Q18 30 64 30Q110 30 110 48V62Z" fill="url(#ins_mark_items-lid)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="18" y="62" width="92" height="46" rx="3" fill="url(#ins_mark_items-w)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M18 78H110M18 94H110" stroke="#4a2810" stroke-width="1.5" opacity=".6"/>
+<path d="M28 36Q32 33 38 32V108H28Z" fill="url(#ins_mark_items-m)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M100 36Q96 33 90 32V108H100Z" fill="url(#ins_mark_items-m)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="15" y="58" width="98" height="8" rx="3" fill="url(#ins_mark_items-m)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="54" y="56" width="20" height="24" rx="4" fill="url(#ins_mark_items-m)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="64" cy="66" r="3.5" fill="#3a1f10"/><path d="M62.5 67h3l1 7h-5z" fill="#3a1f10"/>
+<path d="M30 40Q48 34 62 34" stroke="#fff" stroke-opacity=".5" stroke-width="3" fill="none" stroke-linecap="round"/>
+<path d="M104 14Q105.44 20.56 112 22Q105.44 23.44 104 30Q102.56 23.44 96 22Q102.56 20.56 104 14Z" fill="#fff8d0"/><path d="M24 19Q24.9 23.1 29 24Q24.9 24.9 24 29Q23.1 24.9 19 24Q23.1 23.1 24 19Z" fill="#fff8d0"/>
+</svg>

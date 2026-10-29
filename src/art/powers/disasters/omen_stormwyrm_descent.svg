@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<linearGradient id="omen_stormwyrm_descent-scale" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8ab0e8"/><stop offset=".5" stop-color="#4a6aa8"/><stop offset="1" stop-color="#24345e"/></linearGradient>
+<linearGradient id="omen_stormwyrm_descent-horn" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff4dc"/><stop offset="1" stop-color="#c8a870"/></linearGradient>
+<radialGradient id="omen_stormwyrm_descent-eye" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff8a0"/><stop offset="1" stop-color="#ffb020"/></radialGradient>
+<path d="M24 82 C20 98 18 110 16 124 H62 C60 110 62 100 70 90 Z" fill="url(#omen_stormwyrm_descent-scale)" stroke="#121a30" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M22 88 L8 92 L20 98 Z M18 104 L6 110 L17 114 Z" fill="#d8e4f6" stroke="#121a30" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M42 46 C30 36 18 28 6 28 C18 36 26 46 34 56 Z M54 40 C50 26 44 16 34 10 C40 22 42 34 44 46 Z" fill="url(#omen_stormwyrm_descent-horn)" stroke="#5a4a2a" stroke-width="2" stroke-linejoin="round"/>
+<path d="M80 70 L114 66 L110 84 Z" fill="#6a1a1a"/>
+<path d="M24 74 C22 56 36 42 56 40 C70 38 84 44 96 50 L114 56 C120 58 120 66 114 68 L96 70 L112 78 C116 82 112 88 106 86 L84 84 C72 94 50 98 36 92 C28 88 24 82 24 74 Z" fill="url(#omen_stormwyrm_descent-scale)" stroke="#121a30" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M100 68 L102 74 L104 68 Z M106 67 L108 73 L110 67 Z" fill="#fff" stroke="#121a30" stroke-width="1"/>
+<path d="M62 52 Q72 45 82 52 Q72 59 62 52 Z" fill="url(#omen_stormwyrm_descent-eye)" stroke="#121a30" stroke-width="1.5"/>
+<path d="M72 48 V56" stroke="#121a30" stroke-width="2.5" stroke-linecap="round"/>
+<path d="M58 47 Q72 38 86 46" stroke="#121a30" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+<path d="M108 59 q3 -2 5 0" stroke="#121a30" stroke-width="2" fill="none" stroke-linecap="round"/>
+<path d="M40 88 C56 90 70 86 82 82" stroke="#d8c890" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M38 56 Q52 46 70 46" stroke="#c8daf8" stroke-width="2.5" fill="none" stroke-linecap="round" opacity=".8"/>
+<path d="M104 6 L94 24 H102 L96 40 L114 20 H106 L112 6 Z" fill="#ffe14d" stroke="#9a5a0a" stroke-width="1.8" stroke-linejoin="round"/>
+</svg>

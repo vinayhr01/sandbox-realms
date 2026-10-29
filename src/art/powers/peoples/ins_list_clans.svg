@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="ins_list_clans-field" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5ac08a"/><stop offset="1" stop-color="#1e5a40"/></linearGradient>
+<linearGradient id="ins_list_clans-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe48a"/><stop offset="1" stop-color="#b8761a"/></linearGradient>
+<radialGradient id="ins_list_clans-paw" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#fff0b0"/><stop offset="1" stop-color="#d8962a"/></radialGradient>
+</defs>
+<ellipse cx="64" cy="118" rx="30" ry="5" fill="#000" opacity=".22"/>
+<path d="M20 18 H108 V58 Q108 98 64 118 Q20 98 20 58 Z" fill="url(#ins_list_clans-rim)" stroke="#5a3a10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M28 26 H100 V58 Q100 92 64 109 Q28 92 28 58 Z" fill="url(#ins_list_clans-field)" stroke="#5a3a10" stroke-width="2"/>
+<path d="M34 34 H62 M34 34 V60" stroke="#c8f4dc" stroke-width="3" stroke-linecap="round" opacity=".6"/>
+<g fill="url(#ins_list_clans-paw)" stroke="#5a3a10" stroke-width="2">
+<path d="M64 62 C78 62 86 76 82 86 C78 94 70 88 64 88 C58 88 50 94 46 86 C42 76 50 62 64 62 Z"/>
+<ellipse cx="44" cy="58" rx="6.5" ry="8.5" transform="rotate(-20 44 58)"/>
+<ellipse cx="56" cy="46" rx="6.5" ry="9"/>
+<ellipse cx="72" cy="46" rx="6.5" ry="9"/>
+<ellipse cx="84" cy="58" rx="6.5" ry="8.5" transform="rotate(20 84 58)"/>
+</g>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="shape_strand-sand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbe6ae"/><stop offset="1" stop-color="#d8ac62"/></linearGradient>
+<linearGradient id="shape_strand-dune" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#eccb84"/><stop offset="1" stop-color="#c8964e"/></linearGradient>
+<radialGradient id="shape_strand-star" cx=".5" cy=".45" r=".55"><stop offset="0" stop-color="#ffc07a"/><stop offset="1" stop-color="#e8622c"/></radialGradient>
+</defs>
+<path d="M6 76 Q40 38 76 64 Q98 50 122 62 V116 H6 Z" fill="url(#shape_strand-dune)" stroke="#7a5428" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M6 96 Q50 72 122 88 V116 H6 Z" fill="url(#shape_strand-sand)" stroke="#7a5428" stroke-width="2.4" stroke-linejoin="round"/>
+<path d="M20 70 Q34 60 48 62 M86 62 Q98 58 110 62 M14 106 Q30 100 46 104 M84 104 Q100 100 114 104" stroke="#a8783a" stroke-width="1.6" fill="none" opacity=".6" stroke-linecap="round"/>
+<path d="M64 46 L71.6 63.5 L90.5 64.7 L75.4 77 L80.6 95.3 L64 85 L47.4 95.3 L52.6 77 L37.5 64.7 L56.4 63.5 Z" fill="url(#shape_strand-star)" stroke="#8a2e10" stroke-width="2.4" stroke-linejoin="round"/>
+<g fill="#fff0d0"><circle cx="64" cy="58" r="1.8"/><circle cx="64" cy="70" r="2.4"/><circle cx="80" cy="68" r="1.8"/><circle cx="48" cy="68" r="1.8"/><circle cx="74" cy="84" r="1.8"/><circle cx="54" cy="84" r="1.8"/></g>
+<path d="M98 96 Q104 84 112 96 Z" fill="#fde0e4" stroke="#9a5a5e" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M102 96 L105 88 M108 96 L106 88" stroke="#9a5a5e" stroke-width="1" opacity=".7"/>
+</svg>

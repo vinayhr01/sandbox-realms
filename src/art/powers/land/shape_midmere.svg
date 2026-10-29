@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="shape_midmere-sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6cc0f0"/><stop offset="1" stop-color="#2a6cc0"/></linearGradient>
+<linearGradient id="shape_midmere-sail" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#e2d6bc"/></linearGradient>
+<linearGradient id="shape_midmere-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c58a4a"/><stop offset="1" stop-color="#6e401a"/></linearGradient>
+</defs>
+<path d="M64 16 V76" stroke="#4a2c12" stroke-width="3.5" stroke-linecap="round"/>
+<path d="M67 18 Q96 42 94 70 H67 Z" fill="url(#shape_midmere-sail)" stroke="#5a4028" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M68 52 H93" stroke="#d0503a" stroke-width="5"/>
+<path d="M61 28 Q44 50 40 70 H61 Z" fill="url(#shape_midmere-sail)" stroke="#5a4028" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M88 12 L64 16 L88 20 Z" fill="#d0503a" stroke="#5a1a10" stroke-width="1.2" stroke-linejoin="round"/>
+<path d="M30 72 H100 L88 90 H42 Z" fill="url(#shape_midmere-wood)" stroke="#3a2010" stroke-width="2.4" stroke-linejoin="round"/>
+<path d="M36 78 H94" stroke="#e8b878" stroke-width="2" opacity=".7"/>
+<path d="M6 88 Q22 78 38 88 T70 88 T102 88 Q112 82 122 86 V112 Q64 122 6 112 Z" fill="url(#shape_midmere-sea)" stroke="#173e78" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M14 98 Q24 92 34 98 M56 102 Q66 96 76 102 M92 96 Q102 90 112 96" stroke="#e6f6ff" stroke-width="2.5" fill="none" stroke-linecap="round" opacity=".85"/>
+</svg>

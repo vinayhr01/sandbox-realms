@@ -7,6 +7,9 @@ import type { MapKindGroup } from '../shared/protocol.ts';
 import { SPECIES_BY_ID } from '../content/beasts.ts';
 import { speciesGroup } from '../content/species-group.ts';
 import { SPECIES_GAIT } from './gaits.ts';
+import { REUSE } from './powers/reuse.ts';
+import type { PowerDef } from '../content/powers.ts';
+import { chipOf, type ChipId } from '../ui/shell/powerCatalog.ts';
 
 export type ArtChunk = 'folk' | 'beast' | 'bird' | 'sea' | 'insect' | 'undead' | 'monster' | 'divine' | 'buildings';
 
@@ -76,4 +79,73 @@ export function artFor(id: string): string | null {
 /** The SVG source of a hamlet building kind, or null while the buildings chunk has not loaded (or has no art). */
 export function artForBuilding(id: string): string | null {
   return loaded.get('buildings')?.[id] ?? null;
+}
+
+/*
+ * Power art (illustrated power icons). Each group under src/art/powers/<group>/ is one lazy chunk (art-p<group>), keyed
+ * by power id, or by chip id in the `chips` group. Creature powers keep their species art above; every other power and
+ * chip reads from here, with the line glyph as the fallback until its group has loaded.
+ */
+
+export type PowerArtGroup = 'chips' | 'land' | 'nature' | 'weather' | 'disasters' | 'blessings' | 'peoples' | 'inspect' | 'world';
+
+export const POWER_ART_GROUPS: readonly PowerArtGroup[] = ['chips', 'land', 'nature', 'weather', 'disasters', 'blessings', 'peoples', 'inspect', 'world'];
+
+const POWER_LOADERS: Record<PowerArtGroup, () => Promise<ArtModule>> = {
+  chips: () => import('./powers/chips/index.ts'),
+  land: () => import('./powers/land/index.ts'),
+  nature: () => import('./powers/nature/index.ts'),
+  weather: () => import('./powers/weather/index.ts'),
+  disasters: () => import('./powers/disasters/index.ts'),
+  blessings: () => import('./powers/blessings/index.ts'),
+  peoples: () => import('./powers/peoples/index.ts'),
+  inspect: () => import('./powers/inspect/index.ts'),
+  world: () => import('./powers/world/index.ts'),
+};
+
+/** The art group of a power: its sheet chip, or `world` for the Atlas and Realm powers. Creature powers have no group of their own (they show species art), so they map to `world` too. */
+export function powerArtGroup(power: PowerDef): PowerArtGroup {
+  const chip = chipOf(power);
+  return chip === null || chip === 'creatures' ? 'world' : chip;
+}
+
+const powerPending = new Map<PowerArtGroup, Promise<Record<string, string>>>();
+const powerLoaded = new Map<PowerArtGroup, Record<string, string>>();
+
+/** Loads a power art group once and resolves to its ART record. A failed import is retried by the next call. */
+export function loadPowerArt(group: PowerArtGroup): Promise<Record<string, string>> {
+  let hit = powerPending.get(group);
+  if (!hit) {
+    hit = POWER_LOADERS[group]().then(
+      (mod) => {
+        powerLoaded.set(group, mod.ART);
+        return mod.ART;
+      },
+      (err: unknown) => {
+        powerPending.delete(group);
+        throw err;
+      },
+    );
+    powerPending.set(group, hit);
+  }
+  return hit;
+}
+
+/** Loads what a power's icon needs: its group, and the buildings chunk when the icon is reused from there. */
+export function loadPowerArtFor(power: PowerDef): Promise<unknown> {
+  const reuse: { chunk: ArtChunk; id: string } | undefined = REUSE[power.id];
+  return Promise.all([loadPowerArt(powerArtGroup(power)), reuse ? loadArt(reuse.chunk) : null]);
+}
+
+/** The SVG source of a non-creature power, or null while its group has not loaded (or it has no art). A reused icon comes from its building or flora chunk. */
+export function powerArtFor(power: PowerDef): string | null {
+  const own = powerLoaded.get(powerArtGroup(power))?.[power.id];
+  if (own !== undefined) return own;
+  const reuse: { chunk: ArtChunk; id: string } | undefined = REUSE[power.id];
+  return reuse ? (loaded.get(reuse.chunk)?.[reuse.id] ?? null) : null;
+}
+
+/** The SVG source of a sheet category chip, or null while the chips group has not loaded. */
+export function chipArtFor(chip: ChipId): string | null {
+  return powerLoaded.get('chips')?.[chip] ?? null;
 }

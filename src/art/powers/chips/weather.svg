@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <radialGradient id="chip_weather-sun" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#fff6c0"/><stop offset=".5" stop-color="#ffd040"/><stop offset="1" stop-color="#f28a20"/></radialGradient>
+    <linearGradient id="chip_weather-cloud" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#d4deec"/><stop offset="1" stop-color="#9aaac4"/></linearGradient>
+  </defs>
+  <g stroke="#e08a1a" stroke-width="7" stroke-linecap="round">
+    <path d="M84 6 V16 M118 40 H108 M108 16 L101 23 M60 16 L67 23 M108 64 L101 57"/>
+  </g>
+  <circle cx="84" cy="40" r="24" fill="url(#chip_weather-sun)" stroke="#a8501a" stroke-width="5"/>
+  <path d="M26 112 A20 20 0 0 1 24 72 A28 28 0 0 1 76 62 A22 22 0 0 1 104 112 Z" fill="url(#chip_weather-cloud)" stroke="#3e4e6a" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M36 82 Q42 72 54 72" stroke="#ffffff" stroke-width="6" stroke-linecap="round" fill="none"/>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="chip_land-hill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a8dc70"/><stop offset="1" stop-color="#4f8e30"/></linearGradient>
+    <linearGradient id="chip_land-soil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a8774a"/><stop offset="1" stop-color="#6a4424"/></linearGradient>
+  </defs>
+  <path d="M6 112 V96 Q30 30 66 34 Q102 38 122 96 V112 Z" fill="url(#chip_land-soil)" stroke="#2e3a18" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M6 96 Q30 30 66 34 Q102 38 122 96 Q100 88 64 92 Q30 90 6 96 Z" fill="url(#chip_land-hill)" stroke="#2e5a1c" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M34 62 Q46 44 64 44" stroke="#e6f8c4" stroke-width="6" stroke-linecap="round" fill="none" opacity=".85"/>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="ins_layer_l03-bronze" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a5a1e"/><stop offset=".35" stop-color="#ffd878"/><stop offset=".6" stop-color="#d89a3a"/><stop offset="1" stop-color="#6a3e12"/></linearGradient>
+<radialGradient id="ins_layer_l03-ball" cx=".38" cy=".32" r=".7"><stop offset="0" stop-color="#ffe8a0"/><stop offset="1" stop-color="#8a5a1e"/></radialGradient>
+</defs>
+<path d="M20 52 q-8 12 0 24 M10 46 q-12 18 0 36 M108 52 q8 12 0 24 M118 46 q12 18 0 36" stroke="#ffd36a" stroke-width="3.5" fill="none" stroke-linecap="round" opacity=".85"/>
+<circle cx="64" cy="18" r="8" fill="none" stroke="#4a2a0c" stroke-width="7"/>
+<circle cx="64" cy="18" r="8" fill="none" stroke="url(#ins_layer_l03-ball)" stroke-width="3.5"/>
+<path d="M38 94 Q40 52 48 40 Q54 28 64 28 Q74 28 80 40 Q88 52 90 94 Q104 98 104 104 H24 Q24 98 38 94 Z" fill="url(#ins_layer_l03-bronze)" stroke="#4a2a0c" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M42 82 Q64 88 86 82" stroke="#5a3410" stroke-width="2.2" fill="none" opacity=".7"/>
+<path d="M46 74 Q46 50 56 38" stroke="#fff6d0" stroke-width="3.5" fill="none" stroke-linecap="round" opacity=".75"/>
+<path d="M24 104 Q64 110 104 104" stroke="#4a2a0c" stroke-width="2.5" fill="none"/>
+<circle cx="64" cy="110" r="7" fill="url(#ins_layer_l03-ball)" stroke="#4a2a0c" stroke-width="2.2"/>
+</svg>

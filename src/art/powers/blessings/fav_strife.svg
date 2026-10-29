@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="fav_strife-glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ff5a3a" stop-opacity="0.75"/><stop offset="1" stop-color="#ff5a3a" stop-opacity="0"/></radialGradient>
+<linearGradient id="fav_strife-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="0.5" stop-color="#ff9a3a"/><stop offset="1" stop-color="#e0402a"/></linearGradient>
+</defs>
+<circle cx="64" cy="64" r="60" fill="url(#fav_strife-glow)"/>
+<path d="M40 82L14 120L58 90Z" fill="#e0402a" stroke="#5a1a0e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M64 15L72.5 25.6L85.7 19.1L87.7 31.6L103.1 30.4L98.2 42.5L112.7 46.9L102 56L112.7 65.1L98.2 69.5L103.1 81.6L87.7 80.4L85.7 92.9L72.5 86.4L64 97L55.5 86.4L42.3 92.9L40.3 80.4L24.9 81.6L29.8 69.5L15.3 65.1L26 56L15.3 46.9L29.8 42.5L24.9 30.4L40.3 31.6L42.3 19.1L55.5 25.6Z" fill="url(#fav_strife-b)" stroke="#5a1a0e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M44 38L36 56H44L38 72L54 50H46L52 38Z" fill="#fff36a" stroke="#5a1a0e" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M70 56C70 50 80 50 80 56C80 64 66 64 66 54C66 44 84 44 84 56" fill="none" stroke="#3a120a" stroke-width="3" stroke-linecap="round"/>
+<g stroke="#3a120a" stroke-width="3" stroke-linecap="round"><path d="M88 40L96 48M96 40L88 48M92 38V50"/></g>
+<circle cx="62" cy="76" r="3" fill="#3a120a"/><circle cx="72" cy="76" r="3" fill="#3a120a"/>
+</svg>

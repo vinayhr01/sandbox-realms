@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<linearGradient id="omen_whirlwind-funnel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5a6478"/><stop offset=".45" stop-color="#d0d8e4"/><stop offset=".7" stop-color="#8a94a8"/><stop offset="1" stop-color="#4a5266"/></linearGradient>
+<ellipse cx="62" cy="116" rx="24" ry="6" fill="none" stroke="#8a7a5a" stroke-width="2.5" opacity=".7"/>
+<path d="M10 22 C36 10 92 10 118 22 C112 36 94 44 86 52 C80 62 72 68 74 82 C76 94 70 104 62 114 C58 104 60 94 56 84 C52 72 46 62 34 52 C22 42 12 34 10 22 Z" fill="url(#omen_whirlwind-funnel)" stroke="#2a3040" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M16 30 Q64 44 112 30 M30 46 Q64 56 92 46 M46 62 Q64 68 80 62 M56 80 Q66 84 74 80 M58 96 Q64 99 70 96" stroke="#3a4256" stroke-width="1.8" fill="none" opacity=".6"/>
+<path d="M30 21 Q64 13 98 21" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity=".6"/>
+<rect x="96" y="70" width="16" height="5" rx="1" transform="rotate(-30 104 72)" fill="#b07a40" stroke="#4a2a10" stroke-width="1.5"/>
+<path d="M14 74 q6 -6 12 0 q-6 6 -12 0 Z M104 100 q5 -5 10 0 q-5 5 -10 0 Z" fill="#7ab04a" stroke="#3a5a1a" stroke-width="1.2"/>
+<circle cx="24" cy="94" r="3.5" fill="#8a7a6a" stroke="#3a2a1a" stroke-width="1.2"/>
+</svg>

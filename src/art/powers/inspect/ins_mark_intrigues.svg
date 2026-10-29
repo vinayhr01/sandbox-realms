@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><linearGradient id="ins_mark_intrigues-bl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#c9d3dc"/><stop offset="1" stop-color="#7c8894"/></linearGradient><linearGradient id="ins_mark_intrigues-m" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a66ad8"/><stop offset="0.5" stop-color="#6a2fa0"/><stop offset="1" stop-color="#3e1a66"/></linearGradient><linearGradient id="ins_mark_intrigues-gd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0a8"/><stop offset="0.5" stop-color="#e8b84a"/><stop offset="1" stop-color="#9a6614"/></linearGradient></defs>
+<g transform="rotate(40 64 64)">
+<path d="M64 4L71 20V80H57V20Z" fill="url(#ins_mark_intrigues-bl)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M64 10V76" stroke="#7c8894" stroke-width="1.5"/>
+<rect x="45" y="79" width="38" height="8" rx="4" fill="url(#ins_mark_intrigues-gd)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="59" y="87" width="10" height="22" rx="3" fill="#5a2a14" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="64" cy="113" r="6" fill="url(#ins_mark_intrigues-gd)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+</g>
+<path d="M12 58Q14 40 36 42Q52 44 64 53Q76 44 92 42Q114 40 116 58Q116 80 92 84Q74 86 64 73Q54 86 36 84Q12 80 12 58Z" fill="url(#ins_mark_intrigues-m)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M28 60Q38 50 52 58Q42 70 28 60ZM100 60Q90 50 76 58Q86 70 100 60Z" fill="#1e0c2e" stroke="#e8b84a" stroke-width="2"/>
+<path d="M22 50Q34 44 48 48" stroke="#fff" stroke-opacity=".45" stroke-width="3" fill="none" stroke-linecap="round"/>
+<circle cx="64" cy="58" r="5" fill="#e04a6a" stroke="#e8b84a" stroke-width="2"/>
+</svg>

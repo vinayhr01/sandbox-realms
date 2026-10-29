@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><linearGradient id="ins_overlay_names-w" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b8783a"/><stop offset="0.5" stop-color="#8a5224"/><stop offset="1" stop-color="#5a3012"/></linearGradient><linearGradient id="ins_overlay_names-bd" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d49a5a"/><stop offset="0.5" stop-color="#a8642a"/><stop offset="1" stop-color="#7a4218"/></linearGradient><linearGradient id="ins_overlay_names-pl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fdf3dc"/><stop offset="1" stop-color="#e2cfa8"/></linearGradient></defs>
+<rect x="24" y="46" width="11" height="72" rx="3" fill="url(#ins_overlay_names-w)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="93" y="46" width="11" height="72" rx="3" fill="url(#ins_overlay_names-w)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M14 116Q30 108 46 116M82 116Q98 108 114 116" fill="#6aa84a" stroke="#3e6a2a" stroke-width="2"/>
+<rect x="10" y="26" width="108" height="56" rx="7" fill="url(#ins_overlay_names-bd)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M12 44H116M12 64H116" stroke="#5a3012" stroke-width="1.5" opacity=".5"/>
+<rect x="24" y="38" width="80" height="32" rx="5" fill="url(#ins_overlay_names-pl)" stroke="#7a5a30" stroke-width="2"/>
+<path d="M34 50h28M68 50h24M34 59h40" stroke="#5a3012" stroke-width="4" stroke-linecap="round"/>
+<circle cx="17" cy="32" r="2.5" fill="#e8b84a"/><circle cx="111" cy="32" r="2.5" fill="#e8b84a"/><circle cx="17" cy="76" r="2.5" fill="#e8b84a"/><circle cx="111" cy="76" r="2.5" fill="#e8b84a"/>
+</svg>

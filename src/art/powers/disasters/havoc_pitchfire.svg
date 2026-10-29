@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<linearGradient id="havoc_pitchfire-clay" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e09a62"/><stop offset=".5" stop-color="#a8542a"/><stop offset="1" stop-color="#5e2a14"/></linearGradient>
+<linearGradient id="havoc_pitchfire-flame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff3a0"/><stop offset=".45" stop-color="#ffb030"/><stop offset="1" stop-color="#e8461c"/></linearGradient>
+<radialGradient id="havoc_pitchfire-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#ffb347" stop-opacity=".8"/><stop offset="1" stop-color="#ff6a1a" stop-opacity="0"/></radialGradient>
+<circle cx="64" cy="42" r="42" fill="url(#havoc_pitchfire-glow)"/>
+<path d="M64 8 C74 24 88 30 84 48 C90 44 92 38 90 30 C102 44 100 64 88 66 H40 C28 64 26 46 36 34 C36 42 40 46 44 48 C40 32 54 24 64 8 Z" fill="url(#havoc_pitchfire-flame)" stroke="#a8301a" stroke-width="2" stroke-linejoin="round"/>
+<path d="M64 30 C70 40 78 46 74 58 C72 64 56 64 54 58 C50 48 60 42 64 30 Z" fill="#fff6c0" opacity=".85"/>
+<path d="M42 66 Q30 80 36 96 Q42 114 64 114 Q86 114 92 96 Q98 80 86 66 Z" fill="url(#havoc_pitchfire-clay)" stroke="#3a1a0c" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="36" y="58" width="56" height="12" rx="5" fill="#b8683a" stroke="#3a1a0c" stroke-width="2.2"/>
+<path d="M38 62 H90 V64 Q90 68 86 67 Q85 82 80 82 Q76 82 77 67 H57 Q57 76 53 76 Q49 76 50 67 H42 Q38 66 38 62 Z" fill="#1e140e"/>
+<path d="M38 92 Q64 100 90 92" stroke="#5e2a14" stroke-width="2" fill="none" opacity=".6"/>
+<path d="M44 78 Q40 90 46 102" stroke="#ffd2a8" stroke-width="3" fill="none" stroke-linecap="round" opacity=".6"/>
+</svg>

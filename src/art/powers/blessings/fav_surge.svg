@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="fav_surge-glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#5ad8ff" stop-opacity="0.75"/><stop offset="1" stop-color="#5ad8ff" stop-opacity="0"/></radialGradient>
+<linearGradient id="fav_surge-l" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#d8fbff"/><stop offset="0.5" stop-color="#5cc8f0"/><stop offset="1" stop-color="#2a62c0"/></linearGradient>
+<linearGradient id="fav_surge-d" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#8adcf8"/><stop offset="1" stop-color="#1e3e98"/></linearGradient>
+</defs>
+<circle cx="64" cy="64" r="60" fill="url(#fav_surge-glow)"/>
+<path d="M30 72L22 96L34 114H50L52 92Z" fill="url(#fav_surge-d)" stroke="#16245a" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M98 66L108 92L98 114H82L78 90Z" fill="url(#fav_surge-d)" stroke="#16245a" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M64 6L84 32L80 100L64 120L48 100L44 32Z" fill="url(#fav_surge-l)" stroke="#16245a" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M64 6L58 34L64 120M44 32L58 34L70 34L84 32M70 34L64 6" fill="none" stroke="#16245a" stroke-width="1.5" opacity=".5"/>
+<path d="M50 36L56 36L54 96L50 92Z" fill="#fff" opacity=".55"/>
+<path d="M28 96L32 78" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".5"/>
+<g fill="#eaffff" stroke="#3aa0d8" stroke-width="1.2" stroke-linejoin="round"><path d="M108 23l2.1 4.9 4.9 2.1 -4.9 2.1 -2.1 4.9 -2.1 -4.9 -4.9 -2.1 4.9 -2.1Z"/><path d="M22 34l1.8 4.2 4.2 1.8 -4.2 1.8 -1.8 4.2 -1.8 -4.2 -4.2 -1.8 4.2 -1.8Z"/></g>
+</svg>

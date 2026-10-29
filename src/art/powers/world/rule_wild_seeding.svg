@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="rule_wild_seeding-puff" cx=".45" cy=".4" r=".6"><stop offset="0" stop-color="#ffffff"/><stop offset=".7" stop-color="#eef0f4"/><stop offset="1" stop-color="#c4ccd8"/></radialGradient>
+<linearGradient id="rule_wild_seeding-stem" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9ad06a"/><stop offset="1" stop-color="#4a8a2e"/></linearGradient>
+</defs>
+<path d="M50 120 Q46 96 52 74" stroke="#2e5018" stroke-width="7" fill="none" stroke-linecap="round"/>
+<path d="M50 120 Q46 96 52 74" stroke="url(#rule_wild_seeding-stem)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+<path d="M48 118 Q30 112 20 96 Q30 98 36 104 Q30 94 30 86 Q40 96 50 112 Z" fill="url(#rule_wild_seeding-stem)" stroke="#2e5018" stroke-width="2" stroke-linejoin="round"/>
+<path d="M52 118 Q70 114 80 100 Q70 102 64 106 Q70 98 70 90 Q60 100 52 112 Z" fill="url(#rule_wild_seeding-stem)" stroke="#2e5018" stroke-width="2" stroke-linejoin="round"/>
+<circle cx="52" cy="48" r="30" fill="url(#rule_wild_seeding-puff)" stroke="#7a7a8a" stroke-width="2.2"/>
+<path d="M52 48 L52 22 M52 48 L74 34 M52 48 L78 50 M52 48 L72 68 M52 48 L52 74 M52 48 L32 68 M52 48 L26 48 M52 48 L32 30 M52 48 L64 24 M52 48 L40 24" stroke="#b4bccb" stroke-width="1.4" stroke-linecap="round"/>
+<g fill="#fff" stroke="#9aa2b2" stroke-width="1"><circle cx="52" cy="22" r="3"/><circle cx="74" cy="34" r="3"/><circle cx="78" cy="50" r="3"/><circle cx="72" cy="68" r="3"/><circle cx="52" cy="74" r="3"/><circle cx="32" cy="68" r="3"/><circle cx="26" cy="48" r="3"/><circle cx="32" cy="30" r="3"/><circle cx="64" cy="24" r="3"/><circle cx="40" cy="24" r="3"/></g>
+<circle cx="52" cy="48" r="6" fill="#a8803a" stroke="#5a3a14" stroke-width="1.6"/>
+<g stroke="#7a6a5a" stroke-width="1.6" stroke-linecap="round" fill="#fff">
+<path d="M96 30 L104 40"/><path d="M90 26 Q96 22 102 28" fill="none"/><circle cx="104.5" cy="41" r="1.6" fill="#8a5a2c"/>
+<path d="M104 62 L112 70"/><path d="M98 58 Q104 54 110 60" fill="none"/><circle cx="112.5" cy="71" r="1.6" fill="#8a5a2c"/>
+<path d="M90 86 L96 96"/><path d="M84 84 Q90 80 96 85" fill="none"/><circle cx="96.5" cy="97" r="1.6" fill="#8a5a2c"/>
+</g>
+</svg>

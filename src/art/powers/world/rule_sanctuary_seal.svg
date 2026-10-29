@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="rule_sanctuary_seal-face" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8ac0f0"/><stop offset=".6" stop-color="#3a74c0"/><stop offset="1" stop-color="#1c3e7a"/></linearGradient>
+<linearGradient id="rule_sanctuary_seal-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe49a"/><stop offset=".5" stop-color="#e0a83a"/><stop offset="1" stop-color="#9a6416"/></linearGradient>
+<linearGradient id="rule_sanctuary_seal-rock" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c4b6a2"/><stop offset="1" stop-color="#6e6050"/></linearGradient>
+<linearGradient id="rule_sanctuary_seal-grass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd06a"/><stop offset="1" stop-color="#5f9a3c"/></linearGradient>
+</defs>
+<path d="M64 8 L110 22 V58 Q110 96 64 120 Q18 96 18 58 V22 Z" fill="url(#rule_sanctuary_seal-gold)" stroke="#4a2c08" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M64 18 L100 29 V58 Q100 88 64 108 Q28 88 28 58 V29 Z" fill="url(#rule_sanctuary_seal-face)" stroke="#4a2c08" stroke-width="2" stroke-linejoin="round"/>
+<path d="M32 84 L52 50 L60 60 L72 40 L96 84 Q92 92 84 96 H44 Q36 92 32 84 Z" fill="url(#rule_sanctuary_seal-rock)" stroke="#2e241c" stroke-width="2" stroke-linejoin="round"/>
+<path d="M72 40 L66 52 L72 50 L76 56 L80 48 Z" fill="#f4f6fb" stroke="#2e241c" stroke-width="1.4" stroke-linejoin="round"/>
+<path d="M34 86 Q50 78 64 84 Q80 78 94 86 Q90 94 82 98 Q64 104 46 98 Q38 94 34 86 Z" fill="url(#rule_sanctuary_seal-grass)" stroke="#2c5a1c" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M36 34 L60 26" stroke="#d8ecff" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+<path d="M22 24 L64 12 M22 24 V40" stroke="#fff6c8" stroke-width="2" stroke-linecap="round" opacity=".7"/>
+</svg>

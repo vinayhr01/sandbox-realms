@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="realm_hide_ui-white" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d8dce8"/></linearGradient>
+<radialGradient id="realm_hide_ui-iris" cx=".4" cy=".35" r=".65"><stop offset="0" stop-color="#9adcff"/><stop offset=".6" stop-color="#3a8ad0"/><stop offset="1" stop-color="#1c4a86"/></radialGradient>
+<linearGradient id="realm_hide_ui-bar" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8a6a"/><stop offset="1" stop-color="#c0281e"/></linearGradient>
+</defs>
+<path d="M8 64 Q64 10 120 64 Q64 118 8 64 Z" fill="url(#realm_hide_ui-white)" stroke="#3a2a1e" stroke-width="2.5" stroke-linejoin="round"/>
+<circle cx="64" cy="64" r="22" fill="url(#realm_hide_ui-iris)" stroke="#16304e" stroke-width="2"/>
+<circle cx="64" cy="64" r="10" fill="#141a26"/>
+<circle cx="57" cy="57" r="5" fill="#fff" opacity=".9"/>
+<path d="M30 40 L24 30 M48 30 L45 20 M64 27 V16 M80 30 L83 20 M98 40 L104 30" stroke="#3a2a1e" stroke-width="3" stroke-linecap="round"/>
+<path d="M24 112 L112 24" stroke="#4a120c" stroke-width="17" stroke-linecap="round"/>
+<path d="M24 112 L112 24" stroke="url(#realm_hide_ui-bar)" stroke-width="11" stroke-linecap="round"/>
+<path d="M34 98 L96 36" stroke="#ffd0c0" stroke-width="2.4" stroke-linecap="round" opacity=".6"/>
+</svg>

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<linearGradient id="omen_tremor-soil" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a87e52"/><stop offset="1" stop-color="#5e3e24"/></linearGradient>
+<linearGradient id="omen_tremor-grass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd06a"/><stop offset="1" stop-color="#5f9a3c"/></linearGradient>
+<path d="M58 50 L72 60 L80 74 L70 86 L78 100 L68 114 L54 104 L64 90 L56 76 L66 64 Z" fill="#1a0e08"/>
+<path d="M6 58 L58 50 L66 64 L56 76 L64 90 L54 104 L6 108 Z" fill="url(#omen_tremor-soil)" stroke="#2e1e10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M6 58 L58 50 L62 58 L6 66 Z" fill="url(#omen_tremor-grass)" stroke="#3a5f22" stroke-width="2" stroke-linejoin="round"/>
+<path d="M122 66 L72 60 L80 74 L70 86 L78 100 L68 114 L122 118 Z" fill="url(#omen_tremor-soil)" stroke="#2e1e10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M122 66 L72 60 L76 68 L122 74 Z" fill="url(#omen_tremor-grass)" stroke="#3a5f22" stroke-width="2" stroke-linejoin="round"/>
+<path d="M10 82 Q30 78 54 80 M10 96 Q30 92 50 96 M90 90 Q106 86 120 90 M86 104 Q104 100 120 104" stroke="#4a2e18" stroke-width="1.5" fill="none" opacity=".5"/>
+<g fill="#9a7a5a" stroke="#2e1e10" stroke-width="1.5" stroke-linejoin="round">
+<path d="M58 30 l8 -3 3 7 -7 4 Z"/><path d="M76 38 l6 1 -1 6 -6 -2 Z"/><path d="M44 22 l5 -2 2 5 -5 2 Z"/>
+</g>
+<path d="M8 44 q-4 -6 0 -12 M120 52 q4 -6 0 -12 M22 34 q-4 -6 0 -12 M106 40 q4 -6 0 -12" stroke="#f0d070" stroke-width="3" fill="none" stroke-linecap="round"/>
+<g fill="#d8c8a8" opacity=".8"><circle cx="64" cy="48" r="5"/><circle cx="72" cy="44" r="4"/><circle cx="58" cy="44" r="3.5"/></g>
+</svg>

@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="ins_list_creeds-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff2b0" stop-opacity=".95"/><stop offset=".5" stop-color="#ffc85a" stop-opacity=".45"/><stop offset="1" stop-color="#ff9a2e" stop-opacity="0"/></radialGradient>
+<linearGradient id="ins_list_creeds-flame" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffbe0"/><stop offset=".45" stop-color="#ffd84a"/><stop offset="1" stop-color="#f07a1a"/></linearGradient>
+<linearGradient id="ins_list_creeds-wax" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d8c8a8"/><stop offset=".4" stop-color="#fffaf0"/><stop offset="1" stop-color="#c4ae88"/></linearGradient>
+<linearGradient id="ins_list_creeds-dish" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe48a"/><stop offset="1" stop-color="#a8681a"/></linearGradient>
+</defs>
+<circle cx="64" cy="32" r="34" fill="url(#ins_list_creeds-glow)"/>
+<path d="M64 8 C74 22 76 30 72 40 C70 46 58 46 56 40 C52 30 56 20 64 8 Z" fill="url(#ins_list_creeds-flame)" stroke="#c0581a" stroke-width="2" stroke-linejoin="round"/>
+<path d="M64 26 C68 32 68 38 64 41 C60 38 60 32 64 26 Z" fill="#fff" opacity=".85"/>
+<path d="M64 42 V50" stroke="#3a2a1a" stroke-width="2.4" stroke-linecap="round"/>
+<path d="M48 54 Q48 48 56 49 L64 50 L72 49 Q80 48 80 54 V102 H48 Z" fill="url(#ins_list_creeds-wax)" stroke="#6a5234" stroke-width="2.4" stroke-linejoin="round"/>
+<path d="M72 50 Q76 52 76 58 V68 Q76 72 74 72 Q72 72 72 68 Z" fill="#fffaf0" stroke="#6a5234" stroke-width="1.6"/>
+<path d="M54 58 V96" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+<path d="M22 102 Q64 94 106 102 Q104 114 64 116 Q24 114 22 102 Z" fill="url(#ins_list_creeds-dish)" stroke="#6a4210" stroke-width="2.4" stroke-linejoin="round"/>
+<path d="M30 103 Q64 97 98 103" stroke="#fff3b8" stroke-width="2" fill="none" opacity=".7"/>
+<path d="M104 102 q14 0 12 10 q-2 6 -10 4" fill="none" stroke="#6a4210" stroke-width="3.5" stroke-linecap="round"/>
+</svg>

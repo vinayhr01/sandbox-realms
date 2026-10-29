@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="lm_acidspring-rock" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#857c6e"/><stop offset="1" stop-color="#3e3830"/></linearGradient>
+<linearGradient id="lm_acidspring-a" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eaff7a"/><stop offset=".5" stop-color="#9ee82a"/><stop offset="1" stop-color="#4c9a10"/></linearGradient>
+<radialGradient id="lm_acidspring-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#d4ff6a" stop-opacity=".7"/><stop offset="1" stop-color="#9ee82a" stop-opacity="0"/></radialGradient>
+<radialGradient id="lm_acidspring-b" cx=".35" cy=".3" r=".7"><stop offset="0" stop-color="#ffffe0"/><stop offset=".45" stop-color="#c8f84a"/><stop offset="1" stop-color="#5ca818"/></radialGradient>
+</defs>
+<circle cx="64" cy="54" r="46" fill="url(#lm_acidspring-glow)"/>
+<path d="M12 66 L20 59 L30 63 L40 57 L50 62 L62 56 L74 61 L86 56 L96 62 L106 58 L116 66 C114 94 94 114 64 114 C34 114 14 94 12 66Z" fill="url(#lm_acidspring-rock)" stroke="#241e18" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M30 84 l8 4 -2 8 M88 90 l8 -6 6 4 M58 102 l6 -6 6 4" fill="none" stroke="#241e18" stroke-width="1.6" opacity=".55" stroke-linejoin="round"/>
+<path d="M18 66 Q64 50 110 66 Q64 82 18 66Z" fill="url(#lm_acidspring-a)" stroke="#2e5a0a" stroke-width="2"/>
+<g fill="url(#lm_acidspring-a)" stroke="#2e5a0a" stroke-width="1.8" stroke-linejoin="round"><path d="M28 70 C30 78 25 84 28 90 C30 95 36 93 35 87 C34 81 35 76 36 72Z"/><path d="M78 76 C79 84 76 90 79 96 C81 100 87 98 86 92 C85 86 86 80 86 75Z"/><path d="M98 71 C99 76 97 79 99 82 C101 85 105 83 104 79 C103 76 104 73 104 70Z"/></g>
+<ellipse cx="82" cy="65" rx="7" ry="2.5" fill="none" stroke="#f4ffb0" stroke-width="2"/>
+<path d="M34 64 Q50 58 66 59" fill="none" stroke="#fbffd0" stroke-width="2.5" stroke-linecap="round" opacity=".8"/>
+<g fill="url(#lm_acidspring-b)" stroke="#2e5a0a" stroke-width="2"><circle cx="50" cy="44" r="9"/><circle cx="74" cy="32" r="11"/><circle cx="58" cy="16" r="6"/><circle cx="92" cy="50" r="6"/><circle cx="36" cy="54" r="4.5"/></g>
+<g fill="#ffffff" opacity=".85"><circle cx="47" cy="41" r="2.5"/><circle cx="70" cy="28" r="3"/><circle cx="56" cy="14" r="1.6"/><circle cx="90" cy="48" r="1.6"/></g>
+</svg>

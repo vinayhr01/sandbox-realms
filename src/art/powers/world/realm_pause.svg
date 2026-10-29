@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="realm_pause-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c58a4a"/><stop offset="1" stop-color="#7a4a1c"/></linearGradient>
+<linearGradient id="realm_pause-glass" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#dff1ff" stop-opacity=".55"/><stop offset=".5" stop-color="#ffffff" stop-opacity=".25"/><stop offset="1" stop-color="#b9dcf5" stop-opacity=".55"/></linearGradient>
+<linearGradient id="realm_pause-sand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f5d98a"/><stop offset="1" stop-color="#d6a84a"/></linearGradient>
+</defs>
+<path d="M42 22 H86 C86 46 70 56 66 64 C70 72 86 82 86 106 H42 C42 82 58 72 62 64 C58 56 42 46 42 22 Z" fill="url(#realm_pause-glass)" stroke="#4a6a86" stroke-width="2"/>
+<path d="M48 36 H80 C78 48 68 56 64 60 C60 56 50 48 48 36 Z" fill="url(#realm_pause-sand)" stroke="#a8782a" stroke-width="1.2"/>
+<path d="M46 104 C48 92 58 86 64 84 C70 86 80 92 82 104 Z" fill="url(#realm_pause-sand)" stroke="#a8782a" stroke-width="1.2"/>
+<rect x="32" y="12" width="64" height="12" rx="4" fill="url(#realm_pause-wood)" stroke="#3e2410" stroke-width="2.2"/>
+<rect x="32" y="104" width="64" height="12" rx="4" fill="url(#realm_pause-wood)" stroke="#3e2410" stroke-width="2.2"/>
+<path d="M36 24 V104 M92 24 V104" stroke="#7a4a1c" stroke-width="4" stroke-linecap="round"/>
+</svg>

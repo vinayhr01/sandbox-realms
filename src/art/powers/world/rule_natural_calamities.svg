@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="rule_natural_calamities-funnel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a90a4"/><stop offset=".45" stop-color="#d0d4e0"/><stop offset="1" stop-color="#5a6074"/></linearGradient>
+<radialGradient id="rule_natural_calamities-dust" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#c8a878" stop-opacity=".9"/><stop offset="1" stop-color="#c8a878" stop-opacity="0"/></radialGradient>
+<linearGradient id="rule_natural_calamities-plank" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d09a5a"/><stop offset="1" stop-color="#8a5426"/></linearGradient>
+</defs>
+<ellipse cx="62" cy="112" rx="38" ry="10" fill="url(#rule_natural_calamities-dust)"/>
+<path d="M14 20 Q64 6 114 20 Q110 34 92 40 Q82 54 72 62 Q64 76 62 88 Q60 102 66 114 Q52 106 52 92 Q50 78 46 66 Q36 52 28 42 Q14 34 14 20 Z" fill="url(#rule_natural_calamities-funnel)" stroke="#2e3040" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M20 24 Q64 34 108 22 M30 40 Q62 50 92 40 M44 58 Q60 64 72 60 M52 76 Q60 80 66 76 M54 92 Q60 94 63 92" stroke="#2e3040" stroke-width="1.8" fill="none" stroke-linecap="round" opacity=".55"/>
+<path d="M26 28 Q50 34 74 30 M40 48 Q54 52 66 50" stroke="#fff" stroke-width="2.5" fill="none" stroke-linecap="round" opacity=".75"/>
+<rect x="94" y="56" width="18" height="6" rx="2" fill="url(#rule_natural_calamities-plank)" stroke="#3a2010" stroke-width="1.6" transform="rotate(-30 103 59)"/>
+<rect x="16" y="68" width="14" height="5" rx="2" fill="url(#rule_natural_calamities-plank)" stroke="#3a2010" stroke-width="1.6" transform="rotate(25 23 70)"/>
+<g fill="#7a6a58" stroke="#3a2a1e" stroke-width="1"><circle cx="88" cy="82" r="3"/><circle cx="34" cy="92" r="2.5"/><circle cx="100" cy="98" r="2"/></g>
+</svg>

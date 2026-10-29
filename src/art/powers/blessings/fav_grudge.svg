@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="fav_grudge-glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#c8203a" stop-opacity="0.75"/><stop offset="1" stop-color="#c8203a" stop-opacity="0"/></radialGradient>
+<linearGradient id="fav_grudge-steel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#f4f8ff"/><stop offset="0.5" stop-color="#b8c4d4"/><stop offset="1" stop-color="#6a7890"/></linearGradient>
+<linearGradient id="fav_grudge-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#b0701a"/></linearGradient>
+<linearGradient id="fav_grudge-grip" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b82a2a"/><stop offset="1" stop-color="#5e0e14"/></linearGradient>
+</defs>
+<circle cx="64" cy="64" r="60" fill="url(#fav_grudge-glow)"/>
+<g transform="rotate(45 64 64)">
+<path d="M64 6L73 22V80H55V22Z" fill="url(#fav_grudge-steel)" stroke="#2e2a36" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M64 12V78" stroke="#5a6478" stroke-width="1.6"/>
+<path d="M60 24V74" stroke="#fff" stroke-width="2" opacity=".7" stroke-linecap="round"/>
+<rect x="56" y="88" width="16" height="24" rx="4" fill="url(#fav_grudge-grip)" stroke="#3a0a0e" stroke-width="2.2"/>
+<path d="M57 95H71M57 103H71" stroke="#3a0a0e" stroke-width="1.6"/>
+<rect x="38" y="79" width="52" height="10" rx="5" fill="url(#fav_grudge-gold)" stroke="#5a3008" stroke-width="2.2"/>
+<circle cx="64" cy="117" r="7" fill="url(#fav_grudge-gold)" stroke="#5a3008" stroke-width="2.2"/>
+</g>
+<path d="M108 34C112 42 114 46 114 49A6 6 0 0 1 102 49C102 46 104 42 108 34Z" fill="#d81e2e" stroke="#4a0a10" stroke-width="1.8"/>
+<circle cx="106" cy="48" r="1.6" fill="#fff" opacity=".7"/>
+</svg>

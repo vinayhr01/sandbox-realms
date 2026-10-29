@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="ins_list_dialects-back" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ac4f4"/><stop offset="1" stop-color="#2f6aae"/></linearGradient>
+<linearGradient id="ins_list_dialects-front" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffbf0"/><stop offset="1" stop-color="#e6d4ac"/></linearGradient>
+</defs>
+<path d="M54 14 H104 Q118 14 118 28 V52 Q118 66 104 66 H100 L104 80 L88 66 H54 Q40 66 40 52 V28 Q40 14 54 14 Z" fill="url(#ins_list_dialects-back)" stroke="#16365a" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M60 24 H96" stroke="#d8eeff" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+<path d="M24 46 H82 Q98 46 98 62 V88 Q98 104 82 104 H48 L28 120 L32 104 H24 Q10 104 10 88 V62 Q10 46 24 46 Z" fill="url(#ins_list_dialects-front)" stroke="#6a4a24" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M22 56 H70" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/>
+<circle cx="34" cy="76" r="6.5" fill="#d8573a" stroke="#6a2010" stroke-width="2"/>
+<circle cx="54" cy="76" r="6.5" fill="#f2b234" stroke="#6a4210" stroke-width="2"/>
+<circle cx="74" cy="76" r="6.5" fill="#4aa860" stroke="#1e5a2a" stroke-width="2"/>
+</svg>

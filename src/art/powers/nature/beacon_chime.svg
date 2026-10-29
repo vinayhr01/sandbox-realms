@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="beacon_chime-col" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fffaf0"/><stop offset=".6" stop-color="#e2d8c4"/><stop offset="1" stop-color="#ada290"/></linearGradient>
+<linearGradient id="beacon_chime-bell" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffeaa8"/><stop offset=".45" stop-color="#e0a83a"/><stop offset="1" stop-color="#8e5a12"/></linearGradient>
+<radialGradient id="beacon_chime-halo" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff8d6"/><stop offset=".5" stop-color="#ffd76a" stop-opacity=".6"/><stop offset="1" stop-color="#ffb02e" stop-opacity="0"/></radialGradient>
+</defs>
+<circle cx="64" cy="42" r="46" fill="url(#beacon_chime-halo)"/>
+<g stroke="#4a3e2c" stroke-width="2.5" stroke-linejoin="round" fill="url(#beacon_chime-col)">
+<path d="M36 78 H92 L88 86 H40Z"/>
+<rect x="44" y="86" width="40" height="22"/>
+<path d="M38 108 H90 L94 118 H34Z"/>
+</g>
+<path d="M52 89 V105 M60 89 V105 M68 89 V105 M76 89 V105" stroke="#4a3e2c" stroke-width="1.5" opacity=".4"/>
+<path d="M57 19 Q64 5 71 19" fill="none" stroke="#5a3608" stroke-width="6" stroke-linecap="round"/>
+<path d="M57 19 Q64 5 71 19" fill="none" stroke="#f2c444" stroke-width="2.6" stroke-linecap="round"/>
+<circle cx="64" cy="71" r="5.5" fill="#c88a2a" stroke="#5a3608" stroke-width="2"/>
+<path d="M64 18 C50 18 45 28 45 42 C45 54 41 60 35 66 H93 C87 60 83 54 83 42 C83 28 78 18 64 18Z" fill="url(#beacon_chime-bell)" stroke="#5a3608" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M32 66 H96 Q99 72 93 72 H35 Q29 72 32 66Z" fill="url(#beacon_chime-bell)" stroke="#5a3608" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M47 52 H81" stroke="#5a3608" stroke-width="1.6" opacity=".5"/>
+<path d="M53 30 Q52 42 50 56" fill="none" stroke="#fff6d0" stroke-width="3.5" stroke-linecap="round" opacity=".8"/>
+<g fill="none" stroke="#e0a22a" stroke-width="3" stroke-linecap="round"><path d="M28 36 q-7 10 0 20 M20 30 q-10 16 0 32 M100 36 q7 10 0 20 M108 30 q10 16 0 32"/></g>
+</svg>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="rule_hunger-meat" cx=".38" cy=".32" r=".7"><stop offset="0" stop-color="#e8945a"/><stop offset=".6" stop-color="#b85a28"/><stop offset="1" stop-color="#7a3414"/></radialGradient>
+<linearGradient id="rule_hunger-bone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#d8c8a8"/></linearGradient>
+</defs>
+<path d="M70 72 L102 104" stroke="#5a3a1c" stroke-width="15" stroke-linecap="round"/>
+<path d="M70 72 L102 104" stroke="url(#rule_hunger-bone)" stroke-width="10" stroke-linecap="round"/>
+<g fill="url(#rule_hunger-bone)" stroke="#5a3a1c" stroke-width="2.2">
+<circle cx="110" cy="102" r="8"/><circle cx="100" cy="112" r="8"/>
+</g>
+<path d="M104 104 L106 106" stroke="url(#rule_hunger-bone)" stroke-width="10" stroke-linecap="round"/>
+<path d="M28 26 C48 6 88 12 94 42 C98 62 86 76 72 80 L58 84 C42 88 24 78 18 60 C14 46 18 36 28 26 Z" fill="url(#rule_hunger-meat)" stroke="#4a1c08" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M30 34 Q42 20 60 20" stroke="#ffd0a8" stroke-width="4.5" fill="none" stroke-linecap="round" opacity=".75"/>
+<path d="M40 56 Q50 48 58 54 M60 40 Q70 36 78 42 M34 44 Q38 40 44 42" stroke="#5a2408" stroke-width="2" fill="none" stroke-linecap="round" opacity=".45"/>
+<path d="M84 64 Q76 76 62 80" stroke="#f0b080" stroke-width="2" fill="none" stroke-linecap="round" opacity=".6"/>
+</svg>

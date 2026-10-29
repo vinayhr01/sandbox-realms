@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs><radialGradient id="ins_overlay_happiness-s" cx="0.4" cy="0.35" r="0.7"><stop offset="0" stop-color="#fff6b0"/><stop offset="0.5" stop-color="#ffd23a"/><stop offset="1" stop-color="#e89a10"/></radialGradient><linearGradient id="ins_overlay_happiness-ry" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe680"/><stop offset="1" stop-color="#f0a020"/></linearGradient></defs>
+<g fill="url(#ins_overlay_happiness-ry)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"><path d="M58 22L64 4L70 22Z" transform="rotate(0 64 64)"/><path d="M58 22L64 4L70 22Z" transform="rotate(30 64 64)"/><path d="M58 22L64 4L70 22Z" transform="rotate(60 64 64)"/><path d="M58 22L64 4L70 22Z" transform="rotate(90 64 64)"/><path d="M58 22L64 4L70 22Z" transform="rotate(120 64 64)"/><path d="M58 22L64 4L70 22Z" transform="rotate(150 64 64)"/><path d="M58 22L64 4L70 22Z" transform="rotate(180 64 64)"/><path d="M58 22L64 4L70 22Z" transform="rotate(210 64 64)"/><path d="M58 22L64 4L70 22Z" transform="rotate(240 64 64)"/><path d="M58 22L64 4L70 22Z" transform="rotate(270 64 64)"/><path d="M58 22L64 4L70 22Z" transform="rotate(300 64 64)"/><path d="M58 22L64 4L70 22Z" transform="rotate(330 64 64)"/></g>
+<circle cx="64" cy="64" r="38" fill="url(#ins_overlay_happiness-s)" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M48 56q4-7 8 0M72 56q4-7 8 0" stroke="#3a1f10" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M44 70Q64 94 84 70Q64 80 44 70Z" fill="#8a2a14" stroke="#3a1f10" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M54 80Q64 86 74 80Q64 90 54 80Z" fill="#ff7a6a"/>
+<ellipse cx="42" cy="70" rx="6" ry="4" fill="#ff8a6a" opacity=".6"/><ellipse cx="86" cy="70" rx="6" ry="4" fill="#ff8a6a" opacity=".6"/>
+<ellipse cx="50" cy="42" rx="9" ry="5" fill="#fff" opacity=".55" transform="rotate(-30 50 42)"/>
+</svg>

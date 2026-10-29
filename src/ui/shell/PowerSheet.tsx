@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { signal } from '@preact/signals';
 import type { BrushShape } from '../../shared/protocol.ts';
 import { POWER_BY_ID, type PowerDef } from '../../content/powers.ts';
-import { artFor, chunkOf, loadArt, type ArtChunk } from '../../art/load.ts';
+import { artFor, chipArtFor, chunkOf, loadArt, loadPowerArt, loadPowerArtFor, powerArtFor, type ArtChunk } from '../../art/load.ts';
 import { favourite, unfavourite } from '../panels/powerBar.ts';
 import { CHIP_IDS, CHIP_LABELS, groupsOf, recentRow, searchPowers, type ChipId } from './powerCatalog.ts';
 import { PowerGlyph } from './glyphs.tsx';
@@ -16,6 +16,10 @@ import './PowerSheet.css';
 
 /** Bumped when a creature art chunk finishes loading, so the icons that depend on it render again. */
 const artVersion = signal(0);
+/** Called when an art group finishes loading, so the icons and chips that depend on it render again. */
+function onArtLoaded(): void {
+  artVersion.value += 1;
+}
 
 /** Holding a power this long pins or unpins it as a favourite (ms). */
 const LONG_PRESS_MS = 500;
@@ -48,7 +52,7 @@ function speciesOf(power: PowerDef): string | null {
 function PowerIcon({ power }: { power: PowerDef }) {
   void artVersion.value;
   const species = speciesOf(power);
-  const svg = species ? artFor(species) : null;
+  const svg = species !== null ? artFor(species) : powerArtFor(power);
   if (svg) return <img class="power-art" alt="" src={artUri(svg)} />;
   return <PowerGlyph power={power} />;
 }
@@ -167,6 +171,7 @@ export function PowerSheet({ store, actions }: { store: UiStore; actions: ShellA
     return () => window.clearTimeout(timer);
   }, [cooldowns, clock]);
 
+  void artVersion.value;
   const chips: ChipId[] = moreOpen && expanded ? [...discovered, ...ALL_CHIPS.filter((c) => !discovered.includes(c))] : discovered;
   const activeChip = chips.includes(chipState) ? chipState : (chips[0] ?? 'land');
   const armed = store.armed.value;
@@ -183,14 +188,24 @@ export function PowerSheet({ store, actions }: { store: UiStore; actions: ShellA
   useEffect(() => {
     if (chunkKey === '') return;
     for (const chunk of chunkKey.split(',') as ArtChunk[]) {
-      loadArt(chunk).then(
-        () => {
-          artVersion.value += 1;
-        },
-        () => undefined,
-      );
+      loadArt(chunk).then(onArtLoaded, () => undefined);
     }
   }, [chunkKey]);
+
+  // Power art: the chips load with the sheet; every other power's group (and reused art) loads for the powers on screen,
+  // the recent icons and the armed badge. A group that fails to load keeps its line glyph and is retried on the next open.
+  const artPowers = [...shown, ...recent, ...(armedPower !== undefined ? [armedPower] : [])].filter((p) => speciesOf(p) === null);
+  const powerArtKey = [...new Set(artPowers.map((p) => p.id))].sort().join(',');
+  useEffect(() => {
+    loadPowerArt('chips').then(onArtLoaded, () => undefined);
+  }, []);
+  useEffect(() => {
+    if (powerArtKey === '') return;
+    for (const id of powerArtKey.split(',')) {
+      const power = POWER_BY_ID.get(id);
+      if (power !== undefined) loadPowerArtFor(power).then(onArtLoaded, () => undefined);
+    }
+  }, [powerArtKey]);
 
   const setSheet = (next: 'collapsed' | 'expanded'): void => {
     store.sheet.value = next;
@@ -280,6 +295,7 @@ export function PowerSheet({ store, actions }: { store: UiStore; actions: ShellA
         <div class="chips" role="tablist" aria-label="Power categories" aria-controls={expanded ? 'sheet-panel' : undefined}>
           {chips.map((chip) => {
             const selected = chip === activeChip;
+            const art = chipArtFor(chip);
             return (
               <button
                 key={chip}
@@ -292,6 +308,7 @@ export function PowerSheet({ store, actions }: { store: UiStore; actions: ShellA
                 onClick={() => selectChip(chip)}
                 onKeyDown={onChipKey}
               >
+                {art !== null && <img class="chip-art" alt="" src={artUri(art)} />}
                 {CHIP_LABELS[chip]}
               </button>
             );

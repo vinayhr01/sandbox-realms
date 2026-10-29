@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="shape_knoll-back" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cb856"/><stop offset="1" stop-color="#3e7a2e"/></linearGradient>
+<linearGradient id="shape_knoll-front" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c2e888"/><stop offset=".6" stop-color="#84c058"/><stop offset="1" stop-color="#4f8a34"/></linearGradient>
+<radialGradient id="shape_knoll-tree" cx=".4" cy=".35" r=".6"><stop offset="0" stop-color="#8ed06a"/><stop offset="1" stop-color="#2f6a2e"/></radialGradient>
+</defs>
+<path d="M42 112 Q60 34 86 34 Q112 34 124 112 Z" fill="url(#shape_knoll-back)" stroke="#264a1a" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M76 42 Q86 38 96 44" stroke="#c8f0a0" stroke-width="2.2" fill="none" stroke-linecap="round" opacity=".6"/>
+<path d="M98 30 V38" stroke="#5a3418" stroke-width="3"/>
+<circle cx="98" cy="24" r="9" fill="url(#shape_knoll-tree)" stroke="#1e3a1a" stroke-width="2"/>
+<path d="M4 112 Q14 56 44 56 Q74 56 88 112 Z" fill="url(#shape_knoll-front)" stroke="#2c5a1c" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M24 70 Q34 62 46 62" stroke="#effdd0" stroke-width="3" fill="none" stroke-linecap="round" opacity=".75"/>
+<path d="M30 88 l3 -6 l3 6 M58 80 l3 -6 l3 6 M44 100 l3 -6 l3 6 M100 82 l3 -6 l3 6" stroke="#2c5a1c" stroke-width="1.8" fill="none" stroke-linejoin="round" opacity=".7"/>
+<path d="M4 112 H124" stroke="#264a1a" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

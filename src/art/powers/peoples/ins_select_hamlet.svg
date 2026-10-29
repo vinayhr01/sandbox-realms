@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="ins_select_hamlet-pin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8a5c"/><stop offset=".55" stop-color="#e2452e"/><stop offset="1" stop-color="#8e1e16"/></linearGradient>
+<radialGradient id="ins_select_hamlet-face" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#fffdf4"/><stop offset="1" stop-color="#ead9b4"/></radialGradient>
+<linearGradient id="ins_select_hamlet-roof" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0cf78"/><stop offset="1" stop-color="#a8762e"/></linearGradient>
+</defs>
+<ellipse cx="64" cy="116" rx="18" ry="5" fill="#000" opacity=".3"/>
+<path d="M64 116 C52 96 28 80 28 52 A36 36 0 0 1 100 52 C100 80 76 96 64 116 Z" fill="url(#ins_select_hamlet-pin)" stroke="#5a1410" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M40 38 Q48 24 62 22" stroke="#ffd0b8" stroke-width="4" fill="none" stroke-linecap="round" opacity=".75"/>
+<circle cx="64" cy="52" r="23" fill="url(#ins_select_hamlet-face)" stroke="#5a1410" stroke-width="2.2"/>
+<rect x="52" y="52" width="24" height="16" fill="#c98a52" stroke="#5a3214" stroke-width="2" stroke-linejoin="round"/>
+<path d="M46 54 L64 36 L82 54 Z" fill="url(#ins_select_hamlet-roof)" stroke="#6a4418" stroke-width="2" stroke-linejoin="round"/>
+<rect x="60" y="58" width="8" height="10" rx="1.5" fill="#4a2a14"/>
+</svg>

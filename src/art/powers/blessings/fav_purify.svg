@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="fav_purify-glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffe9a0" stop-opacity="0.75"/><stop offset="1" stop-color="#ffe9a0" stop-opacity="0"/></radialGradient>
+<linearGradient id="fav_purify-pet" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="0.6" stop-color="#fbe6f2"/><stop offset="1" stop-color="#e8a6c8"/></linearGradient>
+<linearGradient id="fav_purify-back" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8d4e6"/><stop offset="1" stop-color="#c87aa6"/></linearGradient>
+<linearGradient id="fav_purify-pad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ad05a"/><stop offset="1" stop-color="#3a7a2a"/></linearGradient>
+</defs>
+<circle cx="64" cy="60" r="60" fill="url(#fav_purify-glow)"/>
+<path d="M64 100L68 92C96 90 112 98 110 104C108 112 88 116 64 116C40 116 20 112 18 104C16 98 32 90 60 92Z" fill="url(#fav_purify-pad)" stroke="#1e4414" stroke-width="2.2" stroke-linejoin="round"/>
+<g fill="url(#fav_purify-back)" stroke="#7a3a5a" stroke-width="2.2" stroke-linejoin="round"><path d="M64 30C77 48 77 72 64 90C51 72 51 48 64 30Z" transform="rotate(-62 64 90)"/><path d="M64 30C77 48 77 72 64 90C51 72 51 48 64 30Z" transform="rotate(62 64 90)"/></g>
+<g fill="url(#fav_purify-pet)" stroke="#7a3a5a" stroke-width="2.2" stroke-linejoin="round"><path d="M64 30C77 48 77 72 64 90C51 72 51 48 64 30Z" transform="rotate(-32 64 90)"/><path d="M64 30C77 48 77 72 64 90C51 72 51 48 64 30Z" transform="rotate(32 64 90)"/><path d="M64 30C77 48 77 72 64 90C51 72 51 48 64 30Z" transform="translate(0 -4)"/></g>
+<path d="M64 36Q58 52 60 70" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".9"/>
+<ellipse cx="64" cy="90" rx="10" ry="5" fill="#ffd23a" stroke="#9a6010" stroke-width="1.8"/>
+<g fill="#fff6c4" stroke="#e0a22a" stroke-width="1.2" stroke-linejoin="round"><path d="M22 23l2.1 4.9 4.9 2.1 -4.9 2.1 -2.1 4.9 -2.1 -4.9 -4.9 -2.1 4.9 -2.1Z"/><path d="M106 21l2.1 4.9 4.9 2.1 -4.9 2.1 -2.1 4.9 -2.1 -4.9 -4.9 -2.1 4.9 -2.1Z"/><path d="M64 5l1.5 3.5 3.5 1.5 -3.5 1.5 -1.5 3.5 -1.5 -3.5 -3.5 -1.5 3.5 -1.5Z"/></g>
+</svg>

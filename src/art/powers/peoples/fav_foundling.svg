@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="fav_foundling-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff3c4" stop-opacity=".9"/><stop offset="1" stop-color="#ffd27a" stop-opacity="0"/></radialGradient>
+<linearGradient id="fav_foundling-wick" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6b874"/><stop offset="1" stop-color="#94592a"/></linearGradient>
+<linearGradient id="fav_foundling-cloth" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e4f0ff"/><stop offset="1" stop-color="#86acd8"/></linearGradient>
+<radialGradient id="fav_foundling-skin" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#ffe8d0"/><stop offset="1" stop-color="#e3a47c"/></radialGradient>
+</defs>
+<circle cx="64" cy="58" r="52" fill="url(#fav_foundling-glow)"/>
+<path d="M28 80 Q28 48 50 42 Q66 38 82 46 Q102 56 100 80 Z" fill="url(#fav_foundling-cloth)" stroke="#34507a" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M74 50 Q88 54 94 66" stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none" opacity=".7"/>
+<circle cx="58" cy="58" r="15" fill="url(#fav_foundling-skin)" stroke="#8a5434" stroke-width="2.2"/>
+<path d="M44 56 Q44 38 60 39 Q74 41 73 56" fill="none" stroke="#f6f9ff" stroke-width="5" stroke-linecap="round"/>
+<path d="M51 59 q3 2.5 6 0 M61 59 q3 2.5 6 0" stroke="#6a3a22" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+<circle cx="51" cy="65" r="2.6" fill="#f29a8a" opacity=".7"/>
+<circle cx="66" cy="65" r="2.6" fill="#f29a8a" opacity=".7"/>
+<path d="M18 76 H110 Q106 110 64 112 Q22 110 18 76 Z" fill="url(#fav_foundling-wick)" stroke="#5a3214" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M22 88 Q64 96 106 88 M28 99 Q64 107 100 99" stroke="#6e4018" stroke-width="1.6" fill="none" opacity=".6"/>
+<path d="M38 80 v26 M52 82 v28 M66 82 v29 M80 82 v28 M94 80 v24" stroke="#6e4018" stroke-width="1.4" opacity=".4"/>
+<path d="M14 76 Q64 84 114 76" stroke="#5a3214" stroke-width="6" stroke-linecap="round" fill="none"/>
+<path d="M18 75 Q64 82 110 75" stroke="#f2cc8c" stroke-width="2" stroke-linecap="round" fill="none"/>
+<path d="M98 16 l2.5 7 7 2.5 -7 2.5 -2.5 7 -2.5 -7 -7 -2.5 7 -2.5Z" fill="#fff6c4" stroke="#e0a22a" stroke-width="1.2"/>
+<path d="M26 30 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2Z" fill="#fff6c4" stroke="#e0a22a" stroke-width="1.2"/>
+</svg>

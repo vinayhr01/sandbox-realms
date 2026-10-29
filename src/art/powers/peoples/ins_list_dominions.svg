@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="ins_list_dominions-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0a8"/><stop offset=".5" stop-color="#f2b734"/><stop offset="1" stop-color="#b8761a"/></linearGradient>
+<linearGradient id="ins_list_dominions-band" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd860"/><stop offset="1" stop-color="#a8681a"/></linearGradient>
+<radialGradient id="ins_list_dominions-ruby" cx=".35" cy=".3" r=".7"><stop offset="0" stop-color="#ffb0b0"/><stop offset=".5" stop-color="#e0303a"/><stop offset="1" stop-color="#7a0e18"/></radialGradient>
+<radialGradient id="ins_list_dominions-sap" cx=".35" cy=".3" r=".7"><stop offset="0" stop-color="#c8e4ff"/><stop offset=".5" stop-color="#3a7ee0"/><stop offset="1" stop-color="#16346e"/></radialGradient>
+</defs>
+<ellipse cx="64" cy="112" rx="44" ry="6" fill="#000" opacity=".25"/>
+<path d="M24 96 L16 44 L42 68 L64 30 L86 68 L112 44 L104 96 Z" fill="url(#ins_list_dominions-gold)" stroke="#6a4210" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M28 82 L23 56 M60 44 L50 66" stroke="#fff8d0" stroke-width="3" stroke-linecap="round" opacity=".7"/>
+<path d="M20 88 Q64 98 108 88 L106 104 Q64 114 22 104 Z" fill="url(#ins_list_dominions-band)" stroke="#6a4210" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M24 92 Q64 101 104 92" stroke="#fff3b8" stroke-width="1.8" fill="none" opacity=".7"/>
+<circle cx="16" cy="42" r="6" fill="url(#ins_list_dominions-ruby)" stroke="#5a0a10" stroke-width="2"/>
+<circle cx="112" cy="42" r="6" fill="url(#ins_list_dominions-ruby)" stroke="#5a0a10" stroke-width="2"/>
+<circle cx="64" cy="27" r="7" fill="url(#ins_list_dominions-sap)" stroke="#102a5a" stroke-width="2"/>
+<ellipse cx="64" cy="100" rx="8" ry="6.5" fill="url(#ins_list_dominions-ruby)" stroke="#5a0a10" stroke-width="2"/>
+<circle cx="40" cy="98" r="4.5" fill="url(#ins_list_dominions-sap)" stroke="#102a5a" stroke-width="1.8"/>
+<circle cx="88" cy="98" r="4.5" fill="url(#ins_list_dominions-sap)" stroke="#102a5a" stroke-width="1.8"/>
+<circle cx="61.5" cy="24.5" r="2" fill="#fff" opacity=".8"/>
+</svg>

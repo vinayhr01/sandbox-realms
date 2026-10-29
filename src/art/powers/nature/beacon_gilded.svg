@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="beacon_gilded-col" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fffbf2"/><stop offset=".6" stop-color="#ddd4c2"/><stop offset="1" stop-color="#a8a090"/></linearGradient>
+<linearGradient id="beacon_gilded-trim" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff0a0"/><stop offset=".5" stop-color="#f2c444"/><stop offset="1" stop-color="#b07818"/></linearGradient>
+<radialGradient id="beacon_gilded-coin" cx=".38" cy=".32" r=".75"><stop offset="0" stop-color="#fffbd8"/><stop offset=".45" stop-color="#ffd24a"/><stop offset="1" stop-color="#c8860e"/></radialGradient>
+<radialGradient id="beacon_gilded-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff2b0" stop-opacity=".8"/><stop offset="1" stop-color="#ffc83a" stop-opacity="0"/></radialGradient>
+</defs>
+<circle cx="64" cy="46" r="46" fill="url(#beacon_gilded-glow)"/>
+<g stroke="#4a3a20" stroke-width="2.5" stroke-linejoin="round">
+<path d="M36 78 H92 L88 86 H40Z" fill="url(#beacon_gilded-trim)"/>
+<rect x="44" y="86" width="40" height="22" fill="url(#beacon_gilded-col)"/>
+<path d="M38 108 H90 L94 118 H34Z" fill="url(#beacon_gilded-trim)"/>
+</g>
+<path d="M52 89 V105 M60 89 V105 M68 89 V105 M76 89 V105" stroke="#4a3a20" stroke-width="1.5" opacity=".4"/>
+<circle cx="64" cy="40" r="24" fill="url(#beacon_gilded-coin)" stroke="#7a4a08" stroke-width="2.5"/>
+<circle cx="64" cy="40" r="17" fill="none" stroke="#b07818" stroke-width="2"/>
+<path d="M64 28 L72 40 L64 52 L56 40Z" fill="#fff4b8" stroke="#b07818" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M48 30 Q52 22 60 20" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity=".8"/>
+<g stroke="#7a4a08" stroke-width="2" stroke-linejoin="round">
+<path d="M30 78 V64 A12 4 0 0 1 54 64 V78Z" fill="url(#beacon_gilded-trim)"/>
+<ellipse cx="42" cy="64" rx="12" ry="4" fill="#ffe27a"/>
+<path d="M74 78 V68 A12 4 0 0 1 98 68 V78Z" fill="url(#beacon_gilded-trim)"/>
+<ellipse cx="86" cy="68" rx="12" ry="4" fill="#ffe27a"/>
+</g>
+<path d="M30 69 A12 4 0 0 0 54 69 M30 74 A12 4 0 0 0 54 74 M74 73 A12 4 0 0 0 98 73" fill="none" stroke="#7a4a08" stroke-width="1.4" opacity=".7"/>
+<g fill="#ffffff" stroke="#f2c444" stroke-width="1"><path d="M100 22 l2 5 5 2 -5 2 -2 5 -2 -5 -5 -2 5 -2Z"/><path d="M24 40 l1.6 4 4 1.6 -4 1.6 -1.6 4 -1.6 -4 -4 -1.6 4 -1.6Z"/></g>
+</svg>

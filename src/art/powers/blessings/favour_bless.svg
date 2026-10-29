@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="favour_bless-halo" cx="0.5" cy="0.42" r="0.5"><stop offset="0" stop-color="#fff8d6"/><stop offset="0.55" stop-color="#ffd76a" stop-opacity="0.75"/><stop offset="1" stop-color="#ffb02e" stop-opacity="0"/></radialGradient>
+<linearGradient id="favour_bless-skin" x1="0" y1="20" x2="0" y2="116" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffe8cc"/><stop offset="1" stop-color="#dfa274"/></linearGradient>
+<linearGradient id="favour_bless-robe" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6f2ff"/><stop offset="1" stop-color="#aea4dc"/></linearGradient>
+</defs>
+<circle cx="64" cy="58" r="62" fill="url(#favour_bless-halo)"/>
+<g stroke="#ffe7a0" stroke-width="3" stroke-linecap="round" opacity=".85"><path d="M64 4V12M28 16l5 7M100 16l-5 7M10 48h8M110 48h8"/></g>
+<g fill="#8a5434" stroke="#8a5434" stroke-width="5" stroke-linejoin="round"><rect x="44" y="30" width="12" height="50" rx="6" transform="rotate(-6 50 80)"/>
+<rect x="57" y="20" width="12" height="58" rx="6"/>
+<rect x="70" y="26" width="12" height="52" rx="6" transform="rotate(5 76 78)"/>
+<rect x="82" y="40" width="11" height="42" rx="5.5" transform="rotate(14 87 82)"/>
+<rect x="34" y="58" width="13" height="34" rx="6.5" transform="rotate(-40 40 90)"/>
+<path d="M42 72Q42 62 52 62H86Q96 62 95 74L93 96Q90 112 72 114H58Q44 112 42 98Z"/></g>
+<g fill="url(#favour_bless-skin)"><rect x="44" y="30" width="12" height="50" rx="6" transform="rotate(-6 50 80)"/>
+<rect x="57" y="20" width="12" height="58" rx="6"/>
+<rect x="70" y="26" width="12" height="52" rx="6" transform="rotate(5 76 78)"/>
+<rect x="82" y="40" width="11" height="42" rx="5.5" transform="rotate(14 87 82)"/>
+<rect x="34" y="58" width="13" height="34" rx="6.5" transform="rotate(-40 40 90)"/>
+<path d="M42 72Q42 62 52 62H86Q96 62 95 74L93 96Q90 112 72 114H58Q44 112 42 98Z"/></g>
+<circle cx="68" cy="86" r="11" fill="#fff6c4" opacity=".55"/>
+<path d="M52 94Q62 100 76 90M56 80Q68 76 84 80" fill="none" stroke="#b97a52" stroke-width="1.8" stroke-linecap="round"/>
+<g fill="#fff" opacity=".55"><ellipse cx="49" cy="37" rx="2.5" ry="4"/><ellipse cx="62" cy="28" rx="2.5" ry="4"/><ellipse cx="75" cy="34" rx="2.5" ry="4"/><ellipse cx="88" cy="47" rx="2" ry="3.5"/></g>
+<path d="M38 106Q64 98 94 106L100 128H32Z" fill="url(#favour_bless-robe)" stroke="#4e3a6e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M39 109Q64 101 93 109" fill="none" stroke="#e0aa2e" stroke-width="4"/>
+<g fill="#fff6c4" stroke="#e0a22a" stroke-width="1.2" stroke-linejoin="round"><path d="M20 23l2.1 4.9 4.9 2.1 -4.9 2.1 -2.1 4.9 -2.1 -4.9 -4.9 -2.1 4.9 -2.1Z"/><path d="M108 23l2.1 4.9 4.9 2.1 -4.9 2.1 -2.1 4.9 -2.1 -4.9 -4.9 -2.1 4.9 -2.1Z"/></g>
+</svg>

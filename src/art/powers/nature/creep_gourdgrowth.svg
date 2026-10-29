@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="creep_gourdgrowth-p" gradientUnits="userSpaceOnUse" cx="52" cy="62" r="62"><stop offset="0" stop-color="#ffc870"/><stop offset=".5" stop-color="#f2862a"/><stop offset="1" stop-color="#b4480e"/></radialGradient>
+<linearGradient id="creep_gourdgrowth-l" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b6e478"/><stop offset="1" stop-color="#3f8a2c"/></linearGradient>
+<linearGradient id="creep_gourdgrowth-st" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a88a4a"/><stop offset="1" stop-color="#5a4420"/></linearGradient>
+</defs>
+<ellipse cx="64" cy="114" rx="50" ry="6" fill="#3a1a08" opacity=".3"/>
+<path d="M58 44 C44 28 24 30 14 42 C22 46 26 54 36 54 C44 54 52 50 58 44Z" fill="url(#creep_gourdgrowth-l)" stroke="#2e5a1c" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M56 44 C46 40 34 40 22 43 M40 41 l-4 -6 M44 42 l-2 7" fill="none" stroke="#2e5a1c" stroke-width="1.4" opacity=".55"/>
+<g fill="none" stroke-linecap="round"><path d="M68 44 C82 32 100 34 104 46 C107 56 98 60 94 54 C90 48 98 44 100 50" stroke="#2e5a1c" stroke-width="5.5"/><path d="M68 44 C82 32 100 34 104 46 C107 56 98 60 94 54 C90 48 98 44 100 50" stroke="#6cb444" stroke-width="2.5"/></g>
+<g fill="url(#creep_gourdgrowth-p)" stroke="#6a2a08" stroke-width="2.5">
+<ellipse cx="36" cy="82" rx="24" ry="30"/><ellipse cx="92" cy="82" rx="24" ry="30"/>
+<ellipse cx="50" cy="82" rx="22" ry="32"/><ellipse cx="78" cy="82" rx="22" ry="32"/>
+<ellipse cx="64" cy="82" rx="18" ry="33"/>
+</g>
+<path d="M58 52 C58 42 56 34 51 28 L61 23 C66 31 69 42 68 52Z" fill="url(#creep_gourdgrowth-st)" stroke="#3a2a10" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M58 60 q-4 16 0 34 M30 64 q-6 12 -2 26" fill="none" stroke="#ffe0a8" stroke-width="3.5" stroke-linecap="round" opacity=".7"/>
+</svg>

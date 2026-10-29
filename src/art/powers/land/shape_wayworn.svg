@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="shape_wayworn-field" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd06a"/><stop offset="1" stop-color="#5a9238"/></linearGradient>
+<linearGradient id="shape_wayworn-road" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8b88a"/><stop offset="1" stop-color="#a87e52"/></linearGradient>
+<linearGradient id="shape_wayworn-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d09a5a"/><stop offset="1" stop-color="#8a5426"/></linearGradient>
+</defs>
+<rect x="6" y="50" width="116" height="66" rx="14" fill="url(#shape_wayworn-field)" stroke="#36581e" stroke-width="2.5"/>
+<path d="M26 116 C36 94 78 88 62 70 C58 64 62 56 62 50 H70 C70 56 74 64 80 70 C96 90 70 98 102 116 Z" fill="url(#shape_wayworn-road)" stroke="#5a3a1c" stroke-width="2.2" stroke-linejoin="round"/>
+<g fill="#8a6440" opacity=".6"><ellipse cx="50" cy="104" rx="4" ry="2.4"/><ellipse cx="66" cy="100" rx="3.4" ry="2"/><ellipse cx="72" cy="82" rx="3" ry="1.8"/><ellipse cx="66" cy="62" rx="2.4" ry="1.4"/><ellipse cx="80" cy="108" rx="4" ry="2.4"/></g>
+<path d="M14 66 l3 -6 l3 6 M30 90 l3 -6 l3 6 M108 92 l3 -6 l3 6" stroke="#2c5a1c" stroke-width="1.8" fill="none" opacity=".7"/>
+<rect x="21" y="22" width="6" height="64" rx="2" fill="url(#shape_wayworn-wood)" stroke="#3a2010" stroke-width="2"/>
+<path d="M14 24 H46 L54 32 L46 40 H14 Z" fill="url(#shape_wayworn-wood)" stroke="#3a2010" stroke-width="2.2" stroke-linejoin="round"/>
+<path d="M36 46 H6 L1 53 L6 60 H36 Z" fill="url(#shape_wayworn-wood)" stroke="#3a2010" stroke-width="2.2" stroke-linejoin="round" transform="translate(4 0)"/>
+<path d="M20 29 H42 M14 50 H34" stroke="#f4d6a8" stroke-width="2" stroke-linecap="round" opacity=".6"/>
+</svg>

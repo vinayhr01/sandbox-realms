@@ -1543,25 +1543,23 @@ async function boot(): Promise<void> {
         return;
       }
       // Inspect (default tap with nothing armed): a being near the tap opens its floating info card (UX redesign,
-      // spec C). A hamlet building on the tapped tile, else the hamlet owning it, opens its card too (spec D). A tap on
-      // empty map closes the card and reads the tile as before.
+      // spec C). A hamlet building on the tapped tile, else the hamlet owning it, opens its card too (spec D); the
+      // tile is still read into the status line. A tap on empty map closes the card and reads the tile as before.
       const hit = pickBeing(sx, sy);
       if (hit) {
         store.info.value = { kind: 'being', id: String(hit.id) };
         return;
       }
       const building = buildingAt(t.x, t.y);
+      const owner = building === null ? hamletAtTile(simView.current?.mapTiles, t.x, t.y) : -1;
       if (building !== null) {
         store.info.value = { kind: 'building', id: String(building) };
-        return;
-      }
-      const owner = hamletAtTile(simView.current?.mapTiles, t.x, t.y);
-      if (owner >= 0) {
+      } else if (owner >= 0) {
         hamletTile = { x: t.x, y: t.y };
         store.info.value = { kind: 'hamlet', id: String(owner) };
-        return;
+      } else {
+        store.info.value = null;
       }
-      store.info.value = null;
       inspectTile(t, false);
     },
   });

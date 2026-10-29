@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="sky_rain-cloud" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#eef3fb"/><stop offset=".6" stop-color="#b9c6da"/><stop offset="1" stop-color="#8797b2"/></linearGradient>
+    <linearGradient id="sky_rain-drop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bfe6ff"/><stop offset="1" stop-color="#2f86d8"/></linearGradient>
+  </defs>
+  <path d="M30 70 a18 18 0 0 1 4 -35 a26 26 0 0 1 49 -6 a20 20 0 0 1 20 41 Z" fill="url(#sky_rain-cloud)" stroke="#4f5f7c" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M40 48 q6 -10 18 -8 M72 34 q8 -2 12 4" stroke="#fff" stroke-width="3" stroke-linecap="round" fill="none" opacity=".8"/>
+  <g stroke="#1d5fa0" stroke-width="1.5">
+    <path d="M40 80 c-5 9 -6 13 -1 15 c5 2 7 -3 1 -15 Z" fill="url(#sky_rain-drop)"/>
+    <path d="M62 86 c-5 9 -6 13 -1 15 c5 2 7 -3 1 -15 Z" fill="url(#sky_rain-drop)"/>
+    <path d="M84 80 c-5 9 -6 13 -1 15 c5 2 7 -3 1 -15 Z" fill="url(#sky_rain-drop)"/>
+    <path d="M51 100 c-4 7 -5 10 -1 12 c4 1 6 -2 1 -12 Z" fill="url(#sky_rain-drop)"/>
+    <path d="M73 102 c-4 7 -5 10 -1 12 c4 1 6 -2 1 -12 Z" fill="url(#sky_rain-drop)"/>
+  </g>
+</svg>

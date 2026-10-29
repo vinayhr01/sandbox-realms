@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <radialGradient id="chip_inspect-lens" cx=".38" cy=".35" r=".7"><stop offset="0" stop-color="#f2fbff"/><stop offset=".6" stop-color="#a8d8f5"/><stop offset="1" stop-color="#5a9ad0"/></radialGradient>
+    <linearGradient id="chip_inspect-rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#c88a2a"/></linearGradient>
+    <linearGradient id="chip_inspect-handle" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b07a48"/><stop offset="1" stop-color="#5a3216"/></linearGradient>
+  </defs>
+  <rect x="84" y="70" width="18" height="52" rx="8" transform="rotate(-45 93 96)" fill="url(#chip_inspect-handle)" stroke="#3a1e0a" stroke-width="5"/>
+  <circle cx="52" cy="52" r="40" fill="url(#chip_inspect-rim)" stroke="#5a3a10" stroke-width="5"/>
+  <circle cx="52" cy="52" r="28" fill="url(#chip_inspect-lens)" stroke="#5a3a10" stroke-width="4"/>
+  <path d="M36 50 Q38 38 50 34" stroke="#ffffff" stroke-width="6" stroke-linecap="round" fill="none"/>
+</svg>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <radialGradient id="sky_ignite-glow" cx=".5" cy=".6" r=".5"><stop offset="0" stop-color="#ffc35a" stop-opacity=".75"/><stop offset="1" stop-color="#ff6a1a" stop-opacity="0"/></radialGradient>
+    <linearGradient id="sky_ignite-outer" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb23a"/><stop offset=".55" stop-color="#f2621e"/><stop offset="1" stop-color="#c2301a"/></linearGradient>
+    <linearGradient id="sky_ignite-inner" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffbe0"/><stop offset=".5" stop-color="#ffe46a"/><stop offset="1" stop-color="#ffaa2e"/></linearGradient>
+    <linearGradient id="sky_ignite-log" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b07a48"/><stop offset="1" stop-color="#6a3e1c"/></linearGradient>
+  </defs>
+  <circle cx="64" cy="70" r="58" fill="url(#sky_ignite-glow)"/>
+  <rect x="22" y="99" width="84" height="15" rx="7.5" transform="rotate(12 64 106)" fill="url(#sky_ignite-log)" stroke="#3a2010" stroke-width="2.5"/>
+  <rect x="22" y="99" width="84" height="15" rx="7.5" transform="rotate(-12 64 106)" fill="url(#sky_ignite-log)" stroke="#3a2010" stroke-width="2.5"/>
+  <ellipse cx="100" cy="106.5" rx="4" ry="6" transform="rotate(-12 64 106)" fill="#e2b47a" stroke="#3a2010" stroke-width="1.5"/>
+  <path d="M64 10 C70 28 94 40 94 70 C94 92 80 106 64 106 C48 106 34 92 34 72 C34 56 44 48 48 36 C53 48 56 52 59 54 C58 40 56 26 64 10 Z" fill="url(#sky_ignite-outer)" stroke="#8a2a10" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M65 50 C71 62 80 72 80 85 C80 97 72 104 64 104 C56 104 48 97 48 87 C48 77 56 70 58 62 C61 68 63 66 65 50 Z" fill="url(#sky_ignite-inner)" stroke="#d8601a" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M42 68 q2 -8 7 -12" stroke="#ffe9a8" stroke-width="3" stroke-linecap="round" fill="none" opacity=".85"/>
+  <g fill="#ffd25a" stroke="#c2501a" stroke-width="1"><circle cx="26" cy="40" r="3.5"/><circle cx="102" cy="30" r="3"/><circle cx="104" cy="52" r="2.2"/><circle cx="30" cy="22" r="2"/></g>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <radialGradient id="chip_creatures-pad" cx=".4" cy=".3" r=".8"><stop offset="0" stop-color="#f2c08a"/><stop offset=".6" stop-color="#c8844a"/><stop offset="1" stop-color="#8a5226"/></radialGradient>
+  </defs>
+  <g fill="url(#chip_creatures-pad)" stroke="#4a2810" stroke-width="5" stroke-linejoin="round">
+    <path d="M64 62 C80 62 98 80 98 98 C98 112 86 116 76 112 C70 110 58 110 52 112 C42 116 30 112 30 98 C30 80 48 62 64 62 Z"/>
+    <ellipse cx="22" cy="58" rx="12" ry="16" transform="rotate(-20 22 58)"/>
+    <ellipse cx="46" cy="28" rx="13" ry="18" transform="rotate(-8 46 28)"/>
+    <ellipse cx="82" cy="28" rx="13" ry="18" transform="rotate(8 82 28)"/>
+    <ellipse cx="106" cy="58" rx="12" ry="16" transform="rotate(20 106 58)"/>
+  </g>
+  <path d="M46 80 Q54 70 64 70" stroke="#ffe6c4" stroke-width="5" stroke-linecap="round" fill="none" opacity=".85"/>
+  <g fill="#ffe6c4" opacity=".85"><circle cx="42" cy="20" r="4"/><circle cx="78" cy="20" r="4"/></g>
+</svg>

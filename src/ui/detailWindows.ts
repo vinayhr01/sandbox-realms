@@ -1,7 +1,7 @@
 /**
  * Culture, campaign and strain windows (13 sections 6 and 7.1): a list per kind, and an inspector
  * that opens from a list row. Lists and inspectors read the latest snapshot through deps.snapshot,
- * so they update while the sim runs or is paused. Inspectors keep a Back button to their list.
+ * so they update while the sim runs or is paused. Back is the Atlas Back button (its stack), not a button in the page.
  */
 import { plainName } from '../content/plain-names.ts';
 import type { Snapshot } from '../shared/protocol.ts';
@@ -395,24 +395,24 @@ function inspectorView(snap: Snapshot, id: string, params: WindowParams): Inspec
   }
 }
 
-/** Where each inspector's Back button goes. */
-const BACK: Readonly<Record<string, { window: string; label: string; missing: string }>> = {
-  win_dominion: { window: 'list_dominions', label: 'Back to dominions', missing: 'This dominion is no longer in the realm.' },
-  win_hamlet: { window: 'list_hamlets', label: 'Back to hamlets', missing: 'This hamlet is no longer in the realm.' },
-  win_campaign: { window: 'list_campaigns', label: 'Back to campaigns', missing: 'This campaign has ended.' },
-  win_creed: { window: 'list_creeds', label: 'Back to creeds', missing: 'This creed is no longer held.' },
-  win_custom: { window: 'list_customs', label: 'Back to customs', missing: 'This custom is no longer in the realm.' },
-  win_dialect: { window: 'list_dialects', label: 'Back to dialects', missing: 'This dialect group is no longer in the realm.' },
-  win_family: { window: 'list_households', label: 'Back to families', missing: 'This family is no longer in the realm.' },
-  win_intrigue: { window: 'list_intrigues', label: 'Back to intrigues', missing: 'This intrigue is no longer in the realm.' },
-  win_strain: { window: 'list_strains', label: 'Back to strains', missing: 'This strain is no longer in the realm.' },
-  win_army: { window: 'list_hosts', label: 'Back to armies', missing: 'This dominion is no longer in the realm, so its army is gone.' },
+/** What an inspector says when its row is no longer in the realm. Back is the Atlas Back button, not a button here. */
+const MISSING: Readonly<Record<string, string>> = {
+  win_dominion: 'This dominion is no longer in the realm.',
+  win_hamlet: 'This hamlet is no longer in the realm.',
+  win_campaign: 'This campaign has ended.',
+  win_creed: 'This creed is no longer held.',
+  win_custom: 'This custom is no longer in the realm.',
+  win_dialect: 'This dialect group is no longer in the realm.',
+  win_family: 'This family is no longer in the realm.',
+  win_intrigue: 'This intrigue is no longer in the realm.',
+  win_strain: 'This strain is no longer in the realm.',
+  win_army: 'This dominion is no longer in the realm, so its army is gone.',
 };
 
-/** An inspector window: Back to its list, the facts and lists of the row, and its action buttons. */
+/** An inspector window: the facts and lists of the row, and its action buttons. */
 function inspector(deps: WindowDeps, id: string, params: WindowParams): WindowBuild {
-  const back = BACK[id];
-  if (!back) throw new Error(`no inspector ${id}`);
+  const missing = MISSING[id];
+  if (missing === undefined) throw new Error(`no inspector ${id}`);
   // The content node is created in build(), so this module can be loaded without a DOM.
   let content: HTMLElement | null = null;
   let lastKey = '';
@@ -429,7 +429,7 @@ function inspector(deps: WindowDeps, id: string, params: WindowParams): WindowBu
       return;
     }
     if (view === null) {
-      content.append(el('p', 'option-note', back.missing));
+      content.append(el('p', 'option-note', missing));
       return;
     }
     const dl = el('dl', 'facts');
@@ -456,11 +456,8 @@ function inspector(deps: WindowDeps, id: string, params: WindowParams): WindowBu
   return {
     title,
     build: (body) => {
-      const backBtn = el('button', 'btn', back.label);
-      backBtn.type = 'button';
-      backBtn.addEventListener('click', () => deps.open(back.window));
       content = el('div', 'snapshot-section');
-      body.append(backBtn, content);
+      body.append(content);
       draw();
     },
     live: draw,
@@ -469,7 +466,7 @@ function inspector(deps: WindowDeps, id: string, params: WindowParams): WindowBu
 
 /** The culture, campaign, strain and inspector windows, or null for another id. */
 export function detailWindowFor(id: string, deps: WindowDeps, params: WindowParams): WindowBuild | null {
-  if (id in BACK) return inspector(deps, id, params);
+  if (id in MISSING) return inspector(deps, id, params);
   return cultureList(deps, id);
 }
 
@@ -483,5 +480,5 @@ export const DETAIL_WINDOW_IDS: readonly string[] = [
   'list_households',
   'list_intrigues',
   'list_strains',
-  ...Object.keys(BACK),
+  ...Object.keys(MISSING),
 ];

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { dispatchKey, isTyping, KEYMAP, keyRows, panBlocked, shellKeysBlocked, type KeyContext } from '../../src/ui/shell/keymap.ts';
+import { dispatchKey, isTyping, KEYMAP, keyName, keyRows, panBlocked, shellKeysBlocked, type KeyContext } from '../../src/ui/shell/keymap.ts';
 
 type Spies = { [K in keyof KeyContext]: ReturnType<typeof vi.fn> };
 
@@ -178,5 +178,21 @@ describe('the keys list', () => {
     const rows = keyRows();
     expect(rows).toHaveLength(KEYMAP.length);
     for (const binding of KEYMAP) expect(rows.map((r) => r.label)).toContain(binding.label);
+  });
+
+  it('zoom lists the main-row key and the numpad key by their real names', () => {
+    expect(keyName('Equal')).toBe('=');
+    expect(keyName('Minus')).toBe('-');
+    expect(keyName('NumpadAdd')).toBe('numpad +');
+    expect(keyName('NumpadSubtract')).toBe('numpad -');
+    const rows = keyRows();
+    expect(rows.find((r) => r.label.includes('zoom in'))?.keys).toBe('= numpad +');
+    expect(rows.find((r) => r.label.includes('zoom out'))?.keys).toBe('- numpad -');
+  });
+
+  it('lists the F pin and the long-press pin', () => {
+    const rows = keyRows();
+    expect(rows.find((r) => r.keys === 'F')?.label).toContain('pin');
+    expect(rows.find((r) => r.keys === 'Hold')?.label).toContain('pin');
   });
 });

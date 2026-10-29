@@ -939,7 +939,7 @@ async function boot(): Promise<void> {
         openWindow(String(power.params['window'] ?? ''));
         return;
       case 'toggle_hud':
-        document.documentElement.classList.toggle('hide-ui');
+        store.hidden.value = !store.hidden.value;
         return;
       case 'toggle_rule':
         setRule(String(power.params['rule'] ?? ''), !rules.isOn(String(power.params['rule'] ?? '')));
@@ -1322,7 +1322,8 @@ async function boot(): Promise<void> {
   // What the autosave timer and the pause and hide saves need to know about the UI right now.
   const autosaveState = (): AutosaveState => ({
     dirty: simTick !== savedTick,
-    modalOpen: windowHost.current !== null || store.atlas.value.open,
+    // Only a confirmation (a native dialog in the window host) pauses autosave. The Atlas is not a blocking modal for saving.
+    modalOpen: windowHost.current !== null,
     gestureActive: stroke !== null,
     degradeLevel: 0,
   });
@@ -1843,7 +1844,9 @@ async function boot(): Promise<void> {
     }),
     zoomBy: (factor: number) => shellActions.zoomBy(factor),
     togglePause,
-    toggleHud: () => document.documentElement.classList.toggle('hide-ui'),
+    toggleHud: () => {
+      store.hidden.value = !store.hidden.value;
+    },
     brushStep: (step: -1 | 1) => setBrushIndex(Math.max(0, Math.min(BRUSH_RADII.length - 1, state.sizeIndex + step))),
   };
   window.addEventListener('keydown', (e: KeyboardEvent) => {

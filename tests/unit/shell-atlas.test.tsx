@@ -5,7 +5,10 @@ import { RuleSet } from '../../src/sim/rules.ts';
 import { DEFAULT_OPTIONS } from '../../src/ui/panels/options.ts';
 import type { WindowDeps } from '../../src/ui/windowContent.ts';
 import { atlasBack, closeAtlas, mountAtlas, openAtlas, showAtlas } from '../../src/ui/shell/Atlas.tsx';
-import { createStore, type ShellActions, type UiStore } from '../../src/ui/shell/store.ts';
+import { ATLAS_TABS, createStore, type ShellActions, type UiStore } from '../../src/ui/shell/store.ts';
+import { RestoreInterface } from '../../src/ui/shell/mount.tsx';
+import { SettingsPanel } from '../../src/ui/shell/SettingsPanel.tsx';
+import { KEYMAP } from '../../src/ui/shell/keymap.ts';
 
 /** Preact renders signal changes on a microtask. */
 const tick = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
@@ -210,5 +213,70 @@ describe('Atlas', () => {
     esc();
     expect(store.atlas.value.open).toBe(true);
     native.remove();
+  });
+
+  it('the World tab has a Hide interface switch; turning it on hides the interface and closes the Atlas', async () => {
+    openAtlas(store, 'world');
+    await tick();
+    const sw = root.querySelector<HTMLInputElement>('input[role="switch"]');
+    if (!sw) throw new Error('no Hide interface switch');
+    expect(sw.checked).toBe(false);
+    expect(root.querySelector('.atlas-hide')?.textContent).toContain('Hide interface');
+    sw.click();
+    await tick();
+    expect(store.hidden.value).toBe(true);
+    expect(store.atlas.value.open).toBe(false);
+  });
+
+  it('the Hide interface switch is not on the other tabs', async () => {
+    openAtlas(store, 'peoples');
+    await tick();
+    expect(root.querySelector('input[role="switch"]')).toBeNull();
+  });
+
+  it('a hidden interface keeps a Show interface button that brings it back', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    store.hidden.value = true;
+    render(<RestoreInterface store={store} />, host);
+    await tick();
+    const restore = [...host.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent === 'Show interface');
+    if (!restore) throw new Error('no Show interface button');
+    restore.click();
+    await tick();
+    expect(store.hidden.value).toBe(false);
+    expect(host.querySelector('button')).toBeNull();
+    render(null, host);
+    host.remove();
+  });
+
+  it('each tab points at its own panel, and the tablist points at nothing', async () => {
+    openAtlas(store, 'world');
+    await tick();
+    expect(root.querySelector('[role="tablist"]')?.hasAttribute('aria-controls')).toBe(false);
+    for (const tab of ATLAS_TABS) {
+      expect(root.querySelector(`#atlas-tab-${tab}`)?.getAttribute('aria-controls')).toBe(`atlas-panel-${tab}`);
+    }
+    const panel = root.querySelector('[role="tabpanel"]');
+    expect(panel?.id).toBe('atlas-panel-world');
+    expect(root.querySelector('#atlas-tab-world')?.getAttribute('aria-controls')).toBe(panel?.id);
+  });
+});
+
+describe('Settings Keys list', () => {
+  it('renders one dt per key row, with the real key names', async () => {
+    const host = document.createElement('div');
+    document.body.appendChild(host);
+    render(<SettingsPanel deps={deps()} />, host);
+    await tick();
+    const dts = [...host.querySelectorAll('.settings-keys dt')].map((d) => d.textContent);
+    expect(dts).toHaveLength(KEYMAP.length);
+    expect(dts).toContain('= numpad +');
+    expect(dts).toContain('- numpad -');
+    expect(dts).toContain('F');
+    expect(dts).toContain('Hold');
+    expect(dts).not.toContain('NumpadAdd');
+    render(null, host);
+    host.remove();
   });
 });

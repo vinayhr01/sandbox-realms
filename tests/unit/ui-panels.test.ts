@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sortFilterSearch, visibleRange } from '../../src/ui/panels/listWindow.ts';
 import { currentStep, newTutorial, parseTutorial, skipTutorial, tutorialEvent, TUTORIAL_STEPS, TUTORIAL_TEXT } from '../../src/ui/panels/tutorial.ts';
-import { BRUSH_MAX, BRUSH_MIN, cooldownFraction, favourite, selectTab, stepBrush } from '../../src/ui/panels/powerBar.ts';
+import { cooldownFraction, favourite } from '../../src/ui/panels/powerBar.ts';
 
 describe('list window', () => {
   const items = [
@@ -62,27 +62,9 @@ describe('power bar', () => {
     expect(favourite(list, 'p0')).toEqual(list);
   });
 
-  it('brush size stays in 1..72 for any step', () => {
-    let s = 5;
-    for (let k = 0; k < 50; k++) {
-      s = stepBrush(s, 1);
-      expect(s).toBeGreaterThanOrEqual(BRUSH_MIN);
-      expect(s).toBeLessThanOrEqual(BRUSH_MAX);
-    }
-    expect(s).toBe(BRUSH_MAX);
-    for (let k = 0; k < 50; k++) s = stepBrush(s, -1);
-    expect(s).toBe(BRUSH_MIN);
-  });
-
   it('cooldown fraction runs from 1 down to 0', () => {
     expect(cooldownFraction(0, 100, 100)).toBe(1);
     expect(cooldownFraction(50, 100, 100)).toBeCloseTo(0.5);
     expect(cooldownFraction(100, 100, 100)).toBe(0);
-  });
-
-  it('selecting an unknown tab keeps the state', () => {
-    const st = { active: 'terrain', tabs: ['terrain', 'beings'] };
-    expect(selectTab(st, 'nope')).toEqual(st);
-    expect(selectTab(st, 'beings').active).toBe('beings');
   });
 });

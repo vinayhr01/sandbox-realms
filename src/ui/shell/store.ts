@@ -83,6 +83,8 @@ export interface UiStore {
   coach: Signal<string | null>;
   sheet: Signal<'collapsed' | 'expanded'>;
   atlas: Signal<{ open: boolean; tab: AtlasTab; stack: AtlasPage[] }>;
+  /** Hide interface (key H, the power of the same name, and the Atlas World switch): hides the shell, keeps the map. */
+  hidden: Signal<boolean>;
   info: Signal<InfoTarget | null>;
   cooldowns: Signal<Record<string, number>>;
   /** Ids of powers that show a pressed state (an Insight toggle that is on). The armed power is in `armed`. */
@@ -128,6 +130,7 @@ export function createStore(): UiStore {
     coach: signal<string | null>(null),
     sheet: signal<'collapsed' | 'expanded'>('collapsed'),
     atlas: signal({ open: false, tab: 'world' as AtlasTab, stack: [] as AtlasPage[] }),
+    hidden: signal(false),
     info: signal<InfoTarget | null>(null),
     cooldowns: signal<Record<string, number>>({}),
     pressed: signal<string[]>([]),

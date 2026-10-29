@@ -4,7 +4,7 @@
  * not built yet say so. The developer windows are listed here only while "Show developer tools" is on.
  */
 import { useState } from 'preact/hooks';
-import { render } from 'preact';
+import { Fragment, render } from 'preact';
 import { GROUP_LABELS, SETTINGS, choiceLabel, resetGroup, type OptionGroup, type OptionValue, type Options, type SettingDef } from '../panels/options.ts';
 import type { WindowDeps } from '../windowContent.ts';
 import { devSections } from './atlasRoutes.ts';
@@ -142,10 +142,10 @@ export function SettingsPanel({ deps, onDone }: { deps: WindowDeps; onDone?: () 
         <h3 class="keys-head">Keys</h3>
         <dl class="facts">
           {keyRows().map((row) => (
-            <>
-              <dt key={`k-${row.label}`}>{row.keys}</dt>
-              <dd key={`l-${row.label}`}>{row.label}</dd>
-            </>
+            <Fragment key={row.label}>
+              <dt>{row.keys}</dt>
+              <dd>{row.label}</dd>
+            </Fragment>
           ))}
         </dl>
       </section>

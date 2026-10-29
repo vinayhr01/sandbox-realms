@@ -87,6 +87,32 @@ body {
   pointer-events: none;
 }
 
+/* Zoom in and out, under the pills at the top right (UX redesign, spec D). */
+.zoom-stack {
+  position: absolute;
+  top: var(--shell-top);
+  right: var(--space-2);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  pointer-events: none;
+}
+
+.zoom-btn {
+  pointer-events: auto;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-m);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow);
+  color: var(--text);
+  font-size: calc(18px * var(--ui-scale));
+}
+
 .pill-end {
   display: flex;
   align-items: center;
@@ -174,6 +200,10 @@ body {
   .pill-end {
     flex: 1 1 100%;
     justify-content: space-between;
+  }
+
+  .zoom-stack {
+    top: var(--shell-top-phone);
   }
 }
 
@@ -528,18 +558,23 @@ body {
 
 
 
-/* Possession pad (13 section 10 keys; touch buttons for the same controls). Shown only while a Being is held (possessControls.ts). */
+/* Possession pad (13 section 10 keys; touch buttons for the same controls). Shown only while a Being is held (possessControls.ts).
+   Bottom-left, above the power sheet (--sheet-h), so it never shares a corner with the minimap. */
 .possess-pad {
   position: absolute;
-  right: var(--gap);
-  bottom: var(--gap);
+  left: var(--gap);
+  bottom: calc(var(--sheet-h, 0px) + var(--gap));
   z-index: 2;
   display: grid;
   grid-template-columns: repeat(4, var(--tap));
   gap: 4px;
   padding: 4px;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-m);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow);
 }
 
 .possess-pad[hidden] {
@@ -972,14 +1007,16 @@ html[data-reduce-motion] * {
   background: radial-gradient(ellipse at center, rgb(0 0 0 / 0) 55%, rgb(0 0 0 / 0.45) 100%);
 }
 
+/* Bottom-right, above the power sheet (--sheet-h). The glass frame matches the other shell surfaces. */
 .minimap {
   position: absolute;
   right: var(--gap);
-  bottom: var(--gap);
+  bottom: calc(var(--sheet-h, 0px) + var(--gap));
   z-index: 2;
   background: #000;
-  border: 1px solid rgb(255 255 255 / 0.35);
-  border-radius: var(--radius);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-m);
+  box-shadow: var(--glass-shadow);
   image-rendering: pixelated;
   touch-action: none;
   cursor: pointer;
@@ -1010,8 +1047,9 @@ html[data-reduce-motion] * {
   max-width: 200px;
 }
 
+/* The top-centre column holds the toasts, and the first-launch coach takes a slot in it (spec D). The ticker sits below. */
 .insight-ticker {
-  top: 8px;
+  top: calc(var(--shell-top) + var(--top-column-reserve, 4.5rem));
   left: 50%;
   transform: translateX(-50%);
   max-width: 80vw;

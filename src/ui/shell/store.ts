@@ -75,6 +75,12 @@ export interface ShellActions {
   disarm(): void;
   setBrushSize(index: number): void;
   setBrushShape(shape: BrushShape): void;
+  /** Screen point (client px) and plain species name of a live being, or null once it has left the feed. */
+  locateBeing(id: number): { x: number; y: number; name: string } | null;
+  followBeing(id: number): void;
+  possessBeing(id: number): void;
+  /** Zooms the map by a factor about the centre of the view. */
+  zoomBy(factor: number): void;
 }
 
 export function createStore(): UiStore {

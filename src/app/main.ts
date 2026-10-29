@@ -1270,6 +1270,15 @@ async function boot(): Promise<void> {
     return { key: hit.key, id: beingIdOf(hit.key), x: Math.round(hit.x), y: Math.round(hit.y) };
   };
 
+  /** The live feed Being with this id this frame, or null when it has left the feed (the info card reads it). */
+  const liveBeing = (id: number): DrawBeing | null => {
+    for (let i = 0; i < beingCount; i++) {
+      const d = drawBeings[i];
+      if (d && beingIdOf(d.key) === id) return d;
+    }
+    return null;
+  };
+
   /** Reads one tile from the sim and reports it in the status line. Held presses say so. */
   const inspectTile = (t: { x: number; y: number }, held: boolean): void => {
     void client.query(t.x, t.y).then((r) => {
@@ -1329,10 +1338,6 @@ async function boot(): Promise<void> {
     onLongPress: (sx, sy) => {
       cursorScreen = { x: sx, y: sy };
       inspectTile(tileAt(sx, sy), true);
-    },
-    onDoubleTap: (sx, sy) => {
-      // Double-tap zooms in one step on the tap point (the browser's own double-tap zoom stays off).
-      camera?.zoomAt(2, sx, sy);
     },
     onStrokeUndo: () => {
       // The sim keeps no per-stroke journal, so a second finger ends the stroke and keeps what it painted.
@@ -1431,13 +1436,14 @@ async function boot(): Promise<void> {
         client.possess(possessedId, true, t.x, t.y, attackHeld);
         return;
       }
-      // Inspect (default tap with nothing armed): a being near the tap opens its window when the
-      // snapshot holds its row (the notable sample); otherwise the tile is read as before.
+      // Inspect (default tap with nothing armed): a being near the tap opens its floating info card (UX redesign,
+      // spec C). A tap on empty map closes the card and reads the tile as before.
       const hit = pickBeing(sx, sy);
-      if (hit && simView.current?.detail?.notable?.beings.some((b) => b.id === hit.id)) {
-        openWindow('win_being', { id: hit.id });
+      if (hit) {
+        store.info.value = { kind: 'being', id: String(hit.id) };
         return;
       }
+      store.info.value = null;
       inspectTile(t, false);
     },
   });
@@ -1567,6 +1573,42 @@ async function boot(): Promise<void> {
       if (power) activatePower(power);
     },
     openWindow: (kind: string, params) => openWindow(kind, params),
+    locateBeing: (id: number) => {
+      const d = liveBeing(id);
+      if (!d || !camera) return null;
+      const rect = host.getBoundingClientRect();
+      const speciesId = SPECIES[d.species]?.id;
+      const name = speciesId ? plainName('species', speciesId) : 'Being';
+      return { x: rect.left + camera.offX + (d.x + 0.5) * camera.zoom, y: rect.top + camera.offY + (d.y + 0.5) * camera.zoom, name };
+    },
+    followBeing: (id: number) => {
+      const d = liveBeing(id);
+      if (!d) {
+        setStatus('That being is gone.');
+        return;
+      }
+      followKey = d.key;
+      followPending = false;
+      setStatus('Following that being. Esc or a pan releases it.');
+    },
+    possessBeing: (id: number) => {
+      const d = liveBeing(id);
+      if (!d) {
+        setStatus('That being is gone.');
+        return;
+      }
+      setArmed(null);
+      if (possessedId !== null) releasePossession();
+      possessPending = false;
+      possessedId = id;
+      possessOrder = { x: Math.round(d.x), y: Math.round(d.y) };
+      client.possess(id, true, possessOrder.x, possessOrder.y, attackHeld);
+      setStatus('Possessing that being. Tap the ground to move it. Esc releases.');
+      updatePowerButtons();
+    },
+    zoomBy: (factor: number) => {
+      camera?.zoomAt(factor, renderer.app.screen.width / 2, renderer.app.screen.height / 2);
+    },
     disarm: () => setArmed(null),
     setBrushSize: (index: number) => setBrushIndex(index),
     setBrushShape: (shape: BrushShape) => setShape(shape),

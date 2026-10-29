@@ -30,12 +30,6 @@ export interface MapInputHandlers {
   /** Long-press (500 ms, under 10 px travel) with no tool armed: inspect detail (13 section 9). */
   onLongPress?(sx: number, sy: number): void;
   /**
-   * Double-tap with no tool armed (13 section 9; browser double-tap zoom stays off). When this is
-   * absent, taps stay immediate. With it, a single inspect tap waits DOUBLE_TAP_MS to see whether a
-   * second tap follows.
-   */
-  onDoubleTap?(sx: number, sy: number): void;
-  /**
    * A second finger lands on a stroke (13 section 9): the stroke ends and is undone. Optional: when
    * absent the stroke ends as before, without undo.
    */
@@ -58,8 +52,6 @@ interface Pointer {
   x: number;
   y: number;
   moved: boolean;
-  /** Armed state at press time, so a later change of tool does not change how this press reads. */
-  armedAtDown: boolean;
 }
 
 /** Pixels of travel before a press becomes a drag (13 section 9: 10 px touch, 4 px mouse). */
@@ -72,16 +64,6 @@ export const HOLD_DELAY_MS = 150;
 export const HOLD_INTERVAL_MS = 100;
 /** Long-press time (13 section 9). */
 export const LONG_PRESS_MS = 500;
-/** Double-tap window and the largest distance between the two taps (13 section 9, TUNE). */
-export const DOUBLE_TAP_MS = 300;
-export const DOUBLE_TAP_SLOP = 24;
-
-interface LastTap {
-  t: number;
-  x: number;
-  y: number;
-}
-
 export class MapInput {
   private readonly pointers = new Map<number, Pointer>();
   private mode: Mode = 'idle';
@@ -96,8 +78,6 @@ export class MapInput {
   private holdRepeat: number | null = null;
   /** The hold or long-press already fired for this press, so its release is not a tap. */
   private holdFired = false;
-  private lastTap: LastTap | null = null;
-  private tapTimer: number | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -126,7 +106,6 @@ export class MapInput {
     window.removeEventListener('keydown', this.onKey);
     window.removeEventListener('keyup', this.onKey);
     this.holdStop();
-    this.clearTapTimer();
   }
 
   private local(e: PointerEvent | WheelEvent): { x: number; y: number } {
@@ -167,11 +146,6 @@ export class MapInput {
     this.holdRepeat = null;
   }
 
-  private clearTapTimer(): void {
-    if (this.tapTimer !== null) window.clearTimeout(this.tapTimer);
-    this.tapTimer = null;
-  }
-
   private readonly onDown = (e: PointerEvent): void => {
     if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1 && e.button !== 2) return;
     if (this.latched) {
@@ -192,7 +166,6 @@ export class MapInput {
       x,
       y,
       moved: false,
-      armedAtDown: this.toolArmed(),
     });
 
     if (this.pointers.size === 1) {
@@ -276,10 +249,8 @@ export class MapInput {
     if (this.canvas.hasPointerCapture(id)) this.canvas.releasePointerCapture(id);
     this.holdStop();
 
-    if (this.mode === 'pending' && !p.moved && !cancelled && !this.holdFired) {
-      if (p.armedAtDown || !this.handlers.onDoubleTap) this.handlers.onTap(x, y);
-      else this.inspectTap(x, y);
-    }
+    // A tap fires at once: there is no double-tap zoom, so nothing waits for a second tap.
+    if (this.mode === 'pending' && !p.moved && !cancelled && !this.holdFired) this.handlers.onTap(x, y);
     if (this.mode === 'stroke' && (this.pointers.size === 0 || cancelled)) {
       if (!cancelled && this.pointers.size === 0 && this.handlers.stickyHold?.()) this.latched = true;
       else this.handlers.onStrokeEnd();
@@ -297,30 +268,6 @@ export class MapInput {
       rest.moved = true;
       this.mode = 'pan';
     }
-  }
-
-  /**
-   * An inspect tap (no tool armed) when double-tap is wired. A second tap within DOUBLE_TAP_MS and
-   * DOUBLE_TAP_SLOP is a double-tap and the first tap is dropped. Otherwise the earlier tap fires now
-   * and this one waits, so a single tap still inspects after the window.
-   */
-  private inspectTap(x: number, y: number): void {
-    const now = performance.now();
-    const last = this.lastTap;
-    this.clearTapTimer();
-    if (last && now - last.t <= DOUBLE_TAP_MS && Math.hypot(x - last.x, y - last.y) <= DOUBLE_TAP_SLOP) {
-      this.lastTap = null;
-      this.handlers.onDoubleTap?.(last.x, last.y);
-      return;
-    }
-    if (last) this.handlers.onTap(last.x, last.y);
-    this.lastTap = { t: now, x, y };
-    this.tapTimer = window.setTimeout(() => {
-      const pending = this.lastTap;
-      this.lastTap = null;
-      this.tapTimer = null;
-      if (pending) this.handlers.onTap(pending.x, pending.y);
-    }, DOUBLE_TAP_MS);
   }
 
   private startPinch(): void {

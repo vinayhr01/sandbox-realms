@@ -26,7 +26,7 @@ describe('TopPills', () => {
     store = createStore();
     store.realm.value = { name: 'Realm 16', year: 3, month: 4, creatures: 142, towns: 2 };
     actions = { setSpeed: vi.fn(), togglePause: vi.fn(), activatePower: vi.fn(), openWindow: vi.fn(), disarm: vi.fn(), setBrushSize: vi.fn(), setBrushShape: vi.fn() };
-    render(<TopPills store={store} actions={actions as ShellActions} />, host);
+    render(<TopPills store={store} actions={actions as unknown as ShellActions} />, host);
   });
 
   afterEach(() => {

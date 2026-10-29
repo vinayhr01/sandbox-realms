@@ -41,7 +41,7 @@ describe('PowerSheet', () => {
       setBrushSize: vi.fn(),
       setBrushShape: vi.fn(),
     };
-    render(<PowerSheet store={store} actions={actions as ShellActions} />, host);
+    render(<PowerSheet store={store} actions={actions as unknown as ShellActions} />, host);
   });
 
   afterEach(() => {

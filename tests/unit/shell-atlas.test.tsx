@@ -55,7 +55,7 @@ describe('Atlas', () => {
       setBrushSize: vi.fn(),
       setBrushShape: vi.fn(),
     };
-    removeKeys = mountAtlas(root, store, actions as ShellActions, deps());
+    removeKeys = mountAtlas(root, store, actions as unknown as ShellActions, deps());
   });
 
   afterEach(() => {

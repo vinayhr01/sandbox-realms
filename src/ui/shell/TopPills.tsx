@@ -19,64 +19,77 @@ const SPEEDS: readonly SpeedChoice[] = [
   { speed: 10, label: '10', name: 'x10' },
 ];
 
+/** Map zoom steps per press (the wheel and pinch keep their own speed in input.ts). */
+const ZOOM_STEP = 1.25;
+
 export function TopPills({ store, actions }: { store: UiStore; actions: ShellActions }) {
   const realm = store.realm.value;
   const paused = store.paused.value;
   const speed = store.speed.value;
   return (
-    <div class="top-pills">
-      <button
-        type="button"
-        class="pill realm-pill"
-        aria-haspopup="dialog"
-        aria-label={`Realm ${realm.name}, open Atlas`}
-        onClick={() => openAtlas(store, 'world')}
-      >
-        <span id="realm-name" class="realm-name">
-          {realm.name}
-        </span>
-        <span class="realm-stat">Year {realm.year}</span>
-        <span class="realm-stat realm-extra">{realm.creatures} creatures</span>
-        <span class="realm-stat realm-extra">{realm.towns} towns</span>
-      </button>
-      <div class="pill-end">
-        <div class="pill speed-pill" role="group" aria-label="Simulation speed">
-          <button
-            id="pause"
-            type="button"
-            class="btn icon"
-            aria-label={paused ? 'Resume' : 'Pause'}
-            aria-pressed={paused ? 'true' : 'false'}
-            onClick={() => actions.togglePause()}
-          >
-            {paused ? '▶' : '❚❚'}
-          </button>
-          {SPEEDS.map((choice) => {
-            const pressed = !paused && speed === choice.speed;
-            return (
-              <button
-                key={choice.name}
-                type="button"
-                class="btn speed-btn"
-                aria-label={choice.name}
-                aria-pressed={pressed ? 'true' : 'false'}
-                onClick={() => actions.setSpeed(choice.speed)}
-              >
-                {choice.label}
-              </button>
-            );
-          })}
-        </div>
+    <>
+      <div class="top-pills">
         <button
-          id="settings-open"
           type="button"
-          class="pill pill-button"
+          class="pill realm-pill"
           aria-haspopup="dialog"
-          onClick={() => actions.openWindow('win_settings')}
+          aria-label={`Realm ${realm.name}, open Atlas`}
+          onClick={() => openAtlas(store, 'world')}
         >
-          Settings
+          <span id="realm-name" class="realm-name">
+            {realm.name}
+          </span>
+          <span class="realm-stat">Year {realm.year}</span>
+          <span class="realm-stat realm-extra">{realm.creatures} creatures</span>
+          <span class="realm-stat realm-extra">{realm.towns} towns</span>
+        </button>
+        <div class="pill-end">
+          <div class="pill speed-pill" role="group" aria-label="Simulation speed">
+            <button
+              id="pause"
+              type="button"
+              class="btn icon"
+              aria-label={paused ? 'Resume' : 'Pause'}
+              aria-pressed={paused ? 'true' : 'false'}
+              onClick={() => actions.togglePause()}
+            >
+              {paused ? '▶' : '❚❚'}
+            </button>
+            {SPEEDS.map((choice) => {
+              const pressed = !paused && speed === choice.speed;
+              return (
+                <button
+                  key={choice.name}
+                  type="button"
+                  class="btn speed-btn"
+                  aria-label={choice.name}
+                  aria-pressed={pressed ? 'true' : 'false'}
+                  onClick={() => actions.setSpeed(choice.speed)}
+                >
+                  {choice.label}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            id="settings-open"
+            type="button"
+            class="pill pill-button"
+            aria-haspopup="dialog"
+            onClick={() => actions.openWindow('win_settings')}
+          >
+            Settings
+          </button>
+        </div>
+      </div>
+      <div class="zoom-stack" role="group" aria-label="Map zoom">
+        <button type="button" class="btn icon zoom-btn" aria-label="Zoom in" onClick={() => actions.zoomBy(ZOOM_STEP)}>
+          +
+        </button>
+        <button type="button" class="btn icon zoom-btn" aria-label="Zoom out" onClick={() => actions.zoomBy(1 / ZOOM_STEP)}>
+          −
         </button>
       </div>
-    </div>
+    </>
   );
 }

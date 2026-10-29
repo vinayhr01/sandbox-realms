@@ -198,8 +198,10 @@ export const DEGRADE_START: DegradeTrack = { level: 0, overSeconds: 0, underSeco
  * One step per one-second window. `meanFrameMs` is the mean frame interval over the window and
  * `budgetMs` the frame budget for the current frame-rate cap. Steps down after DEGRADE_DOWN_SECONDS
  * over budget, steps up after DEGRADE_UP_SECONDS under it, and never changes more than once per hold.
+ * `effectsIdle` says no deploy effect is alive. Then the map.effects step frees nothing, so a step down
+ * counts it as done and goes on to the next one (the effects layer is still turned off at that level).
  */
-export function stepDegrade(track: DegradeTrack, meanFrameMs: number, budgetMs: number): DegradeTrack {
+export function stepDegrade(track: DegradeTrack, meanFrameMs: number, budgetMs: number, effectsIdle = false): DegradeTrack {
   const over = meanFrameMs > budgetMs * DEGRADE_OVER_FACTOR;
   const under = meanFrameMs < budgetMs * DEGRADE_UNDER_FACTOR;
   const overSeconds = over ? track.overSeconds + 1 : 0;
@@ -207,7 +209,9 @@ export function stepDegrade(track: DegradeTrack, meanFrameMs: number, budgetMs: 
   const holdSeconds = Math.min(track.holdSeconds + 1, DEGRADE_HOLD_SECONDS);
   if (holdSeconds >= DEGRADE_HOLD_SECONDS) {
     if (overSeconds >= DEGRADE_DOWN_SECONDS && track.level < DEGRADE_MAX_LEVEL) {
-      return { level: track.level + 1, overSeconds: 0, underSeconds: 0, holdSeconds: 0 };
+      const skipsEffects = effectsIdle && DEGRADE_OFF[track.level] === 'map.effects';
+      const level = Math.min(track.level + (skipsEffects ? 2 : 1), DEGRADE_MAX_LEVEL);
+      return { level, overSeconds: 0, underSeconds: 0, holdSeconds: 0 };
     }
     if (underSeconds >= DEGRADE_UP_SECONDS && track.level > 0) {
       return { level: track.level - 1, overSeconds: 0, underSeconds: 0, holdSeconds: 0 };

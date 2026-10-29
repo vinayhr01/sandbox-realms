@@ -12,6 +12,7 @@ import { detailWindowFor } from './detailWindows.ts';
 import { staticWindowFor } from './staticWindows.ts';
 import { boolOption, type OptionValue, type Options } from './panels/options.ts';
 import { mountSettingRows, mountSettings } from './shell/SettingsPanel.tsx';
+import { keyRows } from './shell/keymap.ts';
 import { TUTORIAL_TEXT, TUTORIAL_STEPS, type TutorialState } from './panels/tutorial.ts';
 import { powerStatus } from './powerSupport.ts';
 import { snapshotWindowFor } from './snapshotWindows.ts';
@@ -274,16 +275,13 @@ function buildKeys(): WindowBuild {
     title: windowTitle('win_keys'),
     build: (body) => {
       const list = el('dl', 'facts');
+      // The pointer rows are fixed; the keys come from the one keymap (src/ui/shell/keymap.ts).
       const rows: Array<[string, string]> = [
-        ['Tap the map', 'Inspect a tile, or apply the armed power'],
+        ['Tap the map', 'Inspect a tile or a being, or apply the armed power'],
         ['Drag the map', 'Paint with Raise, Lower or a brush power; otherwise pan'],
         ['Wheel or pinch', 'Zoom'],
-        ['Arrow keys or WASD', 'Pan'],
-        ['P', 'Pause or resume'],
-        ['[ and ]', 'Smaller or larger brush'],
-        ['Esc', 'Disarm the power, or close a window'],
-        ['H', 'Hide or show the interface'],
       ];
+      for (const row of keyRows()) rows.push([row.keys, row.label]);
       for (const [k, v] of rows) list.append(el('dt', undefined, k), el('dd', undefined, v));
       body.append(list);
     },

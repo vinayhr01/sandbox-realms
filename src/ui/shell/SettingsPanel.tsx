@@ -8,6 +8,7 @@ import { render } from 'preact';
 import { GROUP_LABELS, SETTINGS, choiceLabel, resetGroup, type OptionGroup, type OptionValue, type Options, type SettingDef } from '../panels/options.ts';
 import type { WindowDeps } from '../windowContent.ts';
 import { devSections } from './atlasRoutes.ts';
+import { keyRows } from './keymap.ts';
 
 const GROUPS = Object.keys(GROUP_LABELS) as OptionGroup[];
 
@@ -137,6 +138,17 @@ export function SettingsPanel({ deps, onDone }: { deps: WindowDeps; onDone?: () 
           ))}
         </div>
       )}
+      <section class="settings-keys" aria-label="Keyboard shortcuts">
+        <h3 class="keys-head">Keys</h3>
+        <dl class="facts">
+          {keyRows().map((row) => (
+            <>
+              <dt key={`k-${row.label}`}>{row.keys}</dt>
+              <dd key={`l-${row.label}`}>{row.label}</dd>
+            </>
+          ))}
+        </dl>
+      </section>
       <div class="settings-actions">
         <button type="button" class="btn" onClick={resetAll}>
           Reset all settings

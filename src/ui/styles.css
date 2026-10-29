@@ -874,7 +874,10 @@ body {
 }
 
 /* Hide interface (realm rules: Hide Interface, key H). */
-.hide-ui .top-pills {
+/* H hides the pills, the zoom buttons and the minimap; the map stays (spec G). The sheet hides in PowerSheet.css. */
+.hide-ui .top-pills,
+.hide-ui .zoom-stack,
+.hide-ui .minimap {
   display: none;
 }
 

@@ -17,6 +17,8 @@ import { SaveService } from './saves.ts';
 import { CANNOT_CAPTURE, CANNOT_RESTORE, SaveController, type ActionOutcome, type AutosaveState, type ChronicleSource } from './save-controller.ts';
 import { setDebug } from '../ui/hud.ts';
 import { createStore, pushToast, type ShellActions } from '../ui/shell/store.ts';
+import { dispatchKey, focusSheetSearch, isTyping, type KeyContext } from '../ui/shell/keymap.ts';
+import { recentRow } from '../ui/shell/powerCatalog.ts';
 import { chipsFor, discoveryToast, evaluate, DISCOVERY_KEY, newDiscovery, parseDiscovery, type DiscoveryState } from '../ui/shell/discovery.ts';
 import { loadPowerPrefs, savePowerPrefs } from '../ui/shell/powerPrefs.ts';
 import { effect } from '@preact/signals';
@@ -1735,21 +1737,36 @@ async function boot(): Promise<void> {
   renderCoach();
   refreshChips();
 
+  // The shell's keys (UX redesign, spec G): one keymap (src/ui/shell/keymap.ts). Each call is the one a click makes.
+  const keyContext: KeyContext = {
+    recent: () => recentRow(store),
+    arm: (id: string) => {
+      const power = POWER_BY_ID.get(id);
+      if (power) activatePower(power);
+    },
+    toggleSheet: () => {
+      store.sheet.value = store.sheet.value === 'expanded' ? 'collapsed' : 'expanded';
+    },
+    focusSearch: () => focusSheetSearch(() => {
+      store.sheet.value = 'expanded';
+    }),
+    zoomBy: (factor: number) => shellActions.zoomBy(factor),
+    togglePause,
+    toggleHud: () => document.documentElement.classList.toggle('hide-ui'),
+    brushStep: (step: -1 | 1) => setBrushIndex(Math.max(0, Math.min(BRUSH_RADII.length - 1, state.sizeIndex + step))),
+  };
   window.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
+    if (isTyping(e.target)) return;
     keysDown.add(e.code);
     // Possession keys (13 section 10, DECISIONS "Possession controls close 14"): J holds attack, K/L/U/T/Y/N are one-shot
     // abilities. Modifier chords and auto-repeat do not fire them. They do nothing unless a Being is held.
     const control = possessActionOfCode(e.code);
     if (control !== null && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey) possessControl(control, true);
-    if (e.code === 'KeyP') {
-      togglePause();
-    } else if (e.code === 'KeyH') {
-      document.documentElement.classList.toggle('hide-ui');
-    } else if (e.code === 'BracketLeft' || e.code === 'BracketRight') {
-      const step = e.code === 'BracketLeft' ? -1 : 1;
-      setBrushIndex(Math.max(0, Math.min(BRUSH_RADII.length - 1, state.sizeIndex + step)));
-    } else if (e.code === 'Escape') {
+    if (dispatchKey(e, keyContext)) {
+      if (e.code === 'Space') e.preventDefault();
+      return;
+    }
+    if (e.code === 'Escape') {
       followPending = false;
       followKey = null;
       if (possessedId !== null || possessPending) releasePossession();

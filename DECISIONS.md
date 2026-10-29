@@ -2962,3 +2962,9 @@ Smooth terrain, a being feed, and illustrated walking creatures and buildings (`
 - **Art authorship.** Claude hand-wrote the SVGs in clean, shaded illustration with real anatomy, not painted realism. The owner approved the 6-species sample first, then each group batch before it merged (beasts, birds, sea, insects, undead, monsters, peoples, buildings), on one review page (R14). Owner choice for buildings: warm-lit dark window glass. Seven buildings have windows (house, storehouse, workshop, dwelling_2 to dwelling_5); the other nine have none.
 - **Dependency.** `jsdom` 30.1.2 is an exact-pinned devDependency for DOM tests (R12). It is test-only and nothing ships. The spec's "no new dependencies" covers runtime only.
 - **Open.** The 20 ms P95 gate was not met in the Task 12 run on the Windows dev machine, where SwiftShader renders the realm at 1280 by 720 with no creatures at about 33 ms. The gap is the full-screen terrain pass, not the creature layer. The owner needs to decide how the gate applies on software WebGL, since the no-creature baseline already exceeds it here (the spec allows baseline plus 10% as an alternative; the controller ruled the gate absolute). The walking-creatures check on a real Android device is not done.
+
+## UX redesign: keymap and Ctrl+Z (2026-10-29)
+
+- Ctrl+Z is not bound (spec call 5). The client keeps no record of the ground and elevation a stroke changed, and no worker command sets exact tile state back, so an undo would need a sim or save change. The second-finger "undo" keeps its old message.
+- Space and P both pause. A focused button keeps Space as its own click, so Space pauses only when no button has focus.
+- The keymap (src/ui/shell/keymap.ts) is the one list: the Keys window and the Settings keys section are generated from it.

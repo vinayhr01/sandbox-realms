@@ -2,7 +2,8 @@ import { Container, Texture, type Application } from 'pixi.js';
 import { describe, expect, it } from 'vitest';
 import { POWERS, POWER_BY_ID } from '../../src/content/powers.ts';
 import { recipeFor } from '../../src/render/effectRecipes.ts';
-import { EffectsLayer, MAX_PARTICLES, type EffectTextures } from '../../src/render/effects.ts';
+import { EffectsLayer, MAX_PARTICLES, STROKE_PUFF_MS, type EffectTextures } from '../../src/render/effects.ts';
+import type { MarkView } from '../../src/render/marks.ts';
 
 /** A stage and canvas stand-in: the layer needs no WebGL when its textures are given. */
 function stubApp(): Application {
@@ -17,6 +18,8 @@ const WHITE_TEXTURES: EffectTextures = {
   puff: Texture.WHITE,
   sparkle: Texture.WHITE,
 };
+
+const VIEW: MarkView = { offX: 0, offY: 0, zoom: 16, viewW: 800, viewH: 600 };
 
 function layer(over: { reduceMotion?: boolean; reduceFlash?: boolean } = {}): EffectsLayer {
   return new EffectsLayer(stubApp(), {
@@ -87,5 +90,42 @@ describe('EffectsLayer', () => {
     const fx = layer();
     fx.play('rule', 1, 1, 1);
     expect(fx.liveCount()).toBe(0);
+  });
+
+  it('a stroke puff plays at most once per STROKE_PUFF_MS, however often the stroke is sent', () => {
+    const fx = layer();
+    fx.playStroke('brush', 2, 2, 1);
+    const first = fx.liveCount();
+    expect(first).toBeGreaterThan(0);
+    fx.playStroke('brush', 3, 2, 1);
+    expect(fx.liveCount()).toBe(first);
+    fx.update(STROKE_PUFF_MS - 1, VIEW);
+    fx.playStroke('brush', 4, 2, 1);
+    expect(fx.liveCount()).toBe(first);
+    fx.update(1, VIEW);
+    fx.playStroke('brush', 5, 2, 1);
+    expect(fx.liveCount()).toBe(first * 2);
+  });
+
+  it('a long fast drag puffs about 12 times a second, not once a frame', () => {
+    const fx = layer();
+    let puffs = 0;
+    for (let frame = 0; frame < 1000; frame++) {
+      fx.update(16, VIEW);
+      const before = fx.liveCount();
+      fx.playStroke('brush', frame % 50, 1, 1);
+      if (fx.liveCount() > before) puffs++;
+    }
+    expect(puffs).toBe(200);
+  });
+
+  it('a stroke puff plays nothing under reduce motion or when the degrade step turned effects off', () => {
+    const calm = layer({ reduceMotion: true });
+    calm.playStroke('brush', 1, 1, 1);
+    expect(calm.liveCount()).toBe(0);
+    const off = layer();
+    off.setEnabled(false);
+    off.playStroke('brush', 1, 1, 1);
+    expect(off.liveCount()).toBe(0);
   });
 });

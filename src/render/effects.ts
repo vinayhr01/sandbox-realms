@@ -12,6 +12,8 @@ import type { MarkView } from './marks.ts';
 export const MAX_PARTICLES = 256;
 /** Reduce motion: every recipe becomes one ring that fades in this long (ms). */
 export const FADE_MS = 250;
+/** Least time between two stroke puffs, ms: a long or fast brush drag puffs at most about 12 times a second. */
+export const STROKE_PUFF_MS = 80;
 /** Texture size of the shared shapes, px. */
 const TEX_PX = 32;
 
@@ -166,6 +168,9 @@ export class EffectsLayer {
   private next = 0;
   private live = 0;
   private enabled = true;
+  /** Frame time summed from update(); the stroke puff throttle reads it, so tests need no clock. */
+  private clockMs = 0;
+  private lastStrokePuffMs = -STROKE_PUFF_MS;
 
   constructor(app: Application, options: EffectsOptions = {}) {
     this.reduceMotion = options.reduceMotion ?? (() => domFlag('data-reduce-motion'));
@@ -218,8 +223,20 @@ export class EffectsLayer {
     }
   }
 
+  /**
+   * Plays a stroke puff while a brush drag is sent (spec F: dust puffs along the stroke). At most one per STROKE_PUFF_MS,
+   * and none under reduce motion: a trail of rings is motion the setting asks to drop. Called only where the client sends.
+   */
+  playStroke(id: RecipeId, tileX: number, tileY: number, sizeTiles: number): void {
+    if (!this.enabled || this.reduceMotion()) return;
+    if (this.clockMs - this.lastStrokePuffMs < STROKE_PUFF_MS) return;
+    this.lastStrokePuffMs = this.clockMs;
+    this.play(id, tileX, tileY, sizeTiles);
+  }
+
   /** Moves and ages the live particles to the camera in `view`. Hides the ones past their life. */
   update(dtMs: number, view: MarkView): void {
+    this.clockMs += dtMs;
     if (this.live === 0) return;
     for (const p of this.slots) {
       if (!p.active) continue;

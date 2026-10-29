@@ -636,7 +636,7 @@ async function boot(): Promise<void> {
     degradeWindowFrames++;
     if (degradeWindowMs < 1000) return;
     const mean = degradeWindowFrames > 0 ? degradeWindowFrameMs / degradeWindowFrames : 0;
-    const next = stepDegrade(degrade, mean, frameBudgetMs());
+    const next = stepDegrade(degrade, mean, frameBudgetMs(), effects.liveCount() === 0);
     if (next.level !== degrade.level) applyDegradeLevel(next.level, mean);
     degrade = next;
     degradeWindowMs = 0;
@@ -1173,6 +1173,8 @@ async function boot(): Promise<void> {
       // Other brush powers are applied tile by tile along the drag; the first tile was done at the press.
       for (const [x, y] of linePoints(last.x, last.y, target.x, target.y).slice(1)) client.power(stroke.power.id, x, y);
     }
+    // The stroke's dust plays where the segment was sent (spec F); the layer throttles it and skips it under reduce motion.
+    effects.playStroke(recipeFor(stroke.power), target.x, target.y, stroke.power.kind === 'brush' ? brushRadius() : 1);
     stroke.last = target;
   };
 

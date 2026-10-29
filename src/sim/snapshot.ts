@@ -732,7 +732,7 @@ function pactsOf(sim: Sim): PactBlock {
   return { count: pacts.length, rows };
 }
 
-function hamletsOfSim(sim: Sim): { hamlets: HamletRow[]; hamletCount: number; townCount: number } {
+function hamletsOfSim(sim: Sim): { hamlets: HamletRow[]; hamletCount: number } {
   const list = hamletsOf(sim);
   const rows: HamletRow[] = list.map((h, i) => ({
     name: `Hamlet ${i + 1}`,
@@ -743,7 +743,7 @@ function hamletsOfSim(sim: Sim): { hamlets: HamletRow[]; hamletCount: number; to
     tier: tierOf(h),
   }));
   // Counted over the full list here, so fitSnapshot's row cuts never change the total.
-  return { hamlets: rows, hamletCount: rows.length, townCount: rows.filter((r) => r.tier === 'town').length };
+  return { hamlets: rows, hamletCount: rows.length };
 }
 
 function cultureOf(sim: Sim): Snapshot['culture'] {

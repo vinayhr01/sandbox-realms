@@ -214,8 +214,6 @@ export interface Snapshot {
   dominionCount: number;
   hamlets: HamletRow[];
   hamletCount: number;
-  /** Towns (tier 'town') over ALL hamlets, counted before the rows are cut. Optional: older readers ignore it. */
-  townCount?: number;
   culture: {
     customs: number;
     creeds: number;

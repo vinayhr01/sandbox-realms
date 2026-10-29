@@ -11,6 +11,7 @@ import { routeOf, sectionsOf } from './atlasRoutes.ts';
 import { SettingsPanel } from './SettingsPanel.tsx';
 import { windowFor, type WindowDeps, type WindowParams } from '../windowContent.ts';
 import { windowTitle } from '../windowCatalog.ts';
+import { DiscoveryList } from './Discoveries.tsx';
 import './Atlas.css';
 
 const TAB_LABELS: Readonly<Record<AtlasTab, string>> = {
@@ -281,13 +282,16 @@ function AtlasCard({ store, actions, deps }: AtlasProps) {
               {state.tab === 'settings' ? (
                 <SettingsPanel deps={deps} onDone={() => closeAtlas(store)} />
               ) : (
-                <div class="atlas-sections">
+                <>
+                  {state.tab === 'discoveries' ? <DiscoveryList store={store} /> : null}
+                  <div class="atlas-sections">
                   {sectionsOf(state.tab).map((w) => (
                     <button key={w.id} type="button" class="atlas-section" data-section={w.id} onClick={() => actions.openWindow(w.id)}>
                       {w.title}
                     </button>
                   ))}
-                </div>
+                  </div>
+                </>
               )}
             </div>
           </>

@@ -78,16 +78,12 @@ test('Settings: the spec groups show and a setting that is not active yet says s
   await expect(dialog).toBeHidden();
 });
 
-test('Tutorial: the coach strip follows the steps, and skipping keeps it hidden after a reload', async ({ page }) => {
+test('Tutorial: the coach shows the first step, and skipping keeps it hidden after a reload', async ({ page }) => {
   await openRealm(page);
-  const coach = page.locator('#coach');
+  // The coach sits in the top-centre column (UX redesign, spec E): first step, then Skip.
+  const coach = page.locator('.coach');
   await expect(coach).toBeVisible();
-  await expect(page.locator('#coach-text')).toContainText('Pick a tool');
-
-  // Arming a terrain tool completes the first step.
-  await openChip(page, 'Land');
-  await powerButton(page, 'Raise').click();
-  await expect(page.locator('#coach-text')).toContainText('Drag across the map');
+  await expect(coach.locator('.coach-title')).toHaveText('Shape the land');
 
   await page.getByRole('button', { name: 'Skip tutorial' }).click();
   await expect(coach).toBeHidden();

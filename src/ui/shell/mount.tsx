@@ -21,8 +21,8 @@ function Shell({ store, actions }: { store: UiStore; actions: ShellActions }) {
 }
 
 /** Toasts mount in their own root, outside the map, so they stack above the audio cues. */
-export function mountToasts(root: HTMLElement, store: UiStore): void {
-  render(<Toasts store={store} />, root);
+export function mountToasts(root: HTMLElement, store: UiStore, actions: ShellActions): void {
+  render(<Toasts store={store} actions={actions} />, root);
 }
 
 export function mountShell(root: HTMLElement, store: UiStore, actions: ShellActions): void {

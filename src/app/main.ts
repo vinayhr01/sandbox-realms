@@ -15,6 +15,7 @@ import { SaveService } from './saves.ts';
 import { CANNOT_CAPTURE, CANNOT_RESTORE, SaveController, type ActionOutcome, type AutosaveState, type ChronicleSource } from './save-controller.ts';
 import { setDebug } from '../ui/hud.ts';
 import { createStore, pushToast, type ShellActions } from '../ui/shell/store.ts';
+import { chipsFor, discoveryToast, evaluate, DISCOVERY_KEY, newDiscovery, parseDiscovery, type DiscoveryState } from '../ui/shell/discovery.ts';
 import { loadPowerPrefs, savePowerPrefs } from '../ui/shell/powerPrefs.ts';
 import { effect } from '@preact/signals';
 import { mountShell, mountToasts } from '../ui/shell/mount.tsx';
@@ -22,7 +23,7 @@ import { closeAtlas, currentAtlasKind, feedAtlas, mountAtlas, showAtlas } from '
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
 import { cooldownFraction } from '../ui/panels/powerBar.ts';
 import { mountPossessPad, possessActionOfCode, type PossessAction } from '../ui/panels/possessControls.ts';
-import { currentStep, parseTutorial, skipTutorial, TUTORIAL_TEXT, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
+import { currentStep, parseTutorial, skipTutorial, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
 import { cooldownSecondsLeft, dominionAtTile, hamletAtTile, linePoints, masterOfViewFlag, nearestLivePoint, nextOptionValue, powerStatus, strokeOp, toggleViewFlag, viewFlagsDefault } from '../ui/powerSupport.ts';
 import { HistoryTicker, TickerView } from '../ui/historyTicker.ts';
 import { WorldTip, beingTipLines, tileTipLines } from '../ui/worldTip.ts';
@@ -32,7 +33,7 @@ import { SimView } from '../ui/sim-view.ts';
 import { SPECIES } from '../content/beasts.ts';
 import { POWER_BY_ID, POWERS, type PowerDef } from '../content/powers.ts';
 import { plainName } from '../content/plain-names.ts';
-import { Ev, PING_LOST_MS, POSSESS_REFUSED, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
+import { Ev, PING_LOST_MS, POSSESS_REFUSED, type BrushOp, type BrushShape, type Event as SimEvent, type Snapshot, type Speed } from '../shared/protocol.ts';
 import { MONTH_TICKS, YEAR_TICKS, DEFAULT_SIZE_STEP } from '../shared/constants.ts';
 import { RULE_BY_ID, RuleSet } from '../sim/rules.ts';
 import { MAX_BEINGS } from '../sim/beings/store.ts';
@@ -347,6 +348,24 @@ function saveTutorial(state: TutorialState): void {
   }
 }
 
+/** Lifetime discovery state (src/ui/shell/discovery.ts). A missing or unreadable state starts from nothing. */
+function loadDiscovery(): DiscoveryState {
+  try {
+    const raw = safeStorage()?.getItem(DISCOVERY_KEY);
+    return parseDiscovery(raw ? JSON.parse(raw) : null);
+  } catch {
+    return newDiscovery();
+  }
+}
+
+function saveDiscovery(state: DiscoveryState): void {
+  try {
+    safeStorage()?.setItem(DISCOVERY_KEY, JSON.stringify(state));
+  } catch {
+    // Not saved: discoveries are met again on the next visit (old saves meet them at once).
+  }
+}
+
 /** Reads the system preference for reduced motion or flashing; the default for both settings. */
 function osPrefers(query: string): boolean {
   try {
@@ -495,6 +514,7 @@ async function boot(): Promise<void> {
   };
 
   let tutorial: TutorialState = loadTutorial();
+  let discovery: DiscoveryState = loadDiscovery();
   let camera: Camera | null = null;
   let realmSide = 0;
   let realmSeed = 0;
@@ -793,12 +813,26 @@ async function boot(): Promise<void> {
     feedTutorial('speed-changed');
   };
 
-  /** Coach strip: the current tutorial step, hidden once the tutorial is done or skipped. */
+  /** The first-launch coach (shell top column): the current step, or null once the tutorial is done or skipped. */
   const renderCoach = (): void => {
-    const step = currentStep(tutorial);
-    const coach = $('coach');
-    coach.hidden = step === null;
-    if (step) $('coach-text').textContent = TUTORIAL_TEXT[step.id] ?? '';
+    store.coach.value = currentStep(tutorial)?.id ?? null;
+  };
+
+  /** The chips the sheet shows: the starter chips plus those of the discoveries met (or all, with ui.allChips). */
+  const refreshChips = (): void => {
+    store.discovered.value = chipsFor(discovery.found, boolOption(options, 'ui.allChips'));
+    store.found.value = [...discovery.found];
+  };
+
+  /** Evaluates the discovery triggers on each snapshot: chips come forward, and one card names what was met. */
+  const noteDiscoveries = (snap: Snapshot): void => {
+    const next = evaluate(discovery, snap, { counters: snap.counters, sets: {} });
+    if (next.state === discovery) return;
+    discovery = next.state;
+    saveDiscovery(discovery);
+    refreshChips();
+    const toast = discoveryToast(next.newly);
+    if (toast) pushToast(store, toast.text, toast.kind);
   };
 
   const feedTutorial = (event: string): void => {
@@ -1086,6 +1120,7 @@ async function boot(): Promise<void> {
     const op = strokeOp(power);
     if (op) client.stroke(op, state.shape, brushRadius(), x, y, x, y, true);
     else client.power(power.id, x, y);
+    if (power.handler === 'spawn_being') feedTutorial('spawned');
     crumb('POWER_APPLY', power.id);
     playCueAt(op ? CUE.paint : CUE.power, x);
   };
@@ -1550,6 +1585,7 @@ async function boot(): Promise<void> {
           const realm = store.realm.value;
           if (realm.creatures !== creatures || realm.towns !== towns) store.realm.value = { ...realm, creatures, towns };
         }
+        noteDiscoveries(event.snap);
         musicFeed.ingest(event.snap);
         for (const id of stingers.ingest(event.snap.age ?? null, event.snap.dominions.filter((d) => d.atWar).length)) playCue(id);
         return;
@@ -1612,10 +1648,15 @@ async function boot(): Promise<void> {
     disarm: () => setArmed(null),
     setBrushSize: (index: number) => setBrushIndex(index),
     setBrushShape: (shape: BrushShape) => setShape(shape),
+    skipCoach: () => {
+      tutorial = skipTutorial(tutorial);
+      saveTutorial(tutorial);
+      renderCoach();
+    },
   };
   mountShell($('ui-root'), store, shellActions);
   mountAtlas($('atlas-root'), store, shellActions, windowDeps);
-  mountToasts($('toast-root'), store);
+  mountToasts($('toast-root'), store, shellActions);
   // Edge pan needs a hover position that is current: it clears when the pointer leaves the map or
   // when a press starts (a drag moves the camera by itself).
   renderer.app.canvas.addEventListener('pointerleave', () => {
@@ -1638,6 +1679,7 @@ async function boot(): Promise<void> {
     saveOptions(safeStorage(), options);
     if (id === 'privacy.errorReports') setCrashConsent(consentFromOption(stringOption(options, 'privacy.errorReports')));
     if (QUALITY_OPTIONS.has(id)) crumb('QUALITY', `${id}=${String(value)}`);
+    if (id === 'ui.allChips') refreshChips();
     if (id === 'ui.fullscreen') toggleFullscreen(options[id] === true);
     // Hide status bar on phones: full screen is requested when the row is turned on (13 section 15).
     if (id === 'ui.hideStatusBar' && value === true && window.matchMedia('(pointer: coarse)').matches) toggleFullscreen(true);
@@ -1683,12 +1725,8 @@ async function boot(): Promise<void> {
     audio.applyOptions({ ...audioOptionsFrom(options), mono: cueOpts.mono, reduceLoudSounds: cueOpts.reduceLoudSounds, visualCues: cueOpts.visualCues, haptics: cueOpts.haptics });
   };
   applyOptions();
-  $('coach-skip').addEventListener('click', () => {
-    tutorial = skipTutorial(tutorial);
-    saveTutorial(tutorial);
-    renderCoach();
-  });
   renderCoach();
+  refreshChips();
 
   window.addEventListener('keydown', (e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
@@ -1948,6 +1986,15 @@ async function boot(): Promise<void> {
     },
     commands: () => [...client.sentKinds],
     openWindow: () => currentAtlasKind(store) ?? windowHost.current,
+    /** Meets a discovery entry by id, as the triggers would (the e2e tests use it; the entry must exist). */
+    forceDiscovery: (id: string) => {
+      if (discovery.found.includes(id)) return;
+      discovery = { ...discovery, found: [...discovery.found, id] };
+      saveDiscovery(discovery);
+      refreshChips();
+      const toast = discoveryToast([id]);
+      if (toast) pushToast(store, toast.text, toast.kind);
+    },
     /** Opens a window kind as a player action would. The e2e tests use it for confirmations, which have no Atlas section. */
     showWindow: (kind: string) => openWindow(kind),
     snapshot: () => simView.current,

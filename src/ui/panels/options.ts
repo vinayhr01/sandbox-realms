@@ -93,6 +93,7 @@ export const SETTINGS: readonly SettingDef[] = [
   B('ui.worldTooltips', 'hud', 'World tooltips', true),
   B('ui.tips', 'hud', 'Tip messages', true),
   B('ui.talkBubbles', 'hud', 'Talk bubbles', true),
+  B('ui.allChips', 'hud', 'Show all categories', false, true),
   B('ui.happinessIcons', 'hud', 'Happiness icons', false, true),
   B('ui.taskIcons', 'hud', 'Task icons', false, true),
   B('ui.moneyFlow', 'hud', 'Money flow', false),

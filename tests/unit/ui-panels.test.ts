@@ -36,8 +36,8 @@ describe('list window', () => {
 describe('tutorial', () => {
   it('advances in order on the matching events and completes', () => {
     let s = newTutorial();
-    expect(currentStep(s)?.id).toBe('pick-tool');
-    s = tutorialEvent(s, 'paint');
+    expect(currentStep(s)?.id).toBe('shape');
+    s = tutorialEvent(s, 'spawned');
     expect(s.index).toBe(0);
     for (const step of TUTORIAL_STEPS) s = tutorialEvent(s, step.waitFor);
     expect(s.done).toBe(true);
@@ -45,9 +45,10 @@ describe('tutorial', () => {
   });
 
   it('can be skipped at any point and then ignores events', () => {
-    const skipped = skipTutorial(tutorialEvent(newTutorial(), 'tool-armed'));
+    const skipped = skipTutorial(tutorialEvent(newTutorial(), 'stroke-finished'));
     expect(skipped.skipped).toBe(true);
-    const after = tutorialEvent(skipped, 'stroke-finished');
+    expect(skipped.index).toBe(1);
+    const after = tutorialEvent(skipped, 'spawned');
     expect(after.index).toBe(1);
     expect(currentStep(after)).toBeNull();
   });

@@ -56,6 +56,10 @@ export interface UiStore {
   recent: Signal<string[]>;
   favourites: Signal<string[]>;
   discovered: Signal<string[]>;
+  /** Ids of the discovery entries met so far (the Discoveries tab lists them). */
+  found: Signal<string[]>;
+  /** The first-launch coach step id to show, or null when the coach is hidden. */
+  coach: Signal<string | null>;
   sheet: Signal<'collapsed' | 'expanded'>;
   atlas: Signal<{ open: boolean; tab: AtlasTab; stack: AtlasPage[] }>;
   info: Signal<InfoTarget | null>;
@@ -81,6 +85,8 @@ export interface ShellActions {
   possessBeing(id: number): void;
   /** Zooms the map by a factor about the centre of the view. */
   zoomBy(factor: number): void;
+  /** Ends the first-launch coach for good (its "Skip tutorial" button). */
+  skipCoach(): void;
 }
 
 export function createStore(): UiStore {
@@ -94,6 +100,8 @@ export function createStore(): UiStore {
     recent: signal<string[]>([]),
     favourites: signal<string[]>([]),
     discovered: signal<string[]>(['land', 'nature', 'creatures']),
+    found: signal<string[]>([]),
+    coach: signal<string | null>(null),
     sheet: signal<'collapsed' | 'expanded'>('collapsed'),
     atlas: signal({ open: false, tab: 'world' as AtlasTab, stack: [] as AtlasPage[] }),
     info: signal<InfoTarget | null>(null),

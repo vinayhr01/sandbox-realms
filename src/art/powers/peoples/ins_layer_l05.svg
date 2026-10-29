@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="ins_layer_l05-stone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c4c0b8"/><stop offset=".5" stop-color="#8a867e"/><stop offset="1" stop-color="#55524c"/></linearGradient>
+<linearGradient id="ins_layer_l05-grass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a6d670"/><stop offset="1" stop-color="#5a9238"/></linearGradient>
+<radialGradient id="ins_layer_l05-glow" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#9ff4e8" stop-opacity=".7"/><stop offset="1" stop-color="#3ad8c8" stop-opacity="0"/></radialGradient>
+</defs>
+<path d="M36 112 L32 52 Q34 18 64 14 Q94 18 94 48 L92 112 Z" fill="url(#ins_layer_l05-stone)" stroke="#2e2a26" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M40 56 Q40 28 60 22" stroke="#eeebe4" stroke-width="3.5" fill="none" stroke-linecap="round" opacity=".7"/>
+<ellipse cx="64" cy="64" rx="28" ry="36" fill="url(#ins_layer_l05-glow)"/>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+<path d="M50 38 V90 M50 46 L62 38 M50 58 L62 50 M76 40 V90 M76 56 L66 66 M76 56 L86 66 M58 76 L70 88 M70 76 L58 88" stroke="#1e4a48" stroke-width="7"/>
+<path d="M50 38 V90 M50 46 L62 38 M50 58 L62 50 M76 40 V90 M76 56 L66 66 M76 56 L86 66 M58 76 L70 88 M70 76 L58 88" stroke="#7ff0e0" stroke-width="3.5"/>
+</g>
+<path d="M84 30 q6 6 6 16 M38 96 q4 -4 10 -2" stroke="#4e7a34" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M8 116 Q64 100 120 116 Z" fill="url(#ins_layer_l05-grass)" stroke="#3a5f22" stroke-width="2.5" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="ins_list_intrigues-mask" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b47ae8"/><stop offset=".6" stop-color="#6a2aa8"/><stop offset="1" stop-color="#3a1260"/></linearGradient>
+<linearGradient id="ins_list_intrigues-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe48a"/><stop offset="1" stop-color="#b8761a"/></linearGradient>
+<linearGradient id="ins_list_intrigues-feather" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd0e0"/><stop offset="1" stop-color="#d8407a"/></linearGradient>
+</defs>
+<path d="M98 66 L114 120" stroke="#3a1e08" stroke-width="8" stroke-linecap="round"/>
+<path d="M98 66 L114 120" stroke="url(#ins_list_intrigues-gold)" stroke-width="4.5" stroke-linecap="round"/>
+<path d="M96 46 Q100 18 120 8 Q118 30 104 46 Z" fill="url(#ins_list_intrigues-feather)" stroke="#6a1a3a" stroke-width="2" stroke-linejoin="round"/>
+<path d="M100 44 Q106 26 118 12" stroke="#6a1a3a" stroke-width="1.4" fill="none"/>
+<path d="M10 56 Q16 38 42 42 Q58 44 64 54 Q70 44 86 42 Q112 38 118 56 Q118 82 94 86 Q74 88 64 74 Q54 88 34 86 Q10 82 10 56 Z" fill="url(#ins_list_intrigues-mask)" stroke="#1e0838" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M14 54 Q20 42 42 45 Q57 47 64 57 Q71 47 86 45 Q108 42 114 54" stroke="url(#ins_list_intrigues-gold)" stroke-width="3" fill="none"/>
+<path d="M26 62 Q34 54 46 58 Q52 62 50 68 Q40 74 30 70 Q24 66 26 62 Z M102 62 Q94 54 82 58 Q76 62 78 68 Q88 74 98 70 Q104 66 102 62 Z" fill="#14081e" stroke="#e8b84a" stroke-width="2" stroke-linejoin="round"/>
+<path d="M20 70 Q24 80 36 82" stroke="#d8b8ff" stroke-width="2.4" fill="none" stroke-linecap="round" opacity=".6"/>
+<circle cx="64" cy="64" r="3.5" fill="#ff6a8a" stroke="#6a1a3a" stroke-width="1.2"/>
+</svg>

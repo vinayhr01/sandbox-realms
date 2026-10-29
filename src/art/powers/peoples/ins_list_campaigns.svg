@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="ins_list_campaigns-canvas" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c4a878"/><stop offset=".45" stop-color="#f6e8c8"/><stop offset="1" stop-color="#a88a5a"/></linearGradient>
+<linearGradient id="ins_list_campaigns-stripe" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ec5a4a"/><stop offset="1" stop-color="#94241e"/></linearGradient>
+<linearGradient id="ins_list_campaigns-ground" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a6d670"/><stop offset="1" stop-color="#5a9238"/></linearGradient>
+</defs>
+<path d="M4 118 Q64 104 124 118 Z" fill="url(#ins_list_campaigns-ground)" stroke="#3a5f22" stroke-width="2.2"/>
+<path d="M64 10 V30" stroke="#4a2a10" stroke-width="3"/>
+<path d="M65 10 L86 16 L65 22 Z" fill="url(#ins_list_campaigns-stripe)" stroke="#5a1012" stroke-width="1.8" stroke-linejoin="round"/>
+<path d="M12 110 L64 28 L116 110 Z" fill="url(#ins_list_campaigns-canvas)" stroke="#5a3e1e" stroke-width="2.5" stroke-linejoin="round"/>
+<path d="M64 28 L36 110 H48 L64 28 M64 28 L80 110 H92 L64 28" fill="url(#ins_list_campaigns-stripe)" stroke="#5a1012" stroke-width="1.6" stroke-linejoin="round"/>
+<path d="M64 52 L50 110 H78 Z" fill="#2e1e12" stroke="#5a3e1e" stroke-width="2" stroke-linejoin="round"/>
+<path d="M64 52 L78 110 L88 110 Q76 84 64 52 Z" fill="#e6d0a0" stroke="#5a3e1e" stroke-width="2" stroke-linejoin="round"/>
+<path d="M58 40 L30 92" stroke="#fffaf0" stroke-width="3" stroke-linecap="round" opacity=".6"/>
+<path d="M12 110 L4 116 M116 110 L124 116" stroke="#5a3e1e" stroke-width="2.2" stroke-linecap="round"/>
+</svg>

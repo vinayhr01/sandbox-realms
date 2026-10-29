@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+<defs>
+<linearGradient id="ins_accord-gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0a8"/><stop offset=".5" stop-color="#f2b734"/><stop offset="1" stop-color="#a8681a"/></linearGradient>
+<linearGradient id="ins_accord-post" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#a8681a"/><stop offset=".4" stop-color="#ffe48a"/><stop offset="1" stop-color="#8a5414"/></linearGradient>
+<linearGradient id="ins_accord-wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b47a44"/><stop offset="1" stop-color="#5a3414"/></linearGradient>
+</defs>
+<path d="M36 112 Q36 100 64 100 Q92 100 92 112 Z" fill="url(#ins_accord-wood)" stroke="#3a1e08" stroke-width="2.5" stroke-linejoin="round"/>
+<rect x="59" y="22" width="10" height="80" rx="3" fill="url(#ins_accord-post)" stroke="#5a3a10" stroke-width="2.2"/>
+<path d="M14 34 H114" stroke="#5a3a10" stroke-width="9" stroke-linecap="round"/>
+<path d="M14 34 H114" stroke="url(#ins_accord-gold)" stroke-width="5" stroke-linecap="round"/>
+<circle cx="64" cy="20" r="7" fill="url(#ins_accord-gold)" stroke="#5a3a10" stroke-width="2.2"/>
+<path d="M20 36 L8 74 M20 36 L32 74 M108 36 L96 74 M108 36 L120 74" stroke="#5a3a10" stroke-width="1.8"/>
+<path d="M2 74 H38 Q36 90 20 90 Q4 90 2 74 Z" fill="url(#ins_accord-gold)" stroke="#5a3a10" stroke-width="2.4" stroke-linejoin="round"/>
+<path d="M90 74 H126 Q124 90 108 90 Q92 90 90 74 Z" fill="url(#ins_accord-gold)" stroke="#5a3a10" stroke-width="2.4" stroke-linejoin="round"/>
+<path d="M8 77 H30 M96 77 H118" stroke="#fff8d0" stroke-width="2" stroke-linecap="round" opacity=".8"/>
+<path d="M61 30 V96" stroke="#fff8d0" stroke-width="1.6" opacity=".7"/>
+</svg>

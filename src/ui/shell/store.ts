@@ -44,10 +44,21 @@ export interface ToastAction {
 /** How long a toast with a button stays up (ms). */
 export const ACTION_TOAST_MS = 30_000;
 
-/** What the floating info card points at: a being, a tile, a hamlet or a dominion. */
+/** What the floating info card points at: a being, a tile, a hamlet, a building or a dominion. */
 export interface InfoTarget {
-  kind: 'being' | 'tile' | 'hamlet' | 'dominion';
+  kind: 'being' | 'tile' | 'hamlet' | 'building' | 'dominion';
   id: string;
+}
+
+/** The info card's view of its target this frame (ShellActions.locateInfo). */
+export interface LocatedInfo {
+  /** Screen point (client px) the card sits above. */
+  x: number;
+  y: number;
+  name: string;
+  facts: string;
+  /** True when the target's full Atlas page can open from the latest snapshot (More is on). */
+  detailed: boolean;
 }
 
 /** One page open in the Atlas: the window kind and its parameters. */
@@ -90,10 +101,10 @@ export interface ShellActions {
   setBrushSize(index: number): void;
   setBrushShape(shape: BrushShape): void;
   /**
-   * Screen point (client px), plain species name and the feed's key facts of a live being, or null once it has left the
-   * feed. `detailed` is true when its full page can open (it is in the latest snapshot's sample, or a favourite).
+   * Where the info card sits for its target this frame, or null once the target is gone: the screen point (client px),
+   * the plain name, the key facts line, and `detailed` (true when its full Atlas page can open from the latest snapshot).
    */
-  locateBeing(id: number): { x: number; y: number; name: string; facts: string; detailed: boolean } | null;
+  locateInfo(target: InfoTarget): LocatedInfo | null;
   followBeing(id: number): void;
   possessBeing(id: number): void;
   /** Zooms the map by a factor about the centre of the view. */

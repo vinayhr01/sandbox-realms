@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openPowerSheet, openWindowButton } from './helpers.ts';
+import { openAtlasTab, openPowerSheet, openWindowButton } from './helpers.ts';
 
 /**
  * The bottom power sheet (UX redesign, spec B): the starter chips, search arming a power, and the expanded sheet staying
@@ -81,4 +81,32 @@ test('no horizontal overflow at 1920x1080 with the sheet expanded, then with the
   await openWindowButton(page, 'Dominions');
   const atlasOverflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(atlasOverflow).toBeLessThanOrEqual(1);
+});
+
+/** Asserts that the Atlas fits the viewport: no page overflow, and every tab, Back and close button is a 44 px target. */
+async function expectAtlasFitsPhone(page: Page, withBody: boolean): Promise<void> {
+  const doc = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
+  expect(doc.sw, 'page scrollWidth vs clientWidth').toBeLessThanOrEqual(doc.cw);
+  if (withBody) {
+    const body = await page.locator('.atlas-body').evaluate((el) => ({ sw: el.scrollWidth, cw: el.clientWidth }));
+    expect(body.sw, 'atlas body scrollWidth vs clientWidth').toBeLessThanOrEqual(body.cw);
+  }
+  for (const control of await page.locator('.atlas-tab, .atlas-head button').all()) {
+    if (!(await control.isVisible())) continue;
+    const box = await control.boundingBox();
+    const name = (await control.textContent())?.trim() || '(icon)';
+    expect(box?.width ?? 0, `${name} width`).toBeGreaterThanOrEqual(44);
+    expect(box?.height ?? 0, `${name} height`).toBeGreaterThanOrEqual(44);
+  }
+}
+
+test('the Atlas fits a 360x640 phone: Settings and a World page have no overflow and 44 px tabs, Back and close', async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await openRealm(page);
+  await openAtlasTab(page, 'Settings');
+  await expectAtlasFitsPhone(page, false);
+
+  await openWindowButton(page, 'Realm Rules');
+  await expect(page.locator('.atlas-body')).toBeVisible();
+  await expectAtlasFitsPhone(page, true);
 });

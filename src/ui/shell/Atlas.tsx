@@ -43,10 +43,17 @@ export function openAtlas(store: UiStore, tab: AtlasTab = 'world'): void {
   store.atlas.value = { open: true, tab, stack: [] };
 }
 
+/** Two page params are the same when every field matches (a page is one object, so the same kind with other params is another page). */
+function sameParams(a: WindowParams, b: WindowParams): boolean {
+  const keys = new Set<keyof WindowParams>([...(Object.keys(a) as (keyof WindowParams)[]), ...(Object.keys(b) as (keyof WindowParams)[])]);
+  for (const key of keys) if (a[key] !== b[key]) return false;
+  return true;
+}
+
 /**
  * Shows a window kind in the Atlas: its tab opens and its page is pushed. Settings is a tab root, so it opens the tab
- * with no page. Developer windows open on the Settings tab. Opening the page that sits just below the top pops back to
- * it (the Back of an inspector). Opening the page already on top refreshes it with the new params (Chronicle after a save).
+ * with no page. Developer windows open on the Settings tab. Opening the page just below the top, with the same kind and
+ * params, pops back to it (the Back of an inspector). Opening the page already on top refreshes it with the new params (Chronicle after a save).
  */
 export function showAtlas(store: UiStore, kind: string, params: WindowParams = {}): void {
   const route = routeOf(kind);
@@ -60,7 +67,7 @@ export function showAtlas(store: UiStore, kind: string, params: WindowParams = {
   }
   const top = cur.stack[cur.stack.length - 1];
   const below = cur.stack[cur.stack.length - 2];
-  if (cur.open && below?.kind === kind) {
+  if (cur.open && below?.kind === kind && sameParams(below.params, params)) {
     store.atlas.value = { ...cur, tab, stack: cur.stack.slice(0, -1) };
     return;
   }
@@ -182,6 +189,8 @@ function AtlasCard({ store, actions, deps }: AtlasProps) {
     liveFeed = build?.live ?? null;
     return () => {
       liveFeed = null;
+      // A page may mount a preact tree (Settings, Privacy rows): unmount it before the container is emptied.
+      render(null, body);
       body.replaceChildren();
     };
   }, [page, build]);

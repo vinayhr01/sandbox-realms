@@ -118,6 +118,17 @@ describe('Atlas', () => {
     expect(store.atlas.value.stack).toEqual([{ kind: 'win_chronicle', params: { notice: 'second' } }]);
   });
 
+  it('opening the kind below the top pops back only when its params match too', () => {
+    showAtlas(store, 'win_hamlet', { id: 1 });
+    showAtlas(store, 'win_dominion', { id: 2 });
+    showAtlas(store, 'win_hamlet', { id: 3 });
+    expect(store.atlas.value.stack).toEqual([
+      { kind: 'win_hamlet', params: { id: 1 } },
+      { kind: 'win_dominion', params: { id: 2 } },
+      { kind: 'win_hamlet', params: { id: 3 } },
+    ]);
+  });
+
   it('a confirmation is not an Atlas page', () => {
     showAtlas(store, 'win_confirm_quit');
     expect(store.atlas.value.open).toBe(false);

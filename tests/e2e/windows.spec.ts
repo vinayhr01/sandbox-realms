@@ -111,3 +111,17 @@ test('All powers: the catalogue filters to available powers and a tap arms one',
   await openChip(page, 'Disasters');
   await expect(powerButton(page, 'Charge')).toHaveAttribute('aria-pressed', 'true');
 });
+
+test('Esc order: a page pops to the tab list, the next Esc closes the Atlas, and focus returns to the realm pill', async ({ page }) => {
+  await openRealm(page);
+  await openWindowButton(page, 'Dominions');
+  await expect(page.getByRole('dialog', { name: 'Dominions', exact: true })).toBeVisible();
+
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.atlas [role="tablist"]')).toBeVisible();
+  await expect(page.locator('.atlas-section[data-section="list_dominions"]')).toBeFocused();
+
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.atlas-scrim')).toBeHidden();
+  await expect(page.getByRole('button', { name: /open Atlas$/ })).toBeFocused();
+});

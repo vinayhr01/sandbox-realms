@@ -1,35 +1,4 @@
-/** Small DOM read-outs: status line, toasts, calendar and the optional debug overlay. */
-
-export function setStatus(text: string): void {
-  const el = document.getElementById('status');
-  if (el) el.textContent = text;
-}
-
-export function setCalendar(text: string): void {
-  const el = document.getElementById('calendar');
-  if (el) el.textContent = text;
-}
-
-export function toast(text: string, action?: { label: string; run: () => void }): void {
-  const host = document.getElementById('toasts');
-  if (!host) return;
-  const item = document.createElement('div');
-  item.className = 'toast';
-  item.textContent = text;
-  if (action) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn';
-    btn.textContent = action.label;
-    btn.addEventListener('click', () => {
-      item.remove();
-      action.run();
-    });
-    item.append(' ', btn);
-  }
-  host.appendChild(item);
-  window.setTimeout(() => item.remove(), action ? 30_000 : 3000);
-}
+/** The optional debug overlay (the status line, calendar and toasts live in src/ui/shell). */
 
 export interface DebugStats {
   fps: number;

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openWindowButton } from './helpers.ts';
 
 /**
  * Windows that read the sim snapshot (13 section 7, 14, 15): the windows show the numbers the
@@ -41,8 +42,7 @@ async function openRealm(page: Page): Promise<Hook> {
 }
 
 async function openWindowFromPowers(page: Page, name: string) {
-  await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('button', { name, exact: true }).click();
+  await openWindowButton(page, name);
 }
 
 test.afterEach(async ({ page }, testInfo) => {

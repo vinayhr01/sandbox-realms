@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { collapsePowerSheet, openChip, powerButton } from './helpers.ts';
 
 /**
  * Smoke tests for every layout class in PLATFORM-REQUIREMENTS section 6. They drive the real
@@ -60,7 +61,9 @@ test('inspect: tapping a tile reports its elevation and ground', async ({ page }
 
 test('raise: dragging with the Raise tool changes terrain and the sim hash', async ({ page }) => {
   const call = await openRealm(page);
-  await page.getByRole('button', { name: 'Raise' }).click();
+  await openChip(page, 'Land');
+  await powerButton(page, 'Raise').click();
+  await collapsePowerSheet(page);
   const start = await call<{ x: number; y: number }>('tileToScreen', 90, 90);
   const end = await call<{ x: number; y: number }>('tileToScreen', 100, 90);
   const before = await call<{ elevation: number }>('query', 95, 90);
@@ -86,7 +89,9 @@ test('paused edits still apply and the clock stays put', async ({ page }) => {
   await page.getByRole('button', { name: 'Pause' }).click();
   await page.waitForTimeout(200);
   const t0 = await call<number>('tick');
-  await page.getByRole('button', { name: 'Raise' }).click();
+  await openChip(page, 'Land');
+  await powerButton(page, 'Raise').click();
+  await collapsePowerSheet(page);
   const pt = await call<{ x: number; y: number }>('tileToScreen', 40, 40);
   const before = await call<{ elevation: number }>('query', 40, 40);
   await page.mouse.click(pt.x, pt.y);

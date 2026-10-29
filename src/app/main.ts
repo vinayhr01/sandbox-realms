@@ -3,6 +3,8 @@ import type { Ticker } from 'pixi.js';
 import { TerrainRenderer, type CursorState } from '../render/terrain.ts';
 import { MarkLayer } from '../render/marks.ts';
 import { CreatureLayer, resetCreatureView } from '../render/creatures.ts';
+import { EffectsLayer } from '../render/effects.ts';
+import { recipeFor } from '../render/effectRecipes.ts';
 import { FeedInterp, type DrawBeing } from '../render/feed-interp.ts';
 import { BeingState } from '../shared/being-feed.ts';
 import { InsightLayer } from '../render/insight-layers.ts';
@@ -13,11 +15,21 @@ import { colourFilterMarkup, layoutMaxWidth, mapCanvasFilter, type ColourBlindPa
 import { Minimap, type MinimapView } from '../ui/minimap.ts';
 import { SaveService } from './saves.ts';
 import { CANNOT_CAPTURE, CANNOT_RESTORE, SaveController, type ActionOutcome, type AutosaveState, type ChronicleSource } from './save-controller.ts';
-import { setCalendar, setDebug, setStatus, toast } from '../ui/hud.ts';
+import { setDebug } from '../ui/hud.ts';
+import { createStore, pushToast, type ShellActions } from '../ui/shell/store.ts';
+import { dispatchKey, focusSheetSearch, isTyping, panBlocked, shellKeysBlocked, type KeyContext } from '../ui/shell/keymap.ts';
+import { recentRow } from '../ui/shell/powerCatalog.ts';
+import { chipsFor, discoveryToast, evaluate, DISCOVERY_KEY, newDiscovery, parseDiscovery, type DiscoveryState } from '../ui/shell/discovery.ts';
+import { loadPowerPrefs, savePowerPrefs } from '../ui/shell/powerPrefs.ts';
+import { effect } from '@preact/signals';
+import { mountShell, mountToasts } from '../ui/shell/mount.tsx';
+import { closeAtlas, currentAtlasKind, feedAtlas, mountAtlas, showAtlas } from '../ui/shell/Atlas.tsx';
+import { feedFacts } from '../ui/shell/InfoCard.tsx';
+import { favouriteBeing } from '../ui/session-memory.ts';
 import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOption, type KeyValueStorage, type OptionValue, type Options } from '../ui/panels/options.ts';
-import { cooldownFraction, selectTab, type TabState } from '../ui/panels/powerBar.ts';
+import { cooldownFraction } from '../ui/panels/powerBar.ts';
 import { mountPossessPad, possessActionOfCode, type PossessAction } from '../ui/panels/possessControls.ts';
-import { currentStep, parseTutorial, skipTutorial, TUTORIAL_TEXT, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
+import { currentStep, parseTutorial, skipTutorial, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
 import { cooldownSecondsLeft, dominionAtTile, hamletAtTile, linePoints, masterOfViewFlag, nearestLivePoint, nextOptionValue, powerStatus, strokeOp, toggleViewFlag, viewFlagsDefault } from '../ui/powerSupport.ts';
 import { HistoryTicker, TickerView } from '../ui/historyTicker.ts';
 import { WorldTip, beingTipLines, tileTipLines } from '../ui/worldTip.ts';
@@ -25,9 +37,9 @@ import { WindowHost } from '../ui/windowHost.ts';
 import { windowFor, type ChronicleActions, type ChronicleOutcome, type WindowDeps, type WindowParams } from '../ui/windowContent.ts';
 import { SimView } from '../ui/sim-view.ts';
 import { SPECIES } from '../content/beasts.ts';
-import { POWER_BY_ID, POWERS, TABS, powersInTab, type PowerDef, type TabId } from '../content/powers.ts';
+import { POWER_BY_ID, POWERS, type PowerDef } from '../content/powers.ts';
 import { plainName } from '../content/plain-names.ts';
-import { Ev, PING_LOST_MS, POSSESS_REFUSED, type BrushOp, type BrushShape, type Event as SimEvent, type Speed } from '../shared/protocol.ts';
+import { Ev, PING_LOST_MS, POSSESS_REFUSED, type BrushOp, type BrushShape, type Event as SimEvent, type Snapshot, type Speed } from '../shared/protocol.ts';
 import { MONTH_TICKS, YEAR_TICKS, DEFAULT_SIZE_STEP } from '../shared/constants.ts';
 import { RULE_BY_ID, RuleSet } from '../sim/rules.ts';
 import { MAX_BEINGS } from '../sim/beings/store.ts';
@@ -82,9 +94,6 @@ const KEY_PAN_PX_PER_MS = 0.6;
 const TUTORIAL_KEY = 'tutorial';
 
 type Tile = { x: number; y: number };
-
-/** Terrain tool buttons are shortcuts to the matching power. */
-const TOOL_POWERS: Readonly<Record<string, string>> = { raise: 'shape_raise', lower: 'shape_lower' };
 
 interface UiState {
   /** The armed power, or null for inspect. */
@@ -345,6 +354,28 @@ function saveTutorial(state: TutorialState): void {
   }
 }
 
+/**
+ * Lifetime discovery state (src/ui/shell/discovery.ts): only the met entries are saved. The seen-species memory is per
+ * realm and in memory (setRealmSide clears it). A missing or unreadable state starts from nothing.
+ */
+function loadDiscovery(): DiscoveryState {
+  try {
+    const raw = safeStorage()?.getItem(DISCOVERY_KEY);
+    return parseDiscovery(raw ? JSON.parse(raw) : null);
+  } catch {
+    return newDiscovery();
+  }
+}
+
+function saveDiscovery(state: DiscoveryState): void {
+  try {
+    // Only the met entries persist; `seen` is per realm and in memory.
+    safeStorage()?.setItem(DISCOVERY_KEY, JSON.stringify({ found: state.found }));
+  } catch {
+    // Not saved: discoveries are met again on the next visit (old saves meet them at once).
+  }
+}
+
 /** Reads the system preference for reduced motion or flashing; the default for both settings. */
 function osPrefers(query: string): boolean {
   try {
@@ -371,12 +402,26 @@ async function boot(): Promise<void> {
   noteCrashRun({ safeMode });
   const params = new URLSearchParams(location.search);
   const debugOverlay = params.has('debug');
+  // The UI shell's state (spec A). The shell itself mounts over the map once the controls are wired, below.
+  const store = createStore();
+  // Favourites and the recent row survive a reload (safe storage, key sr.powers.v1). Saved on every change.
+  const savedPrefs = loadPowerPrefs(safeStorage());
+  store.favourites.value = savedPrefs.favourites;
+  store.recent.value = savedPrefs.recent;
+  effect(() => {
+    savePowerPrefs(safeStorage(), { favourites: store.favourites.value, recent: store.recent.value });
+  });
+  const setStatus = (text: string): void => {
+    store.status.value = text;
+  };
 
   const host = $('map');
   const renderer = await TerrainRenderer.create(host);
   // Creatures (beings, buildings, boats) and map marks: added after the terrain so they draw on top of it, marks over creatures.
   const creatures = new CreatureLayer(renderer.app);
   const marks = new MarkLayer(renderer.app);
+  // Deploy effects sit above the beings and marks (spec F).
+  const effects = new EffectsLayer(renderer.app);
   // The being feed (Ev.Beings), smoothed for drawing. The first beingCount entries of drawBeings are this frame's beings.
   const interp = new FeedInterp({ coalesce: true });
   const drawBeings: DrawBeing[] = [];
@@ -480,7 +525,7 @@ async function boot(): Promise<void> {
   let musicClockMs = 0;
   /** A notification: a toast with its cue. */
   const notify = (text: string, cue: Cue = CUE.notify): void => {
-    toast(text);
+    pushToast(store, text);
     playCue(cue);
   };
 
@@ -493,6 +538,7 @@ async function boot(): Promise<void> {
   };
 
   let tutorial: TutorialState = loadTutorial();
+  let discovery: DiscoveryState = loadDiscovery();
   let camera: Camera | null = null;
   let realmSide = 0;
   let realmSeed = 0;
@@ -577,6 +623,7 @@ async function boot(): Promise<void> {
     degradeLevel = level;
     degradedOff.clear();
     for (let k = 0; k < level && k < DEGRADE_OFF.length; k++) degradedOff.add(DEGRADE_OFF[k] ?? '');
+    effects.setEnabled(!degradedOff.has('map.effects'));
     renderer.setDetailToggles(!degradedOff.has('map.terrainMedium'), !degradedOff.has('map.terrainClose'));
     renderer.setRenderScale(effectiveRenderScale());
     journal('DEGRADE', `level ${level} at mean frame ${meanMs.toFixed(1)} ms; off: ${[...degradedOff].join(', ') || 'none'}; render scale ${effectiveRenderScale()}%`);
@@ -718,6 +765,11 @@ async function boot(): Promise<void> {
     stepAnchor = null;
     followPending = false;
     followKey = null;
+    // The info card and the effects of the old realm go too: being ids are reused across realms.
+    store.info.value = null;
+    effects.clear();
+    // Extinctions are judged within one realm: the species seen alive in the old one do not count in this one (spec E).
+    discovery = { ...discovery, seen: [] };
     // A new, loaded or respawned realm has new Beings and buildings: the feed of the old one is dropped.
     resetCreatureView(interp, creatures, creatureReset);
     beingCount = 0;
@@ -734,7 +786,7 @@ async function boot(): Promise<void> {
     accordPending = false;
     accordDominion = -1;
     historyFeed.clear();
-    $('realm-name').textContent = `Realm ${seed.toString(36).toUpperCase().slice(-6)}`;
+    store.realm.value = { ...store.realm.value, name: `Realm ${seed.toString(36).toUpperCase().slice(-6)}` };
   };
 
   let lastSpeedCrumb = '';
@@ -745,12 +797,8 @@ async function boot(): Promise<void> {
       lastSpeedCrumb = speedNow;
       crumb('SPEED', speedNow);
     }
-    $('pause').setAttribute('aria-pressed', String(state.paused));
-    $('pause').setAttribute('aria-label', state.paused ? 'Resume' : 'Pause');
-    $('pause').textContent = state.paused ? '▶' : '❚❚';
-    for (const btn of document.querySelectorAll<HTMLButtonElement>('.speed-btn')) {
-      btn.setAttribute('aria-pressed', String(!state.paused && Number(btn.dataset['speed']) === state.speed));
-    }
+    store.speed.value = state.speed;
+    store.paused.value = state.paused;
   };
 
   /** The dialog title of a stopped sim, so a late save-list answer only redraws this dialog. */
@@ -795,12 +843,28 @@ async function boot(): Promise<void> {
     feedTutorial('speed-changed');
   };
 
-  /** Coach strip: the current tutorial step, hidden once the tutorial is done or skipped. */
+  /** The first-launch coach (shell top column): the current step, or null once the tutorial is done or skipped. */
   const renderCoach = (): void => {
-    const step = currentStep(tutorial);
-    const coach = $('coach');
-    coach.hidden = step === null;
-    if (step) $('coach-text').textContent = TUTORIAL_TEXT[step.id] ?? '';
+    store.coach.value = currentStep(tutorial)?.id ?? null;
+  };
+
+  /** The chips the sheet shows: the starter chips plus those of the discoveries met (or all, with ui.allChips). */
+  const refreshChips = (): void => {
+    store.discovered.value = chipsFor(discovery.found, boolOption(options, 'ui.allChips'));
+    store.found.value = [...discovery.found];
+  };
+
+  /** Evaluates the discovery triggers on each snapshot: chips come forward, and one card names what was met. */
+  const noteDiscoveries = (snap: Snapshot): void => {
+    // While a saved world resumes, the snapshots are the throwaway default world's: they are not judged (no false extinctions).
+    if (resumingWorld) return;
+    const next = evaluate(discovery, snap, { counters: snap.counters, sets: {} });
+    if (next.state === discovery) return;
+    discovery = next.state;
+    saveDiscovery(discovery);
+    refreshChips();
+    const toast = discoveryToast(next.newly);
+    if (toast) pushToast(store, toast.text, toast.kind);
   };
 
   const feedTutorial = (event: string): void => {
@@ -810,10 +874,6 @@ async function boot(): Promise<void> {
     saveTutorial(tutorial);
     renderCoach();
   };
-
-  // Power bar: one tab per power group; only the selected group's buttons exist in the DOM.
-  let powerTab: TabState = { active: TABS[0], tabs: TABS };
-  const tabLabel = (tab: TabId): string => plainName('tab', tab);
 
   /** Releases the held Being (Cmd.Possess on=false) and clears the possession state. */
   const releasePossession = (): void => {
@@ -862,6 +922,8 @@ async function boot(): Promise<void> {
       setStatus(status.note);
       return;
     }
+    // The recent row (spec B): the power just used moves to the front.
+    store.recent.value = [power.id, ...store.recent.value.filter((id) => id !== power.id)].slice(0, 9);
     switch (power.handler) {
       case 'set_pause':
         togglePause();
@@ -988,68 +1050,43 @@ async function boot(): Promise<void> {
     }
   };
 
-  /** Keeps aria-pressed on the power buttons in step with the armed power and the rules. */
+  /** Publishes which powers show a pressed state and which cannot be used now. The power sheet draws both (spec B). */
   const updatePowerButtons = (): void => {
     possessPad.setVisible(possessedId !== null);
-    for (const btn of document.querySelectorAll<HTMLButtonElement>('.power')) {
-      const power = POWER_BY_ID.get(btn.dataset['powerId'] ?? '');
-      if (!power) continue;
-      const pressed =
+    const pressed: string[] = [];
+    const unavailable: Record<string, string> = {};
+    for (const power of POWERS) {
+      const on =
         power.handler === 'toggle_rule'
           ? rules.isOn(String(power.params['rule']))
           : power.handler === 'toggle_option'
             ? boolOption(options, String(power.params['option']))
             : power.handler === 'toggle_view'
               ? viewFlags.has(String(power.params['key']))
-            : power.handler === 'possess'
-              ? possessPending || possessedId !== null
-            : power.handler === 'select_dominion'
-              ? selectedDominion >= 0
-            : power.handler === 'select_accord'
-              ? accordDominion >= 0
-            : power.handler === 'layer_toggle'
-              ? stringOption(options, 'map.layer') === String(power.params['layer'])
-              : state.armed?.id === power.id;
-      btn.setAttribute('aria-pressed', String(pressed));
+              : power.handler === 'possess'
+                ? possessPending || possessedId !== null
+                : power.handler === 'select_dominion'
+                  ? selectedDominion >= 0
+                  : power.handler === 'select_accord'
+                    ? accordDominion >= 0
+                    : power.handler === 'layer_toggle'
+                      ? stringOption(options, 'map.layer') === String(power.params['layer'])
+                      : power.handler === 'arm_inspect'
+                        ? state.armed === null
+                        : state.armed?.id === power.id;
+      if (on) pressed.push(power.id);
+      const status = powerStatus(power);
+      if (!status.enabled) unavailable[power.id] = status.note;
     }
+    store.pressed.value = pressed;
+    store.unavailable.value = unavailable;
   };
 
-  const renderPowers = (): void => {
-    const tabHost = $('power-tabs');
-    tabHost.replaceChildren(
-      ...TABS.map((tab) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'power-tab';
-        btn.setAttribute('role', 'tab');
-        btn.setAttribute('aria-selected', String(tab === powerTab.active));
-        btn.textContent = tabLabel(tab);
-        btn.setAttribute('aria-label', `Powers: ${tabLabel(tab)}`);
-        btn.addEventListener('click', () => {
-          powerTab = selectTab(powerTab, tab);
-          renderPowers();
-        });
-        return btn;
-      }),
-    );
-    $('power-list').replaceChildren(
-      ...powersInTab(powerTab.active as TabId).map((power) => {
-        const status = powerStatus(power);
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'power';
-        btn.dataset['powerId'] = power.id;
-        btn.setAttribute('aria-disabled', String(!status.enabled));
-        btn.title = status.enabled ? '' : status.note;
-        btn.textContent = power.name;
-        btn.addEventListener('click', () => activatePower(power));
-        return btn;
-      }),
-    );
-    updatePowerButtons();
+  /** Copies the armed power and brush into the shell store. */
+  const syncArmed = (): void => {
+    store.armed.value = state.armed ? { powerId: state.armed.id, brush: { index: state.sizeIndex, radius: brushRadius(), shape: state.shape } } : null;
   };
-
-  /** Arms a power (null = inspect). Terrain tool buttons and the power bar both show the same state. */
+  /** Arms a power (null = inspect). The sheet and the map both show the armed state. */
   const setArmed = (power: PowerDef | null): void => {
     // A stroke in progress belongs to the old power: end it before the new one takes over.
     if (stroke) {
@@ -1058,12 +1095,9 @@ async function boot(): Promise<void> {
     }
     if (power) crumb('POWER_SELECT', power.id);
     state.armed = power;
+    syncArmed();
     stepAnchor = null;
     const op = strokeOp(power);
-    for (const btn of document.querySelectorAll<HTMLButtonElement>('.tool')) {
-      const tool = btn.dataset['tool'];
-      btn.setAttribute('aria-pressed', String(power === null ? tool === 'inspect' : tool === op));
-    }
     updatePowerButtons();
     if (!power) setStatus('Tap a tile to inspect it.');
     else if (op) setStatus(`${op === 'raise' ? 'Raise' : 'Lower'}: drag to shape the land.`);
@@ -1075,16 +1109,15 @@ async function boot(): Promise<void> {
     }
   };
 
-  const toolPower = (tool: string): PowerDef | null => {
-    const id = TOOL_POWERS[tool];
-    return id ? (POWER_BY_ID.get(id) ?? null) : null;
+  /** Sets the brush size by its slider index (0..10). The sheet's slider and the [ ] keys both come here. */
+  const setBrushIndex = (index: number): void => {
+    state.sizeIndex = index;
+    syncArmed();
   };
 
   const setShape = (shape: BrushShape): void => {
     state.shape = shape;
-    for (const btn of document.querySelectorAll<HTMLButtonElement>('.shape')) {
-      btn.setAttribute('aria-checked', String(btn.dataset['shape'] === shape));
-    }
+    syncArmed();
   };
 
   /** Sets a Realm Rule on the mirror and in the sim. Returns false when the rule cannot change. */
@@ -1114,10 +1147,17 @@ async function boot(): Promise<void> {
       setStatus(`${power.name} is ready in ${cooldownSecondsLeft(now, readyAt)} s.`);
       return;
     }
-    if (power.cooldownMs > 0) cooldownUntil.set(power.id, now + power.cooldownMs);
+    // Only a power that has a cooldown changes the map of cooldowns; publishing for the others re-renders the sheet on every hold tick.
+    if (power.cooldownMs > 0) {
+      cooldownUntil.set(power.id, now + power.cooldownMs);
+      store.cooldowns.value = Object.fromEntries(cooldownUntil);
+    }
     const op = strokeOp(power);
     if (op) client.stroke(op, state.shape, brushRadius(), x, y, x, y, true);
     else client.power(power.id, x, y);
+    // The effect plays only for a command that was sent (spec call 6): not on cooldown, not for a rule or a window.
+    effects.play(recipeFor(power), x, y, power.kind === 'brush' ? brushRadius() : 1);
+    if (power.handler === 'spawn_being') feedTutorial('spawned');
     crumb('POWER_APPLY', power.id);
     playCueAt(op ? CUE.paint : CUE.power, x);
   };
@@ -1139,14 +1179,14 @@ async function boot(): Promise<void> {
   const brushOp = (): BrushOp | null => strokeOp(state.armed);
 
   // Windows: one dialog, filled by windowContent. Settings, rules, ages, and the rest open from here.
+  // The window host routes each kind (atlasRoutes): confirmations open the modal dialog, the rest open in the Atlas.
   const openWindow = (id: string, params: WindowParams = {}): void => {
     crumb('WINDOW_OPEN', id);
-    const build = windowFor(id, windowDeps, params);
+    const build = windowHost.open(id, params);
     if (!build) {
       setStatus('That window is not available yet.');
       return;
     }
-    windowHost.open(id, build.title, build.build, build.live);
     playCue(CUE.windowOpen);
     // A live window asks for a snapshot now, so it has numbers while the sim is paused.
     if (build.live) client.requestSnapshot();
@@ -1163,7 +1203,7 @@ async function boot(): Promise<void> {
     capture: async () => {
       const bytes = await client.capture();
       if (!bytes) return null;
-      const info = { realmName: $('realm-name').textContent ?? 'Realm', tick: simTick, year: Math.floor(simTick / YEAR_TICKS) + 1 };
+      const info = { realmName: store.realm.value.name, tick: simTick, year: Math.floor(simTick / YEAR_TICKS) + 1 };
       return { bytes, info };
     },
     restore: (bytes) => client.restore(bytes),
@@ -1219,7 +1259,7 @@ async function boot(): Promise<void> {
   const windowDeps: WindowDeps = {
     options: () => options,
     saves: () => saveController.list(),
-    notify: (text) => toast(text),
+    notify: (text) => pushToast(store, text),
     chronicle,
     exportCrash: exportCrashToFile,
     setOption: (id, value) => changeOption(id, value),
@@ -1232,8 +1272,7 @@ async function boot(): Promise<void> {
     setBrush: (patch) => {
       if (patch.shape !== undefined) setShape(patch.shape);
       if (patch.sizeIndex !== undefined) {
-        sizeInput.value = String(patch.sizeIndex);
-        updateSizeOutput();
+        setBrushIndex(patch.sizeIndex);
       }
     },
     rules,
@@ -1258,14 +1297,26 @@ async function boot(): Promise<void> {
         openWindow('win_tutorial');
       },
     }),
-    close: () => windowHost.close(),
+    // Done buttons close whatever is open: a confirmation, else the Atlas.
+    close: () => {
+      if (windowHost.current !== null) windowHost.close();
+      else closeAtlas(store);
+    },
   };
 
-  const windowHost = new WindowHost($<HTMLDialogElement>('window'), $('window-title'), $('window-body'));
+  const windowHost = new WindowHost(
+    $<HTMLDialogElement>('window'),
+    $('window-title'),
+    $('window-body'),
+    {
+      build: (kind, params) => windowFor(kind, windowDeps, params),
+      toAtlas: (kind, params) => showAtlas(store, kind, params),
+    },
+  );
   // What the autosave timer and the pause and hide saves need to know about the UI right now.
   const autosaveState = (): AutosaveState => ({
     dirty: simTick !== savedTick,
-    modalOpen: windowHost.current !== null,
+    modalOpen: windowHost.current !== null || store.atlas.value.open,
     gestureActive: stroke !== null,
     degradeLevel: 0,
   });
@@ -1274,6 +1325,7 @@ async function boot(): Promise<void> {
     // The O07 feed reads each snapshot once as it arrives (in memory only, src/ui/historyTicker.ts).
     if (simView.current) historyFeed.push(simView.current);
     windowHost.feed();
+    feedAtlas();
   });
 
   /**
@@ -1293,6 +1345,15 @@ async function boot(): Promise<void> {
     const hit = beingAt(sx, sy, radius);
     if (!hit) return null;
     return { key: hit.key, id: beingIdOf(hit.key), x: Math.round(hit.x), y: Math.round(hit.y) };
+  };
+
+  /** The live feed Being with this id this frame, or null when it has left the feed (the info card reads it). */
+  const liveBeing = (id: number): DrawBeing | null => {
+    for (let i = 0; i < beingCount; i++) {
+      const d = drawBeings[i];
+      if (d && beingIdOf(d.key) === id) return d;
+    }
+    return null;
   };
 
   /** Reads one tile from the sim and reports it in the status line. Held presses say so. */
@@ -1354,10 +1415,6 @@ async function boot(): Promise<void> {
     onLongPress: (sx, sy) => {
       cursorScreen = { x: sx, y: sy };
       inspectTile(tileAt(sx, sy), true);
-    },
-    onDoubleTap: (sx, sy) => {
-      // Double-tap zooms in one step on the tap point (the browser's own double-tap zoom stays off).
-      camera?.zoomAt(2, sx, sy);
     },
     onStrokeUndo: () => {
       // The sim keeps no per-stroke journal, so a second finger ends the stroke and keeps what it painted.
@@ -1456,13 +1513,14 @@ async function boot(): Promise<void> {
         client.possess(possessedId, true, t.x, t.y, attackHeld);
         return;
       }
-      // Inspect (default tap with nothing armed): a being near the tap opens its window when the
-      // snapshot holds its row (the notable sample); otherwise the tile is read as before.
+      // Inspect (default tap with nothing armed): a being near the tap opens its floating info card (UX redesign,
+      // spec C). A tap on empty map closes the card and reads the tile as before.
       const hit = pickBeing(sx, sy);
-      if (hit && simView.current?.detail?.notable?.beings.some((b) => b.id === hit.id)) {
-        openWindow('win_being', { id: hit.id });
+      if (hit) {
+        store.info.value = { kind: 'being', id: String(hit.id) };
         return;
       }
+      store.info.value = null;
       inspectTile(t, false);
     },
   });
@@ -1496,8 +1554,10 @@ async function boot(): Promise<void> {
         if (event.stats.ticksThisPump > 0) noteSimMs(event.stats.avgTickMs);
         simSpeed = event.stats.speed;
         noteCrashRun({ tick: simTick, speed: simSpeed });
-        calendarText = `Y${Math.floor(simTick / YEAR_TICKS) + 1} M${(Math.floor(simTick / MONTH_TICKS) % 12) + 1}`;
-        setCalendar(calendarText);
+        const year = Math.floor(simTick / YEAR_TICKS) + 1;
+        const month = (Math.floor(simTick / MONTH_TICKS) % 12) + 1;
+        calendarText = `Y${year} M${month}`;
+        if (store.realm.value.year !== year || store.realm.value.month !== month) store.realm.value = { ...store.realm.value, year, month };
         return;
       case Ev.Fault:
         progressBar.hide();
@@ -1561,6 +1621,13 @@ async function boot(): Promise<void> {
           if (lastAgeCrumb !== null) crumb('AGE', lastAgeCrumb);
         }
         simView.apply(event.snap);
+        {
+          const creatures = event.snap.population.total;
+          const towns = event.snap.townCount ?? 0;
+          const realm = store.realm.value;
+          if (realm.creatures !== creatures || realm.towns !== towns) store.realm.value = { ...realm, creatures, towns };
+        }
+        noteDiscoveries(event.snap);
         musicFeed.ingest(event.snap);
         for (const id of stingers.ingest(event.snap.age ?? null, event.snap.dominions.filter((d) => d.atWar).length)) playCue(id);
         return;
@@ -1570,15 +1637,76 @@ async function boot(): Promise<void> {
   });
 
   // Controls.
-  $('pause').addEventListener('click', togglePause);
-  for (const btn of document.querySelectorAll<HTMLButtonElement>('.speed-btn')) {
-    btn.addEventListener('click', () => {
-      state.speed = Number(btn.dataset['speed']) as Speed;
+  // The shell's pills and toasts (spec A). The actions are the same calls the old top bar made.
+  const shellActions: ShellActions = {
+    setSpeed: (speed: Speed) => {
+      state.speed = speed;
       state.paused = false;
       applySpeed();
       feedTutorial('speed-changed');
-    });
-  }
+    },
+    togglePause,
+    activatePower: (id: string) => {
+      const power = POWER_BY_ID.get(id);
+      if (power) activatePower(power);
+    },
+    openWindow: (kind: string, params) => openWindow(kind, params),
+    locateBeing: (id: number) => {
+      const d = liveBeing(id);
+      if (!d || !camera) return null;
+      const rect = host.getBoundingClientRect();
+      const speciesId = SPECIES[d.species]?.id;
+      const name = speciesId ? plainName('species', speciesId) : 'Being';
+      // More opens the being's full page, which reads its row: the latest snapshot's sample, or a favourite's kept row.
+      const detailed = (simView.current?.detail?.notable?.beings ?? []).some((b) => b.id === id) || favouriteBeing(id) !== undefined;
+      return {
+        x: rect.left + camera.offX + (d.x + 0.5) * camera.zoom,
+        y: rect.top + camera.offY + (d.y + 0.5) * camera.zoom,
+        name,
+        facts: feedFacts(d),
+        detailed,
+      };
+    },
+    followBeing: (id: number) => {
+      const d = liveBeing(id);
+      if (!d) {
+        setStatus('That being is gone.');
+        return;
+      }
+      followKey = d.key;
+      followPending = false;
+      setStatus('Following that being. Esc or a pan releases it.');
+    },
+    possessBeing: (id: number) => {
+      const d = liveBeing(id);
+      if (!d) {
+        setStatus('That being is gone.');
+        return;
+      }
+      setArmed(null);
+      if (possessedId !== null) releasePossession();
+      possessPending = false;
+      possessedId = id;
+      possessOrder = { x: Math.round(d.x), y: Math.round(d.y) };
+      client.possess(id, true, possessOrder.x, possessOrder.y, attackHeld);
+      setStatus('Possessing that being. Tap the ground to move it. Esc releases.');
+      updatePowerButtons();
+    },
+    zoomBy: (factor: number) => {
+      camera?.zoomAt(factor, renderer.app.screen.width / 2, renderer.app.screen.height / 2);
+    },
+    disarm: () => setArmed(null),
+    setBrushSize: (index: number) => setBrushIndex(index),
+    setBrushShape: (shape: BrushShape) => setShape(shape),
+    skipCoach: () => {
+      tutorial = skipTutorial(tutorial);
+      saveTutorial(tutorial);
+      renderCoach();
+    },
+  };
+  mountShell($('ui-root'), store, shellActions);
+  mountAtlas($('atlas-root'), store, shellActions, windowDeps);
+  mountToasts($('toast-root'), store, shellActions);
   // Edge pan needs a hover position that is current: it clears when the pointer leaves the map or
   // when a press starts (a drag moves the camera by itself).
   renderer.app.canvas.addEventListener('pointerleave', () => {
@@ -1592,9 +1720,6 @@ async function boot(): Promise<void> {
       pressed = false;
     });
   }
-  for (const btn of document.querySelectorAll<HTMLButtonElement>('.tool')) {
-    btn.addEventListener('click', () => setArmed(toolPower(btn.dataset['tool'] ?? 'inspect')));
-  }
 
   // Settings: every change is validated, saved, and applied at once.
   const changeOption = (id: string, value: OptionValue): void => {
@@ -1604,6 +1729,7 @@ async function boot(): Promise<void> {
     saveOptions(safeStorage(), options);
     if (id === 'privacy.errorReports') setCrashConsent(consentFromOption(stringOption(options, 'privacy.errorReports')));
     if (QUALITY_OPTIONS.has(id)) crumb('QUALITY', `${id}=${String(value)}`);
+    if (id === 'ui.allChips') refreshChips();
     if (id === 'ui.fullscreen') toggleFullscreen(options[id] === true);
     // Hide status bar on phones: full screen is requested when the row is turned on (13 section 15).
     if (id === 'ui.hideStatusBar' && value === true && window.matchMedia('(pointer: coarse)').matches) toggleFullscreen(true);
@@ -1649,74 +1775,40 @@ async function boot(): Promise<void> {
     audio.applyOptions({ ...audioOptionsFrom(options), mono: cueOpts.mono, reduceLoudSounds: cueOpts.reduceLoudSounds, visualCues: cueOpts.visualCues, haptics: cueOpts.haptics });
   };
   applyOptions();
-  $('settings-open').addEventListener('click', () => openWindow('win_settings'));
-  for (const btn of document.querySelectorAll<HTMLButtonElement>('[data-window]')) {
-    btn.addEventListener('click', () => openWindow(btn.dataset['window'] ?? ''));
-  }
-  $('coach-skip').addEventListener('click', () => {
-    tutorial = skipTutorial(tutorial);
-    saveTutorial(tutorial);
-    renderCoach();
-  });
   renderCoach();
+  refreshChips();
 
-  for (const btn of document.querySelectorAll<HTMLButtonElement>('.shape')) {
-    btn.addEventListener('click', () => setShape(btn.dataset['shape'] as BrushShape));
-  }
-  const sizeInput = $<HTMLInputElement>('brush-size');
-  sizeInput.value = String(state.sizeIndex);
-  const updateSizeOutput = (): void => {
-    state.sizeIndex = Number(sizeInput.value);
-    $('brush-size-out').textContent = String(brushRadius());
+  // The shell's keys (UX redesign, spec G): one keymap (src/ui/shell/keymap.ts). Each call is the one a click makes.
+  const keyContext: KeyContext = {
+    recent: () => recentRow(store),
+    arm: (id: string) => {
+      const power = POWER_BY_ID.get(id);
+      if (power) activatePower(power);
+    },
+    toggleSheet: () => {
+      store.sheet.value = store.sheet.value === 'expanded' ? 'collapsed' : 'expanded';
+    },
+    focusSearch: () => focusSheetSearch(() => {
+      store.sheet.value = 'expanded';
+    }),
+    zoomBy: (factor: number) => shellActions.zoomBy(factor),
+    togglePause,
+    toggleHud: () => document.documentElement.classList.toggle('hide-ui'),
+    brushStep: (step: -1 | 1) => setBrushIndex(Math.max(0, Math.min(BRUSH_RADII.length - 1, state.sizeIndex + step))),
   };
-  sizeInput.addEventListener('input', updateSizeOutput);
-  updateSizeOutput();
-
-  for (const tab of document.querySelectorAll<HTMLButtonElement>('.tab')) {
-    tab.addEventListener('click', () => {
-      const name = tab.dataset['tab'] ?? 'terrain';
-      for (const other of document.querySelectorAll<HTMLButtonElement>('.tab')) {
-        other.setAttribute('aria-selected', String(other === tab));
-      }
-      for (const panel of ['terrain', 'realm', 'powers']) {
-        $(`panel-${panel}`).hidden = name !== panel;
-      }
-    });
-  }
-  // Titan (576, 01 section 1) is behind the Advanced toggle and on a fine pointer (desktop) only. Leaving either gate
-  // drops a Titan choice back to Standard.
-  const syncTitanOption = (): void => {
-    const titan = document.querySelector<HTMLOptionElement>('#realm-size option[value="9"]');
-    if (!titan) return;
-    const allowed = $<HTMLInputElement>('realm-advanced').checked && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
-    titan.disabled = !allowed;
-    titan.hidden = !allowed;
-    if (!allowed && $<HTMLSelectElement>('realm-size').value === '9') $<HTMLSelectElement>('realm-size').value = '4';
-  };
-  $<HTMLInputElement>('realm-advanced').addEventListener('change', syncTitanOption);
-  syncTitanOption();
-  $('new-realm').addEventListener('click', () => {
-    const seed = Math.floor(Math.random() * 0x7fffffff);
-    const sizeStep = Number($<HTMLSelectElement>('realm-size').value);
-    void client.newRealm(seed, sizeStep);
-  });
-
   window.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
-    keysDown.add(e.code);
+    // The Atlas, a native dialog, and any control that already took the key (a tab list's arrows) own it: no shortcut, no pan.
+    if (shellKeysBlocked(e, store.atlas.value.open) || isTyping(e.target)) return;
+    if (!panBlocked(e.target)) keysDown.add(e.code);
     // Possession keys (13 section 10, DECISIONS "Possession controls close 14"): J holds attack, K/L/U/T/Y/N are one-shot
     // abilities. Modifier chords and auto-repeat do not fire them. They do nothing unless a Being is held.
     const control = possessActionOfCode(e.code);
     if (control !== null && !e.repeat && !e.ctrlKey && !e.altKey && !e.metaKey) possessControl(control, true);
-    if (e.code === 'KeyP') {
-      togglePause();
-    } else if (e.code === 'KeyH') {
-      document.documentElement.classList.toggle('hide-ui');
-    } else if (e.code === 'BracketLeft' || e.code === 'BracketRight') {
-      const step = e.code === 'BracketLeft' ? -1 : 1;
-      sizeInput.value = String(Math.max(0, Math.min(BRUSH_RADII.length - 1, state.sizeIndex + step)));
-      updateSizeOutput();
-    } else if (e.code === 'Escape') {
+    if (dispatchKey(e, keyContext)) {
+      if (e.code === 'Space') e.preventDefault();
+      return;
+    }
+    if (e.code === 'Escape') {
       followPending = false;
       followKey = null;
       if (possessedId !== null || possessPending) releasePossession();
@@ -1831,6 +1923,7 @@ async function boot(): Promise<void> {
       const drawT0 = performance.now();
       creatures.draw(drawBeings, beingCount, view, beingNowMs);
       frameCostMs += performance.now() - drawT0;
+      effects.update(ticker.deltaMS, view);
       costRing[costWritten++ % COST_RING] = frameCostMs;
       marks.update(
         simView.current,
@@ -1953,12 +2046,12 @@ async function boot(): Promise<void> {
       // The message is announced once, by the toast; the status line only drops "Resuming…".
       setStatus('Tap a tile to inspect it.');
       if (!resumed.ok) return;
-      toast(resumed.message, {
+      pushToast(store, resumed.message, 'info', Date.now(), {
         label: 'Start a new world instead',
         run: () => {
           // The resumed realm is kept in a manual slot first, so choosing a new world never loses it.
           void saveController.keepResumedBeforeNewWorld().then((kept) => {
-            if (kept) toast(kept.message);
+            if (kept) pushToast(store, kept.message);
             restartRealm?.();
           });
         },
@@ -1968,7 +2061,6 @@ async function boot(): Promise<void> {
   }
   client.setSpeed(state.paused ? 0 : state.speed);
   applySpeed();
-  renderPowers();
   setArmed(null);
   setShape('circle');
 
@@ -1991,7 +2083,18 @@ async function boot(): Promise<void> {
       applySpeed();
     },
     commands: () => [...client.sentKinds],
-    openWindow: () => windowHost.current,
+    openWindow: () => currentAtlasKind(store) ?? windowHost.current,
+    /** Meets a discovery entry by id, as the triggers would (the e2e tests use it; the entry must exist). */
+    forceDiscovery: (id: string) => {
+      if (discovery.found.includes(id)) return;
+      discovery = { ...discovery, found: [...discovery.found, id] };
+      saveDiscovery(discovery);
+      refreshChips();
+      const toast = discoveryToast([id]);
+      if (toast) pushToast(store, toast.text, toast.kind);
+    },
+    /** Opens a window kind as a player action would. The e2e tests use it for confirmations, which have no Atlas section. */
+    showWindow: (kind: string) => openWindow(kind),
     snapshot: () => simView.current,
     creatureCount: () => creatures.drawnCount(),
     /** Dot sprites shown by the latest draw (the far-zoom level). */

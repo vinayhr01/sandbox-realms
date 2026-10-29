@@ -8,10 +8,10 @@ export interface TutorialStep {
   waitFor: string;
 }
 
+/** The first-launch coach (UX redesign, spec E): three steps, each done by the first matching action. */
 export const TUTORIAL_STEPS: readonly TutorialStep[] = [
-  { id: 'pick-tool', waitFor: 'tool-armed' },
-  { id: 'paint', waitFor: 'stroke-finished' },
-  { id: 'inspect', waitFor: 'tile-inspected' },
+  { id: 'shape', waitFor: 'stroke-finished' },
+  { id: 'life', waitFor: 'spawned' },
   { id: 'speed', waitFor: 'speed-changed' },
 ];
 
@@ -34,12 +34,18 @@ export function tutorialEvent(state: TutorialState, event: string, steps: readon
   return { index, skipped: false, done: index >= steps.length };
 }
 
-/** Coach text for each step (shown in the coach strip and the tutorial window). */
+/** Coach heading for each step. */
+export const TUTORIAL_TITLE: Readonly<Record<string, string>> = {
+  shape: 'Shape the land',
+  life: 'Add life',
+  speed: 'Change the speed',
+};
+
+/** Coach text for each step. */
 export const TUTORIAL_TEXT: Readonly<Record<string, string>> = {
-  'pick-tool': 'Pick a tool: tap Raise or Lower in the Terrain tab, or any power in the Shape tab.',
-  paint: 'Drag across the map with the armed tool to shape the land.',
-  inspect: 'Tap Inspect in the Terrain tab, then tap a tile to read it.',
-  speed: 'Change the simulation speed with the x0.5 to x10 buttons.',
+  shape: 'Drag across the map with an armed tool to shape the land.',
+  life: 'Open the Creatures chip, arm a creature and tap the map.',
+  speed: 'Change the simulation speed with the speed buttons at the top.',
 };
 
 /** Parses a saved tutorial state; anything unexpected starts the tutorial over. */

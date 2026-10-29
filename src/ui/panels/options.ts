@@ -93,12 +93,11 @@ export const SETTINGS: readonly SettingDef[] = [
   B('ui.worldTooltips', 'hud', 'World tooltips', true),
   B('ui.tips', 'hud', 'Tip messages', true),
   B('ui.talkBubbles', 'hud', 'Talk bubbles', true),
+  B('ui.allChips', 'hud', 'Show all categories', false, true),
   B('ui.happinessIcons', 'hud', 'Happiness icons', false, true),
   B('ui.taskIcons', 'hud', 'Task icons', false, true),
   B('ui.moneyFlow', 'hud', 'Money flow', false),
   B('ui.cursorArrows', 'hud', 'Cursor arrows', false),
-  B('ui.autoOpenContextTab', 'hud', 'Open context tab on select', true),
-  B('ui.quickStrip', 'hud', 'Pinned quick strip', false),
   // Input
   B('input.touchOrder', 'input', 'Tap to order selected beings', false),
   B('input.stickyHold', 'input', 'Sticky hold', false, true),
@@ -135,7 +134,7 @@ export const SETTINGS: readonly SettingDef[] = [
   C('lang', 'lang', 'Language', ['auto', 'en'], 'auto'),
   B('privacy.telemetry', 'privacy', 'Share anonymous usage data', false),
   C('privacy.errorReports', 'privacy', 'Crash reports', ['ask', 'always', 'never'], 'ask', true),
-  // Developer
+  // Developer: the one switch. On, it lists the developer windows in the Atlas Settings tab and lets them open.
   B('dev.enabled', 'dev', 'Developer tools', false, true),
 ];
 

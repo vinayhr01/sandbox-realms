@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openAtlas, openConfirmation, openWindowButton } from './helpers.ts';
 
 /**
  * Windows added for the spec table (13 section 7.1): each opens from the Powers tab's Windows group
@@ -19,7 +20,7 @@ const WINDOWS: ReadonlyArray<[button: string, title: string]> = [
   ['Trait editor', 'Trait editor'],
   ['Gear editor', 'Gear editor'],
   ['Patch notes', 'Patch notes'],
-  ['Error details', 'Error'],
+  ['Error', 'Error'],
   ['Leave realm', 'Leave realm'],
   ['Update', 'Update'],
   ['Developer console', 'Developer console'],
@@ -32,11 +33,10 @@ async function openRealm(page: Page, options?: Record<string, boolean>): Promise
   page.on('console', (msg) => {
     if (msg.type() === 'error') errors.push(msg.text());
   });
-  if (options) {
-    await page.addInitScript((value) => {
-      window.localStorage.setItem('settings', JSON.stringify(value));
-    }, options);
-  }
+  // The developer windows are listed in Settings only while Show developer tools is on, so every run of this spec turns it on.
+  await page.addInitScript((value) => {
+    window.localStorage.setItem('settings', JSON.stringify(value));
+  }, { 'dev.enabled': true, ...options });
   await page.goto('/?seed=42&size=4');
   await page.waitForFunction(() => Boolean((window as unknown as { __sr?: unknown }).__sr));
   await expect(page.locator('#realm-name')).toContainText('Realm');
@@ -44,8 +44,12 @@ async function openRealm(page: Page, options?: Record<string, boolean>): Promise
 }
 
 async function openFromPowers(page: Page, name: string): Promise<void> {
-  await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('button', { name, exact: true }).click();
+  // Leave realm is a confirmation: it has no Atlas section, so it opens through the window hook.
+  if (name === 'Leave realm') {
+    await openConfirmation(page, 'win_confirm_quit');
+    return;
+  }
+  await openWindowButton(page, name);
 }
 
 test.afterEach(async ({ page }, testInfo) => {
@@ -69,13 +73,19 @@ for (const [button, title] of WINDOWS) {
 }
 
 test('the developer windows say they are off by default', async ({ page }) => {
-  await openRealm(page);
-  await openFromPowers(page, 'Developer console');
+  // openRealm turns the switch on for the other tests; this one needs the switch off, as a new player has it.
+  await openRealm(page, { 'dev.enabled': false });
+  // Settings lists the developer windows only while the switch is on (atlasRoutes.ts), so with it off the Atlas has no section to click.
+  await openAtlas(page);
+  await expect(page.locator('.atlas').getByRole('button', { name: 'Developer console', exact: true })).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  // The window still shows its gate when it is asked for, through the same window hook the confirmations use.
+  await openConfirmation(page, 'win_dev_console');
   const console = page.getByRole('dialog', { name: 'Developer console', exact: true });
   await expect(console.getByText('Developer tools are off.')).toBeVisible();
   await expect(console.getByRole('textbox', { name: 'Command' })).toHaveCount(0);
   await console.getByRole('button', { name: 'Close window' }).click();
-  await openFromPowers(page, 'Developer tools');
+  await openConfirmation(page, 'win_dev_tools');
   const tools = page.getByRole('dialog', { name: 'Developer tools', exact: true });
   await expect(tools.getByText('Developer tools are off.')).toBeVisible();
   await expect(tools.getByRole('tab')).toHaveCount(0);
@@ -154,7 +164,7 @@ test('the quit window keeps saving and leaving disabled, and the error window co
   await expect(quit.getByRole('button', { name: 'Leave without saving', exact: true })).toBeDisabled();
   await quit.getByRole('button', { name: 'Keep playing', exact: true }).click();
   await expect(quit).toBeHidden();
-  await openFromPowers(page, 'Error details');
+  await openFromPowers(page, 'Error');
   const error = page.getByRole('dialog', { name: 'Error', exact: true });
   await expect(error.getByRole('button', { name: 'Copy details', exact: true })).toBeVisible();
   await expect(error.getByRole('button', { name: 'Send report', exact: true })).toBeDisabled();
@@ -162,8 +172,7 @@ test('the quit window keeps saving and leaving disabled, and the error window co
 
 test('the Chronicle window opens its confirmation from a save row only when there is one', async ({ page }) => {
   await openRealm(page);
-  await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('group', { name: 'Windows' }).getByRole('button', { name: 'Chronicle', exact: true }).click();
+  await openWindowButton(page, 'Chronicle');
   const chronicle = page.getByRole('dialog', { name: 'Chronicle', exact: true });
   const load = chronicle.getByRole('button', { name: /^Load / }).first();
   if ((await load.count()) === 0) return;

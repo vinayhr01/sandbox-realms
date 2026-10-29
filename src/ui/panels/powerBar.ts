@@ -1,8 +1,8 @@
 /**
- * Power bar model (13 section 4): tabs, armed power, cooldown fraction, favourites (at most 12) and
+ * Power bar model (13 section 4): tabs, armed power, cooldown fraction, favourites (at most 9, the recent row's size) and
  * brush size stepping on a logarithmic 1..72 scale. Pure data, no DOM.
  */
-export const MAX_FAVOURITES = 12;
+export const MAX_FAVOURITES = 9;
 export const BRUSH_MIN = 1;
 export const BRUSH_MAX = 72;
 /** Slider steps across the whole logarithmic range. */

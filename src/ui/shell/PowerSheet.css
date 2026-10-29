@@ -1,0 +1,343 @@
+/*
+ * The bottom power sheet (UX redesign, spec B). Glass surface and motion come from tokens.css; the look follows the
+ * approved layout-b mockup: glass sheet, handle, chips, icon tiles with labels, gold for the armed and active state.
+ */
+.power-sheet {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  box-sizing: border-box;
+  /* Desktop: centred and capped at about 720 px. Phones take the full width less a small gutter. */
+  width: min(720px, calc(100% - 2 * var(--space-2)));
+  /* Expanded, the sheet never reaches the top pills: the map keeps the space above it. */
+  max-height: calc(100% - var(--shell-top) - var(--space-2));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0 var(--space-3) calc(var(--space-2) + env(safe-area-inset-bottom));
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-bottom: 0;
+  border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+  box-shadow: var(--glass-shadow);
+  color: var(--text);
+  pointer-events: auto;
+  transition: max-height var(--dur) var(--ease-out);
+}
+
+/* Expanded, the grid scrolls inside the sheet and the sheet keeps the upper part of the map clear. */
+.power-sheet[data-sheet='expanded'] {
+  max-height: min(60%, calc(100% - var(--shell-top) - var(--space-2)));
+}
+
+/*
+ * Phones and high-transparency preferences: a solid sheet, with no backdrop blur. The blur is re-run every frame over the
+ * redrawing WebGL map, which is the slow path on software GL (item 4, measured in task-2-report.md).
+ */
+@media (max-width: 900px), (prefers-reduced-transparency: reduce) {
+  .power-sheet {
+    background: var(--sheet-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+.hide-ui .power-sheet {
+  display: none;
+}
+
+.sheet-handle-row {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.sheet-handle {
+  flex: 1;
+  min-height: var(--tap);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.handle-bar {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--text-dim);
+  opacity: 0.7;
+}
+
+/* The armed power, shown on the collapsed sheet. A tap disarms it. */
+.armed-badge {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--tap);
+  padding: 0 var(--space-3) 0 var(--space-1);
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  color: var(--gold-ink);
+  font: inherit;
+  font-size: var(--text-s);
+  font-weight: 600;
+  box-shadow: 0 0 10px rgba(255, 200, 80, 0.5);
+  cursor: pointer;
+}
+
+.armed-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+}
+
+.armed-icon .glyph,
+.armed-icon .power-art {
+  width: 22px;
+  height: 22px;
+}
+
+.sheet-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.chip {
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-m);
+  background: rgba(127, 127, 127, 0.16);
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-s);
+  cursor: pointer;
+}
+
+.chip[aria-selected='true'] {
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  color: var(--gold-ink);
+  font-weight: 600;
+}
+
+.chip.more {
+  border: 1px dashed var(--glass-border);
+}
+
+.recent-mini {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.brush-control {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.brush-size {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-s);
+}
+
+.brush-size input[type='range'] {
+  width: 140px;
+  min-height: var(--tap);
+}
+
+.shapes {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.shape {
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-m);
+  background: rgba(127, 127, 127, 0.12);
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-s);
+  cursor: pointer;
+}
+
+.shape[aria-checked='true'] {
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  color: var(--gold-ink);
+}
+
+.sheet-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding-bottom: var(--space-1);
+}
+
+.search {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: var(--tap);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-m);
+  background: rgba(127, 127, 127, 0.12);
+  color: inherit;
+  font: inherit;
+}
+
+.power-group,
+.recent-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.group-head {
+  margin: 0;
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  font-size: var(--text-s);
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.count {
+  font-weight: 400;
+  opacity: 0.6;
+}
+
+.power-grid,
+.recent-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+  gap: var(--space-2);
+}
+
+.power-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  padding: var(--space-1) 2px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-m);
+  background: rgba(127, 127, 127, 0.12);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.power-btn[aria-pressed='true'] {
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold));
+  border-color: var(--gold-hi);
+  color: var(--gold-ink);
+  box-shadow: 0 0 12px rgba(255, 200, 80, 0.6);
+}
+
+.power-btn.is-unavailable {
+  opacity: 0.45;
+}
+
+.power-icon {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+}
+
+.power-art {
+  width: 30px;
+  height: 30px;
+}
+
+.glyph {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.power-label {
+  max-width: 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  line-height: 1.1;
+}
+
+/* Cooldown: a ring that empties over the remaining time (inline animation-duration, set when the sheet renders). */
+.ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.ring circle {
+  fill: none;
+  stroke: var(--gold-hi);
+  stroke-width: 4;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+  animation: ring-sweep linear forwards;
+}
+
+@keyframes ring-sweep {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: 100;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring circle {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}

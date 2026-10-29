@@ -1,0 +1,80 @@
+/*
+ * Shell tokens (UX redesign, spec H): glass surfaces, the gold highlight, radii, spacing, motion.
+ * Colour tokens of the base theme stay in src/ui/styles.css; these add the glass and motion layer.
+ */
+:root {
+  /* Where the shell's content starts: under one pill row, and under two on phones (styles.css). */
+  --shell-top: calc(env(safe-area-inset-top) + var(--space-2) + var(--tap));
+  --shell-top-phone: calc(env(safe-area-inset-top) + var(--space-2) + 2 * var(--tap) + var(--space-2));
+  --glass-bg: rgba(18, 22, 32, 0.62);
+  --glass-blur: 10px;
+  --glass-border: rgba(255, 255, 255, 0.14);
+  --glass-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --sheet-solid: rgba(18, 22, 32, 0.94);
+  --gold: #f2c14e;
+  --gold-hi: #ffd76a;
+  --gold-ink: #1a1500;
+  --radius-m: 10px;
+  --radius-l: 14px;
+  --radius-sheet: 16px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --text-s: 12px;
+  --text-m: 14px;
+  --text-l: 16px;
+  --dur-fast: 120ms;
+  --dur: 240ms;
+  --dur-slow: 400ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    --glass-bg: rgba(255, 255, 255, 0.78);
+    --glass-border: rgba(20, 24, 33, 0.16);
+    --glass-shadow: 0 6px 18px rgba(20, 24, 33, 0.18);
+    --sheet-solid: rgba(255, 255, 255, 0.96);
+    --gold: #8a5a00;
+    --gold-hi: #9c6700;
+    --gold-ink: #ffffff;
+  }
+}
+
+:root[data-theme='light'] {
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-border: rgba(20, 24, 33, 0.16);
+  --glass-shadow: 0 6px 18px rgba(20, 24, 33, 0.18);
+  --sheet-solid: rgba(255, 255, 255, 0.96);
+  --gold: #8a5a00;
+  --gold-hi: #9c6700;
+  --gold-ink: #ffffff;
+}
+
+:root[data-theme='highcontrast'] {
+  --glass-bg: #000000;
+  --glass-blur: 0px;
+  --glass-border: #ffffff;
+  --glass-shadow: none;
+  --sheet-solid: #000000;
+  --gold: #ffff00;
+  --gold-hi: #ffff00;
+  --gold-ink: #000000;
+}
+
+/* Phones: the realm pill and the speed row stack, so the shell starts lower. */
+@media (max-width: 599px) {
+  :root {
+    --shell-top: var(--shell-top-phone);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur: 0ms;
+    --dur-slow: 0ms;
+  }
+}

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { openChip, openWindowButton, powerButton } from './helpers.ts';
 
 /**
  * Every window added for the spec table (13 section 7.1): each opens from the Powers tab with a
@@ -33,8 +34,7 @@ async function openRealm(page: Page): Promise<void> {
 }
 
 async function openFromPowers(page: Page, name: string): Promise<void> {
-  await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('button', { name, exact: true }).click();
+  await openWindowButton(page, name);
 }
 
 test.afterEach(async ({ page }, testInfo) => {
@@ -73,12 +73,14 @@ test('a list row opens its inspector, and Back returns to the list', async ({ pa
   await expect(page.getByRole('dialog', { name: 'Dominions', exact: true })).toBeVisible();
 });
 
-test('the brush picker changes the shape the Terrain panel shows', async ({ page }) => {
+test('the brush picker changes the shape the sheet brush control shows', async ({ page }) => {
   await openRealm(page);
   await openFromPowers(page, 'Brushes');
   const dialog = page.getByRole('dialog', { name: 'Brushes', exact: true });
   await dialog.getByRole('radio', { name: 'Square', exact: true }).click();
   await expect(dialog.getByRole('radio', { name: 'Square', exact: true })).toHaveAttribute('aria-checked', 'true');
   await dialog.getByRole('button', { name: 'Done', exact: true }).click();
+  await openChip(page, 'Land');
+  await powerButton(page, 'Raise').click();
   await expect(page.locator('.shape[data-shape="square"]')).toHaveAttribute('aria-checked', 'true');
 });

@@ -23,7 +23,9 @@
     "node": "24.22.1"
   },
   "dependencies": {
-    "pixi.js": "8.22.0"
+    "@preact/signals": "2.11.4",
+    "pixi.js": "8.22.0",
+    "preact": "11.1.0"
   },
   "devDependencies": {
     "@playwright/test": "1.64.1",

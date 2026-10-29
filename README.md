@@ -12,6 +12,14 @@ Sandbox Realms is a free browser god game and world-building sandbox. Shape the 
 
 Development status: milestones 0 to 12 of `../BUILD-PLAN.md` are partly built: the engine, terrain, beings, combat, saves, settlements, dominions, culture and a first set of powers run in the game. Many spec items are still missing or unwired; `docs/spec-coverage.md` lists each one.
 
+## Controls
+
+- Tap the map to inspect a tile or a being. A tap on a being opens its card; Follow, Possess and More are on it.
+- Q opens the power sheet; 1 to 9 arm the recent powers; / searches the powers.
+- + and - zoom; arrows or WASD pan; Space or P pause; [ and ] change the brush; H hides the interface.
+- Esc closes the top layer (Atlas page, Atlas, card), or disarms the power.
+- J, K, L, U, T, Y and N control a possessed being. The Keys window and Settings list every key.
+
 ## Run
 
 ```bash

@@ -1,0 +1,85 @@
+/* The floating info card (InfoCard.tsx). Desktop: it floats above its being (--card-x / --card-y, written each frame).
+   Phones: a bottom sheet just above the power sheet. Glass surface from tokens.css. */
+.info-card {
+  position: fixed;
+  z-index: 30;
+  left: clamp(var(--space-2), var(--card-x, 50%), calc(100vw - var(--space-2)));
+  top: var(--card-y, 50%);
+  transform: translate(-50%, calc(-100% - var(--space-3)));
+  width: min(260px, calc(100vw - 2 * var(--space-2)));
+  box-sizing: border-box;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-l);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow);
+  color: var(--text);
+  font-size: var(--text-m);
+  pointer-events: auto;
+}
+
+.info-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.info-card-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.info-card-close {
+  min-width: var(--tap);
+  min-height: var(--tap);
+}
+
+.info-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.info-card-actions .btn {
+  min-height: var(--tap);
+  min-width: var(--tap);
+}
+
+.info-card-note {
+  margin: var(--space-2) 0 0;
+  color: var(--text-dim);
+  font-size: var(--text-s);
+}
+
+.info-card-facts {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-s);
+}
+
+.info-card-actions .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.info-card-gone .info-card-name {
+  color: var(--text-dim);
+}
+
+/* Phones: the card is a bottom sheet above the power sheet, not a float over the being. */
+@media (max-width: 599px) {
+  .info-card {
+    left: var(--gap);
+    right: var(--gap);
+    top: auto;
+    bottom: calc(var(--sheet-h, 0px) + var(--gap));
+    width: auto;
+    transform: none;
+  }
+}

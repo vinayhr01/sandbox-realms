@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from '@playwright/test';
+import { openWindowButton } from './helpers.ts';
 import { encodeChronicle } from '../../src/sim/chronicle.ts';
 import { generateRealm } from '../../src/sim/worldgen.ts';
 
@@ -20,8 +21,7 @@ function collectErrors(page: Page): string[] {
 }
 
 async function openChronicle(page: Page) {
-  await page.getByRole('tab', { name: 'Powers', exact: true }).click();
-  await page.getByRole('group', { name: 'Windows' }).getByRole('button', { name: 'Chronicle', exact: true }).click();
+  await openWindowButton(page, 'Chronicle');
   return page.getByRole('dialog', { name: 'Chronicle', exact: true });
 }
 

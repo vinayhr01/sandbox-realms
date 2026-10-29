@@ -66,22 +66,89 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--gap);
-  min-height: 48px;
-  padding: calc(env(safe-area-inset-top) + 4px) var(--gap) 4px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--surface-2);
+/* Shell (UX redesign, spec A): the pills and toasts draw over the map. Tokens live in src/ui/shell/tokens.css. */
+/* Above the map canvas, which is appended after this root. Toasts live outside #map (see #toast-root). */
+.ui-root {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
 }
 
-.realm-info {
+.top-pills {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + var(--space-2));
+  left: var(--space-2);
+  right: var(--space-2);
   display: flex;
-  align-items: baseline;
-  gap: var(--gap);
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-2);
+  pointer-events: none;
+}
+
+/* Zoom in and out, under the pills at the top right (UX redesign, spec D). */
+.zoom-stack {
+  position: absolute;
+  top: var(--shell-top);
+  right: var(--space-2);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  pointer-events: none;
+}
+
+.zoom-btn {
+  pointer-events: auto;
+  min-width: var(--tap);
+  min-height: var(--tap);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-m);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow);
+  color: var(--text);
+  font-size: calc(18px * var(--ui-scale));
+}
+
+.pill-end {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   min-width: 0;
+}
+
+.pill {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-l);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow);
+  color: var(--text);
+  font: inherit;
+  min-width: 0;
+}
+
+/* Without backdrop-filter the glass turns solid, so the text keeps its contrast. */
+@supports not (backdrop-filter: blur(1px)) {
+  .pill {
+    background: var(--surface);
+  }
+}
+
+.realm-pill {
+  cursor: pointer;
+  padding: var(--space-1) var(--space-3);
+  text-align: left;
 }
 
 .realm-name {
@@ -89,18 +156,55 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 14ch;
 }
 
-.calendar {
+.realm-stat {
   color: var(--text-dim);
+  font-size: var(--text-s);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
-.speed {
-  display: flex;
-  gap: 4px;
-  flex-wrap: nowrap;
+.speed-pill {
+  padding: 0 var(--space-1);
+  gap: 2px;
+}
+
+.speed-pill .btn {
+  background: transparent;
+  border-color: transparent;
+}
+
+.speed-pill .btn[aria-pressed='true'] {
+  background: var(--gold);
+  color: var(--gold-ink);
+  border-color: var(--gold);
+}
+
+.pill-button {
+  cursor: pointer;
+  padding: 0 var(--space-3);
+}
+
+/* Phones: the realm pill keeps the name and the year; the counts move to the Atlas. The speed pill and Settings take a row of their own. */
+@media (max-width: 599px) {
+  .realm-extra {
+    display: none;
+  }
+
+  .top-pills {
+    flex-wrap: wrap;
+  }
+
+  .pill-end {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+
+  .zoom-stack {
+    top: var(--shell-top-phone);
+  }
 }
 
 .map {
@@ -144,96 +248,7 @@ body {
   pointer-events: none;
 }
 
-.bottombar {
-  padding-bottom: env(safe-area-inset-bottom);
-  background: var(--surface);
-  border-top: 1px solid var(--surface-2);
-}
-
-.tabs {
-  display: flex;
-  gap: 4px;
-  padding: 4px var(--gap) 0;
-}
-
-.tab,
-.power-tab {
-  min-height: var(--tap);
-  padding: 0 14px;
-  border: 0;
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: transparent;
-  color: var(--text-dim);
-  font: inherit;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.power-tabs {
-  display: flex;
-  gap: 4px;
-  width: 100%;
-  overflow-x: auto;
-}
-
-.power-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  width: 100%;
-  max-height: 28vh;
-  overflow-y: auto;
-}
-
-.power {
-  min-height: var(--tap);
-  padding: 0 12px;
-  border: 1px solid var(--surface-2);
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  cursor: pointer;
-}
-
-.power[aria-disabled='true'] {
-  opacity: 0.55;
-}
-
-.power[aria-pressed='true'] {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
-  font-weight: 600;
-}
-
-.tab[aria-selected='true'],
-.power-tab[aria-selected='true'] {
-  background: var(--surface-2);
-  color: var(--text);
-  font-weight: 600;
-}
-
-.panel {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--gap);
-  padding: var(--gap);
-  background: var(--surface-2);
-}
-
-.tools,
-.shapes {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
-
-.tool,
-.shape,
-.btn,
-.power {
+.btn {
   min-height: var(--tap);
   min-width: var(--tap);
   padding: 0 14px;
@@ -245,8 +260,6 @@ body {
   cursor: pointer;
 }
 
-.tool[aria-pressed='true'],
-.shape[aria-checked='true'],
 .speed-btn[aria-pressed='true'],
 #pause[aria-pressed='true'] {
   background: var(--accent);
@@ -269,33 +282,9 @@ body {
 
 .speed-btn {
   padding: 0 8px;
-  min-width: 40px;
+  min-width: var(--tap);
 }
 
-.brush,
-.realm-size,
-.realm-advanced {
-  display: flex;
-  align-items: center;
-  gap: var(--gap);
-  flex-wrap: wrap;
-}
-
-.brush-size input[type='range'] {
-  width: min(180px, 40vw);
-  min-height: 28px;
-  accent-color: var(--accent);
-}
-
-.realm-size select {
-  min-height: var(--tap);
-  padding: 0 8px;
-  border-radius: var(--radius);
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--surface-2);
-  font: inherit;
-}
 
 .window {
   padding: 0;
@@ -543,42 +532,99 @@ body {
   text-decoration: line-through;
 }
 
+/* First-launch coach (UX redesign, spec E): the first card of the top-centre column, above the toasts. It is a hint, not a
+ * modal: the card passes taps through to the map (a tutorial step asks the player to act on the map), and only Skip takes them. */
 .coach {
-  position: absolute;
-  left: var(--gap);
-  right: var(--gap);
-  top: calc(var(--gap) + 36px);
+  pointer-events: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--gap);
-  padding: 6px 10px;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
-  pointer-events: none;
+  gap: var(--space-2);
+  width: min(360px, calc(100vw - 2 * var(--space-2)));
+  box-sizing: border-box;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-m);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow);
+  color: var(--text);
+}
+
+.coach-title {
+  margin: 0;
+  font-weight: 600;
+  font-size: calc(14px * var(--ui-scale));
 }
 
 .coach-text {
   margin: 0;
-  font-size: calc(14px * var(--ui-scale));
+  font-size: calc(13px * var(--ui-scale));
+  color: var(--text-dim);
 }
 
-.coach .btn {
+.coach-skip {
+  min-height: var(--tap);
+  flex: none;
   pointer-events: auto;
 }
 
-/* Possession pad (13 section 10 keys; touch buttons for the same controls). Shown only while a Being is held (possessControls.ts). */
+.discovery-list {
+  padding: var(--space-2) 0;
+}
+
+.discovery-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.discovery-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-m);
+  border: 1px solid var(--glass-border);
+}
+
+.discovery-item[data-state='locked'] {
+  color: var(--text-dim);
+}
+
+.discovery-text {
+  font-size: var(--text-s);
+}
+
+.toast-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+
+
+/* Possession pad (13 section 10 keys; touch buttons for the same controls). Shown only while a Being is held (possessControls.ts).
+   Bottom-left, above the power sheet (--sheet-h), so it never shares a corner with the minimap. */
 .possess-pad {
   position: absolute;
-  right: var(--gap);
-  bottom: var(--gap);
+  left: var(--gap);
+  bottom: calc(var(--sheet-h, 0px) + var(--gap));
   z-index: 2;
   display: grid;
   grid-template-columns: repeat(4, var(--tap));
   gap: 4px;
   padding: 4px;
-  border-radius: var(--radius);
-  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-m);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  box-shadow: var(--glass-shadow);
 }
 
 .possess-pad[hidden] {
@@ -591,20 +637,6 @@ body {
   padding: 0 4px;
   touch-action: none;
   user-select: none;
-}
-
-/* Window buttons: one scrolling row, so the Powers panel keeps its height as windows are added (13 section 3). */
-.power-actions {
-  display: flex;
-  justify-content: flex-start;
-  gap: 4px;
-  width: 100%;
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.power-actions > .btn {
-  flex: none;
 }
 
 .option {
@@ -638,13 +670,15 @@ body {
   font-size: calc(14px * var(--ui-scale));
 }
 
+/* Toasts sit in #toast-root, outside #map, so they paint above .audio-cues (z-index 9). */
 .toasts {
   position: fixed;
-  top: 56px;
+  top: var(--shell-top);
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 6px;
   pointer-events: none;
   z-index: 10;
@@ -652,12 +686,28 @@ body {
 
 .toast {
   zoom: var(--ui-scale-tooltips, 1);
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  background: var(--surface-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-m);
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
   color: var(--text);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--glass-shadow);
   font-size: calc(14px * var(--ui-scale));
+  animation: toast-in var(--dur) var(--ease-out);
+}
+
+.toast-new {
+  border-color: var(--gold);
+  color: var(--gold-hi);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
 }
 
 /* Visual sound cues (16 B9, A7): a caption line for stingers and screen-edge pulses for off-screen events. */
@@ -792,45 +842,6 @@ body {
   word-break: break-word;
 }
 
-/* Landscape phones and short windows: tool column on the right, map on the left (13 section 3.2). */
-@media (orientation: landscape) and (max-height: 500px) {
-  .app {
-    display: grid;
-    grid-template-columns: 1fr 240px;
-    grid-template-rows: auto 1fr;
-  }
-
-  .topbar {
-    grid-column: 1 / -1;
-  }
-
-  .map {
-    grid-column: 1;
-    grid-row: 2;
-  }
-
-  .bottombar {
-    grid-column: 2;
-    grid-row: 2;
-    min-height: 0;
-    overflow-y: auto;
-    border-top: 0;
-    border-left: 1px solid var(--surface-2);
-  }
-
-  .panel {
-    flex-direction: column;
-    align-items: stretch;
-  }
-}
-
-/* Tablet and desktop: the bottom stack stays a row of controls, the map keeps the rest. */
-@media (min-width: 900px) {
-  .bottombar .panel {
-    flex-wrap: nowrap;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
@@ -865,8 +876,10 @@ body {
 }
 
 /* Hide interface (realm rules: Hide Interface, key H). */
-.hide-ui .topbar,
-.hide-ui .bottombar {
+/* H hides the pills, the zoom buttons and the minimap; the map stays (spec G). The sheet hides in PowerSheet.css. */
+.hide-ui .top-pills,
+.hide-ui .zoom-stack,
+.hide-ui .minimap {
   display: none;
 }
 
@@ -1030,8 +1043,11 @@ html[data-reduce-motion] * {
   margin-right: auto;
 }
 
-.map > .status,
-.map > .coach,
+/* The shell (pills, sheet) paints above the minimap, which sits in the map corner. */
+.map > .ui-root {
+  z-index: 3;
+}
+
 .map > .debug {
   z-index: 2;
 }
@@ -1044,14 +1060,16 @@ html[data-reduce-motion] * {
   background: radial-gradient(ellipse at center, rgb(0 0 0 / 0) 55%, rgb(0 0 0 / 0.45) 100%);
 }
 
+/* Bottom-right, above the power sheet (--sheet-h). The glass frame matches the other shell surfaces. */
 .minimap {
   position: absolute;
   right: var(--gap);
-  bottom: var(--gap);
+  bottom: calc(var(--sheet-h, 0px) + var(--gap));
   z-index: 2;
   background: #000;
-  border: 1px solid rgb(255 255 255 / 0.35);
-  border-radius: var(--radius);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-m);
+  box-shadow: var(--glass-shadow);
   image-rendering: pixelated;
   touch-action: none;
   cursor: pointer;
@@ -1082,8 +1100,9 @@ html[data-reduce-motion] * {
   max-width: 200px;
 }
 
+/* The top-centre column holds the toasts, and the first-launch coach takes a slot in it (spec D). The ticker sits below. */
 .insight-ticker {
-  top: 8px;
+  top: calc(var(--shell-top) + var(--top-column-reserve, 4.5rem));
   left: 50%;
   transform: translateX(-50%);
   max-width: 80vw;

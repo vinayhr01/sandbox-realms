@@ -69,130 +69,11 @@
         <h1>Sandbox Realms: free browser god game sandbox</h1>
         <p>A free browser god game and world-building sandbox with mouse, touch and keyboard controls. Shape terrain, seed biomes, call weather and disasters, and watch about 90 creatures and six peoples build hamlets, form dominions, creeds and cultures, and wage campaigns.</p>
       </section>
-      <header class="topbar">
-        <div class="realm-info">
-          <span id="realm-name" class="realm-name">Realm</span>
-          <span id="calendar" class="calendar">Y1 M1</span>
-        </div>
-        <div class="speed" role="group" aria-label="Simulation speed">
-          <button id="pause" class="btn icon" type="button" aria-label="Pause" aria-pressed="false">&#10074;&#10074;</button>
-          <button class="btn speed-btn" type="button" data-speed="0.5" aria-pressed="false">x0.5</button>
-          <button class="btn speed-btn" type="button" data-speed="1" aria-pressed="true">x1</button>
-          <button class="btn speed-btn" type="button" data-speed="2" aria-pressed="false">x2</button>
-          <button class="btn speed-btn" type="button" data-speed="5" aria-pressed="false">x5</button>
-          <button class="btn speed-btn" type="button" data-speed="10" aria-pressed="false">x10</button>
-        </div>
-        <button id="settings-open" class="btn" type="button" aria-haspopup="dialog" aria-controls="options">Settings</button>
-      </header>
-
       <main id="map" class="map" aria-label="Realm map. Drag with an armed tool to paint; drag or pinch to move the camera.">
-        <div id="status" class="status" role="status" aria-live="polite">Tap the map to inspect a tile.</div>
-        <div id="coach" class="coach" hidden>
-          <p id="coach-text" class="coach-text"></p>
-          <button id="coach-skip" class="btn" type="button">Skip tutorial</button>
-        </div>
+        <div id="ui-root" class="ui-root"></div>
         <div id="debug" class="debug" hidden></div>
       </main>
 
-      <nav class="bottombar" aria-label="Powers">
-        <div class="tabs" role="tablist">
-          <button id="tab-terrain" class="tab" type="button" role="tab" aria-selected="true" aria-controls="panel-terrain" data-tab="terrain">Terrain</button>
-          <button id="tab-realm" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-realm" data-tab="realm">Realm</button>
-          <button id="tab-powers" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-powers" data-tab="powers">Powers</button>
-        </div>
-
-        <section id="panel-terrain" class="panel" role="tabpanel" aria-labelledby="tab-terrain">
-          <div class="tools" role="group" aria-label="Terrain tools">
-            <button class="tool" type="button" data-tool="inspect" aria-pressed="true">Inspect</button>
-            <button class="tool" type="button" data-tool="raise" aria-pressed="false">Raise</button>
-            <button class="tool" type="button" data-tool="lower" aria-pressed="false">Lower</button>
-          </div>
-          <div class="brush" role="group" aria-label="Brush">
-            <label class="brush-size">
-              <span>Size</span>
-              <input id="brush-size" type="range" min="0" max="10" step="1" value="5" />
-              <output id="brush-size-out" for="brush-size">5</output>
-            </label>
-            <div class="shapes" role="radiogroup" aria-label="Brush shape">
-              <button class="shape" type="button" role="radio" data-shape="circle" aria-checked="true">Circle</button>
-              <button class="shape" type="button" role="radio" data-shape="square" aria-checked="false">Square</button>
-              <button class="shape" type="button" role="radio" data-shape="diamond" aria-checked="false">Diamond</button>
-            </div>
-          </div>
-        </section>
-
-        <section id="panel-realm" class="panel" role="tabpanel" aria-labelledby="tab-realm" hidden>
-          <label class="realm-size">
-            <span>Size</span>
-            <select id="realm-size">
-              <option value="3">Small (192)</option>
-              <option value="4" selected>Standard (256)</option>
-              <option value="5">Large (320)</option>
-              <option value="8">Colossal (512)</option>
-              <!-- Titan (01 section 1): behind the Advanced toggle and desktop only; main.ts enables it. -->
-              <option value="9" hidden disabled>Titan (576)</option>
-            </select>
-          </label>
-          <label class="realm-advanced">
-            <input id="realm-advanced" type="checkbox" />
-            <span>Advanced (Titan, desktop only)</span>
-          </label>
-          <button id="new-realm" class="btn primary" type="button">New Realm</button>
-        </section>
-
-        <section id="panel-powers" class="panel" role="tabpanel" aria-labelledby="tab-powers" hidden>
-          <div id="power-tabs" class="power-tabs" role="tablist" aria-label="Power groups"></div>
-          <div id="power-list" class="power-list" role="group" aria-label="Powers"></div>
-          <div class="power-actions" role="group" aria-label="Windows">
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_power_catalogue">All powers</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_trophies">Achievements</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_realm">Realm overview</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_new_realm">New realm</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_tutorial">Tutorial</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_keys">Keys</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_privacy">Privacy</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_chronicle">Chronicle</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_help">Help</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_population">Population</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_beings">Beings</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_figures">Figures</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_stats_lifetime">Lifetime stats</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_codex">Codex</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_dominions">Dominions</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_hamlets">Hamlets</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_culture">Culture</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_campaigns">Campaigns</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_creeds">Creeds</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_customs">Customs</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_dialects">Dialects</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_households">Families</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_intrigues">Intrigues</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_strains">Strains</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_brushes">Brushes</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_language">Language</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_credits">Credits</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_install">Install</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_welcome">Welcome</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_hosts">Armies</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_pacts">Pacts</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_kinbands">Clans</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_fav_beings">Favourite beings</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="list_fav_items">Favourite items</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_compare">Compare</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_annals">Annals</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_trait_rain_edit">Trait rain</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_item_rain_edit">Item rain</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_trait_editor">Trait editor</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_gear_editor">Gear editor</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_patch_notes">Patch notes</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_error">Error details</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_confirm_quit">Leave realm</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_update">Update</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_dev_console">Developer console</button>
-            <button class="btn" type="button" aria-haspopup="dialog" data-window="win_dev_tools">Developer tools</button>
-          </div>
-        </section>
-      </nav>
     </div>
 
     <dialog id="window" class="window" aria-labelledby="window-title">
@@ -202,11 +83,12 @@
           <button id="window-close" class="btn icon" type="button" aria-label="Close window">&#10005;</button>
         </header>
         <div id="window-body" class="window-body"></div>
-        <p class="option-note">Saved on this device.</p>
       </div>
     </dialog>
 
-    <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+    <div id="atlas-root"></div>
+
+    <div id="toast-root"></div>
 
     <div id="fatal" class="fatal" role="alertdialog" aria-modal="true" aria-labelledby="fatal-title" hidden>
       <div class="fatal-card">

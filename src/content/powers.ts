@@ -409,7 +409,3 @@ export const POWERS: readonly PowerDef[] = [
 ];
 
 export const POWER_BY_ID = new Map(POWERS.map((p) => [p.id, p]));
-
-export function powersInTab(tab: TabId): PowerDef[] {
-  return POWERS.filter((p) => p.tab === tab);
-}

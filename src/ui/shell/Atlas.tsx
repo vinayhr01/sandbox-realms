@@ -274,7 +274,7 @@ function AtlasCard({ store, actions, deps }: AtlasProps) {
                     id={`atlas-tab-${tab}`}
                     class="atlas-tab"
                     aria-selected={selected ? 'true' : 'false'}
-                    aria-controls="atlas-panel"
+                    aria-controls={`atlas-panel-${tab}`}
                     tabIndex={selected ? 0 : -1}
                     onClick={() => {
                       store.atlas.value = { ...store.atlas.value, tab };
@@ -285,18 +285,33 @@ function AtlasCard({ store, actions, deps }: AtlasProps) {
                 );
               })}
             </div>
-            <div role="tabpanel" id="atlas-panel" class="atlas-panel" aria-labelledby={`atlas-tab-${state.tab}`}>
+            <div role="tabpanel" id={`atlas-panel-${state.tab}`} class="atlas-panel" aria-labelledby={`atlas-tab-${state.tab}`}>
               {state.tab === 'settings' ? (
                 <SettingsPanel deps={deps} onDone={() => closeAtlas(store)} />
               ) : (
                 <>
+                  {state.tab === 'world' ? (
+                    <label class="option option-check atlas-hide">
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        checked={store.hidden.value}
+                        onChange={(e) => {
+                          // Hiding closes the Atlas, so the map is clear. The restore button on the map brings the interface back.
+                          store.hidden.value = e.currentTarget.checked;
+                          if (e.currentTarget.checked) closeAtlas(store);
+                        }}
+                      />
+                      <span>Hide interface</span>
+                    </label>
+                  ) : null}
                   {state.tab === 'discoveries' ? <DiscoveryList store={store} /> : null}
                   <div class="atlas-sections">
-                  {sectionsOf(state.tab).map((w) => (
-                    <button key={w.id} type="button" class="atlas-section" data-section={w.id} onClick={() => actions.openWindow(w.id)}>
-                      {w.title}
-                    </button>
-                  ))}
+                    {sectionsOf(state.tab).map((w) => (
+                      <button key={w.id} type="button" class="atlas-section" data-section={w.id} onClick={() => actions.openWindow(w.id)}>
+                        {w.title}
+                      </button>
+                    ))}
                   </div>
                 </>
               )}

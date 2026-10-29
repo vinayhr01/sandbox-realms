@@ -26,8 +26,16 @@ test('first launch: the three starter chips and the coach', async ({ page }) => 
   await expect(page.getByRole('tab', { name: 'Land' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Nature' })).toBeVisible();
   await expect(page.getByRole('tab', { name: 'Creatures' })).toBeVisible();
-  await expect(page.getByRole('tab', { name: 'Peoples' })).toHaveCount(0);
   await expect(page.locator('.coach')).toBeVisible();
+  // Seed 42 can grow a hamlet within the first snapshots, so Peoples shows exactly when "first-town" is found.
+  await expect
+    .poll(async () => {
+      const found = await page.evaluate(
+        () => (JSON.parse(localStorage.getItem('sr.discovery.v1') ?? '{}') as { found?: string[] }).found ?? [],
+      );
+      return (await page.getByRole('tab', { name: 'Peoples' }).count()) === (found.includes('first-town') ? 1 : 0);
+    })
+    .toBe(true);
 });
 
 test('a discovery brings its chip forward with one New card, and the chip survives a reload', async ({ page }) => {

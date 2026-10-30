@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { collapsePowerSheet, openChip, powerButton } from './helpers.ts';
+import { collapsePowerSheet, openChip, powerButton, settleFirstTown } from './helpers.ts';
 
 /**
  * Smoke tests for every layout class in PLATFORM-REQUIREMENTS section 6. They drive the real
@@ -31,6 +31,8 @@ async function openRealm(page: Page): Promise<Hook> {
   await page.goto('/?seed=42&size=4');
   await page.waitForFunction(() => Boolean((window as unknown as { __sr?: unknown }).__sr));
   await expect(page.locator('#realm-name')).toContainText('Realm');
+  // Seed 42 can grow its first hamlet mid-test on fast runners, which re-lays the chips and pushes a toast; settle it first.
+  await settleFirstTown(page);
   // Error list is checked by each test through the closure below.
   (page as unknown as { __errors: string[] }).__errors = errors;
   return sr(page);

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { powerButton } from './helpers.ts';
+import { powerButton, settleFirstTown } from './helpers.ts';
 
 /**
  * Keyboard-only walkthrough (UX redesign, spec H, Task 8): the sheet, the chip tablist and a power, the Atlas, its tabs,
@@ -10,6 +10,8 @@ async function openRealm(page: Page): Promise<void> {
   await page.goto('/?seed=42&size=4');
   await page.waitForFunction(() => Boolean((window as unknown as { __sr?: unknown }).__sr));
   await expect(page.locator('#realm-name')).toContainText('Realm');
+  // Seed 42 can grow its first hamlet mid-test on fast runners, which brings Peoples forward and re-lays the chips; settle it first.
+  await settleFirstTown(page);
 }
 
 test('keyboard only: sheet, chip tablist, arm, Atlas tabs, settings search, Esc', async ({ page }) => {

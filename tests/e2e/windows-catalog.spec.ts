@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openChip, openWindowButton, powerButton } from './helpers.ts';
+import { openChip, openWindowButton, powerButton, settleFirstTown } from './helpers.ts';
 
 /**
  * Every window added for the spec table (13 section 7.1): each opens from the Powers tab with a
@@ -30,6 +30,8 @@ async function openRealm(page: Page): Promise<void> {
   await page.goto('/?seed=42&size=4');
   await page.waitForFunction(() => Boolean((window as unknown as { __sr?: unknown }).__sr));
   await expect(page.locator('#realm-name')).toContainText('Realm');
+  // Seed 42 can grow its first hamlet mid-test on fast runners, which re-lays the chips and pushes a toast; settle it first.
+  await settleFirstTown(page);
   (page as unknown as { __errors: string[] }).__errors = errors;
 }
 

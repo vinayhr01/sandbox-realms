@@ -75,3 +75,19 @@ export async function openConfirmation(page: Page, kind: string): Promise<void> 
     kind,
   );
 }
+
+/**
+ * Settles the "first-town" discovery up front. The test world (`/?seed=42&size=4`) can grow its first hamlet within the
+ * first snapshots on a fast runner, which brings the Peoples chip forward, re-lays the chip tablist and pushes a "New"
+ * toast. A test that is not about first launch forces it right after load, so nothing moves mid-test.
+ */
+export async function settleFirstTown(page: Page): Promise<void> {
+  await page.evaluate(() => (window as unknown as { __sr: { forceDiscovery: (id: string) => void } }).__sr.forceDiscovery('first-town'));
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => ((JSON.parse(localStorage.getItem('sr.discovery.v1') ?? '{}') as { found?: string[] }).found ?? []).includes('first-town'),
+      ),
+    )
+    .toBe(true);
+}

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openAtlasTab, openChip, openWindowButton, powerButton } from './helpers.ts';
+import { openAtlasTab, openChip, openWindowButton, powerButton, settleFirstTown } from './helpers.ts';
 
 /**
  * Windows and the first-run tutorial (13 section 7, 15, 17): the Realm Rules toggles reach the sim,
@@ -95,6 +95,8 @@ test('Tutorial: the coach shows the first step, and skipping keeps it hidden aft
 
 test('All powers: the catalogue filters to available powers and a tap arms one', async ({ page }) => {
   await openRealm(page);
+  // The Disasters chip sits under More, which a mid-test first-town discovery re-lays; settle it first.
+  await settleFirstTown(page);
   await openWindowButton(page, 'Power catalogue');
   const dialog = page.getByRole('dialog', { name: 'Power catalogue' });
   await expect(dialog).toBeVisible();

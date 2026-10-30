@@ -3,7 +3,7 @@ import { openAtlasTab, settleFirstTown } from './helpers.ts';
 
 /**
  * The 3D/2D view choice (spec "Renderer choice"). The Playwright config pins the saved view to 2d, so these specs opt
- * into 3D with ?view=3d. Part 1's 3D renderer is not built yet, so 3D always falls back to 2D here.
+ * into 3D with ?view=3d. The fallback test makes 3D fail by refusing to serve the render3d chunk.
  */
 
 async function openWorld(page: Page, path: string): Promise<void> {
@@ -13,6 +13,7 @@ async function openWorld(page: Page, path: string): Promise<void> {
 }
 
 test('falls back to 2D when 3D fails, and says so in a toast', async ({ page }) => {
+  await page.route(/render3d-[^/]*\.js$/, (route) => route.abort());
   await openWorld(page, '/?view=3d&seed=42&size=4');
   await expect(page.getByText('3D view unavailable, showing 2D.', { exact: true })).toBeVisible();
   const kind = await page.evaluate(() => (window as unknown as { __sr: { rendererKind(): string } }).__sr.rendererKind());

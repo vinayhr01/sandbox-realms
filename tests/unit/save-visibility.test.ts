@@ -323,3 +323,17 @@ describe('a late result still reaches the window', () => {
     expect(late).toHaveBeenCalledWith({ ok: true, message: 'Saved slot 1.' });
   });
 });
+
+describe('forced suspend save', () => {
+  it('writes inside the throttle window when forced (the View switch reload), and skips when not', async () => {
+    const service = await memService();
+    let captures = 0;
+    const c = new SaveController(() => Promise.resolve(service), source(() => (captures++, okCapture())));
+    await c.suspend();
+    expect(captures).toBe(1);
+    await c.suspend();
+    expect(captures).toBe(1);
+    await c.suspend(true);
+    expect(captures).toBe(2);
+  });
+});

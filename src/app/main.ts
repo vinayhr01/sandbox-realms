@@ -1826,7 +1826,7 @@ async function boot(): Promise<void> {
       writeSavedView(safeStorage(), value === '2d' ? '2d' : '3d');
       const next = new URL(location.href);
       next.searchParams.delete('view');
-      void saveController.suspend().finally(() => location.assign(next.toString()));
+      void saveController.suspend(true).finally(() => location.assign(next.toString()));
       return;
     }
     if (id === 'privacy.errorReports') setCrashConsent(consentFromOption(stringOption(options, 'privacy.errorReports')));

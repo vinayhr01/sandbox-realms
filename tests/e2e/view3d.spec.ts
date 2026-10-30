@@ -59,7 +59,7 @@ function commandCount(page: Page): Promise<number> {
 
 /** The screen centre of the WebGL canvas, in page pixels. */
 async function canvasCentre(page: Page): Promise<{ x: number; y: number }> {
-  const box = await page.locator('.map canvas').boundingBox();
+  const box = await page.locator('.map canvas[data-engine]').boundingBox();
   if (!box) throw new Error('the map canvas has no box');
   return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
 }

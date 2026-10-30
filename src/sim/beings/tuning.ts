@@ -57,9 +57,23 @@ export const ROUND6 = {
   sleepMax: 1200,
   /** Sleep with no sleep-cycle trait (06 section 5, stated 400). */
   sleepPlain: 400,
-  /** Monophasic sleep range (06 section 5, stated 800 to 1800). */
-  monoMin: 800,
-  monoMax: 1800,
+  /**
+   * Day and night (spec 2026-10-30, calls 1, 5 and 8; all TUNE). A monophasic sleep lasts until the Being's wake phase
+   * (dawn for diurnal, dusk for nocturnal), within its sleep window: 70 ticks of night, or 110 ticks of day for a nocturnal
+   * Being (a 70 cap would wake it at midday).
+   */
+  nightWindow: 70,
+  dayWindow: 110,
+  /** Naps and polyphasic sleep are scaled to at most a quarter day (50 ticks). */
+  napMax: 50,
+  /** Mean old sleep length per kind, used to scale rewards: a sleep of the mean length gives the old reward (TUNE). */
+  monoOldMean: 1300,
+  napOldMean: 800,
+  /** Night hunting: flesh eaters' hunt range, and a nocturnal predator's bite (TUNE). */
+  nightHuntRange: 1.5,
+  nightBite: 1.25,
+  /** Hamlet job output at night (TUNE): a Folk's work is slower in the dark; one unit per worker still comes out. */
+  nightWork: 0.3,
   /** Share of max endurance restored on natural wake-up (06 section 5, stated 20%). */
   sleepEndurance: 0.2,
   /** Tiles within which a hunter makes a Being flee; also the "not safe" radius (07 section 3.3, TUNE). */

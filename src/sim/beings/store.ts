@@ -67,6 +67,11 @@ export class BeingStore {
   readonly sleepUntil: Uint32Array;
   /** Vitality seen at the last sleep check; a drop below it ends sleep early (06 section 5). */
   readonly sleepVit: Int16Array;
+  /**
+   * Length of the current sleep as a share of the old mean length, in thousandths (day and night spec, call 1). Scales the
+   * wake reward. Runtime only, not in the chronicle: a Being asleep at a load has 0 here, which reads as a full share.
+   */
+  readonly sleepShare: Uint16Array;
   /** Bond partner slot and its generation at bond time; -1 when unbonded (round 6 bonds, 06 section 4.4). */
   readonly bondWith: Int32Array;
   readonly bondGen: Uint32Array;
@@ -154,6 +159,7 @@ export class BeingStore {
     this.endurance = new Uint16Array(capacity);
     this.sleepUntil = new Uint32Array(capacity);
     this.sleepVit = new Int16Array(capacity);
+    this.sleepShare = new Uint16Array(capacity);
     this.bondWith = new Int32Array(capacity).fill(-1);
     this.bondGen = new Uint32Array(capacity);
     this.closeWith = new Int32Array(capacity).fill(-1);
@@ -228,6 +234,7 @@ export class BeingStore {
     this.endurance[slot] = 0;
     this.sleepUntil[slot] = 0;
     this.sleepVit[slot] = vit;
+    this.sleepShare[slot] = 0;
     this.bondWith[slot] = -1;
     this.closeWith[slot] = -1;
     this.closeSince[slot] = 0;

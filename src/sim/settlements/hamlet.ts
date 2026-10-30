@@ -1,6 +1,8 @@
 import { G, ground } from '../../content/grounds.ts';
 import { PARCEL } from '../../shared/constants.ts';
+import { isNight } from '../../shared/daytime.ts';
 import type { Rng } from '../../shared/rng.ts';
+import { ROUND6 } from '../beings/tuning.ts';
 import type { Realm } from '../realm.ts';
 import { BUILDING_BY_ID, type BuildingDef } from './catalogue.ts';
 import {
@@ -776,7 +778,9 @@ export function hamletStep(ctx: HamletContext, h: Hamlet): void {
     soldierLimit: ctx.soldierLimit?.() ?? 0,
   };
   const work = ctx.workforce ?? { adults: h.folk, children: 0, leaders: 0, childLabour: false };
-  runJobs(ctx, h, assignJobs(h, counts, work), workMultiplier(hamletMood(h)), cap, targets);
+  // Day and night spec, call 8: village work is slower in the dark.
+  const night = isNight(ctx.tick) ? ROUND6.nightWork : 1;
+  runJobs(ctx, h, assignJobs(h, counts, work), workMultiplier(hamletMood(h)) * night, cap, targets);
   h.steps += 1;
   if (h.steps % OUTCROP_REGROW_STEPS === 0 && h.outcrops < OUTCROP_CAP) h.outcrops += 1;
 }

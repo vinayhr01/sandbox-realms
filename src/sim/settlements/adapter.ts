@@ -504,7 +504,7 @@ function hubMood(host: SettlementHost): void {
 }
 
 /** The dominion holding most of a hamlet's parcels (ties to the lower id), or UNOWNED when none holds one. */
-function majorityOwner(owner: Uint8Array, h: Hamlet): number {
+export function majorityOwner(owner: Uint8Array, h: Hamlet): number {
   const counts = new Map<number, number>();
   for (const p of h.parcels) {
     const o = owner[p] ?? UNOWNED;

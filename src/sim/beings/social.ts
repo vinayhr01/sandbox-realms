@@ -8,6 +8,7 @@ import { STRAIN_TRAIT_BY_ID } from '../../content/traits.ts';
 import type { Rng } from '../../shared/rng.ts';
 import type { Sim } from '../sim.ts';
 import { YEAR_TICKS } from '../../shared/constants.ts';
+import { DAWN_START, DUSK_START, ticksUntilPhase } from '../../shared/daytime.ts';
 import { ROUND6, ROUND8, ROUND9 } from './tuning.ts';
 import { breedMode, dreamsAlways, needsPartner, recoversFully, sleepScale, wakeEnduranceScale } from './trait-hooks.ts';
 
@@ -51,19 +52,26 @@ function hasSleepCycle(traits: readonly string[]): boolean {
   return traits.some((id) => STRAIN_TRAIT_BY_ID.get(id)?.group === 'SLP');
 }
 
+/** Whether the Being's species is nocturnal (content/beasts.ts `nocturnal`): it sleeps by day and is active at night. */
+export function isNocturnal(sim: Sim, slot: number): boolean {
+  return sim.beings.species(sim.beings.store.species[slot] ?? 0).nocturnal;
+}
+
 /**
- * Length of a sleep in ticks (06 section 5): monophasic 800 to 1800; a strain with no sleep-cycle trait 400;
- * otherwise uniform 400 to 1200. The era-linked durations (2000) are not built: no era-to-trait mapping
- * exists in the data.
+ * Length of a sleep in ticks (day and night spec, calls 1 and 8). A monophasic sleep lasts until the Being's wake phase
+ * (dawn for diurnal, dusk for nocturnal), capped at its sleep window. Naps and polyphasic sleep are the old draw scaled
+ * to at most 50 ticks. A strain with no sleep-cycle trait gives the plain length. Trait hooks scale the result.
  */
 export function sleepTicks(sim: Sim, slot: number, kind: SleepKind, rng: Rng): number {
   let ticks: number;
   if (kind === 'mono') {
-    ticks = ROUND6.monoMin + rng.int(ROUND6.monoMax - ROUND6.monoMin + 1);
+    const nocturnal = isNocturnal(sim, slot);
+    const window = nocturnal ? ROUND6.dayWindow : ROUND6.nightWindow;
+    ticks = Math.min(window, ticksUntilPhase(sim.tick, nocturnal ? DUSK_START : DAWN_START));
   } else {
     const strain = sim.beings.strains.get(sim.beings.store.strain[slot] ?? 0);
-    ticks =
-      !strain || !hasSleepCycle(strain.traits) ? ROUND6.sleepPlain : ROUND6.sleepMin + rng.int(ROUND6.sleepMax - ROUND6.sleepMin + 1);
+    const base = !strain || !hasSleepCycle(strain.traits) ? ROUND6.sleepPlain : ROUND6.sleepMin + rng.int(ROUND6.sleepMax - ROUND6.sleepMin + 1);
+    ticks = Math.round((base * ROUND6.napMax) / ROUND6.sleepMax);
   }
   // Round 8 trait hooks: `unquiet` sleeps less, `long_sleeper` sleeps longer (18b).
   return Math.max(1, Math.round(ticks * sleepScale(sim, slot)));
@@ -73,9 +81,11 @@ export function sleepTicks(sim: Sim, slot: number, kind: SleepKind, rng: Rng): n
  * The dream roll of a natural wake (06 section 5): a 23-entry pot with one good dream (+15), one bad dream (-15),
  * one nightmare (-30) and twenty empty rolls. The 1800-tick dream effect is not built; the mood event is applied at
  * the wake. `dream_gland` makes every sleeper dream: good or bad, one fair roll (18b COG, mood +/-15).
+ * A short sleep (share below 1, day and night spec call 1) rolls for a dream only that share of the time.
  */
-function dream(sim: Sim, slot: number): void {
+function dream(sim: Sim, slot: number, share: number): void {
   const rng = sim.rng('beings');
+  if (share < 1 && rng.next() >= share) return;
   if (dreamsAlways(sim, slot)) {
     addMood(sim, slot, rng.next() < 0.5 ? 'good_dream' : 'bad_dream');
     return;
@@ -89,8 +99,10 @@ function dream(sim: Sim, slot: number): void {
 /** Starts a sleep (06 section 5). The Being stops deciding and moving until it wakes. */
 export function beginSleep(sim: Sim, slot: number, kind: SleepKind): void {
   const s = sim.beings.store;
-  s.sleepUntil[slot] = sim.tick + sleepTicks(sim, slot, kind, sim.rng('beings'));
+  const ticks = sleepTicks(sim, slot, kind, sim.rng('beings'));
+  s.sleepUntil[slot] = sim.tick + ticks;
   s.sleepVit[slot] = s.vit[slot] ?? 0;
+  s.sleepShare[slot] = Math.round((1000 * ticks) / (kind === 'mono' ? ROUND6.monoOldMean : ROUND6.napOldMean));
   sim.beings.stats.sleeps++;
 }
 
@@ -111,15 +123,18 @@ export function sleepCheck(sim: Sim, slot: number): boolean {
   s.sleepVit[slot] = vit;
   if (sim.tick < (s.sleepUntil[slot] ?? 0)) return true;
   s.sleepUntil[slot] = 0;
+  // The reward scales with the sleep's length (day and night spec, call 1). A sleep of the old mean length gives the old
+  // reward. A Being asleep at a load has no recorded share, which reads as a full share.
+  const share = (s.sleepShare[slot] ?? 0) > 0 ? (s.sleepShare[slot] ?? 0) / 1000 : 1;
   const max = sim.beings.species(s.species[slot] ?? 0).endurance;
   if (recoversFully(sim, slot)) {
-    s.endurance[slot] = max;
+    s.endurance[slot] = Math.min(max, (s.endurance[slot] ?? 0) + Math.round(max * share));
   } else {
-    const gain = Math.round(max * ROUND6.sleepEndurance * wakeEnduranceScale(sim, slot));
+    const gain = Math.round(max * ROUND6.sleepEndurance * wakeEnduranceScale(sim, slot) * share);
     s.endurance[slot] = Math.min(max, (s.endurance[slot] ?? 0) + gain);
   }
-  addMood(sim, slot, 'slept');
-  dream(sim, slot);
+  addMood(sim, slot, 'slept', Math.round(MOOD_VALUE.slept * (share - 1)));
+  dream(sim, slot, share);
   return false;
 }
 

@@ -65,7 +65,8 @@ export class Lighting3D implements Layer3D {
   private ctx: Layer3DContext | null = null;
   private readonly clock = new DayClock();
   private readonly hemi = new THREE.HemisphereLight(0xbcd6ea, GROUND_COLOUR, 0.65);
-  private readonly sun = new THREE.DirectionalLight(0xffffff, 0.9);
+  /** Named so the sea mirror (terrain3d.ts) can follow it without importing this module. */
+  private readonly sun = Object.assign(new THREE.DirectionalLight(0xffffff, 0.9), { name: 'sun' });
   private readonly moon = new THREE.DirectionalLight(MOON_COLOUR, 0);
   private readonly cursor = new THREE.PointLight(0xffe2a0, 0, 8);
   private readonly glowMat = new THREE.PointsMaterial({

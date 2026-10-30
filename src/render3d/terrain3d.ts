@@ -226,6 +226,9 @@ export class Terrain3D implements Layer3D {
 
   frame(input: FrameInput, ctx: Layer3DContext): void {
     this.ctx = ctx;
+    // The sea mirror's glint follows the lighting layer's sun (named 'sun' in lighting3d.ts).
+    const sun = ctx.scene.getObjectByName('sun') as THREE.DirectionalLight | undefined;
+    if (sun) this.setSunDirection(sun.position.x - sun.target.position.x, sun.position.y - sun.target.position.y, sun.position.z - sun.target.position.z);
     this.detailMedium = !input.degradedOff.has('map.terrainMedium');
     this.detailClose = !input.degradedOff.has('map.terrainClose');
     const reflect = !input.degradedOff.has('map3d.waterReflect');

@@ -159,7 +159,7 @@ export class Renderer3D implements WorldRenderer {
     this.canvas.style.width = '100%';
     this.canvas.style.height = '100%';
     try {
-      this.gl = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: false, preserveDrawingBuffer: true });
+      this.gl = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, preserveDrawingBuffer: true });
     } catch (err) {
       this.canvas.remove();
       throw err;

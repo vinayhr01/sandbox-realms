@@ -156,6 +156,8 @@ function ctxFor(field: HeightField): { ctx: Layer3DContext; scene: THREE.Scene }
     field,
     renderer: {} as THREE.WebGLRenderer,
     toScreen: () => null,
+    buildings: () => [],
+    boats: () => [],
   } as Layer3DContext;
   return { ctx, scene };
 }

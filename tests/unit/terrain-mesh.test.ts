@@ -29,7 +29,7 @@ function harness(side: number, elev = 100) {
   const f = field(side, elev);
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera();
-  const ctx = { scene, camera, field: f, renderer: {} as THREE.WebGLRenderer, toScreen: () => null };
+  const ctx = { scene, camera, field: f, renderer: {} as THREE.WebGLRenderer, toScreen: () => null, buildings: () => [], boats: () => [] };
   const layer = new Terrain3D();
   layer.init(ctx);
   return { f, scene, layer };

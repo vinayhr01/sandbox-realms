@@ -224,6 +224,18 @@ body {
   touch-action: none;
 }
 
+/* 3D vignette (map.vignette), a CSS overlay instead of a GPU pass (renderer3d.ts). Taps pass through it. */
+.vignette3d {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.45) 100%);
+}
+
+.vignette3d[hidden] {
+  display: none;
+}
+
 /* 3D ground walk stick, bottom left over the map (touch only; shown by joystick.ts). 44 px or more is the touch target. */
 .joystick {
   position: absolute;

@@ -29,6 +29,11 @@ const SHAPE_CODE: Record<BrushShape, number> = { circle: 0, square: 1, diamond: 
 const RING_WIDTH = 0.06;
 /** The sea mirror's tint and wave strength. */
 const SEA_COLOUR = 0x1f86c8;
+/**
+ * The mirror redraws the whole scene, which doubled the frame cost (measured 650 vs 290 ms in software GL). From higher
+ * than this many tiles above the sea the tilted view barely shows a reflection, so a lit plain sea is drawn instead.
+ */
+const SEA_MIRROR_MAX_HEIGHT = 40;
 /** Default sun direction for the sea mirror, from the surface towards the sun. The sky sets it with setSunDirection. */
 const DEFAULT_SUN = new THREE.Vector3(0.5, 0.7, 0.3).normalize();
 
@@ -85,7 +90,7 @@ const WATER_FRAG_WAVE = `#include <color_fragment>
 const WATER_FRAG_SHEEN = `#include <emissivemap_fragment>
   float fres = 1.0 - clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0);
   totalEmissiveRadiance += vec3(0.45, 0.65, 0.9) * pow(fres, 3.0) * 0.5 * (1.0 - vGlow);
-  totalEmissiveRadiance += vColor * vGlow * 0.9;`;
+  totalEmissiveRadiance += vColor.rgb * vGlow * 0.9;`;
 
 interface ChunkMeshes {
   cx: number;
@@ -160,6 +165,9 @@ export class Terrain3D implements Layer3D {
   private reflect = true;
   private fine = true;
   private sea: Water | null = null;
+  /** The cheap sea (same geometry, lit, no mirror) drawn when the camera is high. */
+  private seaPlain: THREE.Mesh | null = null;
+  private readonly seaPlainMaterial = new THREE.MeshStandardMaterial({ color: SEA_COLOUR, roughness: 0.35, metalness: 0.1 });
   private normalTex: THREE.Texture | null = null;
   private readonly sunDir = DEFAULT_SUN.clone();
   private readonly uniforms = {
@@ -261,6 +269,9 @@ export class Terrain3D implements Layer3D {
     this.sea?.geometry.dispose();
     this.sea?.material.dispose();
     this.sea = null;
+    this.seaPlain?.removeFromParent();
+    this.seaPlain = null;
+    this.seaPlainMaterial.dispose();
     this.normalTex?.dispose();
     this.normalTex = null;
     this.material.dispose();
@@ -313,6 +324,7 @@ export class Terrain3D implements Layer3D {
     const sg = this.reflect ? buildSeaGeometry(this.ctx.field) : null;
     if (!sg) {
       this.sea?.removeFromParent();
+      this.seaPlain?.removeFromParent();
       return;
     }
     const geometry = new THREE.BufferGeometry();
@@ -338,12 +350,25 @@ export class Terrain3D implements Layer3D {
     }
     this.sea.position.set(0, sg.planeY, 0);
     this.ctx.scene.add(this.sea);
+    if (!this.seaPlain) {
+      this.seaPlain = new THREE.Mesh(geometry, this.seaPlainMaterial);
+      this.seaPlain.name = 'sea-plain';
+    } else {
+      this.seaPlain.geometry = geometry;
+    }
+    this.seaPlain.position.set(0, sg.planeY, 0);
+    this.ctx.scene.add(this.seaPlain);
   }
 
   /** Per frame: the mirror's clock and sun. Waves move on the real clock, not the sim's. */
   private tickSea(): void {
     this.waterUniforms.uTime.value = performance.now() / 1000;
     if (!this.sea) return;
+    // The mirror only near the water; the plain sea from higher up (SEA_MIRROR_MAX_HEIGHT).
+    const camY = this.ctx?.camera.position.y ?? 0;
+    const near = camY - this.sea.position.y < SEA_MIRROR_MAX_HEIGHT;
+    this.sea.visible = near;
+    if (this.seaPlain) this.seaPlain.visible = !near;
     const u = this.sea.material.uniforms;
     if (u['time']) u['time'].value = performance.now() / 1000;
     if (u['sunDirection']) (u['sunDirection'].value as THREE.Vector3).copy(this.sunDir);

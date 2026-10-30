@@ -151,6 +151,8 @@ export class Renderer3D implements WorldRenderer {
   private readonly callbacks: Array<(dtMs: number) => void> = [];
   private buildings: readonly MapBuilding[] = [];
   private boats: readonly MapBoat[] = [];
+  /** `map.vignette` as a CSS overlay: a composer pass for it cost ~6x a frame in software GL (post3d.ts). */
+  private readonly vignette = document.createElement('div');
 
   constructor(host: HTMLElement) {
     this.host = host;
@@ -165,6 +167,9 @@ export class Renderer3D implements WorldRenderer {
       throw err;
     }
     host.appendChild(this.canvas);
+    this.vignette.className = 'vignette3d';
+    this.vignette.hidden = true;
+    host.appendChild(this.vignette);
     this.gl.toneMapping = THREE.ACESFilmicToneMapping;
     // The physical Sky's radiance is HDR; at exposure 1 it washed the overview white (three's Sky example uses 0.5).
     this.gl.toneMappingExposure = 0.6;
@@ -284,6 +289,7 @@ export class Renderer3D implements WorldRenderer {
       this.cam.updateProjectionMatrix();
     }
     for (const layer of this.layers) layer.frame(input, this.ctx);
+    if (this.vignette.hidden === input.map.vignette) this.vignette.hidden = !input.map.vignette;
     if (!this.post?.renderFrame(input)) this.gl.render(this.scene, this.cam);
     return performance.now() - t0;
   }
@@ -350,6 +356,7 @@ export class Renderer3D implements WorldRenderer {
     for (const layer of this.layers) layer.dispose();
     this.gl.dispose();
     this.canvas.remove();
+    this.vignette.remove();
   }
 
   /** Writes the rig pose into the camera. Pitch is the X angle, and -yaw is the Y angle in YXZ order. */

@@ -1986,6 +1986,9 @@ async function boot(): Promise<void> {
     }
     if (worldReady && joystick !== null && crosshair !== null) {
       joystick.setActive(ground && store.sheet.value !== 'expanded');
+      // The collapsed sheet is tall on a portrait phone (its chips wrap), so the stick sits above it, not on it.
+      const sheetTop = ground ? document.querySelector('.power-sheet')?.getBoundingClientRect().top : undefined;
+      if (sheetTop !== undefined) joystick.setFloor(sheetTop - hostRect.top, hostRect.height);
       crosshair.setVisible(ground && state.armed !== null);
     }
     // The feed sample: every living Being, smoothed between worker frames (feed-interp.ts).

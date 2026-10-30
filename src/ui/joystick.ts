@@ -40,6 +40,12 @@ export class Joystick {
     if (!show) this.release();
   }
 
+  /** Keeps the stick above `floorPx` (the host-relative y of the power sheet's top), 12 px clear of it. */
+  setFloor(floorPx: number, hostHeightPx: number): void {
+    const bottom = `${Math.max(16, hostHeightPx - floorPx + 12)}px`;
+    if (this.root.style.bottom !== bottom) this.root.style.bottom = bottom;
+  }
+
   destroy(): void {
     this.root.remove();
   }

@@ -145,3 +145,21 @@ test('armed click casts on the hit tile', async ({ page }) => {
   await expect.poll(() => commandCount(page)).toBeGreaterThan(before);
   expect(errors, errors.join('\n')).toEqual([]);
 });
+
+test('phone: at ground level the joystick shows above the power sheet, not on it', async ({ page }) => {
+  test.skip(!(page.viewportSize()?.width && page.viewportSize()!.width < 900), 'phone layouts only');
+  const errors = await open3D(page);
+  const at = await canvasCentre(page);
+  await page.mouse.move(at.x, at.y);
+  for (let i = 0; i < 60 && (await rigHeight(page)) >= 2; i++) await page.mouse.wheel(0, -400);
+  const stick = page.locator('.joystick');
+  await expect(stick).toBeVisible();
+  await expect
+    .poll(async () => {
+      const s = await stick.boundingBox();
+      const sheet = await page.locator('.power-sheet').boundingBox();
+      return s && sheet ? s.y + s.height <= sheet.y : false;
+    })
+    .toBe(true);
+  expect(errors, errors.join('\n')).toEqual([]);
+});

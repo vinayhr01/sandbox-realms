@@ -34,7 +34,7 @@ export default defineConfig({
     // Phone and tablet run only the layout specs; everything else is viewport-independent and runs on desktop-chromium.
     { name: 'phone-portrait', testMatch: /(platform-smoke|smoke|panels)\.spec\.ts/, use: { ...devices['Pixel 5'], viewport: { width: 390, height: 844 }, hasTouch: true } },
     // The 3D boot check on a phone in portrait: only `boots in 3D` from view3d.spec.ts.
-    { name: 'phone-portrait-3d', testMatch: /view3d\.spec\.ts/, grep: /boots in 3D/, use: { ...devices['Pixel 5'], viewport: { width: 390, height: 844 }, hasTouch: true } },
+    { name: 'phone-portrait-3d', testMatch: /view3d\.spec\.ts/, grep: /boots in 3D|phone: /, use: { ...devices['Pixel 5'], viewport: { width: 390, height: 844 }, hasTouch: true } },
     { name: 'phone-landscape', testMatch: /(platform-smoke|smoke|panels)\.spec\.ts/, use: { ...devices['Pixel 5'], viewport: { width: 844, height: 390 }, hasTouch: true } },
     { name: 'tablet', testMatch: /(platform-smoke|smoke|panels)\.spec\.ts/, use: { ...devices['Desktop Chrome'], viewport: { width: 820, height: 1180 }, hasTouch: true } },
     // Platform matrix (PLATFORM-REQUIREMENTS section 6): each engine at the smallest phone and the

@@ -43,6 +43,9 @@ body {
   font: calc(16px * var(--ui-scale)) / 1.3 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   overscroll-behavior: none;
   overflow: hidden;
+  /* A pinch that lands on a toast or card must not zoom the whole page (it stranded the map on phones); UI scale in
+     Settings is the in-game zoom for text. Panels still scroll. */
+  touch-action: pan-x pan-y;
   -webkit-user-select: none;
   user-select: none;
 }

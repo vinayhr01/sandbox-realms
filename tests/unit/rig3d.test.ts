@@ -20,8 +20,22 @@ function state(over: Partial<RigState> = {}): RigState {
 }
 
 describe('rig pitch', () => {
-  it('looks straight down at overview height', () => {
-    expect(deg(rigPose(state(), SIDE, flatGround).pitch)).toBeCloseTo(-90, 6);
+  it('tilts to -60 degrees at overview height, so the overview shows depth and sky', () => {
+    expect(deg(rigPose(state(), SIDE, flatGround).pitch)).toBeCloseTo(-60, 6);
+  });
+
+  it('at overview height the view ray meets the ground at the focus (the eye stands back, not above it)', () => {
+    const p = rigPose(state({ yaw: 0.7 }), SIDE, flatGround);
+    const [dx, dy, dz] = [p.target[0] - p.eye[0], p.target[1] - p.eye[1], p.target[2] - p.eye[2]];
+    const t = (flatGround() - p.eye[1]) / dy;
+    expect(p.eye[0] + dx * t).toBeCloseTo(128, 3);
+    expect(p.eye[2] + dz * t).toBeCloseTo(128, 3);
+  });
+
+  it('at eye height the eye stands on the focus (walking)', () => {
+    const p = rigPose(state({ height: EYE_HEIGHT }), SIDE, flatGround);
+    expect(p.eye[0]).toBeCloseTo(128, 6);
+    expect(p.eye[2]).toBeCloseTo(128, 6);
   });
 
   it('is about -5 degrees at eye height', () => {
@@ -37,9 +51,9 @@ describe('rig pitch', () => {
     }
   });
 
-  it('puts the eye above the ground under the focus', () => {
+  it('puts the eye its height above the ground under the focus', () => {
     const p = rigPose(state({ focus: { x: 3, y: 4 }, height: 2 }), SIDE, () => 1.5);
-    expect(p.eye).toEqual([3, 3.5, 4]);
+    expect(p.eye[1]).toBeCloseTo(3.5, 9);
   });
 });
 

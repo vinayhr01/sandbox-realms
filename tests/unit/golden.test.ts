@@ -11,7 +11,9 @@ import { seedStartingBeasts } from '../../src/sim/beings/system.ts';
 // Changed when the golden run started seeding beasts and the species took roster values (see DECISIONS.md).
 // Beings round 2 (18a roster of 90 species, wild seeding by biome, strains, parent links): was 1157961273.
 // Close 5 to close 12 (decision rows, statuses, capture, loyalty, isolation, possess, phonology): was 3940167734.
-const GOLDEN_HASH = 1357125849;
+// Day and night (spec 2026-10-30): diurnal beings sleep at night, nocturnal ones by day, hunters range 1.5x and bite 1.25x
+// harder at night, folk go home at dusk, and hamlet work is 0.3x at night. The run crosses day and night, so the hash moves: was 1357125849.
+const GOLDEN_HASH = 742436326;
 
 function replay(): number[] {
   const sim = generateRealm({ seed: 20240601, sizeStep: 2, template: 'continent' }).sim;

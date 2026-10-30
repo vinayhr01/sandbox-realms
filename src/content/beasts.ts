@@ -64,6 +64,8 @@ export interface SpeciesDef {
   group: string;
   /** Spawned by wild seeding and the spawn powers (false for Folk, aquatic and Architect-bound rows). */
   wild: boolean;
+  /** Sleeps by day and is active at night (day and night spec 2026-10-30). False for every other species. */
+  nocturnal: boolean;
   /** Folk lineage: aptitudes and starting traits from 18a section 1 (null for beasts). */
   folk: boolean;
   aptitudes: Aptitudes | null;
@@ -71,6 +73,25 @@ export interface SpeciesDef {
 }
 
 const ALL_BIOMES: readonly string[] = BIOMES.map((b) => b.id);
+
+/**
+ * Nocturnal species (day and night spec): they sleep by day and hunt and work at night. Drafted from the plain names
+ * (owls, bats, moths, foxes, wolves and similar). The owner reviews this list before it is wired; every other species is diurnal.
+ */
+export const NOCTURNAL_IDS: ReadonlySet<string> = new Set([
+  'hushowl', // Owl
+  'duskflit', // Vampire Bat
+  'mothlet', // Moth
+  'voidmoth', // Shadow Moth
+  'gleambug', // Firefly
+  'gnatveil', // Mosquito
+  'cinderfox', // Fox
+  'gloamfang', // Wolf
+  'stormhound', // Wild Dog
+  'shadepard', // Panther
+  'bonehound', // Skeleton Hound
+  'wailwisp', // Ghost
+]);
 
 /** 18a diet tag to the sim's feeding class (see the header). */
 const DIET_TAG: Record<string, Diet> = {
@@ -146,6 +167,7 @@ function hand(
     grounds: [],
     group,
     wild: true,
+    nocturnal: NOCTURNAL_IDS.has(id),
     folk: false,
     aptitudes: null,
     startTraits: null,
@@ -189,6 +211,7 @@ function fromRoster(line: string): SpeciesDef {
     grounds,
     group,
     wild,
+    nocturnal: NOCTURNAL_IDS.has(id),
     folk: false,
     aptitudes: null,
     startTraits: null,
@@ -222,6 +245,7 @@ function fromFolk(line: string): SpeciesDef {
     grounds: [],
     group: 'folk',
     wild: false,
+    nocturnal: NOCTURNAL_IDS.has(id),
     folk: true,
     aptitudes: { rapport: Number(c[10]), valor: Number(c[11]), husbandry: Number(c[12]), wit: Number(c[13]) },
     startTraits: { being: list, strain },

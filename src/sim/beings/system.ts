@@ -3,8 +3,10 @@ import { ground } from '../../content/grounds.ts';
 import { BEING_TRAITS, BEING_TRAIT_INDEX, BIRTH_POT as BIRTH_POT_IDS } from '../../content/traits.ts';
 import { dropManure, FLORA, FLORA_BY_ID, grazeFlora } from '../flora.ts';
 import { stopFire } from '../terrain/fire.ts';
-import { hamletsOf } from '../settlements/adapter.ts';
-import { foodCapacity, PARCEL } from '../settlements/hamlet.ts';
+import { hamletsOf, majorityOwner } from '../settlements/adapter.ts';
+import { foodCapacity, PARCEL, type Hamlet } from '../settlements/hamlet.ts';
+import { dominionOwnerOf, UNOWNED } from '../dominions/adapter.ts';
+import { daySegment, dayPhase, isNight } from '../../shared/daytime.ts';
 import type { Realm } from '../realm.ts';
 import type { Sim } from '../sim.ts';
 import { recordStat } from '../stats-hooks.ts';
@@ -13,7 +15,7 @@ import { DECISION_INDEX, DECISION_ROWS, EMPTY_PAUSE } from '../../content/decisi
 import { BeingStore } from './store.ts';
 import { newGenome, SEED_SALT_RANGE, speciesBudget } from './genome.ts';
 import { addStrainTrait, mutateFrom, strainMutation, Strains } from './strains.ts';
-import { addMood, addMoodValue, beginSleep, bondCheck, bondPartners, feelsMood, isAsleep, loveCheck, sleepCheck, tryFriend } from './social.ts';
+import { addMood, addMoodValue, beginSleep, bondCheck, bondPartners, feelsMood, isAsleep, isNocturnal, loveCheck, sleepCheck, tryFriend } from './social.ts';
 import { convertByFight, heritageAttr, readBook, talkOutcome, talksWithBeasts } from '../culture/effects.ts';
 import { readableBook } from '../culture/culture.ts';
 import { ROUND6, ROUND8, ROUND9, TUNING } from './tuning.ts';
@@ -1141,7 +1143,7 @@ function herdTarget(sim: Sim, slot: number): number {
  * Prey within hunt range that the Being may take. Flesh eaters (diet flesh, or the `flesh_gut` trait); omni eaters
  * only with no food underfoot. A `kin_eater` may also take its own species (18b DIE). Range doubles with `keen_nose`.
  */
-function huntTarget(sim: Sim, slot: number): number {
+export function huntTarget(sim: Sim, slot: number): number {
   const b = sim.beings;
   const s = b.store;
   const def = b.species(s.species[slot] ?? 0);
@@ -1151,7 +1153,8 @@ function huntTarget(sim: Sim, slot: number): number {
   const rt = b.runtime[s.species[slot] ?? 0];
   if (!rt) return -1;
   const kin = eatsKin(sim, slot);
-  const range = TUNING.huntRadius * foodRangeMult(sim, slot);
+  // Day and night spec, call 5: hunters range 1.5x further at night.
+  const range = TUNING.huntRadius * foodRangeMult(sim, slot) * (isNight(sim.tick) ? ROUND6.nightHuntRange : 1);
   return b.nearest(
     slot,
     (o) =>
@@ -1907,6 +1910,74 @@ function steeredLeader(sim: Sim, slot: number): number {
   return sim.beings.nearest(slot, (o) => o !== slot && s.alive[o] === 1 && isPossessed(sim, o), ROUND9.tagalongRadius);
 }
 
+/** Chebyshev centre of a hamlet's parcels, as a tile: where a Folk going home walks (day and night spec, call 2). */
+function homeCentre(sim: Sim, h: Hamlet): [number, number] {
+  const perAxis = sim.realm.side / PARCEL;
+  let sx = 0;
+  let sy = 0;
+  let n = 0;
+  for (const p of h.parcels) {
+    sx += (p % perAxis) * PARCEL + PARCEL / 2;
+    sy += Math.floor(p / perAxis) * PARCEL + PARCEL / 2;
+    n++;
+  }
+  return n === 0 ? [0, 0] : [Math.floor(sx / n), Math.floor(sy / n)];
+}
+
+/**
+ * The hamlet a Folk goes home to (day and night spec, call 2; derived, not saved): the hamlet of its parcel, else the nearest
+ * hamlet of the dominion that owns the parcel it stands on. Undefined when neither exists.
+ */
+function homeHamlet(sim: Sim, slot: number): Hamlet | undefined {
+  const here = hamletOfSlot(sim, slot);
+  if (here) return here;
+  const owner = dominionOwnerOf(sim);
+  if (!owner) return undefined;
+  const s = sim.beings.store;
+  const perAxis = sim.realm.side / PARCEL;
+  const parcel = Math.floor((s.y[slot] ?? 0) / PARCEL) * perAxis + Math.floor((s.x[slot] ?? 0) / PARCEL);
+  const dominion = owner[parcel] ?? UNOWNED;
+  if (dominion === UNOWNED) return undefined;
+  let best: Hamlet | undefined;
+  let bestGap = Infinity;
+  for (const h of hamletsOf(sim)) {
+    if (majorityOwner(owner, h) !== dominion) continue;
+    const [cx, cy] = homeCentre(sim, h);
+    const gap = Math.max(Math.abs(cx - (s.x[slot] ?? 0)), Math.abs(cy - (s.y[slot] ?? 0)));
+    if (gap < bestGap) {
+      best = h;
+      bestGap = gap;
+    }
+  }
+  return best;
+}
+
+/** Day and night spec, call 2: a Folk away from home walks back at dusk and through the night. True when it moved. */
+function goHome(sim: Sim, slot: number): boolean {
+  if (!isFolk(sim, slot)) return false;
+  const segment = daySegment(dayPhase(sim.tick));
+  if (segment !== 'dusk' && segment !== 'night') return false;
+  const home = homeHamlet(sim, slot);
+  if (!home || hamletOfSlot(sim, slot) === home) return false;
+  const [cx, cy] = homeCentre(sim, home);
+  stepToward(sim, slot, cx, cy);
+  setNext(sim, slot, 2);
+  return true;
+}
+
+/**
+ * Day and night spec, calls 1 and 7: a diurnal Being sleeps in the night segment (0.85 to 0.20, waking at dawn), and a
+ * nocturnal one sleeps in the dawn and day segments (0.20 to 0.75, waking at dusk). Dusk is outside the nocturnal window,
+ * so a nocturnal Being that wakes at dusk does not sleep again straight away.
+ */
+function inSleepWindow(sim: Sim, slot: number): boolean {
+  if (isNocturnal(sim, slot)) {
+    const segment = daySegment(dayPhase(sim.tick));
+    return segment === 'dawn' || segment === 'day';
+  }
+  return isNight(sim.tick);
+}
+
 /**
  * One decision for a being (07 sections 3 and 4). Three layers run in order: the override (a flight from a hunter, or
  * an engaged fight, takes over any running task except its own kind), the running task, and the decision layer
@@ -1963,6 +2034,19 @@ function decide(sim: Sim, slot: number): void {
     else if (!fleeing && id !== 'flee' && id !== 'fight' && fightIdx >= 0 && engagedTarget(sim, slot) >= 0) current = fightIdx;
   }
   if (current < 0 && !fleeing && fightIdx >= 0 && engagedTarget(sim, slot) >= 0) current = fightIdx;
+  // Day and night overrides (calls 2 and 7): below the danger overrides, so a fleeing or fighting Being keeps them. A hungry
+  // Being looks for food rather than sleeping, so a nocturnal hunter can hunt at night.
+  if (!fleeing && !hungry && current !== fightIdx && engagedTarget(sim, slot) < 0) {
+    if (goHome(sim, slot)) {
+      b.task[slot] = -1;
+      return;
+    }
+    if (inSleepWindow(sim, slot)) {
+      beginSleep(sim, slot, 'mono');
+      b.task[slot] = -1;
+      return;
+    }
+  }
   if (current >= 0) {
     b.task[slot] = current;
     if (!runTask(sim, slot, current)) b.task[slot] = -1;

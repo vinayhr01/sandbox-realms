@@ -439,6 +439,8 @@ async function boot(): Promise<void> {
   const interp = new FeedInterp({ coalesce: true });
   const drawBeings: DrawBeing[] = [];
   let beingCount = 0;
+  /** Drawn time of day pinned by the __sr.forcePhase test hook; null follows the sim. */
+  let forcedPhase: number | null = null;
   /** Main-thread ms of the creature pipeline per frame (feed push + sample + draw, dust included), for the perf gate. */
   const COST_RING = 600;
   const costRing = new Float64Array(COST_RING);
@@ -2049,6 +2051,8 @@ async function boot(): Promise<void> {
         beings: drawBeings,
         beingCount,
         snapshot: simView.current,
+        speed: simSpeed,
+        phaseOverride: forcedPhase,
         marks: {
           items: boolOption(options, 'marks.items'),
           favourites: boolOption(options, 'marks.favourites'),
@@ -2205,6 +2209,10 @@ async function boot(): Promise<void> {
   // Hooks for the Playwright tests; read-only except newRealm/speed through the UI.
   (window as unknown as { __sr: unknown }).__sr = {
     tick: () => simTick,
+    /** Pins the drawn time of day (0 = midnight, 0.5 = noon) in both views; null follows the sim again. Drawing only. */
+    forcePhase: (phase: number | null) => {
+      forcedPhase = phase;
+    },
     hash: () => simHash,
     side: () => realmSide,
     tileToScreen: (x: number, y: number) => {

@@ -2,17 +2,18 @@
  * Camera math for the one 3D camera: pure, no three.js.
  *
  * World axes: x is tile x, y is height (up), z is tile y. Yaw 0 looks toward -z (tile y decreasing, up the screen).
- * Height is above the ground under the focus, in world units (1 tile = 1 unit). Pitch is -90 deg straight down at
- * overview height and eases to -5 deg at eye height.
+ * Height is above the ground under the focus, in world units (1 tile = 1 unit). Pitch is -60 deg at overview height
+ * (tilted, so the overview shows relief and sky rather than a flat map) and eases to -5 deg at eye height. As the camera
+ * tilts it stands back from the focus, so from above it looks at the focus; at eye height it stands on it (walking).
  */
 import type { TilePoint } from '../render/world-renderer.ts';
 
 /** Eye height above the ground, in tiles (1 tile = 2 m). */
 export const EYE_HEIGHT = 0.85;
-/** Height at which the camera is fully straight down: 35% of the overview height. */
+/** Height at which the camera reaches its overview tilt: 35% of the overview height. */
 const TOP_DOWN_FRACTION = 0.35;
 const PITCH_GROUND = (-5 * Math.PI) / 180;
-const PITCH_TOP = -Math.PI / 2;
+const PITCH_TOP = (-60 * Math.PI) / 180;
 
 export interface RigState {
   focus: TilePoint;
@@ -44,7 +45,10 @@ export function rigPose(
   const pitch = pitchFor(h, side);
   const fx = clampTo(s.focus.x, side);
   const fy = clampTo(s.focus.y, side);
-  const eye: [number, number, number] = [fx, groundAt(fx, fy) + h, fy];
+  // Stand back along the view so the ray meets the ground at the focus; the stand-back fades out toward eye height.
+  const tilt = (pitch - PITCH_GROUND) / (PITCH_TOP - PITCH_GROUND);
+  const back = (h / Math.tan(-pitch)) * tilt;
+  const eye: [number, number, number] = [fx - Math.sin(s.yaw) * back, groundAt(fx, fy) + h, fy + Math.cos(s.yaw) * back];
   const dir = forward(pitch, s.yaw);
   return { eye, target: [eye[0] + dir[0], eye[1] + dir[1], eye[2] + dir[2]], pitch };
 }

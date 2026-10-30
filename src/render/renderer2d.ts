@@ -3,6 +3,8 @@
  * behaviour change. main.ts drives it through frame() from the ticker, in the order the layers drew before.
  */
 import { TerrainRenderer } from './terrain.ts';
+import { nightTint } from './night.ts';
+import { DayClock } from './day-clock.ts';
 import { Camera } from './camera.ts';
 import { CreatureLayer } from './creatures.ts';
 import { MarkLayer } from './marks.ts';
@@ -105,6 +107,7 @@ export class Camera2D implements CameraControl {
 class Renderer2D implements WorldRenderer {
   readonly kind = '2d' as const;
   readonly canvas: HTMLCanvasElement;
+  private readonly dayClock = new DayClock();
   readonly camera: Camera2D;
   /** The feed sample of the latest frame, for beingAt (taps and hover). */
   private beings: readonly DrawBeing[] = [];
@@ -191,6 +194,8 @@ class Renderer2D implements WorldRenderer {
       this.effects.setEnabled(effectsOn);
     }
     this.terrain.setDetailToggles(!off.has('map.terrainMedium'), !off.has('map.terrainClose'));
+    // Night tint from the drawn time of day (shared clock: steady above 2x, pinned by the forcePhase hook).
+    this.terrain.setNight(nightTint(this.dayClock.update(input)));
     const cam = this.camera.current();
     if (!cam) return 0;
     this.creatures.setToggles({

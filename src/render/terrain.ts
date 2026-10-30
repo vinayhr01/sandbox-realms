@@ -55,6 +55,8 @@ export class TerrainRenderer {
   /** Quality-ladder gates on the two detail ramps (map.terrainMedium, map.terrainClose): off drops that weight to 0. */
   private detailMedium = true;
   private detailClose = true;
+  /** Night tint 0..1 (night.ts nightTint), set per frame from the tick by Renderer2D. */
+  private night = 0;
 
   private constructor(app: Application) {
     this.app = app;
@@ -92,6 +94,7 @@ export class TerrainRenderer {
       uDetail: { value: this.uDetail, type: 'vec2<f32>' },
       uTime: { value: 0, type: 'f32' },
       uDpr: { value: 1, type: 'f32' },
+      uNight: { value: 0, type: 'f32' },
     });
   }
 
@@ -170,6 +173,11 @@ export class TerrainRenderer {
     this.detailClose = close;
   }
 
+  /** Night tint for the next draw: 0 by day, up to 0.55 at deep night (night.ts). */
+  setNight(night: number): void {
+    this.night = night;
+  }
+
   /** Current camera and cursor state for the next draw. */
   setView(view: ViewState, cursor: CursorState): void {
     this.pendingView = view;
@@ -193,6 +201,7 @@ export class TerrainRenderer {
     this.uDetail.set([detail.medium * (this.detailMedium ? 1 : 0), detail.close * (this.detailClose ? 1 : 0)]);
     this.uniforms.uniforms.uTime = (performance.now() - this.startedAt) / 1000;
     this.uniforms.uniforms.uDpr = dpr;
+    this.uniforms.uniforms.uNight = this.night;
     this.uniforms.update();
   }
 

@@ -2997,3 +2997,26 @@ Smooth terrain, a being feed, and illustrated walking creatures and buildings (`
 - 3D ladder steps after the 2D ones: `map3d.shadows`, `map3d.post`, `map3d.billboards`, `map3d.viewDistance`, `map3d.renderScale` (60%). When exhausted, a once-per-session toast offers "Switch to 2D view"; it never switches by itself.
 - Tests: Playwright pins 2D through `storageState` (`sr.view=2d`); `view3d.spec.ts`, `view-switch.spec.ts`, `perf-3d.spec.ts` opt into 3D, plus a `phone-portrait-3d` project. The 3D stall limit is 1 s: software GL draws every frame in about 300 ms (2D about 250 ms), all in the rasteriser.
 - Known gaps at the checkpoint: Q rotates in 3D, so Q no longer opens the sheet there (owner to pick keys); no age overlay (2D has none to mirror); nameplates do not hide overlaps in 3D; lines are 1 px; terrain LOD seams can crack; trees and boats are placeholder shapes; wheel zoom reaches the ground in about 12 ticks; the 60/30 fps targets and the time to the first map frame are not yet measured on real hardware.
+
+## Day and night, richer 3D (owner approved the design, 2026-10-30)
+
+- Spec `docs/superpowers/specs/2026-10-30-day-night-design.md`; plan `docs/superpowers/plans/2026-10-30-day-night.md`.
+- Time of day: `src/shared/daytime.ts`, a 200-tick day (10 s at 1x), tick 0 at the start of day, night 35%. It is derived from the tick, so there is no save change (schema stays 7) and no snapshot field.
+- Behaviour (owner: "most sleep", "village work slower at night"):
+  - night sleep is a `decide()` override below the danger overrides, lasting until the wake time;
+  - `monophasic` cooldown is 150;
+  - naps and polyphasic sleep are at most 50 ticks;
+  - sleep rewards are scaled by length;
+  - hunters get 1.5x range at night, and nocturnal predators 1.25x bite;
+  - folk go home at dusk (home is worked out from the parcel, or the nearest hamlet);
+  - `runJobs` runs at 0.3x at night.
+- Nocturnal species, for owner review: hushowl, duskflit, mothlet, voidmoth, gleambug, gnatveil, cinderfox, gloamfang, stormhound, shadepard, bonehound, wailwisp.
+- `GOLDEN_HASH` 1357125849 to 742436326, on purpose: the 1200-tick run now crosses day and night. `dominions-founding-sim` on seed 555 now founds in year 13, not year 8 (slower night work), so its horizon is 15 years.
+- Owner picked three.js `Sky` and `Water` over custom shaders. The sea is one flat mirror at the top sea level. The mirror draws only within 40 tiles of the water; from higher up a lit plain sea is drawn. It cost about 2x a frame.
+- Overview camera tilted to -60 degrees and stands back from the focus (owner: "top view also three.js, more modern").
+- Measured fixes in software GL:
+  - The physical sky is HDR, so bloom washed the view white. Bloom now scales with night.
+  - Fog started too close; it now starts at 4x the camera height + 60.
+  - The composer path cost about 6x a frame (750 vs 116 ms). The vignette is now a CSS overlay, and the composer runs only for night bloom, without multisampling.
+- One drawn-time clock (`src/render/day-clock.ts`) is shared by both views. Above 2x it only moves forward, at most one day per 10 s, so there is no strobe. The `__sr.forcePhase(p)` test hook pins it.
+- Found, not fixed (owner decision): `decodeChronicle` rejects a save in which a live being's `closeWith`, `loverWith` or `friendWith` names a dead slot. Only `bondWith` is checked by generation on death. Seeds 20240601 and 20240602 fail at tick 150 on main.

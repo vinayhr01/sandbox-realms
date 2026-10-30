@@ -186,10 +186,22 @@ export const DEGRADE_RENDER_SCALE_LEVEL = 10;
 export const DEGRADE_RENDER_SCALE = 50;
 
 /**
- * The 3D ladder (spec "Renderer choice", 3D part 1 Task 7). Levels 1 to 9 are the 2D steps above, then five 3D steps
- * replace the 2D render-scale step. Only the 3D view takes them. `map3d.billboards` is read by the billboard layer.
+ * The 3D ladder (spec "Renderer choice", 3D part 1 Task 7). Levels 1 to 9 are the 2D steps above, then the 3D water and
+ * terrain steps (day and night), then the five 3D steps that replace the 2D render-scale step. Only the 3D view takes
+ * them. `map3d.waterReflect` drops the sea mirror, `map3d.terrainFine` drops the fine near chunks, `map3d.stars` is read
+ * by the sky layer, and `map3d.billboards` is read by the billboard layer.
  */
-export const DEGRADE_OFF_3D: readonly string[] = [...DEGRADE_OFF, 'map3d.shadows', 'map3d.post', 'map3d.billboards', 'map3d.viewDistance', 'map3d.renderScale'];
+export const DEGRADE_OFF_3D: readonly string[] = [
+  ...DEGRADE_OFF,
+  'map3d.waterReflect',
+  'map3d.terrainFine',
+  'map3d.stars',
+  'map3d.shadows',
+  'map3d.post',
+  'map3d.billboards',
+  'map3d.viewDistance',
+  'map3d.renderScale',
+];
 /** The 3D view's render-scale cap, at the last 3D step. */
 export const DEGRADE_RENDER_SCALE_3D = 60;
 

@@ -55,6 +55,10 @@ for (const viewport of [
   test(`expanded sheet at ${viewport.width}x${viewport.height} stays clear of the top pills and a map tap inspects`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await openRealm(page);
+    // Seed 42 can grow its first hamlet mid-test, and the "New" toast it raises is centred at the top, over the gap this
+    // test taps: settle the discovery first and let its toast go, so the tap reaches the map.
+    await page.evaluate(() => (window as unknown as { __sr: { forceDiscovery: (id: string) => void } }).__sr.forceDiscovery('first-town'));
+    await expect(page.locator('.toast')).toHaveCount(0, { timeout: 20_000 });
     await openPowerSheet(page);
 
     const pills = await page.locator('.top-pills').boundingBox();

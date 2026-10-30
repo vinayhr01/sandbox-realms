@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openChip, powerButton, settleFirstTown } from './helpers.ts';
+import { collapsePowerSheet, openChip, powerButton, settleFirstTown } from './helpers.ts';
 
 /**
  * The 3D view (src/render3d) in the real page. Opt-in: `?view=3d` selects the 3D renderer, and the rest of the e2e
@@ -136,6 +136,8 @@ test('armed click casts on the hit tile', async ({ page }) => {
   const errors = await open3D(page);
   await openChip(page, 'Land');
   await powerButton(page, 'Raise').click();
+  // The expanded sheet covers the lower map; collapse it so the centre click reaches the canvas.
+  await collapsePowerSheet(page);
   const before = await commandCount(page);
   // A click at the screen centre casts at the tile the ray hits there; the power command is sent once per click.
   const at = await canvasCentre(page);

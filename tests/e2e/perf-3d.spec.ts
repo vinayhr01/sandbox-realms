@@ -3,14 +3,16 @@ import { settleFirstTown } from './helpers.ts';
 
 /**
  * 3D smoke perf (3D part 1 plan, Task 9 step 6). CI runs WebGL in software (SwiftShader), so this is no fps gate: it
- * only fails on a long stall, a frame over STALL_MS after warm-up. The 60/30 fps targets are checked by hand on a phone.
+ * only fails on a long stall, a frame over STALL_MS after warm-up. Measured locally, software GL draws every frame in
+ * about 300 ms in 3D (about 250 ms in 2D), all of it in the GL rasteriser, not in our code; 1 s still catches a real hang
+ * such as rebuilding every chunk each frame. The 60/30 fps targets are checked by hand on a phone.
  */
 
-const STALL_MS = 250;
+const STALL_MS = 1_000;
 const WARM_UP_MS = 3_000;
 const SAMPLE_MS = 10_000;
 
-test('3D view runs 10 s with no frame over 250 ms after warm-up', async ({ page }) => {
+test('3D view runs 10 s with no frame over 1 s after warm-up', async ({ page }) => {
   test.setTimeout(60_000);
   await page.goto('/?view=3d&seed=42&size=4');
   await page.waitForFunction(() => Boolean((window as unknown as { __sr?: unknown }).__sr));

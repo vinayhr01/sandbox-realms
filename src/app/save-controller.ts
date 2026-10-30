@@ -547,11 +547,14 @@ export class SaveController {
     }, Math.max(delayMs, AUTOSAVE_RETRY_MS));
   }
 
-  /** The suspend save on hide or pagehide (15 section 5). Throttled, and skipped after a recent autosave. */
-  async suspend(): Promise<void> {
+  /**
+   * The suspend save on hide or pagehide (15 section 5). Throttled, and skipped after a recent autosave, unless `force`
+   * (a reload the player asked for, such as the View switch, must not drop the last seconds of play).
+   */
+  async suspend(force = false): Promise<void> {
     if (!this.source.canCapture || this.resuming) return;
     const nowMs = this.now();
-    if (decideSuspend({ nowMs, lastSuspendMs: this.lastSuspendMs, lastAutosaveMs: this.lastAutosaveMs }) === 'skip') return;
+    if (!force && decideSuspend({ nowMs, lastSuspendMs: this.lastSuspendMs, lastAutosaveMs: this.lastAutosaveMs }) === 'skip') return;
     crumb('SAVE_START', 'suspend');
     const captured = await this.source.capture();
     if (!captured) {

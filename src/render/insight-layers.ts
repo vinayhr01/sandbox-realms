@@ -21,19 +21,27 @@ import type { Application } from 'pixi.js';
 import { Graphics } from 'pixi.js';
 import { decodeParcels } from '../shared/parcel-codec.ts';
 import type { MapGroup, MapKind, MapLink, MapTaxFlow, MapTies, MapTiles, Snapshot } from '../shared/protocol.ts';
+import {
+  accordViewOf,
+  ARROW_COLOUR,
+  ARROW_KINDS,
+  BEING_LAYERS,
+  dominionKey,
+  groupKey,
+  hashKey,
+  HAPPY_COLOUR,
+  HAPPY_MOOD,
+  keyColour,
+  TINT_ALPHA,
+  UNHAPPY_COLOUR,
+  type AccordView,
+} from './insight-keys.ts';
 
-/** Layers keyed by each Being (its creed, family, clan or strain). The others key on the parcel's group. */
-const BEING_LAYERS: ReadonlySet<string> = new Set(['L03', 'L06', 'L07', 'L08']);
-const PALETTE: readonly number[] = [
-  0xe6194b, 0x3cb44b, 0xffe119, 0x4363d8, 0xf58231, 0x911eb4, 0x46f0f0, 0xf032e6, 0xbcf60c, 0xfabebe, 0x008080, 0xe6beff,
-];
-const TINT_ALPHA = 0.28;
+// The keys and palette are pixi-free (insight-keys.ts, shared with the 3D view); re-exported here under their old names.
+export { accordViewOf, HAPPY_COLOUR, HAPPY_MOOD, hashKey, keyColour, UNHAPPY_COLOUR, type AccordView };
+
 const EDGE_COLOUR = 0xffffff;
 const SELECT_COLOUR = 0xffffff;
-/** Mood beyond this (either way) draws a happiness icon (06 section 4.1 scale is -100..+100). */
-const HAPPY_MOOD = 40;
-const HAPPY_COLOUR = 0x7be07b;
-const UNHAPPY_COLOUR = 0xff6b6b;
 const ARMY_LINE_COLOUR = 0xff8c42;
 const RING_PX = 5;
 const ICON_PX = 2.5;
@@ -48,28 +56,8 @@ const BUBBLE_H_PX = 7;
 const BUBBLE_DOT_PX = 1.2;
 const BUBBLE_LIFT_PX = 15;
 const BUBBLE_SHIFT_PX = 4;
-/** Arrow colour per kind (A01..A07), keyed by the flag name in src/ui/powerSupport.ts VIEW_FLAGS_ON_BY_DEFAULT. */
-const ARROW_COLOUR: Readonly<Record<string, number>> = {
-  'arrow.destination': 0xffd166,
-  'arrow.home': 0x8ecae6,
-  'arrow.partner': 0xff77a9,
-  'arrow.family': 0xb5e48c,
-  'arrow.parents': 0x90dbf4,
-  'arrow.children': 0xcdb4db,
-  'arrow.attack': 0xff4d4d,
-};
 const ARROW_WIDTH = 1.5;
 const ARROW_HEAD_PX = 5;
-/** A kind's links are drawn from the hovered Being to these targets. */
-const ARROW_KINDS: ReadonlyArray<readonly [string, keyof MapLink]> = [
-  ['arrow.destination', 'dest'],
-  ['arrow.home', 'home'],
-  ['arrow.partner', 'partner'],
-  ['arrow.family', 'family'],
-  ['arrow.parents', 'parents'],
-  ['arrow.children', 'children'],
-  ['arrow.attack', 'foes'],
-];
 
 /** The toggles this layer reads (from the option store, every frame). */
 export interface InsightToggles {
@@ -111,61 +99,11 @@ const ACCORD_JOIN_ALPHA = 0.5;
 const TAX_COLOUR = 0xf4c542;
 const TAX_HAMLET_PX = 2;
 
-/**
- * The Accord Finder rows of one selected dominion (12 section 8.8), read from the ties feed. `formPact` are the partners a
- * formPact could join it to. `joinable` are the members of each pact it could join now. `joiners` are the dominions that
- * could join a pact the selected dominion is in. Draws nothing: the caller picks the lines.
- */
-export interface AccordView {
-  formPact: number[];
-  joinable: number[];
-  joiners: number[];
-  canJoin: boolean;
-}
-
-/** The candidates of one dominion out of the whole Accord feed (the feed holds every pair; this narrows it). Reads only. */
-export function accordViewOf(ties: MapTies, only: number): AccordView {
-  const formPact: number[] = [];
-  for (const [a, b] of ties.formPact) {
-    if (a === only) formPact.push(b);
-    else if (b === only) formPact.push(a);
-  }
-  const pactsOfOnly = new Set<number>();
-  for (const [pactId, members] of ties.pactMembers) if (members.includes(only)) pactsOfOnly.add(pactId);
-  const joinIds = new Set<number>();
-  const joiners = new Set<number>();
-  for (const [d, pactId] of ties.joinPact) {
-    if (d === only) joinIds.add(pactId);
-    else if (pactsOfOnly.has(pactId)) joiners.add(d);
-  }
-  const joinable = new Set<number>();
-  for (const [pactId, members] of ties.pactMembers) {
-    if (!joinIds.has(pactId)) continue;
-    for (const m of members) if (m !== only) joinable.add(m);
-  }
-  return { formPact, joinable: [...joinable], joiners: [...joiners], canJoin: joinIds.size > 0 };
-}
-
 /** The camera state the layer needs. */
 export interface InsightView {
   offX: number;
   offY: number;
   zoom: number;
-}
-
-/** Positive key of a word or task id (colour choice). Equal words give equal keys. */
-export function hashKey(text: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return ((h >>> 0) % 9973) + 1;
-}
-
-/** Colour of a positive key. */
-export function keyColour(key: number): number {
-  return PALETTE[(key - 1) % PALETTE.length] ?? 0xffffff;
 }
 
 interface Decoded {
@@ -190,31 +128,6 @@ function parcelAt(d: Decoded, x: number, y: number): number {
   const row = Math.floor(y / d.size);
   if (col < 0 || row < 0 || col >= d.perAxis || row >= d.perAxis) return -1;
   return row * d.perAxis + col;
-}
-
-/** Key of the dominion owning a parcel (0 when none). */
-function dominionKey(d: Decoded, parcel: number): number {
-  if (parcel < 0) return 0;
-  const dom = d.dominion[parcel] ?? -1;
-  return dom >= 0 ? dom + 1 : 0;
-}
-
-/** Key of a parcel for a group layer (0 when the parcel has none). */
-function groupKey(layer: string, d: Decoded, parcel: number): number {
-  if (parcel < 0) return 0;
-  if (layer === 'L02') {
-    const h = d.hamlet[parcel] ?? -1;
-    return h >= 0 ? h + 1 : 0;
-  }
-  if (layer === 'L01') return dominionKey(d, parcel);
-  const dom = d.dominion[parcel] ?? -1;
-  const group = dom >= 0 ? d.groups.get(dom) : undefined;
-  if (!group) return 0;
-  if (layer === 'L04') return group.custom >= 0 ? group.custom + 1 : 0;
-  if (layer === 'L05') return group.dialect !== '' ? hashKey(group.dialect) : 0;
-  if (layer === 'L09') return group.pact >= 0 ? group.pact + 1 : 0;
-  if (layer === 'L10') return group.army ? 1 : 0;
-  return 0;
 }
 
 /** Key of a Being from its own record (creed, family, clan or strain). */

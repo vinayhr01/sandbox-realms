@@ -1,15 +1,14 @@
 import '../ui/styles.css';
-import type { Ticker } from 'pixi.js';
-import { TerrainRenderer, type CursorState } from '../render/terrain.ts';
-import { MarkLayer } from '../render/marks.ts';
-import { CreatureLayer, resetCreatureView } from '../render/creatures.ts';
-import { EffectsLayer } from '../render/effects.ts';
+import type { CursorState } from '../render/terrain.ts';
+import { createRenderer2D, renderCostMs } from '../render/renderer2d.ts';
+import { VIEW_FALLBACK_TOAST, chooseView, readSavedView, startView, webgl2Available, writeSavedView, type ViewKind } from './view-choice.ts';
+import type { WorldRenderer } from '../render/world-renderer.ts';
 import { recipeFor } from '../render/effectRecipes.ts';
 import { FeedInterp, type DrawBeing } from '../render/feed-interp.ts';
 import { BeingState } from '../shared/being-feed.ts';
-import { InsightLayer } from '../render/insight-layers.ts';
-import { Camera } from '../render/camera.ts';
 import { MapInput } from '../ui/input.ts';
+import { Crosshair, MapInput3D, type MapInput3DHandlers } from '../ui/input3d.ts';
+import { Joystick } from '../ui/joystick.ts';
 import { edgePanVector } from '../ui/edgePan.ts';
 import { colourFilterMarkup, layoutMaxWidth, mapCanvasFilter, type ColourBlindPalette, type LayoutChoice } from '../ui/display.ts';
 import { Minimap, type MinimapView } from '../ui/minimap.ts';
@@ -30,7 +29,7 @@ import { boolOption, loadOptions, numberOption, saveOptions, setOption, stringOp
 import { cooldownFraction } from '../ui/panels/powerBar.ts';
 import { mountPossessPad, possessActionOfCode, type PossessAction } from '../ui/panels/possessControls.ts';
 import { currentStep, parseTutorial, skipTutorial, tutorialEvent, type TutorialState } from '../ui/panels/tutorial.ts';
-import { cooldownSecondsLeft, dominionAtTile, hamletAtTile, linePoints, masterOfViewFlag, nearestLivePoint, nextOptionValue, powerStatus, strokeOp, toggleViewFlag, viewFlagsDefault } from '../ui/powerSupport.ts';
+import { cooldownSecondsLeft, dominionAtTile, hamletAtTile, linePoints, masterOfViewFlag, nextOptionValue, powerStatus, strokeOp, toggleViewFlag, viewFlagsDefault } from '../ui/powerSupport.ts';
 import { HistoryTicker, TickerView } from '../ui/historyTicker.ts';
 import { WorldTip, beingTipLines, tileTipLines } from '../ui/worldTip.ts';
 import { WindowHost } from '../ui/windowHost.ts';
@@ -69,11 +68,12 @@ import {
   type FatalAction,
   type FaultKind,
   DEGRADE_MAX_FRAME_MS,
-  DEGRADE_OFF,
-  DEGRADE_RENDER_SCALE,
-  DEGRADE_RENDER_SCALE_LEVEL,
   DEGRADE_START,
+  ladderExhausted,
+  ladderFor,
+  ladderMaxLevel,
   mainHangGap,
+  renderScaleCapFor,
   stepDegrade,
   workerStalled,
   type DegradeTrack,
@@ -90,6 +90,8 @@ const DEFAULT_SIZE_INDEX = 5;
 const SPEED_CHOICES: readonly Speed[] = [0.5, 1, 2, 5, 10];
 /** Keyboard or arrow pan speed in CSS px per millisecond. */
 const KEY_PAN_PX_PER_MS = 0.6;
+/** 3D: one Q or E press turns the view by 15 degrees. */
+const KEY_ROTATE_RAD = Math.PI / 12;
 /** Storage key for the first-run tutorial state (per device). */
 const TUTORIAL_KEY = 'tutorial';
 
@@ -418,12 +420,21 @@ async function boot(): Promise<void> {
   const host = $('map');
   // The map host's screen rect, read on resize rather than every frame (the info card, the tooltip and tile maths use it).
   let hostRect = host.getBoundingClientRect();
-  const renderer = await TerrainRenderer.create(host);
-  // Creatures (beings, buildings, boats) and map marks: added after the terrain so they draw on top of it, marks over creatures.
-  const creatures = new CreatureLayer(renderer.app);
-  const marks = new MarkLayer(renderer.app);
-  // Deploy effects sit above the beings and marks (spec F).
-  const effects = new EffectsLayer(renderer.app);
+  // The view (spec "Renderer choice"): ?view=, then the saved sr.view, then the default. 3D loads its chunk here, before
+  // the first map frame, so the map never draws 2D and then swaps. A failed 3D start falls back to 2D (toast below).
+  const requestedView: ViewKind = chooseView({
+    query: params.get('view'),
+    saved: readSavedView(safeStorage()),
+    webgl2: webgl2Available(),
+    deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
+    safeMode,
+  });
+  const started = await startView(requestedView, host, {
+    load3D: async (h) => (await import('../render3d/index.ts')).createRenderer3D(h),
+    load2D: createRenderer2D,
+  });
+  // The world view, behind the WorldRenderer seam: terrain, creatures, marks, effects and insight layers.
+  const renderer: WorldRenderer = started.renderer;
   // The being feed (Ev.Beings), smoothed for drawing. The first beingCount entries of drawBeings are this frame's beings.
   const interp = new FeedInterp({ coalesce: true });
   const drawBeings: DrawBeing[] = [];
@@ -432,24 +443,12 @@ async function boot(): Promise<void> {
   const COST_RING = 600;
   const costRing = new Float64Array(COST_RING);
   let costWritten = 0;
-  /**
-   * Main-thread ms of each Pixi render() call, from the renderer's prerender and postrender runners. Pixi builds one
-   * instruction set for the whole stage, so the creature containers cannot be timed apart from the rest; this is the
-   * whole render, where the dots' and icons' batching and draw submission land (outside creatureCost, which ends at draw()).
-   */
-  const renderRing = new Float64Array(COST_RING);
-  let renderWritten = 0;
-  let renderT0 = 0;
-  renderer.app.renderer.runners.prerender.add({ prerender: () => { renderT0 = performance.now(); } });
-  renderer.app.renderer.runners.postrender.add({ postrender: () => { renderRing[renderWritten++ % COST_RING] = performance.now() - renderT0; } });
   /** Feed-push time since the last frame; it is charged to the next frame's sample. */
   let pushCostMs = 0;
   /** True once a feed has arrived for the current realm, so a followed being missing from the feed is lost. */
   let beingsFed = false;
-  /** Realm setups so far, counted by resetCreatureView; the e2e tests read it to see that a New World reached the layer. */
+  /** Realm setups so far, counted at each realm setup; the e2e tests read it to see that a New World reached the layer. */
   const creatureReset = { resets: 0 };
-  // Insight layers and overlays: added after the marks, so the tints and icons draw over them.
-  const insight = new InsightLayer(renderer.app);
   const client = new SimClient();
   // The worker judges this page by its pings (19 section 2, main_hang); hidden pages are not judged.
   client.startPings(() => document.hidden);
@@ -465,7 +464,7 @@ async function boot(): Promise<void> {
   window.addEventListener(
     'pointerdown',
     (e: PointerEvent) => {
-      if (resumingWorld && e.target === renderer.app.canvas) {
+      if (resumingWorld && e.target === renderer.canvas) {
         e.stopImmediatePropagation();
         setStatus('Resuming…');
       }
@@ -483,6 +482,8 @@ async function boot(): Promise<void> {
     ...loadOptions(null),
     'ui.reduceMotion': osPrefers('(prefers-reduced-motion: reduce)'),
     'ui.reduceFlash': osPrefers('(prefers-reduced-motion: reduce)'),
+    // The Settings View row shows the view this page asked for until the player picks one.
+    'map.view': requestedView,
   };
   let options: Options = loadOptions(safeStorage(), osDefaults);
   setCrashConsent(consentFromOption(stringOption(options, 'privacy.errorReports')));
@@ -514,10 +515,10 @@ async function boot(): Promise<void> {
   };
   /** A cue for a tile on the map, panned by where the tile sits on screen (16 B4). */
   const playCueAt = (cue: string, tileX: number): void => {
-    const cam = camera;
     if (audioUnlocked) {
-      const width = renderer.app.screen.width;
-      const pan = cam ? panFor(tileX, (width / 2 - cam.offX) / cam.zoom, width / 2 / cam.zoom, audio.currentOptions.spatialIntensity) : 0;
+      // Before the first realm the view has no tiles: the half-width is 0 and panFor gives no pan.
+      const seen = renderer.camera.visibleTiles();
+      const pan = panFor(tileX, renderer.camera.centreTile().x, (seen.x1 - seen.x0) / 2, audio.currentOptions.spatialIntensity);
       audio.play(cue, performance.now(), pan, 1);
     }
     cueFeedback(cue);
@@ -541,7 +542,8 @@ async function boot(): Promise<void> {
 
   let tutorial: TutorialState = loadTutorial();
   let discovery: DiscoveryState = loadDiscovery();
-  let camera: Camera | null = null;
+  /** True once the first realm has set up the view's camera; before that the view has no tiles. */
+  let worldReady = false;
   let realmSide = 0;
   let realmSeed = 0;
   let calendarText = 'Y1 M1';
@@ -621,14 +623,33 @@ async function boot(): Promise<void> {
   };
   const effectiveRenderScale = (): number => {
     const saved = numberOption(options, 'perf.renderScale');
-    return degradeLevel >= DEGRADE_RENDER_SCALE_LEVEL ? Math.min(saved, DEGRADE_RENDER_SCALE) : saved;
+    const cap = renderScaleCapFor(renderer.kind, degradeLevel);
+    return cap === null ? saved : Math.min(saved, cap);
+  };
+  // The 3D struggle toast shows once per session (sessionStorage, with a page-local fallback when storage throws).
+  let struggleToastShown = false;
+  const showStruggleToast = (): void => {
+    if (struggleToastShown) return;
+    struggleToastShown = true;
+    try {
+      if (window.sessionStorage.getItem('sr.struggle3d')) return;
+      window.sessionStorage.setItem('sr.struggle3d', '1');
+    } catch {
+      // Without session storage the page-local flag still limits it to once per page.
+    }
+    pushToast(store, '3D is struggling on this device.', 'info', Date.now(), {
+      label: 'Switch to 2D view',
+      run: () => {
+        writeSavedView(safeStorage(), '2d');
+        location.reload();
+      },
+    });
   };
   const applyDegradeLevel = (level: number, meanMs: number): void => {
     degradeLevel = level;
     degradedOff.clear();
-    for (let k = 0; k < level && k < DEGRADE_OFF.length; k++) degradedOff.add(DEGRADE_OFF[k] ?? '');
-    effects.setEnabled(!degradedOff.has('map.effects'));
-    renderer.setDetailToggles(!degradedOff.has('map.terrainMedium'), !degradedOff.has('map.terrainClose'));
+    const steps = ladderFor(renderer.kind);
+    for (let k = 0; k < level && k < steps.length; k++) degradedOff.add(steps[k] ?? '');
     renderer.setRenderScale(effectiveRenderScale());
     journal('DEGRADE', `level ${level} at mean frame ${meanMs.toFixed(1)} ms; off: ${[...degradedOff].join(', ') || 'none'}; render scale ${effectiveRenderScale()}%`);
   };
@@ -640,8 +661,10 @@ async function boot(): Promise<void> {
     degradeWindowFrames++;
     if (degradeWindowMs < 1000) return;
     const mean = degradeWindowFrames > 0 ? degradeWindowFrameMs / degradeWindowFrames : 0;
-    const next = stepDegrade(degrade, mean, frameBudgetMs(), effects.liveCount() === 0);
+    const max = ladderMaxLevel(renderer.kind);
+    const next = stepDegrade(degrade, mean, frameBudgetMs(), renderer.liveEffects() === 0, max);
     if (next.level !== degrade.level) applyDegradeLevel(next.level, mean);
+    if (renderer.kind === '3d' && next.level !== degrade.level && ladderExhausted(next, max)) showStruggleToast();
     degrade = next;
     degradeWindowMs = 0;
     degradeWindowFrameMs = 0;
@@ -732,27 +755,20 @@ async function boot(): Promise<void> {
   minimapCanvas.setAttribute('role', 'img');
   host.appendChild(minimapCanvas);
   const minimap = new Minimap(minimapCanvas, (tx, ty) => {
-    const cam = camera;
-    if (!cam) return;
-    cam.offX = renderer.app.screen.width / 2 - (tx + 0.5) * cam.zoom;
-    cam.offY = renderer.app.screen.height / 2 - (ty + 0.5) * cam.zoom;
-    cam.panBy(0, 0);
+    if (!worldReady) return;
+    renderer.camera.centreOn({ x: tx, y: ty });
   });
   const minimapView = (): MinimapView | null => {
-    const cam = camera;
-    if (!cam) return null;
-    const tl = cam.screenToTile(0, 0);
-    const br = cam.screenToTile(renderer.app.screen.width, renderer.app.screen.height);
-    return { x0: tl.x, y0: tl.y, x1: br.x, y1: br.y };
+    if (!worldReady) return null;
+    return renderer.camera.visibleTiles();
   };
   let minimapClockMs = 0;
 
   const brushRadius = (): number => BRUSH_RADII[state.sizeIndex] ?? 5;
 
   const tileAt = (sx: number, sy: number): Tile => {
-    const cam = camera;
-    if (!cam) return { x: 0, y: 0 };
-    const t = cam.screenToTile(sx, sy);
+    const t = renderer.screenToTile(sx, sy);
+    if (!t) return { x: 0, y: 0 };
     return {
       x: Math.max(-1, Math.min(realmSide, Math.floor(t.x))),
       y: Math.max(-1, Math.min(realmSide, Math.floor(t.y))),
@@ -764,18 +780,19 @@ async function boot(): Promise<void> {
     realmSeed = seed;
     renderer.setSide(side);
     minimap.reset(side);
-    camera = new Camera(side, renderer.app.screen.width, renderer.app.screen.height);
+    worldReady = true;
     stroke = null;
     stepAnchor = null;
     followPending = false;
     followKey = null;
     // The info card and the effects of the old realm go too: being ids are reused across realms.
     store.info.value = null;
-    effects.clear();
     // Extinctions and strains are judged within one realm: the species seen alive in the old one do not count in this one (spec E).
     discovery = { ...discovery, seen: [], strains: null };
     // A new, loaded or respawned realm has new Beings and buildings: the feed of the old one is dropped.
-    resetCreatureView(interp, creatures, creatureReset);
+    // The feed sample goes here; the creature sprites go in renderer.setSide (resetCreatureView, split across the seam).
+    interp.reset();
+    creatureReset.resets++;
     beingCount = 0;
     beingsFed = false;
     // A new or loaded realm has new Beings: the held one is not carried over (control is not saved, 07 section 14).
@@ -1176,7 +1193,7 @@ async function boot(): Promise<void> {
     if (op) client.stroke(op, state.shape, brushRadius(), x, y, x, y, true);
     else client.power(power.id, x, y);
     // The effect plays only for a command that was sent (spec call 6): not on cooldown, not for a rule or a window.
-    effects.play(recipeFor(power), x, y, power.kind === 'brush' ? brushRadius() : 1);
+    renderer.playEffect(recipeFor(power), x, y, power.kind === 'brush' ? brushRadius() : 1, false);
     if (power.handler === 'spawn_being') feedTutorial('spawned');
     crumb('POWER_APPLY', power.id);
     playCueAt(op ? CUE.paint : CUE.power, x);
@@ -1194,7 +1211,7 @@ async function boot(): Promise<void> {
       for (const [x, y] of linePoints(last.x, last.y, target.x, target.y).slice(1)) client.power(stroke.power.id, x, y);
     }
     // The stroke's dust plays where the segment was sent (spec F); the layer throttles it and skips it under reduce motion.
-    effects.playStroke(recipeFor(stroke.power), target.x, target.y, stroke.power.kind === 'brush' ? brushRadius() : 1);
+    renderer.playEffect(recipeFor(stroke.power), target.x, target.y, stroke.power.kind === 'brush' ? brushRadius() : 1, true);
     stroke.last = target;
   };
 
@@ -1359,9 +1376,8 @@ async function boot(): Promise<void> {
   const beingIdOf = (key: number): number => (key & 0xffff) * MAX_BEINGS + (key >>> 16);
   /** The feed Being nearest a screen point (fading Beings excluded), or null. */
   const beingAt = (sx: number, sy: number, radius: number): DrawBeing | null => {
-    const cam = camera;
-    if (!cam || beingCount === 0) return null;
-    return nearestLivePoint(drawBeings, beingCount, cam, sx, sy, radius);
+    if (!worldReady) return null;
+    return renderer.beingAt(sx, sy, radius);
   };
   const pickBeing = (sx: number, sy: number): { key: number; id: number; x: number; y: number } | null => {
     const radius = window.matchMedia('(pointer: coarse)').matches ? 24 : 10;
@@ -1398,19 +1414,22 @@ async function boot(): Promise<void> {
     });
   };
 
-  // Map input. A brush power (raise, lower, ground paint) drags; everything else pans.
-  new MapInput(renderer.app.canvas, {
-    brushArmed: () => state.armed?.kind === 'brush' && camera !== null,
+  // Map input. A brush power (raise, lower, ground paint) drags; everything else pans. In 3D (MapInput3D) a drag looks
+  // around at ground level, and right-drag or a twist turns the view from above.
+  const mapHandlers: MapInput3DHandlers = {
+    onRotate: (radians) => renderer.camera.rotateBy(radians),
+    onLook: (dyaw, dpitch) => renderer.camera.look?.(dyaw, dpitch),
+    brushArmed: () => state.armed?.kind === 'brush' && worldReady,
     toolArmed: () => state.armed !== null,
     onPan: (dx, dy) => {
       const k = numberOption(options, 'input.panSpeed') / 100;
       // A manual pan releases Follow (the camera would otherwise fight the drag).
       followKey = null;
-      camera?.panBy(dx * k, dy * k);
+      renderer.camera.panBy(dx * k, dy * k);
     },
     onZoom: (factor, sx, sy) => {
       const base = boolOption(options, 'input.invertZoom') ? 1 / factor : factor;
-      camera?.zoomAt(base ** (numberOption(options, 'input.zoomSpeed') / 100), sx, sy);
+      renderer.camera.zoomAt(base ** (numberOption(options, 'input.zoomSpeed') / 100), sx, sy);
     },
     stickyHold: () => boolOption(options, 'input.stickyHold'),
     onHover: (sx, sy) => {
@@ -1562,7 +1581,12 @@ async function boot(): Promise<void> {
       }
       inspectTile(t, false);
     },
-  });
+  };
+  // The 3D view adds the ground gestures; 2D keeps its input as it was.
+  const joystick = renderer.kind === '3d' ? new Joystick(host) : null;
+  const crosshair = renderer.kind === '3d' ? new Crosshair(host) : null;
+  if (renderer.kind === '3d') new MapInput3D(renderer.canvas, mapHandlers, () => ({ atGround: renderer.camera.atGround?.() === true }));
+  else new MapInput(renderer.canvas, mapHandlers);
 
   // A job resumed after a reload finished (Ready, reply 0). No request asked for it and the page's own NewRealm
   // (sent at start) is the realm the page shows, so this only clears the bar and is logged; it starts no realm.
@@ -1648,8 +1672,8 @@ async function boot(): Promise<void> {
         pushCostMs += performance.now() - pushT0;
         beingsFed = true;
         // The building list comes only when it changed; the boats come with every feed.
-        if (event.feed.buildings) creatures.setBuildings(event.feed.buildings);
-        creatures.setBoats(event.feed.boats);
+        if (event.feed.buildings) renderer.setBuildings(event.feed.buildings);
+        renderer.setBoats(event.feed.boats);
         client.returnBuffer(event.feed.data.buffer as ArrayBuffer, true);
         return;
       }
@@ -1693,22 +1717,23 @@ async function boot(): Promise<void> {
     },
     openWindow: (kind: string, params) => openWindow(kind, params),
     locateInfo: (target: InfoTarget): LocatedInfo | null => {
-      const cam = camera;
       const id = Number(target.id);
       // Screen point of a tile's centre, in client px (the map host's cached rect plus the view offset).
-      const screenOf = (tx: number, ty: number): { x: number; y: number } =>
-        cam ? { x: hostRect.left + cam.offX + (tx + 0.5) * cam.zoom, y: hostRect.top + cam.offY + (ty + 0.5) * cam.zoom } : { x: 0, y: 0 };
+      const screenOf = (tx: number, ty: number): { x: number; y: number } => {
+        const p = renderer.tileToScreen(tx, ty);
+        return p ? { x: hostRect.left + p.sx, y: hostRect.top + p.sy } : { x: 0, y: 0 };
+      };
       const snap = simView.current;
       if (target.kind === 'being') {
         const d = liveBeing(id);
-        if (!d || !cam) return null;
+        if (!d || !worldReady) return null;
         const speciesId = SPECIES[d.species]?.id;
         const name = speciesId ? plainName('species', speciesId) : 'Being';
         // More opens the being's full page, which reads its row: the latest snapshot's sample, or a favourite's kept row.
         const detailed = (snap?.detail?.notable?.beings ?? []).some((b) => b.id === id) || favouriteBeing(id) !== undefined;
         return { ...screenOf(d.x, d.y), name, facts: feedFacts(d), detailed };
       }
-      if (!cam || !snap) return null;
+      if (!worldReady || !snap) return null;
       if (target.kind === 'hamlet') {
         // Gone once its index is past the snapshot's hamlets. A hamlet cut from the rows keeps its card, with no More.
         if (id < 0 || id >= snap.hamletCount) return null;
@@ -1760,7 +1785,7 @@ async function boot(): Promise<void> {
       updatePowerButtons();
     },
     zoomBy: (factor: number) => {
-      camera?.zoomAt(factor, renderer.app.screen.width / 2, renderer.app.screen.height / 2);
+      renderer.camera.zoomAt(factor, host.clientWidth / 2, host.clientHeight / 2);
     },
     disarm: () => setArmed(null),
     setBrushSize: (index: number) => setBrushIndex(index),
@@ -1774,16 +1799,17 @@ async function boot(): Promise<void> {
   mountShell($('ui-root'), store, shellActions);
   mountAtlas($('atlas-root'), store, shellActions, windowDeps);
   mountToasts($('toast-root'), store, shellActions);
+  if (started.fellBack) pushToast(store, VIEW_FALLBACK_TOAST);
   // Edge pan needs a hover position that is current: it clears when the pointer leaves the map or
   // when a press starts (a drag moves the camera by itself).
-  renderer.app.canvas.addEventListener('pointerleave', () => {
+  renderer.canvas.addEventListener('pointerleave', () => {
     cursorScreen = null;
   });
-  renderer.app.canvas.addEventListener('pointerdown', () => {
+  renderer.canvas.addEventListener('pointerdown', () => {
     pressed = true;
   });
   for (const type of ['pointerup', 'pointercancel'] as const) {
-    renderer.app.canvas.addEventListener(type, () => {
+    renderer.canvas.addEventListener(type, () => {
       pressed = false;
     });
   }
@@ -1794,6 +1820,15 @@ async function boot(): Promise<void> {
     if (id === 'game.disasters' && !setRule('natural_calamities', value === true)) return;
     options = setOption(options, id, value);
     saveOptions(safeStorage(), options);
+    if (id === 'map.view') {
+      // The View switch reloads. The world survives through the autosave: save first, then load the page with the new
+      // view. The ?view= parameter is dropped, since it would beat the saved choice on the reload.
+      writeSavedView(safeStorage(), value === '2d' ? '2d' : '3d');
+      const next = new URL(location.href);
+      next.searchParams.delete('view');
+      void saveController.suspend(true).finally(() => location.assign(next.toString()));
+      return;
+    }
     if (id === 'privacy.errorReports') setCrashConsent(consentFromOption(stringOption(options, 'privacy.errorReports')));
     if (QUALITY_OPTIONS.has(id)) crumb('QUALITY', `${id}=${String(value)}`);
     if (id === 'ui.allChips') refreshChips();
@@ -1820,7 +1855,7 @@ async function boot(): Promise<void> {
     root.dataset['theme'] = stringOption(options, 'ui.theme');
     root.toggleAttribute('data-reduce-motion', safeMode || boolOption(options, 'ui.reduceMotion'));
     root.toggleAttribute('data-reduce-flash', safeMode || boolOption(options, 'ui.reduceFlash'));
-    renderer.app.ticker.maxFPS = safeMode ? 30 : numberOption(options, 'ui.fpsCap');
+    renderer.setFpsCap(safeMode ? 30 : numberOption(options, 'ui.fpsCap'));
     renderer.setRenderScale(effectiveRenderScale());
     $('debug').hidden = !(boolOption(options, 'ui.showFps') || debugOverlay);
     // Layout width, map layers, vignette and minimap.
@@ -1828,8 +1863,8 @@ async function boot(): Promise<void> {
     root.dataset['layout'] = layout;
     const maxWidth = layoutMaxWidth(layout);
     root.style.setProperty('--layout-max', maxWidth === null ? 'none' : `${maxWidth}px`);
-    renderer.app.canvas.style.filter = mapCanvasFilter(stringOption(options, 'ui.colorBlindPalette') as ColourBlindPalette, numberOption(options, 'map.layerBrightness'));
-    renderer.app.canvas.style.opacity = String(numberOption(options, 'map.layerOpacity') / 100);
+    renderer.canvas.style.filter = mapCanvasFilter(stringOption(options, 'ui.colorBlindPalette') as ColourBlindPalette, numberOption(options, 'map.layerBrightness'));
+    renderer.canvas.style.opacity = String(numberOption(options, 'map.layerOpacity') / 100);
     vignette.hidden = !boolOption(options, 'map.vignette');
     minimapCanvas.hidden = !boolOption(options, 'ui.minimap');
     const minimapPx = `${numberOption(options, 'ui.minimapSize')}px`;
@@ -1847,6 +1882,7 @@ async function boot(): Promise<void> {
 
   // The shell's keys (UX redesign, spec G): one keymap (src/ui/shell/keymap.ts). Each call is the one a click makes.
   const keyContext: KeyContext = {
+    ...(renderer.kind === '3d' ? { rotate: (step: -1 | 1) => renderer.camera.rotateBy(step * KEY_ROTATE_RAD) } : {}),
     recent: () => recentRow(store),
     arm: (id: string) => {
       const power = POWER_BY_ID.get(id);
@@ -1914,7 +1950,7 @@ async function boot(): Promise<void> {
 
   // Keep the camera viewport in step with the map element, and the cached host rect.
   new ResizeObserver(() => {
-    camera?.resize(renderer.app.screen.width, renderer.app.screen.height);
+    renderer.resize();
     hostRect = host.getBoundingClientRect();
   }).observe(host);
   window.addEventListener('resize', () => {
@@ -1922,16 +1958,35 @@ async function boot(): Promise<void> {
   });
 
   // One loop: Pixi's ticker drives rendering, stroke flushing and HUD.
-  const onFrame = (ticker: Ticker): void => {
-    const cam = camera;
-    if (cam && keysDown.size > 0) {
-      const dt = ticker.deltaMS * KEY_PAN_PX_PER_MS * (numberOption(options, 'input.panSpeed') / 100);
+  /** The camera's zoom in CSS px per tile, read from two tile centres on screen (0 before the camera exists). */
+  const zoomPx = (): number => {
+    const a = renderer.tileToScreen(0, 0);
+    const b = renderer.tileToScreen(1, 0);
+    return a && b ? b.sx - a.sx : 0;
+  };
+  const onFrame = (dtMs: number): void => {
+    const ground = renderer.camera.atGround?.() === true;
+    if (worldReady && (keysDown.size > 0 || joystick !== null)) {
+      const dt = dtMs * KEY_PAN_PX_PER_MS * (numberOption(options, 'input.panSpeed') / 100);
       const dx = (keysDown.has('ArrowRight') || keysDown.has('KeyD') ? 1 : 0) - (keysDown.has('ArrowLeft') || keysDown.has('KeyA') ? 1 : 0);
       const dy = (keysDown.has('ArrowDown') || keysDown.has('KeyS') ? 1 : 0) - (keysDown.has('ArrowUp') || keysDown.has('KeyW') ? 1 : 0);
-      if (dx !== 0 || dy !== 0) {
-        cam.panBy(-dx * dt, -dy * dt);
+      if (ground) {
+        // At ground level the keys and the joystick walk (forward is up, strafe is right); from above they pan.
+        const stick = joystick?.value() ?? { f: 0, s: 0 };
+        const f = Math.max(-1, Math.min(1, -dy + stick.f));
+        const s = Math.max(-1, Math.min(1, dx + stick.s));
+        if (f !== 0 || s !== 0) {
+          renderer.camera.walk?.(f, s, dtMs);
+          followKey = null;
+        }
+      } else if (dx !== 0 || dy !== 0) {
+        renderer.camera.panBy(-dx * dt, -dy * dt);
         followKey = null;
       }
+    }
+    if (worldReady && joystick !== null && crosshair !== null) {
+      joystick.setActive(ground && store.sheet.value !== 'expanded');
+      crosshair.setVisible(ground && state.armed !== null);
     }
     // The feed sample: every living Being, smoothed between worker frames (feed-interp.ts).
     const beingNowMs = performance.now();
@@ -1939,68 +1994,59 @@ async function boot(): Promise<void> {
     let frameCostMs = pushCostMs + (performance.now() - beingNowMs);
     pushCostMs = 0;
     // Follow: centre the camera on the followed being's sampled position. It is lost once it has left the feed.
-    if (cam && followKey !== null) {
+    if (worldReady && followKey !== null) {
       let p: DrawBeing | undefined;
       for (let i = 0; i < beingCount; i++) if (drawBeings[i]?.key === followKey) p = drawBeings[i];
       if (p) {
-        cam.offX = renderer.app.screen.width / 2 - (p.x + 0.5) * cam.zoom;
-        cam.offY = renderer.app.screen.height / 2 - (p.y + 0.5) * cam.zoom;
-        cam.panBy(0, 0);
+        renderer.camera.centreOn({ x: p.x, y: p.y });
       } else if (beingsFed) {
         followKey = null;
         setStatus('Lost sight of the being you were following.');
       }
     }
-    saveController.frame(ticker.deltaMS, state.paused || document.hidden, autosaveState());
-    degradeFrame(ticker.deltaMS);
-    noteFrameMs(ticker.deltaMS);
+    saveController.frame(dtMs, state.paused || document.hidden, autosaveState());
+    degradeFrame(dtMs);
+    noteFrameMs(dtMs);
     const hiddenGap = hiddenSinceFrame;
     hiddenSinceFrame = false;
     // On the frame the main thread wakes, the worker's heartbeats are queued behind it: judge the worker next frame.
-    if (mainHangGap(ticker.deltaMS, hiddenGap)) showMainHang(ticker.deltaMS);
+    if (mainHangGap(dtMs, hiddenGap)) showMainHang(dtMs);
     else watchdogCheck(performance.now());
     flushStroke();
 
     // The music state is published about once a second (16 B8: never more often than that).
-    musicClockMs += ticker.deltaMS;
-    if (audioUnlocked && cam && musicClockMs >= 1000) {
+    musicClockMs += dtMs;
+    if (audioUnlocked && worldReady && musicClockMs >= 1000) {
       musicClockMs = 0;
-      const zoom01 = (cam.zoom - cam.minZoom) / (cam.maxZoom - cam.minZoom);
+      const zoom01 = renderer.camera.zoom01();
       audio.setMusicState(musicViewState({ paused: state.paused || document.hidden, zoom01 }, musicFeed.partial()));
     }
 
     const cursor: CursorState = {
-      tile: strokeOp(state.armed) !== null && cursorScreen && camera ? tileAt(cursorScreen.x, cursorScreen.y) : null,
+      tile: strokeOp(state.armed) !== null && cursorScreen && worldReady ? tileAt(cursorScreen.x, cursorScreen.y) : null,
       radius: brushRadius(),
       shape: state.shape,
     };
     // Edge pan: only with a fine pointer, since touch leaves a stale hover position behind.
-    if (cam && cursorScreen && !pressed && boolOption(options, 'input.edgePan') && canHover && state.armed?.kind !== 'brush') {
+    if (worldReady && cursorScreen && !pressed && boolOption(options, 'input.edgePan') && canHover && state.armed?.kind !== 'brush') {
       const edge = edgePanVector(cursorScreen.x, cursorScreen.y, host.clientWidth, host.clientHeight);
       if (edge.dx !== 0 || edge.dy !== 0) {
-        const step = ticker.deltaMS * KEY_PAN_PX_PER_MS * (numberOption(options, 'input.panSpeed') / 100) * 2;
-        cam.panBy(-edge.dx * step, -edge.dy * step);
+        const step = dtMs * KEY_PAN_PX_PER_MS * (numberOption(options, 'input.panSpeed') / 100) * 2;
+        renderer.camera.panBy(-edge.dx * step, -edge.dy * step);
       }
     }
-    if (cam) {
-      const view = { offX: cam.offX, offY: cam.offY, zoom: cam.zoom, viewW: renderer.app.screen.width, viewH: renderer.app.screen.height };
-      creatures.setToggles({
-        shadows: boolOption(options, 'map.shadows') && !degradedOff.has('map.shadows'),
-        boats: boolOption(options, 'marks.boats'),
-        particles: boolOption(options, 'map.particles') && !degradedOff.has('map.particles'),
-        // Runtime-only quality flags (not settings): the degradation ladder turns them off.
-        crowdAnim: !degradedOff.has('map.crowdAnim'),
-        dust: !degradedOff.has('map.dust'),
-        creatureAnim: !degradedOff.has('map.creatureAnim'),
-      });
-      const drawT0 = performance.now();
-      creatures.draw(drawBeings, beingCount, view, beingNowMs);
-      frameCostMs += performance.now() - drawT0;
-      effects.update(ticker.deltaMS, view);
-      costRing[costWritten++ % COST_RING] = frameCostMs;
-      marks.update(
-        simView.current,
-        {
+    if (worldReady) {
+      // Insight hover (desktop only): the Being under the pointer, from the latest feed sample. Where the cursor arrows start.
+      const hoverBeing = cursorScreen && canHover && !pressed ? beingAt(cursorScreen.x, cursorScreen.y, 10) : null;
+      const hoverId = hoverBeing ? beingIdOf(hoverBeing.key) : -1;
+      // The world view draws the feed, marks, effects and insight layers, then sets the terrain's view and cursor.
+      frameCostMs += renderer.frame({
+        dtMs,
+        nowMs: beingNowMs,
+        beings: drawBeings,
+        beingCount,
+        snapshot: simView.current,
+        marks: {
           items: boolOption(options, 'marks.items'),
           favourites: boolOption(options, 'marks.favourites'),
           armies: boolOption(options, 'marks.armies'),
@@ -2011,13 +2057,7 @@ async function boot(): Promise<void> {
           favouritesOnlyNames: boolOption(options, 'map.favouritesOnlyNames'),
           nameScale: numberOption(options, 'ui.scaleNames'),
         },
-        view,
-      );
-      // Insight hover (desktop only): the Being under the pointer, from the latest feed sample. Where the cursor arrows start.
-      const hoverBeing = cursorScreen && canHover && !pressed ? beingAt(cursorScreen.x, cursorScreen.y, 10) : null;
-      insight.update(
-        simView.current,
-        {
+        insight: {
           layer: stringOption(options, 'map.layer'),
           mode: stringOption(options, 'map.layerMode'),
           happiness: boolOption(options, 'ui.happinessIcons'),
@@ -2027,13 +2067,30 @@ async function boot(): Promise<void> {
           talkBubbles: boolOption(options, 'ui.talkBubbles'),
           // The arrow kinds only when the Settings master is on, and never on touch.
           arrows: boolOption(options, 'ui.cursorArrows') && canHover ? new Set([...viewFlags].filter((k) => k.startsWith('arrow.'))) : new Set<string>(),
-          hoverId: hoverBeing ? beingIdOf(hoverBeing.key) : -1,
+          hoverId,
           moneyFlow: boolOption(options, 'ui.moneyFlow'),
           selectedDominion,
           accordDominion,
         },
-        { offX: cam.offX, offY: cam.offY, zoom: cam.zoom },
-      );
+        map: {
+          // Settings (`map.*`, `marks.boats`); the runtime-only quality flags turn off with the degradation ladder.
+          shadows: boolOption(options, 'map.shadows') && !degradedOff.has('map.shadows'),
+          boats: boolOption(options, 'marks.boats'),
+          particles: boolOption(options, 'map.particles') && !degradedOff.has('map.particles'),
+          crowdAnim: !degradedOff.has('map.crowdAnim'),
+          dust: !degradedOff.has('map.dust'),
+          creatureAnim: !degradedOff.has('map.creatureAnim'),
+          nightLights: boolOption(options, 'map.nightLights'),
+          bloom: boolOption(options, 'map.bloom'),
+          vignette: boolOption(options, 'map.vignette'),
+          treeSway: boolOption(options, 'map.treeWind'),
+          cursorLights: boolOption(options, 'map.cursorLights'),
+        },
+        cursor,
+        hoverId,
+        degradedOff,
+      });
+      costRing[costWritten++ % COST_RING] = frameCostMs;
       // Cursor tooltip: the Being under the pointer (tip.beings), else the tile (tip.tiles). Settings master ui.worldTooltips.
       const snapNow = simView.current;
       let tip: string[] | null = null;
@@ -2056,10 +2113,9 @@ async function boot(): Promise<void> {
       }
       // O07 history ticker: the newest three changes, while the flag is on.
       tickerView.show(viewFlags.has('ticker') ? historyFeed.recent(3) : null);
-      renderer.setView({ offX: cam.offX, offY: cam.offY, zoom: cam.zoom, dpr: renderer.app.renderer.resolution }, cursor);
     }
     // The minimap repaints about four times a second; it is skipped while hidden.
-    minimapClockMs += ticker.deltaMS;
+    minimapClockMs += dtMs;
     if (minimapClockMs >= 250) {
       minimapClockMs = 0;
       if (!minimapCanvas.hidden) minimap.draw(minimapView());
@@ -2081,11 +2137,11 @@ async function boot(): Promise<void> {
         speed: simSpeed,
         hash: simHash,
         side: realmSide,
-        zoom: cam?.zoom ?? 0,
+        zoom: zoomPx(),
       });
     }
   };
-  renderer.app.ticker.add(onFrame);
+  renderer.onFrame(onFrame);
 
   // Initial realm: ?seed= and ?size= override the defaults (size is sizeStep, 4 = 256 tiles).
   const seed = parseIntParam(params, 'seed') ?? Math.floor(Math.random() * 0x7fffffff);
@@ -2149,9 +2205,8 @@ async function boot(): Promise<void> {
     hash: () => simHash,
     side: () => realmSide,
     tileToScreen: (x: number, y: number) => {
-      const cam = camera;
-      if (!cam) return null;
-      return { x: hostRect.left + cam.offX + (x + 0.5) * cam.zoom, y: hostRect.top + cam.offY + (y + 0.5) * cam.zoom };
+      const p = renderer.tileToScreen(x, y);
+      return p ? { x: hostRect.left + p.sx, y: hostRect.top + p.sy } : null;
     },
     query: (x: number, y: number) => client.query(x, y),
     stroke: (x0: number, y0: number, x1: number, y1: number) => client.stroke('raise', 'circle', 5, x0, y0, x1, y1, true),
@@ -2174,18 +2229,17 @@ async function boot(): Promise<void> {
     /** Opens a window kind as a player action would. The e2e tests use it for confirmations, which have no Atlas section. */
     showWindow: (kind: string) => openWindow(kind),
     snapshot: () => simView.current,
-    creatureCount: () => creatures.drawnCount(),
+    creatureCount: () => renderer.stats().drawn,
+    /** The world view in use, '3d' or '2d' (after any fallback). */
+    rendererKind: () => renderer.kind,
+    /** The 3D camera rig (height, focus tile, yaw), or null in 2D. */
+    rig: () => renderer.camera.rig?.() ?? null,
     /** Dot sprites shown by the latest draw (the far-zoom level). */
-    dotCount: () => creatures.dotCount(),
+    dotCount: () => renderer.stats().dots,
     /** The baked-art atlas: pages per frame size and frames held. */
-    atlasStats: () => creatures.atlasStats(),
+    atlasStats: () => renderer.stats().atlas,
     /** Recent per-frame ms of the whole Pixi render() call (stage collect, batching, draw submission), oldest first, at most 600. */
-    renderCost: () => {
-      const n = Math.min(renderWritten, COST_RING);
-      const out: number[] = [];
-      for (let i = renderWritten - n; i < renderWritten; i++) out.push(renderRing[i % COST_RING]!);
-      return out;
-    },
+    renderCost: () => renderCostMs(renderer),
     /** Beings in this frame's feed sample, in view or not. */
     beingTotal: () => beingCount,
     /** Recent per-frame ms of the creature pipeline (feed push + sample + draw + dust), oldest first, at most 600. */
@@ -2196,7 +2250,7 @@ async function boot(): Promise<void> {
       return out;
     },
     /** The camera's zoom in CSS px per tile (0 before the camera exists). */
-    zoom: () => camera?.zoom ?? 0,
+    zoom: () => zoomPx(),
     resets: () => creatureReset.resets,
     /** A new realm with a random seed, as the Realm tab's restart does. */
     newWorld: () => restartRealm?.(),

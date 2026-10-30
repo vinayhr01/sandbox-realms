@@ -2985,3 +2985,15 @@ Smooth terrain, a being feed, and illustrated walking creatures and buildings (`
 - Retired settings: `ui.quickStrip` and `ui.autoOpenContextTab` (inert). A saved file that still holds them loads without them (tests/unit/options-retired.test.ts).
 - Contrast: light `--gold-hi` moved from #a86f00 to #9c6700 so the toast and New card text clears 4.5:1 on glass. Tests cover all three themes (tests/a11y/contrast.test.ts).
 - Not built: the info card for a town or a building (only beings open it); the pill pulse for a toggle (toggles play no map effect).
+
+## 3D view, part 1 (owner approved the design, 2026-10-30)
+
+- Spec `docs/superpowers/specs/2026-10-30-3d-world-design.md`; plan `docs/superpowers/plans/2026-10-30-3d-part1.md`. three.js with the PixiJS 2D view kept as a fallback (owner's pick over Babylon.js and fake isometric).
+- Seam: `main.ts` talks to one `WorldRenderer` (`src/render/world-renderer.ts`). `Renderer2D` wraps the Pixi layers; `Renderer3D` (`src/render3d/`) loads as the lazy `render3d` chunk. 3D layers register through `Layer3D` (`src/render3d/layer.ts`).
+- Dependencies, exact pins: `three` 0.186.1, `@types/three` 0.186.0 (no 0.186.1 types exist).
+- View rule: `?view=` beats `sr.view`, which beats the default (3D with WebGL2 and `deviceMemory` unknown or >= 4). Safe Mode forces 2D. A failed 3D start shows 2D and the toast "3D view unavailable, showing 2D." The Settings View switch saves with a forced suspend save (no throttle) and reloads.
+- Owner decision: every 2D map layer exists natively in 3D (marks, labels, lines, cursor arrows, dust, tree sway, night lights, shadows, bloom, vignette, cursor lights).
+- Budgets: `render3d` cap 220 KB gzip (150.6 KB at checkpoint); main 227.4 KB. Chunking uses rolldown `codeSplitting` with `includeDependenciesRecursively: false`: a manual chunk otherwise pulls its dependencies in, which put modules main needs into `render3d` and made main load it eagerly. Pixi-free shared modules (`effect-table`, `creature-sizing`, `group-colours`, `dust-consts`, `mark-sizing`, `insight-keys`, `atlas-core`) keep pixi out of the 3D chunk.
+- 3D ladder steps after the 2D ones: `map3d.shadows`, `map3d.post`, `map3d.billboards`, `map3d.viewDistance`, `map3d.renderScale` (60%). When exhausted, a once-per-session toast offers "Switch to 2D view"; it never switches by itself.
+- Tests: Playwright pins 2D through `storageState` (`sr.view=2d`); `view3d.spec.ts`, `view-switch.spec.ts`, `perf-3d.spec.ts` opt into 3D, plus a `phone-portrait-3d` project. The 3D stall limit is 1 s: software GL draws every frame in about 300 ms (2D about 250 ms), all in the rasteriser.
+- Known gaps at the checkpoint: Q rotates in 3D, so Q no longer opens the sheet there (owner to pick keys); no age overlay (2D has none to mirror); nameplates do not hide overlaps in 3D; lines are 1 px; terrain LOD seams can crack; trees and boats are placeholder shapes; wheel zoom reaches the ground in about 12 ticks; the 60/30 fps targets and the time to the first map frame are not yet measured on real hardware.

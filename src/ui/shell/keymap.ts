@@ -20,7 +20,8 @@ export type KeyAction =
   | 'brush-larger'
   | 'escape'
   | 'possess'
-  | 'pin';
+  | 'pin'
+  | 'rotate';
 
 export interface KeyBinding {
   /** `KeyboardEvent.code` values that trigger the binding. Empty for a pointer gesture, which sets `display`. */
@@ -36,7 +37,8 @@ export interface KeyBinding {
 
 export const KEYMAP: readonly KeyBinding[] = [
   { keys: ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9'], label: '1 to 9: arm a recent power', action: 'arm-recent', whenTyping: false },
-  { keys: ['KeyQ'], label: 'Q: open or close the power sheet', action: 'toggle-sheet', whenTyping: false },
+  { keys: ['KeyQ'], label: 'Q: open or close the power sheet (in 3D, Q and E turn the view instead)', action: 'toggle-sheet', whenTyping: false },
+  { keys: ['KeyE'], label: 'E: turn the view right (3D only; Q turns it left)', action: 'rotate', whenTyping: false },
   { keys: ['Slash'], label: '/: search the powers', action: 'focus-search', whenTyping: false },
   { keys: ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD'], label: 'Arrows or WASD: pan the map', action: 'pan' },
   { keys: ['Equal', 'NumpadAdd'], label: '= or numpad +: zoom in', action: 'zoom-in', whenTyping: false },
@@ -109,6 +111,8 @@ export interface KeyContext {
   togglePause(): void;
   toggleHud(): void;
   brushStep(step: -1 | 1): void;
+  /** 3D only: turns the view (1 right, -1 left). Absent in 2D, where Q still opens the sheet. */
+  rotate?(step: -1 | 1): void;
 }
 
 /** Zoom per key press (the same step as the zoom buttons). */
@@ -134,6 +138,11 @@ export function dispatchKey(e: KeyboardEvent, ctx: KeyContext): boolean {
     const id = ctx.recent()[Number(digit[1]) - 1];
     if (id === undefined) return false;
     ctx.arm(id);
+    return true;
+  }
+  // In 3D, Q and E turn the view; the sheet keeps its click and its Settings-listed keys in 2D.
+  if (ctx.rotate && (code === 'KeyQ' || code === 'KeyE')) {
+    ctx.rotate(code === 'KeyE' ? 1 : -1);
     return true;
   }
   switch (code) {

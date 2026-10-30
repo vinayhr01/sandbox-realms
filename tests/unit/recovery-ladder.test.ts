@@ -12,6 +12,10 @@ import {
   SAFE_MODE_PROFILE,
   chooseRestore,
   decideRecovery,
+  ladderExhausted,
+  ladderFor,
+  ladderMaxLevel,
+  renderScaleCapFor,
   isBootLoop,
   recordBoot,
   restoreOffers,
@@ -192,5 +196,40 @@ describe('restore prompt', () => {
 
   it('applies the Safe Mode profile from 19 section 7', () => {
     expect(SAFE_MODE_PROFILE).toMatchObject({ qualityTier: 'low', sharedMemory: false, workers: 1, audio: false, autosave: true, renderScale: 0.5 });
+  });
+});
+
+describe('3D degradation steps', () => {
+  it('appends the five 3D steps only for the 3d kind', () => {
+    for (const id of ['map3d.shadows', 'map3d.post', 'map3d.billboards', 'map3d.viewDistance', 'map3d.renderScale']) {
+      expect(ladderFor('2d')).not.toContain(id);
+      expect(ladderFor('3d')).toContain(id);
+    }
+    expect(ladderFor('2d')).toEqual(DEGRADE_OFF);
+    expect(ladderFor('3d').slice(0, DEGRADE_OFF.length)).toEqual(DEGRADE_OFF);
+  });
+
+  it('has a longer max level in 3D, reached by stepping through the 3D steps', () => {
+    expect(ladderMaxLevel('2d')).toBe(DEGRADE_MAX_LEVEL);
+    expect(ladderMaxLevel('3d')).toBe(ladderFor('3d').length);
+    let track: DegradeTrack = DEGRADE_START;
+    for (let s = 0; s < 200; s++) track = stepDegrade(track, 100, 16.7, false, ladderMaxLevel('3d'));
+    expect(track.level).toBe(ladderMaxLevel('3d'));
+    expect(ladderExhausted(track, ladderMaxLevel('3d'))).toBe(true);
+  });
+
+  it('is exhausted only at the last step', () => {
+    expect(ladderExhausted({ level: DEGRADE_MAX_LEVEL - 1, overSeconds: 0, underSeconds: 0, holdSeconds: 2 })).toBe(false);
+    expect(ladderExhausted({ level: DEGRADE_MAX_LEVEL, overSeconds: 0, underSeconds: 0, holdSeconds: 2 })).toBe(true);
+    const max3d = ladderMaxLevel('3d');
+    expect(ladderExhausted({ level: max3d - 1, overSeconds: 0, underSeconds: 0, holdSeconds: 2 }, max3d)).toBe(false);
+    expect(ladderExhausted({ level: max3d, overSeconds: 0, underSeconds: 0, holdSeconds: 2 }, max3d)).toBe(true);
+  });
+
+  it('caps the render scale at 50 percent in 2D and at 60 percent at the 3D renderScale step', () => {
+    expect(renderScaleCapFor('2d', DEGRADE_RENDER_SCALE_LEVEL - 1)).toBeNull();
+    expect(renderScaleCapFor('2d', DEGRADE_RENDER_SCALE_LEVEL)).toBe(50);
+    expect(renderScaleCapFor('3d', ladderMaxLevel('3d') - 1)).toBeNull();
+    expect(renderScaleCapFor('3d', ladderMaxLevel('3d'))).toBe(60);
   });
 });

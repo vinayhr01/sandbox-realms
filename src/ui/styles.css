@@ -221,6 +221,55 @@ body {
   touch-action: none;
 }
 
+/* 3D ground walk stick, bottom left over the map (touch only; shown by joystick.ts). 44 px or more is the touch target. */
+.joystick {
+  position: absolute;
+  left: 16px;
+  bottom: 96px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(28, 31, 39, 0.45);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  touch-action: none;
+  z-index: 5;
+}
+
+.joystick[hidden] {
+  display: none;
+}
+
+.joystick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 52px;
+  height: 52px;
+  margin: -26px 0 0 -26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* 3D aim mark at the screen centre while a power is armed at ground level. Pointer events pass through it. */
+.crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  pointer-events: none;
+  z-index: 5;
+  background:
+    linear-gradient(#fff, #fff) center / 2px 100% no-repeat,
+    linear-gradient(#fff, #fff) center / 100% 2px no-repeat;
+  opacity: 0.85;
+}
+
+.crosshair[hidden] {
+  display: none;
+}
+
 .status {
   position: absolute;
   left: var(--gap);

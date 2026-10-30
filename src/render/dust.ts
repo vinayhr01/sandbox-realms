@@ -5,11 +5,10 @@
  * `map.particles` setting on).
  */
 import { Container, Sprite, type Texture } from 'pixi.js';
+import { DUST_LIFE_MS, DUST_MAX } from './dust-consts.ts';
 
-/** Most puff sprites the pool ever creates. */
-export const DUST_MAX = 256;
-/** A puff lives this long, fading out as it drifts back and rises. */
-export const DUST_LIFE_MS = 300;
+export { DUST_LIFE_MS, DUST_MAX };
+
 const DUST_PX = 2;
 const DUST_COLOUR = 0xd8c8a0;
 const DUST_DRIFT_PX = 4;

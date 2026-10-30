@@ -8,6 +8,9 @@
  */
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import type { MapIntrigue, MapMarks, Snapshot } from '../shared/protocol.ts';
+import { nameFontPx } from './mark-sizing.ts';
+
+export { nameFontPx };
 
 const ITEM_COLOUR = 0xffb020;
 const FAVOURITE_COLOUR = 0xff5fd2;
@@ -25,10 +28,6 @@ const BATTLE_HALF_PX = 4;
 const INTRIGUE_HALF_PX = 5;
 const HAMLET_DOT_PX = 2.5;
 const LABEL_OFFSET_PX = 5;
-/** Nameplate font size at `ui.scaleNames` 100 percent (CSS px). The spec default of 70 gives 11.2 px, about today's size. */
-const LABEL_BASE_PX = 16;
-const NAME_SCALE_MIN = 30;
-const NAME_SCALE_MAX = 160;
 
 /** The `marks.*` and `map.*` toggles this layer reads. */
 export interface MarkToggles {
@@ -57,12 +56,6 @@ interface Box {
 
 function boxesOverlap(a: Box, b: Box): boolean {
   return a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
-}
-
-/** Nameplate font size (CSS px) for a `ui.scaleNames` percentage, clamped to its range. */
-export function nameFontPx(percent: number): number {
-  const p = Math.min(NAME_SCALE_MAX, Math.max(NAME_SCALE_MIN, percent));
-  return (LABEL_BASE_PX * p) / 100;
 }
 
 /** The camera state the layer needs. */

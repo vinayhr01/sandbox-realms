@@ -68,11 +68,12 @@ import {
   type FatalAction,
   type FaultKind,
   DEGRADE_MAX_FRAME_MS,
-  DEGRADE_OFF,
-  DEGRADE_RENDER_SCALE,
-  DEGRADE_RENDER_SCALE_LEVEL,
   DEGRADE_START,
+  ladderExhausted,
+  ladderFor,
+  ladderMaxLevel,
   mainHangGap,
+  renderScaleCapFor,
   stepDegrade,
   workerStalled,
   type DegradeTrack,
@@ -622,12 +623,33 @@ async function boot(): Promise<void> {
   };
   const effectiveRenderScale = (): number => {
     const saved = numberOption(options, 'perf.renderScale');
-    return degradeLevel >= DEGRADE_RENDER_SCALE_LEVEL ? Math.min(saved, DEGRADE_RENDER_SCALE) : saved;
+    const cap = renderScaleCapFor(renderer.kind, degradeLevel);
+    return cap === null ? saved : Math.min(saved, cap);
+  };
+  // The 3D struggle toast shows once per session (sessionStorage, with a page-local fallback when storage throws).
+  let struggleToastShown = false;
+  const showStruggleToast = (): void => {
+    if (struggleToastShown) return;
+    struggleToastShown = true;
+    try {
+      if (window.sessionStorage.getItem('sr.struggle3d')) return;
+      window.sessionStorage.setItem('sr.struggle3d', '1');
+    } catch {
+      // Without session storage the page-local flag still limits it to once per page.
+    }
+    pushToast(store, '3D is struggling on this device.', 'info', Date.now(), {
+      label: 'Switch to 2D view',
+      run: () => {
+        writeSavedView(safeStorage(), '2d');
+        location.reload();
+      },
+    });
   };
   const applyDegradeLevel = (level: number, meanMs: number): void => {
     degradeLevel = level;
     degradedOff.clear();
-    for (let k = 0; k < level && k < DEGRADE_OFF.length; k++) degradedOff.add(DEGRADE_OFF[k] ?? '');
+    const steps = ladderFor(renderer.kind);
+    for (let k = 0; k < level && k < steps.length; k++) degradedOff.add(steps[k] ?? '');
     renderer.setRenderScale(effectiveRenderScale());
     journal('DEGRADE', `level ${level} at mean frame ${meanMs.toFixed(1)} ms; off: ${[...degradedOff].join(', ') || 'none'}; render scale ${effectiveRenderScale()}%`);
   };
@@ -639,8 +661,10 @@ async function boot(): Promise<void> {
     degradeWindowFrames++;
     if (degradeWindowMs < 1000) return;
     const mean = degradeWindowFrames > 0 ? degradeWindowFrameMs / degradeWindowFrames : 0;
-    const next = stepDegrade(degrade, mean, frameBudgetMs(), renderer.liveEffects() === 0);
+    const max = ladderMaxLevel(renderer.kind);
+    const next = stepDegrade(degrade, mean, frameBudgetMs(), renderer.liveEffects() === 0, max);
     if (next.level !== degrade.level) applyDegradeLevel(next.level, mean);
+    if (renderer.kind === '3d' && next.level !== degrade.level && ladderExhausted(next, max)) showStruggleToast();
     degrade = next;
     degradeWindowMs = 0;
     degradeWindowFrameMs = 0;

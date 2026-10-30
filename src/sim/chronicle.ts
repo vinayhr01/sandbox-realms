@@ -1054,8 +1054,12 @@ function decodeBeings(sim: Sim, r: Reader): void {
   if (codeIds.size !== codeCount || codeCount !== sim.beings.strains.size) throw new Error('chronicle: lineage codes do not match the strains');
   for (const [id] of codes) if (!sim.beings.strains.get(id)) throw new Error(`chronicle: lineage code names a missing strain ${id}`);
   for (const rec of raw) {
+    // Bond, close, lover and friend links are generation-tagged and read through isCurrent, so a link to a Being that
+    // has since died is stale and counts for nothing (as aggro below). It is kept as saved, so the state hash still
+    // matches the live run; only a link outside the being table is corrupt. (Rejecting stale links made real saves
+    // unloadable: seeds 20240601/2 at tick 150.)
     for (const link of [rec.fields['bondWith'] ?? -1, rec.fields['closeWith'] ?? -1, rec.fields['loverWith'] ?? -1, rec.fields['friendWith'] ?? -1]) {
-      if (link !== -1 && !seen.has(link)) throw new Error(`chronicle: being ${rec.slot} names a missing bond partner`);
+      if (link < -1 || link >= capacity) throw new Error(`chronicle: being ${rec.slot} names a missing bond partner`);
     }
     // Aggro entries are empty (-1) or name an attacker slot. An entry whose attacker is no longer current (the slot
     // was reused, or the attacker died and its generation moved on) counts for nothing and is kept as saved; only an

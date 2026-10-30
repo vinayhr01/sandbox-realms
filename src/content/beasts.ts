@@ -76,7 +76,7 @@ const ALL_BIOMES: readonly string[] = BIOMES.map((b) => b.id);
 
 /**
  * Nocturnal species (day and night spec): they sleep by day and hunt and work at night. Drafted from the plain names
- * (owls, bats, moths, foxes, wolves and similar). The owner reviews this list before it is wired; every other species is diurnal.
+ * (owls, bats, moths, foxes, wolves and similar); accepted by the owner on 2026-10-30. Every other species is diurnal.
  */
 export const NOCTURNAL_IDS: ReadonlySet<string> = new Set([
   'hushowl', // Owl

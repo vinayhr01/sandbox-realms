@@ -8,6 +8,30 @@ function seededSim(): Sim {
 }
 
 describe('chronicle codec', () => {
+  it('a save whose beings still name a dead lover, friend or close partner loads (the links are stale, the sim ignores them)', () => {
+    const sim = seededSim();
+    for (let t = 0; t < 200; t++) sim.step();
+    const s = sim.beings.store;
+    const [a, b] = [s.at(0), s.at(1)];
+    // A living Being keeps generation-tagged links to one that then dies without clearing them (the case seen on
+    // seeds 20240601/2 at tick 150): the sim reads such links through isCurrent, so they count for nothing.
+    for (const [withArr, genArr] of [[s.loverWith, s.loverGen], [s.friendWith, s.friendGen], [s.closeWith, s.closeGen]] as const) {
+      withArr[a] = b;
+      genArr[a] = s.generation[b] ?? 0;
+    }
+    s.kill(b);
+    const back = decodeChronicle(encodeChronicle(sim));
+    expect(back.stateHash()).toBe(sim.stateHash());
+  });
+
+  it('a link outside the being table is still rejected as corrupt', () => {
+    const sim = seededSim();
+    for (let t = 0; t < 50; t++) sim.step();
+    const s = sim.beings.store;
+    s.friendWith[s.at(0)] = s.alive.length + 5;
+    expect(() => decodeChronicle(encodeChronicle(sim))).toThrow(/bond partner/);
+  });
+
   it('round trip after 500 ticks reproduces the state hash, tick and beings', () => {
     const sim = seededSim();
     for (let t = 0; t < 500; t++) sim.step();

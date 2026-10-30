@@ -3010,7 +3010,7 @@ Smooth terrain, a being feed, and illustrated walking creatures and buildings (`
   - hunters get 1.5x range at night, and nocturnal predators 1.25x bite;
   - folk go home at dusk (home is worked out from the parcel, or the nearest hamlet);
   - `runJobs` runs at 0.3x at night.
-- Nocturnal species, for owner review: hushowl, duskflit, mothlet, voidmoth, gleambug, gnatveil, cinderfox, gloamfang, stormhound, shadepard, bonehound, wailwisp.
+- Nocturnal species (accepted by the owner): hushowl, duskflit, mothlet, voidmoth, gleambug, gnatveil, cinderfox, gloamfang, stormhound, shadepard, bonehound, wailwisp.
 - `GOLDEN_HASH` 1357125849 to 742436326, on purpose: the 1200-tick run now crosses day and night. `dominions-founding-sim` on seed 555 now founds in year 13, not year 8 (slower night work), so its horizon is 15 years.
 - Owner picked three.js `Sky` and `Water` over custom shaders. The sea is one flat mirror at the top sea level. The mirror draws only within 40 tiles of the water; from higher up a lit plain sea is drawn. It cost about 2x a frame.
 - Overview camera tilted to -60 degrees and stands back from the focus (owner: "top view also three.js, more modern").
@@ -3019,4 +3019,4 @@ Smooth terrain, a being feed, and illustrated walking creatures and buildings (`
   - Fog started too close; it now starts at 4x the camera height + 60.
   - The composer path cost about 6x a frame (750 vs 116 ms). The vignette is now a CSS overlay, and the composer runs only for night bloom, without multisampling.
 - One drawn-time clock (`src/render/day-clock.ts`) is shared by both views. Above 2x it only moves forward, at most one day per 10 s, so there is no strobe. The `__sr.forcePhase(p)` test hook pins it.
-- Found, not fixed (owner decision): `decodeChronicle` rejects a save in which a live being's `closeWith`, `loverWith` or `friendWith` names a dead slot. Only `bondWith` is checked by generation on death. Seeds 20240601 and 20240602 fail at tick 150 on main.
+- Fixed 2026-10-30: `decodeChronicle` rejected a save in which a live being's `closeWith`, `loverWith` or `friendWith` names a dead slot. Only `bondWith` is checked by generation on death. Seeds 20240601 and 20240602 failed at tick 150. Links are generation-tagged and read through `isCurrent`, so the loader now keeps a stale link as saved, as it already did for aggro; only a link outside the being table is corrupt.

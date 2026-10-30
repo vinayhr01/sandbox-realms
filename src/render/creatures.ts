@@ -48,7 +48,7 @@ export const CROWD_LIMIT = 1500;
 const SHADOW_W = 16;
 const SHADOW_H = 8;
 const SHADOW_ALPHA = 0.35;
-const BOAT_COLOUR: Readonly<Record<MapBoat['kind'], number>> = { trading: 0x7fd3ff, fishing: 0xa8e6a1, transport: 0xffd27f };
+export const BOAT_COLOUR: Readonly<Record<MapBoat['kind'], number>> = { trading: 0x7fd3ff, fishing: 0xa8e6a1, transport: 0xffd27f };
 
 /**
  * Drops the feed sample and the creature sprites, and counts the reset in `count`. Called when a new, loaded or respawned

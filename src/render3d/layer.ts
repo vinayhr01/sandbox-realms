@@ -6,6 +6,8 @@
  */
 import type * as THREE from 'three';
 import type { FrameInput, ScreenPoint } from '../render/world-renderer.ts';
+import type { DrawBeing } from '../render/feed-interp.ts';
+import type { MapBoat, MapBuilding } from '../shared/protocol.ts';
 import type { HeightField } from './heights.ts';
 
 export interface Layer3DContext {
@@ -15,6 +17,9 @@ export interface Layer3DContext {
   renderer: THREE.WebGLRenderer;
   /** Projects a tile centre (x + 0.5, y + 0.5 at its height) to canvas CSS px, or null when behind the camera. */
   toScreen(x: number, y: number): ScreenPoint | null;
+  /** The hamlet buildings and boats of the latest feeds (set by the renderer's setBuildings / setBoats). */
+  buildings(): readonly MapBuilding[];
+  boats(): readonly MapBoat[];
 }
 
 export interface Layer3D {
@@ -25,6 +30,8 @@ export interface Layer3D {
   /** Called on a new realm and after a WebGL context restore: drop meshes of the old side and rebuild. */
   onSide?(side: number): void;
   frame(input: FrameInput, ctx: Layer3DContext): void;
+  /** Taps and hover: the being this layer drew under a screen point (within slopPx), or null. Renderer3D asks each layer. */
+  beingAt?(sx: number, sy: number, slopPx: number, ctx: Layer3DContext): DrawBeing | null;
   dispose(): void;
 }
 

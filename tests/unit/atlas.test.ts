@@ -231,3 +231,42 @@ describe('Atlas pages', () => {
     expect(a.cells.size).toBeGreaterThan(liveAfterFirst);
   });
 });
+
+describe('Atlas renderer-neutral rects', () => {
+  const idle = gaitFor(SPECIES_GAIT[SPECIES[0]!.id]!, BeingState.Idle, false);
+  const neutral = { canvas: new EventTarget() } as unknown as { readonly canvas: HTMLCanvasElement };
+
+  it('frameRect is null before the page is flushed, then a rect inside [0, 1] on that page', async () => {
+    const atlas = new Atlas(neutral, { decode: immediate, now: () => 0, schedule: () => {} });
+    atlas.request(0);
+    expect(atlas.frameRect(0, idle.gait, idle.mode, 0, 48)).toBeNull();
+    await drain(atlas);
+    const r = atlas.frameRect(0, idle.gait, idle.mode, 0, 48);
+    expect(r).not.toBeNull();
+    for (const v of [r!.u0, r!.v0, r!.u1, r!.v1]) {
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(1);
+    }
+    expect(r!.u1).toBeGreaterThan(r!.u0);
+    expect(r!.v1).toBeGreaterThan(r!.v0);
+  });
+
+  it('frameRect falls back from 128 px to 48 px, as frame() does', async () => {
+    const atlas = new Atlas(neutral, { decode: immediate, now: () => 0, schedule: () => {} });
+    atlas.request(0);
+    await drain(atlas);
+    expect(atlas.frameRect(0, idle.gait, idle.mode, 0, 128)).toEqual(atlas.frameRect(0, idle.gait, idle.mode, 0, 48));
+  });
+
+  it('buildingRect is null until the still is flushed, and onPageFlush reports the page it flushed', async () => {
+    const atlas = new Atlas(neutral, { decode: immediate, now: () => 0, schedule: () => {} });
+    const flushed: HTMLCanvasElement[] = [];
+    atlas.onPageFlush((page) => flushed.push(page));
+    atlas.requestBuilding('granary');
+    expect(atlas.buildingRect('granary', 48)).toBeNull();
+    await drain(atlas);
+    const r = atlas.buildingRect('granary', 48);
+    expect(r).not.toBeNull();
+    expect(flushed).toContain(r!.page);
+  });
+});

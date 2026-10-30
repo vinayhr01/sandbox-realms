@@ -17,6 +17,7 @@ import { layerFactories, type Layer3D, type Layer3DContext } from './layer.ts';
 // Layer modules register on import (layer.ts). Tasks 4-8 each add one import line here, for example:
 // import './terrain3d.ts';
 import './terrain3d.ts';
+import './marks3d.ts';
 
 const FOV_DEG = 50;
 const NEAR = 0.1;

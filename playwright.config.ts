@@ -7,6 +7,10 @@ const PORT = Number(process.env['SR_E2E_PORT'] ?? 4173);
 // projects set testMatch, which already leaves it out. CI's sharded job sets SR_SKIP_PERF=1 and the perf gate runs in its
 // own job, alone, so a shard's other tests cannot steal its CPU.
 const SKIP_PERF = process.env['SR_SKIP_PERF'] === '1';
+// The 3D specs draw with software WebGL too: two of them on one shard's two workers starve each other and their
+// neighbours (CI, 2026-10-30). CI's sharded job sets SR_SKIP_3D=1 and runs them in their own job, one worker.
+const SKIP_3D = process.env['SR_SKIP_3D'] === '1';
+const SPECS_3D = /(view3d|view-switch|perf-3d)\.spec\.ts/;
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -30,7 +34,7 @@ export default defineConfig({
     timeout: 120_000,
   },
   projects: [
-    { name: 'desktop-chromium', testIgnore: SKIP_PERF ? /perf-creatures\.spec\.ts/ : [], use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 720 } } },
+    { name: 'desktop-chromium', testIgnore: [...(SKIP_PERF ? [/perf-creatures\.spec\.ts/] : []), ...(SKIP_3D ? [SPECS_3D] : [])], use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 720 } } },
     // Phone and tablet run only the layout specs; everything else is viewport-independent and runs on desktop-chromium.
     { name: 'phone-portrait', testMatch: /(platform-smoke|smoke|panels)\.spec\.ts/, use: { ...devices['Pixel 5'], viewport: { width: 390, height: 844 }, hasTouch: true } },
     // The 3D boot check on a phone in portrait: only `boots in 3D` from view3d.spec.ts.

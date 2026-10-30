@@ -11,6 +11,7 @@
  *   uDetail = (medium, close)           zoom-faded detail weights 0..1 (terrain-detail.ts)
  *   uTime   = seconds                   animates water ripples and crests
  *   uDpr    = device px per CSS px      converts CSS-px thresholds (grid lines) to device px
+ *   uNight  = 0..1                      night tint: darkens and cools the palette colour (night.ts)
  *
  * Palette texture: row 0 holds the ground colours; row 1 has R = 255 for water and sea grounds,
  * G = 255 for sea grounds only (lakes and rivers are water but not sea).
@@ -35,6 +36,7 @@ uniform vec4 uCursor;
 uniform vec2 uDetail;
 uniform float uTime;
 uniform float uDpr;
+uniform float uNight;
 
 out vec4 fragColor;
 
@@ -149,6 +151,8 @@ void main() {
   float otherW = 1.0 - sameW;
 
   vec3 colour = (kA * groundColour(gA) + kB * groundColour(gB) + kC * groundColour(gC) + kD * groundColour(gD)) / sameW;
+  // Night: darken and cool the palette colour. Water and land share the tint, so the coast stays readable.
+  colour = mix(colour, colour * vec3(0.72, 0.8, 1.0) * 0.8, uNight);
 
   // Elevation (0..255, from the B channel) interpolated across the four centres.
   float eA = tA.b * 255.0;

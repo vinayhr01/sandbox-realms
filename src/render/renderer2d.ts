@@ -3,6 +3,8 @@
  * behaviour change. main.ts drives it through frame() from the ticker, in the order the layers drew before.
  */
 import { TerrainRenderer } from './terrain.ts';
+import { nightTint } from './night.ts';
+import { dayPhase } from '../shared/daytime.ts';
 import { Camera } from './camera.ts';
 import { CreatureLayer } from './creatures.ts';
 import { MarkLayer } from './marks.ts';
@@ -191,6 +193,8 @@ class Renderer2D implements WorldRenderer {
       this.effects.setEnabled(effectsOn);
     }
     this.terrain.setDetailToggles(!off.has('map.terrainMedium'), !off.has('map.terrainClose'));
+    // Night tint from the tick the snapshot carries (0 before the first snapshot).
+    this.terrain.setNight(input.snapshot ? nightTint(dayPhase(input.snapshot.tick)) : 0);
     const cam = this.camera.current();
     if (!cam) return 0;
     this.creatures.setToggles({

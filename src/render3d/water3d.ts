@@ -92,14 +92,16 @@ export function buildWaterChunk(field: HeightField, cx: number, cy: number, opts
 export function buildSeaGeometry(field: HeightField): SeaSurface | null {
   const side = field.side;
   const tiles: { x: number; y: number; h: number }[] = [];
-  let planeY = Infinity;
+  // One flat sea level at the highest sea surface: per-tile heights made visible steps, and seabed poked through a
+  // mirror set lower (stripes in the overview).
+  let planeY = -Infinity;
   for (let y = 0; y < side; y++) {
     for (let x = 0; x < side; x++) {
       if (!isSea(field, x, y)) continue;
       const h = waterSurface(field, x, y);
       if (h === null) continue;
       tiles.push({ x, y, h });
-      planeY = Math.min(planeY, h);
+      planeY = Math.max(planeY, h);
     }
   }
   if (tiles.length === 0) return null;
@@ -107,7 +109,7 @@ export function buildSeaGeometry(field: HeightField): SeaSurface | null {
   const indices = new Uint32Array(tiles.length * 6);
   tiles.forEach((t, n) => {
     const b = n * 4;
-    const dy = t.h - planeY;
+    const dy = 0;
     const p = n * 12;
     positions.set([t.x, dy, t.y, t.x + 1, dy, t.y, t.x, dy, t.y + 1, t.x + 1, dy, t.y + 1], p);
     indices.set([b, b + 2, b + 1, b + 1, b + 2, b + 3], n * 6);

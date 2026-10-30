@@ -59,6 +59,8 @@ export interface FrameInput {
   snapshot: Snapshot | null;
   /** Game speed: 0 paused, else 0.5 to 10. Above 2x the 3D sky smooths its drawn time of day. Unset counts as 1x. */
   speed?: number;
+  /** Test hook (`__sr.forcePhase`): pins the drawn time of day. Null or unset follows the sim. */
+  phaseOverride?: number | null;
   marks: MarkToggles;
   insight: InsightToggles;
   map: MapToggles;

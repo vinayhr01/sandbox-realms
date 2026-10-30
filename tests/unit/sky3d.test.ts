@@ -63,7 +63,8 @@ describe('smoothing the drawn phase', () => {
   it('smoothing caps the per-frame step', () => {
     // A long frame gap at 10x would step the full gap; the cap holds it to 0.05.
     expect(drawnPhase(0.2, 0.6, 500, 10)).toBeCloseTo(0.25, 9);
-    expect(drawnPhase(0.7, 0.3, 500, 10)).toBeCloseTo(0.65, 9);
+    // Forward only: the drawn day never runs backwards, it carries on round to the target.
+    expect(drawnPhase(0.7, 0.3, 500, 10)).toBeCloseTo(0.75, 9);
     expect(Math.abs(wrapDelta(0.2, stepPhase(0.2, 0.7, 5000)))).toBeLessThanOrEqual(0.05 + 1e-9);
   });
 

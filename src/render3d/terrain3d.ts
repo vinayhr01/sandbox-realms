@@ -28,7 +28,7 @@ const SHAPE_CODE: Record<BrushShape, number> = { circle: 0, square: 1, diamond: 
 /** Brush outline width in tiles. */
 const RING_WIDTH = 0.06;
 /** The sea mirror's tint and wave strength. */
-const SEA_COLOUR = 0x2b5f86;
+const SEA_COLOUR = 0x1f86c8;
 /** Default sun direction for the sea mirror, from the surface towards the sun. The sky sets it with setSunDirection. */
 const DEFAULT_SUN = new THREE.Vector3(0.5, 0.7, 0.3).normalize();
 

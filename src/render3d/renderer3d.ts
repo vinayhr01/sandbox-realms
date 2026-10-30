@@ -166,6 +166,8 @@ export class Renderer3D implements WorldRenderer {
     }
     host.appendChild(this.canvas);
     this.gl.toneMapping = THREE.ACESFilmicToneMapping;
+    // The physical Sky's radiance is HDR; at exposure 1 it washed the overview white (three's Sky example uses 0.5).
+    this.gl.toneMappingExposure = 0.6;
     this.gl.setClearColor(BACKGROUND, 1);
     this.cam = new THREE.PerspectiveCamera(FOV_DEG, 1, NEAR, FAR_MIN);
     this.cam.rotation.order = 'YXZ';

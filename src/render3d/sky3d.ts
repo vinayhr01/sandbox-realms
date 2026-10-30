@@ -3,21 +3,23 @@
  * the horizon colour. The sun and moon directions, star opacity and fog colour are pure functions of the day phase
  * (src/shared/daytime.ts), so the sky, the lighting and the sim all agree.
  *
- * The drawn phase equals the sim phase at speeds up to 2x. Above that it follows through a smoothing filter (time constant
- * 1.5 s, at most 0.05 of a day per frame), so 5x and 10x drift instead of strobing. Behaviour never uses the drawn phase.
+ * The drawn phase comes from DayClock (src/render/day-clock.ts), shared with the 2D view: the sim phase up to 2x, a
+ * steady forward drift above it. Behaviour never uses the drawn phase.
  *
  * Key `map3d.stars` in FrameInput.degradedOff turns the stars and the moon glow off on weak devices.
  */
 import * as THREE from 'three';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import type { FrameInput } from '../render/world-renderer.ts';
-import { dayPhase, light01 } from '../shared/daytime.ts';
+import { light01 } from '../shared/daytime.ts';
+import { DayClock, drawnPhase, phaseOf, stepPhase } from '../render/day-clock.ts';
 import { registerLayer, type Layer3D, type Layer3DContext } from './layer.ts';
 
 export type Vec3 = [number, number, number];
 
-/** Phase used when no snapshot exists yet: a fixed noon, as the old cosmetic cycle did. */
-const NOON_PHASE = 0.5;
+// Re-exported for the 3D layers and tests that read the clock from here.
+export { DayClock, drawnPhase, phaseOf, stepPhase };
+
 /** The Sky shader places its box on the far plane, so this size only needs to contain the camera. */
 const SKY_SCALE = 450000;
 /** Stars sit on a dome this far from the camera, inside the far plane. */
@@ -27,31 +29,10 @@ const STAR_COUNT = 600;
 const MOON_DISTANCE = 140;
 const MOON_RADIUS = 5;
 const GLOW_SIZE = 40;
-/** Smoothing time constant of the drawn phase, in seconds of real time. */
-const PHASE_SMOOTH_S = 1.5;
-/** Largest drawn-phase step per frame, as a fraction of a day. */
-const PHASE_MAX_STEP = 0.05;
-/** At or below this speed the drawn phase is the sim phase. */
-const SMOOTH_ABOVE_SPEED = 2;
-
 const FOG_DAY = new THREE.Color(0xbcd6ea);
 const FOG_NIGHT = new THREE.Color(0x0b1220);
 const FOG_WARM = new THREE.Color(0xf0a070);
 const MOON_COLOUR = 0xf2f0e0;
-
-function wrap01(p: number): number {
-  return ((p % 1) + 1) % 1;
-}
-
-/** Signed distance from `d` to the nearest whole day, in [-0.5, 0.5). */
-function wrapHalf(d: number): number {
-  return d - Math.round(d);
-}
-
-/** Phase of a sim tick in [0, 1). No snapshot is a fixed noon. */
-export function phaseOf(tick: number | null): number {
-  return tick === null ? NOON_PHASE : dayPhase(tick);
-}
 
 /** Night amount in [0, 1]: 1 at deep night, 0 by day, ramping through dawn and dusk. */
 export function nightAmount(phase: number): number {
@@ -88,31 +69,6 @@ export function fogColour(phase: number): THREE.Color {
   const elev = sunDirection(phase)[1];
   const warm = 0.5 * Math.max(0, 1 - Math.abs(elev) / 0.3);
   return base.lerp(FOG_WARM, warm);
-}
-
-/** One smoothing step towards `target` on the day circle, taking the short way round, capped at PHASE_MAX_STEP. */
-export function stepPhase(drawn: number, target: number, dtMs: number): number {
-  const d = wrapHalf(target - drawn);
-  const alpha = 1 - Math.exp(-Math.max(0, dtMs) / 1000 / PHASE_SMOOTH_S);
-  const step = Math.min(PHASE_MAX_STEP, Math.max(-PHASE_MAX_STEP, d * alpha));
-  return wrap01(drawn + step);
-}
-
-/** The phase to draw: the target itself at speeds up to 2x (or on the first frame), else smoothed. */
-export function drawnPhase(drawn: number | null, target: number, dtMs: number, speed: number): number {
-  if (drawn === null || speed <= SMOOTH_ABOVE_SPEED) return target;
-  return stepPhase(drawn, target, dtMs);
-}
-
-/** Holds the drawn phase across frames. Each layer owns one; both see the same input each frame, so they agree. */
-export class DayClock {
-  private drawn: number | null = null;
-
-  update(input: FrameInput): number {
-    const target = phaseOf(input.snapshot ? input.snapshot.tick : null);
-    this.drawn = drawnPhase(this.drawn, target, input.dtMs, input.speed ?? 1);
-    return this.drawn;
-  }
 }
 
 /** Star positions on the upper dome, from a fixed xorshift seed so every load shows the same sky. */
@@ -178,8 +134,8 @@ export class Sky3D implements Layer3D {
       const u = uniforms[name];
       if (u) u.value = value;
     };
-    tune('turbidity', 4);
-    tune('rayleigh', 1.5);
+    tune('turbidity', 2);
+    tune('rayleigh', 2.5);
     tune('mieCoefficient', 0.005);
     tune('mieDirectionalG', 0.8);
     this.sky = sky;
@@ -226,9 +182,10 @@ export class Sky3D implements Layer3D {
     this.sky?.material.uniforms.sunPosition?.value.set(sunDir[0], sunDir[1], sunDir[2]);
 
     // Fog follows the camera height, so the overview (high above the map) is never fogged and ground level fades to the horizon.
-    const near = 1.5 * Math.max(0, cam.y) + 4;
+    // The tilted overview looks across the map from up to ~2.5 heights away, so haze starts beyond that.
+    const near = 4 * Math.max(0, cam.y) + 60;
     this.fog.near = near;
-    this.fog.far = near + 80;
+    this.fog.far = near + 200;
     this.fog.color.copy(fogColour(phase));
 
     const starsOn = !input.degradedOff.has('map3d.stars');

@@ -10,7 +10,7 @@ const SKIP_PERF = process.env['SR_SKIP_PERF'] === '1';
 // The 3D specs draw with software WebGL too: two of them on one shard's two workers starve each other and their
 // neighbours (CI, 2026-10-30). CI's sharded job sets SR_SKIP_3D=1 and runs them in their own job, one worker.
 const SKIP_3D = process.env['SR_SKIP_3D'] === '1';
-const SPECS_3D = /(view3d|view-switch|perf-3d)\.spec\.ts/;
+const SPECS_3D = /(view3d|view-switch|perf-3d|day-night)\.spec\.ts/;
 
 export default defineConfig({
   testDir: 'tests/e2e',

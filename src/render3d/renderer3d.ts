@@ -20,6 +20,7 @@ import './terrain3d.ts';
 import './marks3d.ts';
 import './beings3d.ts';
 import { Effects3D } from './effects3d.ts';
+import './sky3d.ts';
 import './lighting3d.ts';
 import { Post3D } from './post3d.ts';
 
@@ -164,6 +165,7 @@ export class Renderer3D implements WorldRenderer {
       throw err;
     }
     host.appendChild(this.canvas);
+    this.gl.toneMapping = THREE.ACESFilmicToneMapping;
     this.gl.setClearColor(BACKGROUND, 1);
     this.cam = new THREE.PerspectiveCamera(FOV_DEG, 1, NEAR, FAR_MIN);
     this.cam.rotation.order = 'YXZ';

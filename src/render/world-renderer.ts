@@ -57,6 +57,8 @@ export interface FrameInput {
   beingCount: number;
   /** simView.current */
   snapshot: Snapshot | null;
+  /** Game speed: 0 paused, else 0.5 to 10. Above 2x the 3D sky smooths its drawn time of day. Unset counts as 1x. */
+  speed?: number;
   marks: MarkToggles;
   insight: InsightToggles;
   map: MapToggles;

@@ -30,7 +30,9 @@ export class Post3D implements Layer3D {
   private vignette: ShaderPass | null = null;
 
   init(ctx: Layer3DContext): void {
-    const composer = new EffectComposer(ctx.renderer);
+    // Multisampled targets give the anti-aliasing (call 6): the canvas itself stays at antialias off.
+    const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
+    const composer = new EffectComposer(ctx.renderer, target);
     const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), BLOOM_STRENGTH, BLOOM_RADIUS, BLOOM_THRESHOLD);
     const vignette = new ShaderPass(VignetteShader);
     composer.addPass(new RenderPass(ctx.scene, ctx.camera));

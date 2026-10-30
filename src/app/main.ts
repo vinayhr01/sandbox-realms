@@ -2049,6 +2049,7 @@ async function boot(): Promise<void> {
         beings: drawBeings,
         beingCount,
         snapshot: simView.current,
+        speed: simSpeed,
         marks: {
           items: boolOption(options, 'marks.items'),
           favourites: boolOption(options, 'marks.favourites'),

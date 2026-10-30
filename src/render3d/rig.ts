@@ -27,6 +27,14 @@ export function overviewHeight(side: number): number {
   return side * 1.1;
 }
 
+/**
+ * Ground level: below 5% of the overview height. The floor of 1.5 eye heights keeps ground reachable on a small map,
+ * where 5% of the overview is less than eye height and the rig never goes that low.
+ */
+export function isAtGround(height: number, side: number): boolean {
+  return height < Math.max(0.05 * overviewHeight(side), 1.5 * EYE_HEIGHT);
+}
+
 export function rigPose(
   s: RigState,
   side: number,

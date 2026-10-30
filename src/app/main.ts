@@ -7,6 +7,8 @@ import { recipeFor } from '../render/effectRecipes.ts';
 import { FeedInterp, type DrawBeing } from '../render/feed-interp.ts';
 import { BeingState } from '../shared/being-feed.ts';
 import { MapInput } from '../ui/input.ts';
+import { Crosshair, MapInput3D, type MapInput3DHandlers } from '../ui/input3d.ts';
+import { Joystick } from '../ui/joystick.ts';
 import { edgePanVector } from '../ui/edgePan.ts';
 import { colourFilterMarkup, layoutMaxWidth, mapCanvasFilter, type ColourBlindPalette, type LayoutChoice } from '../ui/display.ts';
 import { Minimap, type MinimapView } from '../ui/minimap.ts';
@@ -87,6 +89,8 @@ const DEFAULT_SIZE_INDEX = 5;
 const SPEED_CHOICES: readonly Speed[] = [0.5, 1, 2, 5, 10];
 /** Keyboard or arrow pan speed in CSS px per millisecond. */
 const KEY_PAN_PX_PER_MS = 0.6;
+/** 3D: one Q or E press turns the view by 15 degrees. */
+const KEY_ROTATE_RAD = Math.PI / 12;
 /** Storage key for the first-run tutorial state (per device). */
 const TUTORIAL_KEY = 'tutorial';
 
@@ -1386,8 +1390,11 @@ async function boot(): Promise<void> {
     });
   };
 
-  // Map input. A brush power (raise, lower, ground paint) drags; everything else pans.
-  new MapInput(renderer.canvas, {
+  // Map input. A brush power (raise, lower, ground paint) drags; everything else pans. In 3D (MapInput3D) a drag looks
+  // around at ground level, and right-drag or a twist turns the view from above.
+  const mapHandlers: MapInput3DHandlers = {
+    onRotate: (radians) => renderer.camera.rotateBy(radians),
+    onLook: (dyaw, dpitch) => renderer.camera.look?.(dyaw, dpitch),
     brushArmed: () => state.armed?.kind === 'brush' && worldReady,
     toolArmed: () => state.armed !== null,
     onPan: (dx, dy) => {
@@ -1550,7 +1557,12 @@ async function boot(): Promise<void> {
       }
       inspectTile(t, false);
     },
-  });
+  };
+  // The 3D view adds the ground gestures; 2D keeps its input as it was.
+  const joystick = renderer.kind === '3d' ? new Joystick(host) : null;
+  const crosshair = renderer.kind === '3d' ? new Crosshair(host) : null;
+  if (renderer.kind === '3d') new MapInput3D(renderer.canvas, mapHandlers, () => ({ atGround: renderer.camera.atGround?.() === true }));
+  else new MapInput(renderer.canvas, mapHandlers);
 
   // A job resumed after a reload finished (Ready, reply 0). No request asked for it and the page's own NewRealm
   // (sent at start) is the realm the page shows, so this only clears the bar and is logged; it starts no realm.
@@ -1846,6 +1858,7 @@ async function boot(): Promise<void> {
 
   // The shell's keys (UX redesign, spec G): one keymap (src/ui/shell/keymap.ts). Each call is the one a click makes.
   const keyContext: KeyContext = {
+    ...(renderer.kind === '3d' ? { rotate: (step: -1 | 1) => renderer.camera.rotateBy(step * KEY_ROTATE_RAD) } : {}),
     recent: () => recentRow(store),
     arm: (id: string) => {
       const power = POWER_BY_ID.get(id);
@@ -1928,14 +1941,28 @@ async function boot(): Promise<void> {
     return a && b ? b.sx - a.sx : 0;
   };
   const onFrame = (dtMs: number): void => {
-    if (worldReady && keysDown.size > 0) {
+    const ground = renderer.camera.atGround?.() === true;
+    if (worldReady && (keysDown.size > 0 || joystick !== null)) {
       const dt = dtMs * KEY_PAN_PX_PER_MS * (numberOption(options, 'input.panSpeed') / 100);
       const dx = (keysDown.has('ArrowRight') || keysDown.has('KeyD') ? 1 : 0) - (keysDown.has('ArrowLeft') || keysDown.has('KeyA') ? 1 : 0);
       const dy = (keysDown.has('ArrowDown') || keysDown.has('KeyS') ? 1 : 0) - (keysDown.has('ArrowUp') || keysDown.has('KeyW') ? 1 : 0);
-      if (dx !== 0 || dy !== 0) {
+      if (ground) {
+        // At ground level the keys and the joystick walk (forward is up, strafe is right); from above they pan.
+        const stick = joystick?.value() ?? { f: 0, s: 0 };
+        const f = Math.max(-1, Math.min(1, -dy + stick.f));
+        const s = Math.max(-1, Math.min(1, dx + stick.s));
+        if (f !== 0 || s !== 0) {
+          renderer.camera.walk?.(f, s, dtMs);
+          followKey = null;
+        }
+      } else if (dx !== 0 || dy !== 0) {
         renderer.camera.panBy(-dx * dt, -dy * dt);
         followKey = null;
       }
+    }
+    if (worldReady && joystick !== null && crosshair !== null) {
+      joystick.setActive(ground && store.sheet.value !== 'expanded');
+      crosshair.setVisible(ground && state.armed !== null);
     }
     // The feed sample: every living Being, smoothed between worker frames (feed-interp.ts).
     const beingNowMs = performance.now();
@@ -2181,6 +2208,8 @@ async function boot(): Promise<void> {
     creatureCount: () => renderer.stats().drawn,
     /** The world view in use, '3d' or '2d' (after any fallback). */
     rendererKind: () => renderer.kind,
+    /** The 3D camera rig (height, focus tile, yaw), or null in 2D. */
+    rig: () => renderer.camera.rig?.() ?? null,
     /** Dot sprites shown by the latest draw (the far-zoom level). */
     dotCount: () => renderer.stats().dots,
     /** The baked-art atlas: pages per frame size and frames held. */

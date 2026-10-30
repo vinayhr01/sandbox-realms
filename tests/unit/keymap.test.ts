@@ -196,3 +196,25 @@ describe('the keys list', () => {
     expect(rows.find((r) => r.keys === 'Hold')?.label).toContain('pin');
   });
 });
+
+describe('dispatchKey: Q and E in 3D turn the view', () => {
+  function rotateContext(): Spies & KeyContext {
+    return { ...context(), rotate: vi.fn() } as Spies & KeyContext;
+  }
+
+  it('E turns right and Q turns left, and neither opens the sheet', () => {
+    const ctx = rotateContext();
+    expect(dispatchKey(press('KeyE'), ctx)).toBe(true);
+    expect(dispatchKey(press('KeyQ'), ctx)).toBe(true);
+    expect(ctx.rotate).toHaveBeenNthCalledWith(1, 1);
+    expect(ctx.rotate).toHaveBeenNthCalledWith(2, -1);
+    expect(ctx.toggleSheet).not.toHaveBeenCalled();
+  });
+
+  it('in 2D (no rotate), Q still opens the sheet and E is not taken', () => {
+    const ctx = context();
+    expect(dispatchKey(press('KeyE'), ctx)).toBe(false);
+    expect(dispatchKey(press('KeyQ'), ctx)).toBe(true);
+    expect(ctx.toggleSheet).toHaveBeenCalledTimes(1);
+  });
+});

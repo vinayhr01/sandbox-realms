@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { settleFirstTown } from './helpers.ts';
+import { openChip, powerButton, settleFirstTown } from './helpers.ts';
 
 /**
  * The 3D view (src/render3d) in the real page. Opt-in: `?view=3d` selects the 3D renderer, and the rest of the e2e
@@ -39,6 +39,31 @@ function distinctColours(page: Page): Promise<number> {
   });
 }
 
+/** The camera's height above the ground under the focus, from the rig hook (-1 when there is no 3D rig). */
+function rigHeight(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const sr = (window as unknown as { __sr: { rig(): { height: number } | null } }).__sr;
+    return sr.rig()?.height ?? -1;
+  });
+}
+
+/** The realm's side in tiles, from the hook. */
+function realmSide(page: Page): Promise<number> {
+  return page.evaluate(() => (window as unknown as { __sr: { side(): number } }).__sr.side());
+}
+
+/** How many commands the sim client has sent so far (the command log grows with each power or stroke). */
+function commandCount(page: Page): Promise<number> {
+  return page.evaluate(() => (window as unknown as { __sr: { commands(): number[] } }).__sr.commands().length);
+}
+
+/** The screen centre of the WebGL canvas, in page pixels. */
+async function canvasCentre(page: Page): Promise<{ x: number; y: number }> {
+  const box = await page.locator('.map canvas').boundingBox();
+  if (!box) throw new Error('the map canvas has no box');
+  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+}
+
 test('boots in 3D', async ({ page }) => {
   const errors = await open3D(page);
   await expect
@@ -62,5 +87,33 @@ test('restores after context loss', async ({ page }) => {
   });
 
   await expect.poll(() => distinctColours(page), { timeout: 20_000 }).toBeGreaterThan(1);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('zoom to ground and back', async ({ page }) => {
+  const errors = await open3D(page);
+  const at = await canvasCentre(page);
+  await page.mouse.move(at.x, at.y);
+
+  // Wheel in until the eye is near the ground (under 2 tiles up).
+  for (let i = 0; i < 60 && (await rigHeight(page)) >= 2; i++) await page.mouse.wheel(0, -400);
+  expect(await rigHeight(page)).toBeLessThan(2);
+
+  // Wheel back out to the overview, which is 1.1 times the side.
+  const overview = (await realmSide(page)) * 1.1;
+  for (let i = 0; i < 60 && (await rigHeight(page)) < overview * 0.99; i++) await page.mouse.wheel(0, 400);
+  expect(await rigHeight(page)).toBeGreaterThanOrEqual(overview * 0.99);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+test('armed click casts on the hit tile', async ({ page }) => {
+  const errors = await open3D(page);
+  await openChip(page, 'Land');
+  await powerButton(page, 'Raise').click();
+  const before = await commandCount(page);
+  // A click at the screen centre casts at the tile the ray hits there; the power command is sent once per click.
+  const at = await canvasCentre(page);
+  await page.mouse.click(at.x, at.y);
+  await expect.poll(() => commandCount(page)).toBeGreaterThan(before);
   expect(errors, errors.join('\n')).toEqual([]);
 });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   EYE_HEIGHT,
+  isAtGround,
   overviewHeight,
   rigPose,
   rotateRig,
@@ -92,5 +93,16 @@ describe('resize', () => {
     expect(rigPose({ ...s }, SIDE, flatGround)).toEqual(rigPose(s, SIDE, flatGround));
     expect(s.focus).toEqual({ x: 40.5, y: 90.25 });
     expect(s.height).toBe(3);
+  });
+});
+
+describe('ground level', () => {
+  it('is reachable on a small map, where 5% of the overview is below eye height', () => {
+    expect(isAtGround(EYE_HEIGHT, 4)).toBe(true);
+  });
+
+  it('is false at the overview height and true below 5% of it on a large map', () => {
+    expect(isAtGround(overviewHeight(256), 256)).toBe(false);
+    expect(isAtGround(overviewHeight(256) * 0.04, 256)).toBe(true);
   });
 });

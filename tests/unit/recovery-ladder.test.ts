@@ -233,3 +233,15 @@ describe('3D degradation steps', () => {
     expect(renderScaleCapFor('3d', ladderMaxLevel('3d'))).toBe(60);
   });
 });
+
+describe('3D water and terrain degradation steps', () => {
+  it('adds waterReflect, terrainFine and stars in that order, before the existing map3d steps, in 3D only', () => {
+    const steps = ladderFor('3d');
+    const i = steps.indexOf('map3d.waterReflect');
+    expect(i).toBeGreaterThanOrEqual(DEGRADE_OFF.length);
+    expect(steps[i + 1]).toBe('map3d.terrainFine');
+    expect(steps[i + 2]).toBe('map3d.stars');
+    expect(steps.indexOf('map3d.shadows')).toBeGreaterThan(steps.indexOf('map3d.stars'));
+    for (const id of ['map3d.waterReflect', 'map3d.terrainFine', 'map3d.stars']) expect(ladderFor('2d')).not.toContain(id);
+  });
+});

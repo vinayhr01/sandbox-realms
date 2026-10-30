@@ -19,6 +19,9 @@ export default defineConfig({
   workers: 2,
   // Shards split by test, not by file: one slow file (windows-catalog, ~6 min) no longer pins a whole shard.
   fullyParallel: true,
+  // CI runners draw WebGL in software and vary in speed; one retry absorbs a slow frame or a mid-test hamlet. A retried
+  // pass is still listed as "flaky" in the report, and a test that fails twice still fails the run. Local runs: no retry.
+  retries: process.env['CI'] ? 1 : 0,
   expect: { timeout: 15_000 },
   use: {
     baseURL: `http://localhost:${PORT}/`,

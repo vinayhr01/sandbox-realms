@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { openAtlasTab, openPowerSheet, openWindowButton } from './helpers.ts';
+import { openAtlasTab, openChip, openPowerSheet, openWindowButton } from './helpers.ts';
 
 /**
  * The bottom power sheet (UX redesign, spec B): the starter chips, search arming a power, and the expanded sheet staying
@@ -83,9 +83,10 @@ test('no horizontal overflow at 1920x1080 with the sheet expanded, then with the
   await openRealm(page);
   // Seed 42 can grow its first hamlet mid-test on fast runners, which brings Peoples forward and re-lays the chips; settle it first.
   await page.evaluate(() => (window as unknown as { __sr: { forceDiscovery: (id: string) => void } }).__sr.forceDiscovery('first-town'));
-  await openPowerSheet(page);
-  await page.getByRole('button', { name: /^More/ }).click();
-  await page.getByRole('tab', { name: 'Peoples', exact: true }).click();
+  // The discovery's 'New' toast can sit over the sheet controls; let it go. Peoples may then be a front chip or under
+  // More, so openChip picks whichever it is.
+  await expect(page.locator('.toast')).toHaveCount(0, { timeout: 20_000 });
+  await openChip(page, 'Peoples');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(1);
   const sheet = await page.locator('.power-sheet').boundingBox();

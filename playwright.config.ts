@@ -17,6 +17,8 @@ export default defineConfig({
   timeout: 90_000,
   // WebGL runs in software in CI containers, so keep parallelism low to keep frames moving.
   workers: 2,
+  // Shards split by test, not by file: one slow file (windows-catalog, ~6 min) no longer pins a whole shard.
+  fullyParallel: true,
   expect: { timeout: 15_000 },
   use: {
     baseURL: `http://localhost:${PORT}/`,

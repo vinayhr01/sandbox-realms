@@ -40,13 +40,13 @@ jobs:
       - run: npx --no-install vitest run tests/unit/golden.test.ts
 
   playwright:
-    # Runs in parallel with the other jobs. Each browser is split into four shards.
+    # Runs in parallel with the other jobs. Each browser is split into six shards, by test (fullyParallel).
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
         browser: [chromium]
         include:
           - browser: chromium
@@ -60,7 +60,7 @@ jobs:
       - run: npm ci
       - run: npx --no-install playwright install --with-deps ${{ matrix.browser }}
       # The creature perf gate runs alone in the perf job: two workers on a shared runner would skew its frame times.
-      - run: npx --no-install playwright test --shard=${{ matrix.shard }}/4 ${{ matrix.projects }}
+      - run: npx --no-install playwright test --shard=${{ matrix.shard }}/6${{ matrix.projects }}
         env:
           SR_SKIP_PERF: '1'
           SR_SKIP_3D: '1'

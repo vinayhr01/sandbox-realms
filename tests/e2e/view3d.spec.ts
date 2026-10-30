@@ -149,11 +149,19 @@ test('armed click casts on the hit tile', async ({ page }) => {
 test('phone: at ground level the joystick shows above the power sheet, not on it', async ({ page }) => {
   test.skip(!(page.viewportSize()?.width && page.viewportSize()!.width < 900), 'phone layouts only');
   const errors = await open3D(page);
+  // The stick hides while the sheet is expanded; collapse it so only the ground level decides.
+  await collapsePowerSheet(page);
   const at = await canvasCentre(page);
   await page.mouse.move(at.x, at.y);
-  for (let i = 0; i < 60 && (await rigHeight(page)) >= 2; i++) await page.mouse.wheel(0, -400);
+  // Software GL in CI draws slowly: give each wheel step a frame before reading the height again.
+  await expect
+    .poll(async () => {
+      await page.mouse.wheel(0, -400);
+      return rigHeight(page);
+    }, { timeout: 60_000 })
+    .toBeLessThan(2);
   const stick = page.locator('.joystick');
-  await expect(stick).toBeVisible();
+  await expect(stick).toBeVisible({ timeout: 30_000 });
   await expect
     .poll(async () => {
       const s = await stick.boundingBox();

@@ -1,6 +1,6 @@
 /**
  * Gait families and the species gait table for the creature art (map-graphics, Task 5). Pure data and maths:
- * no Pixi, no DOM, so it unit-tests in Node.
+ * no renderer, no DOM, so it unit-tests in Node.
  *
  * A pose is per named part: `rot` in degrees around the part's `data-pivot`, and `dx`/`dy` as fractions of the
  * sprite size. `phase` runs 0 to 1 over one stride; every wave is a sine of 2 pi (f * phase + ph), so a gait

@@ -1,6 +1,6 @@
 /**
  * Animation maths for the creature layer (map-graphics, Task 5): which gait a being plays, and how its stride
- * phase advances. Pure: no Pixi, no DOM.
+ * phase advances. Pure: no renderer, no DOM.
  */
 import { BeingState } from '../shared/being-feed.ts';
 import { GAITS, type GaitId, type PoseMode, type SpeciesGait } from '../art/gaits.ts';

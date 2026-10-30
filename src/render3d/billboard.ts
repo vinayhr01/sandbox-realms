@@ -1,6 +1,6 @@
 /**
  * Pure helpers for the billboard layers (beings, buildings, boats, trees): sizes, nearest-first selection and the screen
- * hit test. No three.js and no Pixi, so the unit tests load them without a renderer.
+ * hit test. No three.js and no renderer library, so the unit tests load them without a renderer.
  */
 
 /** Width and height in tiles of a billboard whose drawn height is `drawnHeightTiles`, keeping the frame's aspect (w / h). */

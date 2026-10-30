@@ -3,8 +3,8 @@
  * tint and the brush ring. Registers itself with the Layer3D registry (layer.ts).
  *
  * The insight tint is one side x side float texture, one texel per tile (linear RGB, alpha = the 2D tint strength).
- * It is filled from the snapshot's parcel ids with the same keys the 2D insight layer uses (src/render/insight-layers.ts).
- * That module imports pixi, so its key functions and palette are mirrored here and must be kept in step.
+ * It is filled from the snapshot's parcel ids with the same keys the 2D insight layer uses (src/render/insight-keys.ts,
+ * which both views import).
  *
  * There is no age overlay: the 2D view has no age tint (`map.ageEffects` is declared in options.ts but nothing reads it),
  * so the 3D terrain does not draw one either.
@@ -16,16 +16,10 @@ import type { FrameInput } from '../render/world-renderer.ts';
 import { registerLayer, type Layer3D, type Layer3DContext } from './layer.ts';
 import { CHUNK, buildChunk, chunkLod, hexToLinear } from './terrain-mesh.ts';
 import { buildWaterChunk } from './water3d.ts';
+import { BEING_LAYERS, dominionKey, groupKey, PALETTE, TINT_ALPHA, type ParcelOwners } from '../render/insight-keys.ts';
 
-/** Insight palette, as in insight-layers.ts. */
-const INSIGHT_PALETTE: readonly number[] = [
-  0xe6194b, 0x3cb44b, 0xffe119, 0x4363d8, 0xf58231, 0x911eb4, 0x46f0f0, 0xf032e6, 0xbcf60c, 0xfabebe, 0x008080, 0xe6beff,
-];
-const INSIGHT_LINEAR: readonly (readonly [number, number, number])[] = INSIGHT_PALETTE.map(hexToLinear);
-/** Tint strength of a parcel, as in insight-layers.ts. */
-const TINT_ALPHA = 0.28;
-/** Layers keyed by each Being: they draw no parcel tint in borders mode. As in insight-layers.ts. */
-const BEING_LAYERS: ReadonlySet<string> = new Set(['L03', 'L06', 'L07', 'L08']);
+/** Insight palette, linear RGB for the tint texture. */
+const INSIGHT_LINEAR: readonly (readonly [number, number, number])[] = PALETTE.map(hexToLinear);
 /** The close-detail degrade removes the LOD detail beyond this many tiles. */
 const CLOSE_TILES = 24;
 const SHAPE_CODE: Record<BrushShape, number> = { circle: 0, square: 1, diamond: 2 };
@@ -85,53 +79,19 @@ function makeInsightTexture(n: number): THREE.DataTexture {
   return tex;
 }
 
-/** Positive key of a word (colour choice). Mirrors insight-layers.ts hashKey. */
-function hashKey(text: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return ((h >>> 0) % 9973) + 1;
-}
-
-/** Key of the dominion owning a parcel, 0 when none. */
-function dominionKey(dominion: readonly number[], p: number): number {
-  const dom = dominion[p] ?? -1;
-  return dom >= 0 ? dom + 1 : 0;
-}
-
-/** Key of a parcel for a group layer, 0 when none. Mirrors insight-layers.ts groupKey. */
-function groupKey(layer: string, dominion: readonly number[], hamlet: readonly number[], groups: ReadonlyMap<number, MapGroup>, p: number): number {
-  if (layer === 'L02') {
-    const h = hamlet[p] ?? -1;
-    return h >= 0 ? h + 1 : 0;
-  }
-  if (layer === 'L01') return dominionKey(dominion, p);
-  const dom = dominion[p] ?? -1;
-  const group = dom >= 0 ? groups.get(dom) : undefined;
-  if (!group) return 0;
-  if (layer === 'L04') return group.custom >= 0 ? group.custom + 1 : 0;
-  if (layer === 'L05') return group.dialect !== '' ? hashKey(group.dialect) : 0;
-  if (layer === 'L09') return group.pact >= 0 ? group.pact + 1 : 0;
-  if (layer === 'L10') return group.army ? 1 : 0;
-  return 0;
-}
-
 /** Fills the tint texture: one texel per tile, linear RGB and TINT_ALPHA, or zero where the parcel has no key. */
 function fillInsightTint(data: Float32Array, side: number, tiles: MapTiles, layer: string, mode: string): void {
   data.fill(0);
   const n = tiles.perAxis;
   const size = tiles.size;
   if (n <= 0 || size <= 0) return;
-  const dominion = decodeParcels(tiles.dominion);
-  const hamlet = decodeParcels(tiles.hamlet);
   const groups = new Map<number, MapGroup>();
   for (const g of tiles.groups) groups.set(g.id, g);
+  const owners: ParcelOwners = { dominion: decodeParcels(tiles.dominion), hamlet: decodeParcels(tiles.hamlet), groups };
   const keys = new Int32Array(n * n);
   for (let p = 0; p < n * n; p++) {
-    if (mode === 'parent') keys[p] = dominionKey(dominion, p);
-    else if (mode === 'borders' && !BEING_LAYERS.has(layer)) keys[p] = groupKey(layer, dominion, hamlet, groups, p);
+    if (mode === 'parent') keys[p] = dominionKey(owners, p);
+    else if (mode === 'borders' && !BEING_LAYERS.has(layer)) keys[p] = groupKey(layer, owners, p);
   }
   for (let y = 0; y < side; y++) {
     const row = Math.floor(y / size);

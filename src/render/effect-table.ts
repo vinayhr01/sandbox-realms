@@ -1,7 +1,7 @@
 /**
- * The deploy-effect table (spec F): the particle cap, the timings and the recipe of each power, as pure data. No Pixi and
+ * The deploy-effect table (spec F): the particle cap, the timings and the recipe of each power, as pure data. No renderer and
  * no three.js import, so the 2D layer (effects.ts) and the 3D layer (render3d/effects3d.ts) read one table, and the 3D
- * chunk does not pull Pixi in.
+ * chunk does not pull the renderer in.
  */
 import type { RecipeId } from './effectRecipes.ts';
 

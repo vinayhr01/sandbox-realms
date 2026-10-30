@@ -63,6 +63,7 @@ export const SETTINGS: readonly SettingDef[] = [
   C('ui.fpsCap', 'display', 'Frame rate cap', [30, 60, 120, 0], 60, true),
   B('ui.showFps', 'display', 'Show frame rate', false, true),
   // Map
+  C('map.view', 'map', 'View', ['3d', '2d'], '3d', true),
   I('map.layerOpacity', 'map', 'Layer opacity (%)', 30, 100, 88, true),
   I('map.layerBrightness', 'map', 'Layer brightness (%)', 60, 100, 100, true),
   B('map.nightLights', 'map', 'Night lights', true),
@@ -162,6 +163,7 @@ export const DEFAULT_OPTIONS: Options = Object.freeze(Object.fromEntries(SETTING
  */
 const CHOICE_LABELS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
   'privacy.errorReports': { ask: 'Ask every time', always: 'Always send', never: 'Never send' },
+  'map.view': { '3d': '3D', '2d': '2D' },
 };
 
 /** The text a choice value shows in Settings. */

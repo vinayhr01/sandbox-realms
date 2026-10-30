@@ -1,6 +1,7 @@
 import '../ui/styles.css';
 import type { CursorState } from '../render/terrain.ts';
 import { createRenderer2D, renderCostMs } from '../render/renderer2d.ts';
+import { VIEW_FALLBACK_TOAST, chooseView, readSavedView, startView, webgl2Available, writeSavedView, type ViewKind } from './view-choice.ts';
 import type { WorldRenderer } from '../render/world-renderer.ts';
 import { recipeFor } from '../render/effectRecipes.ts';
 import { FeedInterp, type DrawBeing } from '../render/feed-interp.ts';
@@ -414,8 +415,21 @@ async function boot(): Promise<void> {
   const host = $('map');
   // The map host's screen rect, read on resize rather than every frame (the info card, the tooltip and tile maths use it).
   let hostRect = host.getBoundingClientRect();
-  // The world view (2D for now): terrain, creatures, marks, effects and insight layers, behind the WorldRenderer seam.
-  const renderer: WorldRenderer = await createRenderer2D(host);
+  // The view (spec "Renderer choice"): ?view=, then the saved sr.view, then the default. 3D loads its chunk here, before
+  // the first map frame, so the map never draws 2D and then swaps. A failed 3D start falls back to 2D (toast below).
+  const requestedView: ViewKind = chooseView({
+    query: params.get('view'),
+    saved: readSavedView(safeStorage()),
+    webgl2: webgl2Available(),
+    deviceMemory: (navigator as Navigator & { deviceMemory?: number }).deviceMemory,
+    safeMode,
+  });
+  const started = await startView(requestedView, host, {
+    load3D: async (h) => (await import('../render3d/index.ts')).createRenderer3D(h),
+    load2D: createRenderer2D,
+  });
+  // The world view, behind the WorldRenderer seam: terrain, creatures, marks, effects and insight layers.
+  const renderer: WorldRenderer = started.renderer;
   // The being feed (Ev.Beings), smoothed for drawing. The first beingCount entries of drawBeings are this frame's beings.
   const interp = new FeedInterp({ coalesce: true });
   const drawBeings: DrawBeing[] = [];
@@ -463,6 +477,8 @@ async function boot(): Promise<void> {
     ...loadOptions(null),
     'ui.reduceMotion': osPrefers('(prefers-reduced-motion: reduce)'),
     'ui.reduceFlash': osPrefers('(prefers-reduced-motion: reduce)'),
+    // The Settings View row shows the view this page asked for until the player picks one.
+    'map.view': requestedView,
   };
   let options: Options = loadOptions(safeStorage(), osDefaults);
   setCrashConsent(consentFromOption(stringOption(options, 'privacy.errorReports')));
@@ -1747,6 +1763,7 @@ async function boot(): Promise<void> {
   mountShell($('ui-root'), store, shellActions);
   mountAtlas($('atlas-root'), store, shellActions, windowDeps);
   mountToasts($('toast-root'), store, shellActions);
+  if (started.fellBack) pushToast(store, VIEW_FALLBACK_TOAST);
   // Edge pan needs a hover position that is current: it clears when the pointer leaves the map or
   // when a press starts (a drag moves the camera by itself).
   renderer.canvas.addEventListener('pointerleave', () => {
@@ -1767,6 +1784,15 @@ async function boot(): Promise<void> {
     if (id === 'game.disasters' && !setRule('natural_calamities', value === true)) return;
     options = setOption(options, id, value);
     saveOptions(safeStorage(), options);
+    if (id === 'map.view') {
+      // The View switch reloads. The world survives through the autosave: save first, then load the page with the new
+      // view. The ?view= parameter is dropped, since it would beat the saved choice on the reload.
+      writeSavedView(safeStorage(), value === '2d' ? '2d' : '3d');
+      const next = new URL(location.href);
+      next.searchParams.delete('view');
+      void saveController.suspend().finally(() => location.assign(next.toString()));
+      return;
+    }
     if (id === 'privacy.errorReports') setCrashConsent(consentFromOption(stringOption(options, 'privacy.errorReports')));
     if (QUALITY_OPTIONS.has(id)) crumb('QUALITY', `${id}=${String(value)}`);
     if (id === 'ui.allChips') refreshChips();
@@ -2153,6 +2179,8 @@ async function boot(): Promise<void> {
     showWindow: (kind: string) => openWindow(kind),
     snapshot: () => simView.current,
     creatureCount: () => renderer.stats().drawn,
+    /** The world view in use, '3d' or '2d' (after any fallback). */
+    rendererKind: () => renderer.kind,
     /** Dot sprites shown by the latest draw (the far-zoom level). */
     dotCount: () => renderer.stats().dots,
     /** The baked-art atlas: pages per frame size and frames held. */

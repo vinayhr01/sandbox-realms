@@ -17,6 +17,11 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}/`,
     trace: 'retain-on-failure',
+    // Existing specs run in 2D: the saved view is pinned to 2d. Specs that want 3D opt in with ?view=3d.
+    storageState: {
+      cookies: [],
+      origins: [{ origin: `http://localhost:${PORT}`, localStorage: [{ name: 'sr.view', value: '2d' }] }],
+    },
   },
   webServer: {
     command: `npm run build && npm run preview -- --port ${PORT} --strictPort`,

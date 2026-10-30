@@ -16,6 +16,7 @@ import { layerFactories, type Layer3D, type Layer3DContext } from './layer.ts';
 
 // Layer modules register on import (layer.ts). Tasks 4-8 each add one import line here, for example:
 // import './terrain3d.ts';
+import './terrain3d.ts';
 
 const FOV_DEG = 50;
 const NEAR = 0.1;
@@ -90,89 +91,7 @@ class Rig3DCamera implements CameraControl {
   }
 }
 
-/** The grey heightfield placeholder: one lit mesh of the height field, so the 3D path draws something. Task 4 replaces it. */
-class PlaceholderLayer implements Layer3D {
-  readonly id = 'placeholder';
-  private ctx: Layer3DContext | null = null;
-  private mesh: THREE.Mesh | null = null;
-  private side = 0;
-
-  init(ctx: Layer3DContext): void {
-    this.ctx = ctx;
-  }
-
-  onSide(side: number): void {
-    this.side = side;
-    this.rebuild();
-  }
-
-  onRows(dirty: ReadonlySet<number>): void {
-    if (!this.mesh || !this.ctx) return;
-    const attr = this.mesh.geometry.getAttribute('position') as THREE.BufferAttribute;
-    const n = this.side + 1;
-    const field = this.ctx.field;
-    for (const y of dirty) {
-      for (let vy = y; vy <= y + 1; vy++) {
-        if (vy < 0 || vy > this.side) continue;
-        for (let vx = 0; vx < n; vx++) attr.setY(vy * n + vx, field.heightAt(vx, vy));
-      }
-    }
-    attr.needsUpdate = true;
-    this.mesh.geometry.computeVertexNormals();
-  }
-
-  frame(): void {}
-
-  dispose(): void {
-    this.drop();
-  }
-
-  private rebuild(): void {
-    this.drop();
-    if (!this.ctx || this.side <= 0) return;
-    const { field, scene } = this.ctx;
-    const side = this.side;
-    const n = side + 1;
-    const positions = new Float32Array(n * n * 3);
-    for (let vy = 0; vy < n; vy++) {
-      for (let vx = 0; vx < n; vx++) {
-        const i = (vy * n + vx) * 3;
-        positions[i] = vx;
-        positions[i + 1] = field.heightAt(vx, vy);
-        positions[i + 2] = vy;
-      }
-    }
-    const indices = new Uint32Array(side * side * 6);
-    let k = 0;
-    for (let vy = 0; vy < side; vy++) {
-      for (let vx = 0; vx < side; vx++) {
-        const a = vy * n + vx;
-        const b = a + 1;
-        const c = a + n;
-        const d = c + 1;
-        indices.set([a, c, b, b, c, d], k);
-        k += 6;
-      }
-    }
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-    geometry.computeVertexNormals();
-    const material = new THREE.MeshLambertMaterial({ color: 0x8a8f86 });
-    this.mesh = new THREE.Mesh(geometry, material);
-    scene.add(this.mesh);
-  }
-
-  private drop(): void {
-    if (!this.mesh) return;
-    this.mesh.removeFromParent();
-    this.mesh.geometry.dispose();
-    (this.mesh.material as THREE.Material).dispose();
-    this.mesh = null;
-  }
-}
-
-/** The placeholder is not in the registry: it is drawn under every registered layer and removed in Task 4. */
+/** The 3D view: one camera, the rig, and the registered Layer3D modules. */
 export class Renderer3D implements WorldRenderer {
   readonly kind = '3d' as const;
   readonly canvas: HTMLCanvasElement;
@@ -235,7 +154,7 @@ export class Renderer3D implements WorldRenderer {
       renderer: this.gl,
       toScreen: (x, y) => this.tileToScreen(x, y),
     };
-    this.layers = [new PlaceholderLayer(), ...layerFactories().map((make) => make())];
+    this.layers = layerFactories().map((make) => make());
     for (const layer of this.layers) layer.init(this.ctx);
 
     this.canvas.addEventListener('webglcontextlost', this.onContextLost);

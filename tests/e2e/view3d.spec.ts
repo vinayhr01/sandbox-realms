@@ -73,6 +73,32 @@ test('boots in 3D', async ({ page }) => {
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test('info card opens on a 3D being tap', async ({ page }) => {
+  const errors = await open3D(page);
+  await expect.poll(() => distinctColours(page), { timeout: 20_000 }).toBeGreaterThan(1);
+  const card = page.locator('.info-card');
+  // Beings walk, so each try reads the snapshot's points again and taps one whose tile centre is on the canvas.
+  await expect(async () => {
+    const points = await page.evaluate(() => {
+      const snap = (window as unknown as { __sr: { snapshot(): { mapPoints?: { x: number; y: number }[] } | null } }).__sr.snapshot();
+      return (snap?.mapPoints ?? []).slice(0, 50);
+    });
+    for (const p of points) {
+      const at = await page.evaluate(
+        ({ x, y }) => (window as unknown as { __sr: { tileToScreen(x: number, y: number): { x: number; y: number } | null } }).__sr.tileToScreen(x, y),
+        { x: p.x, y: p.y },
+      );
+      if (!at) continue;
+      const onMap = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.tagName === 'CANVAS', at);
+      if (!onMap) continue;
+      await page.mouse.click(at.x, at.y);
+      break;
+    }
+    await expect(card).toBeVisible({ timeout: 2_000 });
+  }).toPass({ timeout: 30_000 });
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('restores after context loss', async ({ page }) => {
   const errors = await open3D(page);
   await expect.poll(() => distinctColours(page), { timeout: 20_000 }).toBeGreaterThan(1);

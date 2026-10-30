@@ -18,6 +18,7 @@ import { layerFactories, type Layer3D, type Layer3DContext } from './layer.ts';
 // import './terrain3d.ts';
 import './terrain3d.ts';
 import './marks3d.ts';
+import './beings3d.ts';
 
 const FOV_DEG = 50;
 const NEAR = 0.1;
@@ -184,6 +185,8 @@ export class Renderer3D implements WorldRenderer {
       field: this.field,
       renderer: this.gl,
       toScreen: (x, y) => this.tileToScreen(x, y),
+      buildings: () => this.buildings,
+      boats: () => this.boats,
     };
     this.layers = layerFactories().map((make) => make());
     for (const layer of this.layers) layer.init(this.ctx);
@@ -248,8 +251,12 @@ export class Renderer3D implements WorldRenderer {
     return { sx: ((ndc.x + 1) / 2) * w, sy: ((1 - ndc.y) / 2) * h };
   }
 
-  /** Beings are drawn by the beings layer (Task 5); until then nothing is tappable. */
-  beingAt(_sx: number, _sy: number, _slopPx: number): DrawBeing | null {
+  /** The first layer that drew a being under the point answers (the beings layer, Task 5). */
+  beingAt(sx: number, sy: number, slopPx: number): DrawBeing | null {
+    for (const layer of this.layers) {
+      const hit = layer.beingAt?.(sx, sy, slopPx, this.ctx) ?? null;
+      if (hit) return hit;
+    }
     return null;
   }
 

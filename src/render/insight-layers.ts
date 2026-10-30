@@ -31,9 +31,9 @@ const TINT_ALPHA = 0.28;
 const EDGE_COLOUR = 0xffffff;
 const SELECT_COLOUR = 0xffffff;
 /** Mood beyond this (either way) draws a happiness icon (06 section 4.1 scale is -100..+100). */
-const HAPPY_MOOD = 40;
-const HAPPY_COLOUR = 0x7be07b;
-const UNHAPPY_COLOUR = 0xff6b6b;
+export const HAPPY_MOOD = 40;
+export const HAPPY_COLOUR = 0x7be07b;
+export const UNHAPPY_COLOUR = 0xff6b6b;
 const ARMY_LINE_COLOUR = 0xff8c42;
 const RING_PX = 5;
 const ICON_PX = 2.5;

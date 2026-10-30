@@ -12,7 +12,7 @@
  * Decoding: a posed SVG is decoded as an <img> (img.decode()), not with createImageBitmap(Blob). Measured in headless
  * Chromium: createImageBitmap rejects an SVG blob (InvalidStateError), while <img>.decode() decodes it at 128 x 128.
  */
-import { CanvasSource, Rectangle, Texture, type Renderer } from 'pixi.js';
+import { CanvasSource, Rectangle, Texture } from 'pixi.js';
 import { SPECIES } from '../content/beasts.ts';
 import { GAITS, SPECIES_GAIT, type GaitDef, type GaitId, type PoseMode, type SpeciesGait } from '../art/gaits.ts';
 import { artFor, artForBuilding, chunkOf, loadArt } from '../art/load.ts';
@@ -79,6 +79,18 @@ interface Pending {
   apply: () => void;
 }
 
+/**
+ * Where a baked frame sits on its page, for renderers that do not use Pixi textures (the 3D view). `page` is the page
+ * canvas (the one onPageFlush reports); the UVs are in [0, 1] with v0 at the top, as the canvas is drawn.
+ */
+export interface AtlasRect {
+  page: HTMLCanvasElement;
+  u0: number;
+  v0: number;
+  u1: number;
+  v1: number;
+}
+
 /** A 2048 px canvas holding frames of one size, with its texture source. `next` is the next free slot. */
 class Page {
   readonly canvas = document.createElement('canvas');
@@ -133,6 +145,10 @@ export class Atlas implements FrameSource {
   private readonly pages = new Map<FramePx, Page[]>();
   private readonly cells = new Map<number, Texture>();
   private readonly buildingCells = new Map<string, Texture>();
+  /** The page rects of the same frames as `cells` and `buildingCells`, set on the same flush (frameRect, buildingRect). */
+  private readonly rects = new Map<number, AtlasRect>();
+  private readonly buildingRects = new Map<string, AtlasRect>();
+  private readonly flushListeners: Array<(page: HTMLCanvasElement) => void> = [];
   private readonly pending: Pending[] = [];
   private readonly requestedSpecies = new Set<number>();
   private readonly requestedBuildings = new Set<string>();
@@ -157,7 +173,8 @@ export class Atlas implements FrameSource {
   private scheduled = false;
   private lastFlush = Number.NEGATIVE_INFINITY;
 
-  constructor(renderer: Renderer, opts: AtlasOptions = {}) {
+  /** Only the canvas is read: the 3D view passes its own canvas, the 2D view its Pixi renderer. */
+  constructor(renderer: { readonly canvas: HTMLCanvasElement }, opts: AtlasOptions = {}) {
     this.decodeSvg = opts.decode ?? decodeSvg;
     this.now = opts.now ?? (() => performance.now());
     this.schedule = opts.schedule ?? defaultSchedule;
@@ -196,6 +213,31 @@ export class Atlas implements FrameSource {
   /** The baked still of a building kind, or null until it is baked and uploaded. A 128 px still falls back to the 48 px one. */
   building(kind: string, px: FramePx): Texture | null {
     return this.buildingCells.get(`${kind}|${px}`) ?? (px === 128 ? (this.buildingCells.get(`${kind}|48`) ?? null) : null);
+  }
+
+  /**
+   * frame() for renderers without Pixi: the frame's page rect, or null until its page is flushed. The same 128 px to 48 px
+   * fallback and the same first-ask bake as frame().
+   */
+  frameRect(species: number, gait: string, mode: PoseMode, frameIndex: number, px: FramePx): AtlasRect | null {
+    if (!GAIT_INDEX.has(gait) || frameIndex < 0 || frameIndex >= MAX_FRAMES) return null;
+    const g = gait as GaitId;
+    if (px === 128) {
+      const full = this.rects.get(cellKey(species, g, mode, frameIndex, 128));
+      if (full) return full;
+      this.want128(species, g, mode);
+    }
+    return this.rects.get(cellKey(species, g, mode, frameIndex, 48)) ?? null;
+  }
+
+  /** building() for renderers without Pixi: the still's page rect, or null until it is flushed. 128 px falls back to 48 px. */
+  buildingRect(kind: string, px: FramePx): AtlasRect | null {
+    return this.buildingRects.get(`${kind}|${px}`) ?? (px === 128 ? (this.buildingRects.get(`${kind}|48`) ?? null) : null);
+  }
+
+  /** Calls `cb` with each page canvas after its upload (a renderer that copies pages to the GPU sets its texture stale here). */
+  onPageFlush(cb: (page: HTMLCanvasElement) => void): void {
+    this.flushListeners.push(cb);
   }
 
   /** Pages per frame size and frames held, for the memory estimate (a page is 2048 x 2048 RGBA with mips, about 22 MB). */
@@ -274,6 +316,8 @@ export class Atlas implements FrameSource {
     for (const p of this.pending) p.tex.destroy();
     this.cells.clear();
     this.buildingCells.clear();
+    this.rects.clear();
+    this.buildingRects.clear();
     this.rigs.clear();
     this.pending.length = 0;
     this.dirty.clear();
@@ -377,7 +421,10 @@ export class Atlas implements FrameSource {
     const drained = this.queue.length === 0 && this.inflight === 0 && this.ready.length === 0;
     const t = this.now();
     if (!drained && t - this.lastFlush < FLUSH_INTERVAL_MS) return;
-    for (const page of this.dirty) page.source.update();
+    for (const page of this.dirty) {
+      page.source.update();
+      for (const cb of this.flushListeners) cb(page.canvas);
+    }
     this.dirty.clear();
     for (const p of this.pending.splice(0)) p.apply();
     this.lastFlush = t;
@@ -409,13 +456,26 @@ export class Atlas implements FrameSource {
       const { page, x, y } = this.alloc(px);
       page.ctx.drawImage(img, x, y, px, px);
       const tex = new Texture({ source: page.source, frame: new Rectangle(x, y, px, px) });
+      const rect: AtlasRect = { page: page.canvas, u0: x / PAGE, v0: y / PAGE, u1: (x + px) / PAGE, v1: (y + px) / PAGE };
       const t = job.target;
       if ('building' in t) {
         const key = `${t.building}|${px}`;
-        this.pending.push({ tex, apply: () => this.buildingCells.set(key, tex) });
+        this.pending.push({
+          tex,
+          apply: () => {
+            this.buildingCells.set(key, tex);
+            this.buildingRects.set(key, rect);
+          },
+        });
       } else {
         const key = cellKey(t.species, t.gait, t.mode, t.frame, px);
-        this.pending.push({ tex, apply: () => this.cells.set(key, tex) });
+        this.pending.push({
+          tex,
+          apply: () => {
+            this.cells.set(key, tex);
+            this.rects.set(key, rect);
+          },
+        });
       }
       this.dirty.add(page);
     }

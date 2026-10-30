@@ -25,9 +25,16 @@ test.afterEach(async ({ page }, testInfo) => {
 
 test('first launch: the sheet shows exactly three chips, Land, Nature and Creatures', async ({ page }) => {
   await openRealm(page);
-  const tabs = page.getByRole('tab');
-  await expect(tabs).toHaveCount(3);
-  await expect(tabs).toHaveText(['Land', 'Nature', 'Creatures']);
+  // Seed 42 can grow a hamlet within the first snapshots, so Peoples joins the three exactly when "first-town" is found.
+  await expect
+    .poll(async () => {
+      const found = await page.evaluate(
+        () => (JSON.parse(localStorage.getItem('sr.discovery.v1') ?? '{}') as { found?: string[] }).found ?? [],
+      );
+      const expected = ['Land', 'Nature', 'Creatures', ...(found.includes('first-town') ? ['Peoples'] : [])];
+      return JSON.stringify(await page.getByRole('tab').allTextContents()) === JSON.stringify(expected);
+    })
+    .toBe(true);
   await expect(page.getByRole('button', { name: /^More/ })).toBeVisible();
 });
 
@@ -70,6 +77,8 @@ for (const viewport of [
 test('no horizontal overflow at 1920x1080 with the sheet expanded, then with the Atlas open', async ({ page }) => {
   await page.setViewportSize({ width: 1920, height: 1080 });
   await openRealm(page);
+  // Seed 42 can grow its first hamlet mid-test on fast runners, which brings Peoples forward and re-lays the chips; settle it first.
+  await page.evaluate(() => (window as unknown as { __sr: { forceDiscovery: (id: string) => void } }).__sr.forceDiscovery('first-town'));
   await openPowerSheet(page);
   await page.getByRole('button', { name: /^More/ }).click();
   await page.getByRole('tab', { name: 'Peoples', exact: true }).click();

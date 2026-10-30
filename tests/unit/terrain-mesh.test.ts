@@ -1,8 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { groundId } from '../../src/content/grounds.ts';
+import { BIOMES, biomeCoverId } from '../../src/content/biomes.ts';
 import { HeightField } from '../../src/render3d/heights.ts';
-import { CHUNK, buildChunk, chunkLod, waterSurface } from '../../src/render3d/terrain-mesh.ts';
+import {
+  CHUNK,
+  SKIRT_DROP,
+  buildChunk,
+  chunkLod,
+  coverTint,
+  groundLinear,
+  tileColour,
+  tileJitter,
+  waterSurface,
+} from '../../src/render3d/terrain-mesh.ts';
 import { Terrain3D } from '../../src/render3d/terrain3d.ts';
 
 /** Fills every tile of the field with a ground and an elevation, or per-tile functions. */
@@ -46,14 +57,31 @@ function geometryByChunk(scene: THREE.Scene): Map<string, string> {
 describe('buildChunk', () => {
   it('puts every vertex of a flat elev-100 field at y = 4.0', () => {
     const { positions } = buildChunk(field(64, 100), 0, 0, 1);
-    for (let i = 1; i < positions.length; i += 3) expect(positions[i]).toBeCloseTo(4.0, 6);
+    // The grid comes first; the skirt vertices after it hang SKIRT_DROP lower.
+    const grid = (CHUNK + 1) * (CHUNK + 1);
+    for (let i = 1; i < grid * 3; i += 3) expect(positions[i]).toBeCloseTo(4.0, 6);
   });
 
-  it.each([1, 2, 4] as const)('gives (CHUNK/%i+1)^2 vertices for a full chunk', (step) => {
+  it.each([1, 2, 4] as const)('gives (CHUNK/%i+1)^2 grid vertices plus 4n skirt vertices for a full chunk', (step) => {
     const { positions, indices } = buildChunk(field(64, 100), 0, 0, step);
     const n = CHUNK / step + 1;
-    expect(positions.length / 3).toBe(n * n);
-    expect(indices.length).toBe((n - 1) * (n - 1) * 6);
+    expect(positions.length / 3).toBe(n * n + 4 * n);
+    // Grid quads, plus two triangles per skirt segment on each of the four edges.
+    expect(indices.length).toBe((n - 1) * (n - 1) * 6 + 4 * (n - 1) * 6);
+  });
+
+  it('gives (2*CHUNK+1)^2 grid vertices when fine (two per tile edge), plus skirts', () => {
+    const { positions, indices } = buildChunk(field(64, 100), 0, 0, 1, { fine: true });
+    const n = 2 * CHUNK + 1;
+    expect(positions.length / 3).toBe(n * n + 4 * n);
+    expect(indices.length).toBe((n - 1) * (n - 1) * 6 + 4 * (n - 1) * 6);
+  });
+
+  it('places fine vertices half a tile apart, on the height field', () => {
+    const { positions } = buildChunk(field(64, 100), 0, 0, 1, { fine: true });
+    // Vertex 1 of the first grid row sits half a tile east of the origin corner, at the flat height.
+    expect(positions[3]).toBeCloseTo(0.5, 6);
+    expect(positions[4]).toBeCloseTo(4.0, 6);
   });
 
   it('places vertices on the tile corners of its chunk', () => {
@@ -66,6 +94,83 @@ describe('buildChunk', () => {
     }
     expect(minX).toBe(CHUNK);
     expect(maxX).toBe(2 * CHUNK);
+  });
+
+  it('gives smooth unit-length normals, straight up on a flat field', () => {
+    const { normals, positions } = buildChunk(field(64, 100), 0, 0, 1);
+    expect(normals.length).toBe(positions.length);
+    for (let i = 0; i < normals.length; i += 3) {
+      expect(Math.hypot(normals[i]!, normals[i + 1]!, normals[i + 2]!)).toBeCloseTo(1, 5);
+    }
+    expect(normals[1]).toBeCloseTo(1, 5);
+  });
+
+  it('gives neighbouring vertices on a linear slope equal normals', () => {
+    const f = new HeightField(64);
+    fill(f, groundId('lowloam'), (x) => 100 + x);
+    const { normals } = buildChunk(f, 0, 0, 1);
+    for (let c = 0; c < 3; c++) expect(Math.abs(normals[5 * 3 + c]! - normals[6 * 3 + c]!)).toBeLessThan(0.02);
+  });
+
+  it('drops each skirt vertex SKIRT_DROP below the edge vertex it copies', () => {
+    const { positions } = buildChunk(field(64, 100), 0, 0, 1);
+    const grid = (CHUNK + 1) * (CHUNK + 1);
+    // The first skirt vertex copies grid vertex 0.
+    expect(positions[grid * 3 + 1]).toBeCloseTo(positions[1]! - SKIRT_DROP, 6);
+  });
+});
+
+describe('cover tint and colour', () => {
+  const idx = (id: string) => BIOMES.findIndex((b) => b.id === id);
+
+  it('leaves bare ground and non-biome covers untinted', () => {
+    expect(coverTint(0)).toEqual([1, 1, 1]);
+    expect(coverTint(250)).toEqual([1, 1, 1]);
+  });
+
+  it('darkens a forest biome cover and tints a grass one', () => {
+    const forest = coverTint(biomeCoverId(idx('steamthicket'), false));
+    expect(forest[0]).toBeLessThan(1);
+    expect(forest[2]).toBeLessThan(forest[1]!);
+    expect(coverTint(biomeCoverId(idx('verdant_reach'), false))).not.toEqual([1, 1, 1]);
+  });
+
+  it('keeps the jitter within plus or minus 4 percent, deterministic and varied', () => {
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let y = 0; y < 40; y++) {
+      for (let x = 0; x < 40; x++) {
+        const j = tileJitter(x, y);
+        expect(j).toBe(tileJitter(x, y));
+        lo = Math.min(lo, j);
+        hi = Math.max(hi, j);
+      }
+    }
+    expect(lo).toBeGreaterThanOrEqual(-0.04);
+    expect(hi).toBeLessThanOrEqual(0.04);
+    expect(hi - lo).toBeGreaterThan(0.04);
+  });
+
+  it('colours a tile as ground times cover tint times jitter', () => {
+    const f = new HeightField(8);
+    fill(f, groundId('lowloam'), 100);
+    const cover = biomeCoverId(idx('steamthicket'), false);
+    f.cover[0] = cover;
+    const [r, g, b] = tileColour(f, 0, 0);
+    const base = groundLinear(groundId('lowloam'));
+    const t = coverTint(cover);
+    const k = 1 + tileJitter(0, 0);
+    expect(r).toBeCloseTo(base[0] * t[0] * k, 6);
+    expect(g).toBeCloseTo(base[1] * t[1] * k, 6);
+    expect(b).toBeCloseTo(base[2] * t[2] * k, 6);
+  });
+
+  it('gives a corner that touches one tile that tile colour', () => {
+    const f = new HeightField(8);
+    fill(f, groundId('lowloam'), 100);
+    const { colors } = buildChunk(f, 0, 0, 1);
+    const [r] = tileColour(f, 0, 0);
+    expect(colors[0]).toBeCloseTo(r, 6);
   });
 });
 

@@ -2,7 +2,7 @@
  * Beings, hamlet buildings, boats, footfall dust and cover trees in the 3D view (part 1, Task 5). Beings, buildings and
  * trees are cylindrical billboards that face the camera's yaw, drawn instanced: one InstancedBufferGeometry per atlas
  * page (or per procedural texture), so a page of frames is one draw call. Frames come from the same atlas as 2D
- * (render/atlas.ts frameRect / buildingRect), with the same walking frames (anim.ts) and crowd rules (creatures.ts). A
+ * (render/atlas-core.ts frameRect / buildingRect), with the same walking frames (anim.ts) and crowd rules (creatures.ts). A
  * being past FAR_TILES is a coloured point. The insight icons (O03 happiness, O04 tasks) are small billboards over the
  * head. Dust is a point cloud at the feet, capped at DUST_MAX.
  *
@@ -16,12 +16,12 @@ import { BeingState } from '../shared/being-feed.ts';
 import type { DrawBeing } from '../render/feed-interp.ts';
 import type { FrameInput } from '../render/world-renderer.ts';
 import type { MapKind, MapPoint, MapSizeClass, Snapshot } from '../shared/protocol.ts';
-import { Atlas, type AtlasRect } from '../render/atlas.ts';
-import { BOAT_COLOUR, CROWD_LIMIT, animStep, buildingHeightPx, framePxFor, worldHeightPx } from '../render/creatures.ts';
+import { AtlasCore, type AtlasRect } from '../render/atlas-core.ts';
+import { BOAT_COLOUR, CROWD_LIMIT, animStep, buildingHeightPx, framePxFor, worldHeightPx } from '../render/creature-sizing.ts';
 import { PhaseByKey, frameIndex, framesOf, gaitFor, type PhaseEntry, type Pose } from '../render/anim.ts';
-import { GROUP_COLOUR } from '../render/sprites.ts';
-import { HAPPY_COLOUR, HAPPY_MOOD, UNHAPPY_COLOUR, hashKey, keyColour } from '../render/insight-layers.ts';
-import { DUST_LIFE_MS, DUST_MAX } from '../render/dust.ts';
+import { GROUP_COLOUR } from '../render/group-colours.ts';
+import { HAPPY_COLOUR, HAPPY_MOOD, UNHAPPY_COLOUR, hashKey, keyColour } from '../render/insight-keys.ts';
+import { DUST_LIFE_MS, DUST_MAX } from '../render/dust-consts.ts';
 import { billboardSize, nearestFirst, nearestHit, type ProjectedBeing } from './billboard.ts';
 import { registerLayer, type Layer3D, type Layer3DContext } from './layer.ts';
 
@@ -342,7 +342,7 @@ function kicksDust(state: BeingState, gait: string): boolean {
 class Beings3D implements Layer3D {
   readonly id = 'beings';
   private ctx: Layer3DContext | null = null;
-  private atlas: Atlas | null = null;
+  private atlas: AtlasCore | null = null;
   private dust: DustField | null = null;
   private plane: THREE.PlaneGeometry | null = null;
   private readonly shared: SharedUniforms = { uRight: { value: new THREE.Vector3(1, 0, 0) }, uTime: { value: 0 } };
@@ -364,7 +364,7 @@ class Beings3D implements Layer3D {
   init(ctx: Layer3DContext): void {
     this.ctx = ctx;
     this.plane = new THREE.PlaneGeometry(1, 1);
-    this.atlas = new Atlas({ canvas: ctx.renderer.domElement });
+    this.atlas = new AtlasCore({ canvas: ctx.renderer.domElement });
     this.atlas.onPageFlush((page) => this.onPageFlush(page));
     this.dust = new DustField(ctx.scene);
   }

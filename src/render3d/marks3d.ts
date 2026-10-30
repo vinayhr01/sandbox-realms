@@ -8,8 +8,10 @@
 import * as THREE from 'three';
 import { decodeParcels } from '../shared/parcel-codec.ts';
 import type { MapKind, MapMarks, MapTies, MapTiles, Snapshot } from '../shared/protocol.ts';
-import { nameFontPx, type MarkToggles } from '../render/marks.ts';
-import { accordViewOf, type InsightToggles } from '../render/insight-layers.ts';
+import type { MarkToggles } from '../render/marks.ts';
+import type { InsightToggles } from '../render/insight-layers.ts';
+import { ARROW_COLOUR, ARROW_KINDS, accordViewOf } from '../render/insight-keys.ts';
+import { nameFontPx } from '../render/mark-sizing.ts';
 import type { FrameInput } from '../render/world-renderer.ts';
 import type { HeightField } from './heights.ts';
 import { registerLayer, type Layer3D, type Layer3DContext } from './layer.ts';
@@ -62,25 +64,6 @@ const BUBBLE_W = 0.5;
 const BUBBLE_H = 0.3;
 const BUBBLE_DOT = 0.07;
 
-/** Arrow colour per kind (A01..A07). Mirrors ARROW_COLOUR and ARROW_KINDS in insight-layers.ts (not exported there). */
-const ARROW_COLOUR: Readonly<Record<string, number>> = {
-  'arrow.destination': 0xffd166,
-  'arrow.home': 0x8ecae6,
-  'arrow.partner': 0xff77a9,
-  'arrow.family': 0xb5e48c,
-  'arrow.parents': 0x90dbf4,
-  'arrow.children': 0xcdb4db,
-  'arrow.attack': 0xff4d4d,
-};
-const ARROW_KINDS: ReadonlyArray<readonly [string, 'dest' | 'home' | 'partner' | 'family' | 'parents' | 'children' | 'foes']> = [
-  ['arrow.destination', 'dest'],
-  ['arrow.home', 'home'],
-  ['arrow.partner', 'partner'],
-  ['arrow.family', 'family'],
-  ['arrow.parents', 'parents'],
-  ['arrow.children', 'children'],
-  ['arrow.attack', 'foes'],
-];
 
 /**
  * Samples the straight line from (x0, y0) to (x1, y1) in tile space, one point per tile (at least one segment). Each point

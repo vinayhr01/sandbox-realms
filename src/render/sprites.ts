@@ -14,20 +14,12 @@
  */
 import { Graphics, Rectangle, type Renderer, type Texture } from 'pixi.js';
 import type { MapKindGroup, MapSizeClass } from '../shared/protocol.ts';
+import { GROUP_COLOUR } from './group-colours.ts';
+
+export { GROUP_COLOUR };
 
 /** Building sprite groups (09 section 7 catalogue ids, grouped by look). `other` is a generic box. */
 export type BuildingSpriteKind = 'house' | 'granary' | 'well' | 'quarry' | 'garrison' | 'other';
-
-/** Fill colour of each species group. Folk keeps the colour the dots used before. */
-export const GROUP_COLOUR: Record<MapKindGroup, number> = {
-  folk: 0xf2d18b,
-  beast: 0xde9650,
-  sea: 0x3b7dd4,
-  insect: 0x7fbf3f,
-  undead: 0xa3a3a3,
-  monster: 0xf2331a,
-  divine: 0xffe04a,
-};
 
 const BUILDING_COLOUR: Record<BuildingSpriteKind, number> = {
   house: 0xc98b55,

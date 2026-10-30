@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import type { FrameRows, MapBoat, MapBuilding } from '../shared/protocol.ts';
 import type { DrawBeing } from '../render/feed-interp.ts';
 import type { RecipeId } from '../render/effectRecipes.ts';
-import type { Atlas } from '../render/atlas.ts';
+import type { AtlasCore } from '../render/atlas-core.ts';
 import type { CameraControl, FrameInput, ScreenPoint, TilePoint, WorldRenderer } from '../render/world-renderer.ts';
 import { HeightField } from './heights.ts';
 import { pickTile } from './pick.ts';
@@ -312,7 +312,7 @@ export class Renderer3D implements WorldRenderer {
     this.updateCamera();
   }
 
-  stats(): { drawn: number; dots: number; atlas: ReturnType<Atlas['stats']> | null } {
+  stats(): { drawn: number; dots: number; atlas: ReturnType<AtlasCore['stats']> | null } {
     return { drawn: this.gl.info.render.calls, dots: 0, atlas: null };
   }
 

@@ -16,10 +16,15 @@ import { layerFactories, type Layer3D, type Layer3DContext } from './layer.ts';
 
 // Layer modules register on import (layer.ts). Tasks 4-8 each add one import line here, for example:
 // import './terrain3d.ts';
+import { Effects3D } from './effects3d.ts';
+import './lighting3d.ts';
+import { Post3D } from './post3d.ts';
 
 const FOV_DEG = 50;
 const NEAR = 0.1;
 const FAR_MIN = 512;
+/** Far plane under the ladder's map3d.viewDistance step (spec: 512 to 160). */
+const FAR_DEGRADED = 160;
 const BACKGROUND = 0x17202b;
 
 /** What the camera control needs from the renderer. */
@@ -183,6 +188,9 @@ export class Renderer3D implements WorldRenderer {
   private readonly cam: THREE.PerspectiveCamera;
   private readonly field = new HeightField(0);
   private readonly layers: Layer3D[];
+  /** The effects and post layers, found in the registry: playEffect delegates to one, and frame() draws through the other. */
+  private readonly effects: Effects3D | null;
+  private readonly post: Post3D | null;
   private readonly ctx: Layer3DContext;
   private side = 0;
   private rigState: RigState = { focus: { x: 0, y: 0 }, height: EYE_HEIGHT, yaw: 0 };
@@ -211,10 +219,6 @@ export class Renderer3D implements WorldRenderer {
     this.gl.setClearColor(BACKGROUND, 1);
     this.cam = new THREE.PerspectiveCamera(FOV_DEG, 1, NEAR, FAR_MIN);
     this.cam.rotation.order = 'YXZ';
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-    const sun = new THREE.DirectionalLight(0xffffff, 0.9);
-    sun.position.set(0.4, 1, 0.3);
-    this.scene.add(sun);
 
     this.camera = new Rig3DCamera({
       rig: () => this.rigState,
@@ -237,6 +241,8 @@ export class Renderer3D implements WorldRenderer {
     };
     this.layers = [new PlaceholderLayer(), ...layerFactories().map((make) => make())];
     for (const layer of this.layers) layer.init(this.ctx);
+    this.effects = this.layers.find((l): l is Effects3D => l instanceof Effects3D) ?? null;
+    this.post = this.layers.find((l): l is Post3D => l instanceof Post3D) ?? null;
 
     this.canvas.addEventListener('webglcontextlost', this.onContextLost);
     this.canvas.addEventListener('webglcontextrestored', this.onContextRestored);
@@ -268,10 +274,14 @@ export class Renderer3D implements WorldRenderer {
     this.boats = list;
   }
 
-  playEffect(_id: RecipeId, _x: number, _y: number, _sizeTiles: number, _stroke: boolean): void {}
+  playEffect(id: RecipeId, x: number, y: number, sizeTiles: number, stroke: boolean): void {
+    if (!this.effects) return;
+    if (stroke) this.effects.playStroke(id, x, y, sizeTiles);
+    else this.effects.play(id, x, y, sizeTiles);
+  }
 
   liveEffects(): number {
-    return 0;
+    return this.effects?.liveCount() ?? 0;
   }
 
   screenToTile(sx: number, sy: number): TilePoint | null {
@@ -306,8 +316,14 @@ export class Renderer3D implements WorldRenderer {
   frame(input: FrameInput): number {
     if (this.lost) return 0;
     const t0 = performance.now();
+    // The ladder's viewDistance step shortens the far plane. Otherwise it keeps the overview's full distance.
+    const far = input.degradedOff.has('map3d.viewDistance') ? FAR_DEGRADED : Math.max(FAR_MIN, overviewHeight(this.side) * 1.5);
+    if (this.cam.far !== far) {
+      this.cam.far = far;
+      this.cam.updateProjectionMatrix();
+    }
     for (const layer of this.layers) layer.frame(input, this.ctx);
-    this.gl.render(this.scene, this.cam);
+    if (!this.post?.renderFrame(input)) this.gl.render(this.scene, this.cam);
     return performance.now() - t0;
   }
 
@@ -332,8 +348,10 @@ export class Renderer3D implements WorldRenderer {
     if (w <= 0 || h <= 0) return;
     this.cam.aspect = w / h;
     this.cam.updateProjectionMatrix();
-    this.gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2) * this.renderScale);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2) * this.renderScale;
+    this.gl.setPixelRatio(pixelRatio);
     this.gl.setSize(w, h, false);
+    this.post?.setSize(w, h, pixelRatio);
     this.updateCamera();
   }
 

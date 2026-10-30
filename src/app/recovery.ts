@@ -185,6 +185,35 @@ export const DEGRADE_OFF: readonly string[] = [
 export const DEGRADE_RENDER_SCALE_LEVEL = 10;
 export const DEGRADE_RENDER_SCALE = 50;
 
+/**
+ * The 3D ladder (spec "Renderer choice", 3D part 1 Task 7). Levels 1 to 9 are the 2D steps above, then five 3D steps
+ * replace the 2D render-scale step. Only the 3D view takes them. `map3d.billboards` is read by the billboard layer.
+ */
+export const DEGRADE_OFF_3D: readonly string[] = [...DEGRADE_OFF, 'map3d.shadows', 'map3d.post', 'map3d.billboards', 'map3d.viewDistance', 'map3d.renderScale'];
+/** The 3D view's render-scale cap, at the last 3D step. */
+export const DEGRADE_RENDER_SCALE_3D = 60;
+
+/** The runtime steps for a renderer kind, in the order they are taken. */
+export function ladderFor(kind: '2d' | '3d'): readonly string[] {
+  return kind === '3d' ? DEGRADE_OFF_3D : DEGRADE_OFF;
+}
+
+/** The highest level for a renderer kind. */
+export function ladderMaxLevel(kind: '2d' | '3d'): number {
+  return kind === '3d' ? DEGRADE_OFF_3D.length : DEGRADE_MAX_LEVEL;
+}
+
+/** True when the track is on the last step of the ladder (the level the 3D toast waits for). */
+export function ladderExhausted(track: DegradeTrack, maxLevel: number = DEGRADE_MAX_LEVEL): boolean {
+  return track.level >= maxLevel;
+}
+
+/** The render-scale cap a level imposes, in percent, or null for no cap. */
+export function renderScaleCapFor(kind: '2d' | '3d', level: number): number | null {
+  if (kind === '3d') return level >= DEGRADE_OFF_3D.length ? DEGRADE_RENDER_SCALE_3D : null;
+  return level >= DEGRADE_RENDER_SCALE_LEVEL ? DEGRADE_RENDER_SCALE : null;
+}
+
 export interface DegradeTrack {
   level: number;
   overSeconds: number;
@@ -201,16 +230,16 @@ export const DEGRADE_START: DegradeTrack = { level: 0, overSeconds: 0, underSeco
  * `effectsIdle` says no deploy effect is alive. Then the map.effects step frees nothing, so a step down
  * counts it as done and goes on to the next one (the effects layer is still turned off at that level).
  */
-export function stepDegrade(track: DegradeTrack, meanFrameMs: number, budgetMs: number, effectsIdle = false): DegradeTrack {
+export function stepDegrade(track: DegradeTrack, meanFrameMs: number, budgetMs: number, effectsIdle = false, maxLevel: number = DEGRADE_MAX_LEVEL): DegradeTrack {
   const over = meanFrameMs > budgetMs * DEGRADE_OVER_FACTOR;
   const under = meanFrameMs < budgetMs * DEGRADE_UNDER_FACTOR;
   const overSeconds = over ? track.overSeconds + 1 : 0;
   const underSeconds = under ? track.underSeconds + 1 : 0;
   const holdSeconds = Math.min(track.holdSeconds + 1, DEGRADE_HOLD_SECONDS);
   if (holdSeconds >= DEGRADE_HOLD_SECONDS) {
-    if (overSeconds >= DEGRADE_DOWN_SECONDS && track.level < DEGRADE_MAX_LEVEL) {
+    if (overSeconds >= DEGRADE_DOWN_SECONDS && track.level < maxLevel) {
       const skipsEffects = effectsIdle && DEGRADE_OFF[track.level] === 'map.effects';
-      const level = Math.min(track.level + (skipsEffects ? 2 : 1), DEGRADE_MAX_LEVEL);
+      const level = Math.min(track.level + (skipsEffects ? 2 : 1), maxLevel);
       return { level, overSeconds: 0, underSeconds: 0, holdSeconds: 0 };
     }
     if (underSeconds >= DEGRADE_UP_SECONDS && track.level > 0) {

@@ -14,9 +14,11 @@ function realm(seed: number): Sim {
 }
 
 describe('dominion founding in the running sim', () => {
+  // Day and night (spec 2026-10-30) slowed hamlet work at night, so the first founding moved from year 8 to year 13 on this seed.
+  // The horizon is now 15 years (was 10); the run is deterministic.
   it('settled regions found dominions during a run, with borders and relations set', () => {
     const sim = realm(555);
-    for (let t = 0; t < 10 * YEAR_TICKS; t++) sim.step();
+    for (let t = 0; t < 15 * YEAR_TICKS; t++) sim.step();
     const s = dominionState(sim);
     expect(s.dominions.length).toBeGreaterThan(0);
     // Every founded dominion holds parcels that the owner bytes agree on.

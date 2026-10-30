@@ -3,6 +3,8 @@ import { BITE_STATUSES, CLAW_BLEED_CHANCE, ON_HIT_MODIFIERS, ROT_TOUCHED_TRAIT, 
 import type { BeingStore } from './beings/store.ts';
 import { SPECIES } from '../content/beasts.ts';
 import { BEING_TRAIT_INDEX } from '../content/traits.ts';
+import { isNight } from '../shared/daytime.ts';
+import { ROUND6 } from './beings/tuning.ts';
 
 /** Damage types of 08 section 1 that this milestone uses. */
 export type DamageType = 'Weapon' | 'Other' | 'Explosion' | 'Fire' | 'Acid' | 'Poison' | 'Starvation' | 'Age' | 'Eaten' | 'Divine' | 'Drowning';
@@ -174,7 +176,9 @@ export function predate(ctx: CombatContext, predator: number, prey: number): { d
     // Slashes (18c source of bleeding): a landed claw swing may open a wound.
     if (swing.dealt > 0 && ctx.rng.next() < CLAW_BLEED_CHANCE) ctx.effects.add(prey, 'bleeding', ctx.tick);
   }
-  const bite = Math.floor(0.15 * (ctx.beings.store.maxVit[prey] ?? 0)) + 1;
+  let bite = Math.floor(0.15 * (ctx.beings.store.maxVit[prey] ?? 0)) + 1;
+  // Day and night spec, call 5: a nocturnal predator bites harder at night (there is no hit roll, so damage carries it).
+  if (isNight(ctx.tick) && SPECIES[ctx.beings.store.species[predator] ?? -1]?.nocturnal) bite = Math.floor(bite * ROUND6.nightBite);
   const hit = applyDamage(ctx, prey, bite, 'Eaten', false, 'eaten');
   dealt += hit.dealt;
   if (hit.killed) {

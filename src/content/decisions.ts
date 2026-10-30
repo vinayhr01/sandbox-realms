@@ -23,9 +23,11 @@ export interface DecisionRow {
 export const DECISION_ROWS: readonly DecisionRow[] = [
   { id: 'wander', tier: 0, weight: 0.2, cooldown: 0, flags: [] },
   { id: 'pause5', tier: 0, weight: 0.1, cooldown: 0, flags: [] },
-  { id: 'idle_nap', tier: 0, weight: 0.05, cooldown: 1800, flags: ['onlySafe'] },
-  { id: 'polyphasic', tier: 1, weight: 0.8, cooldown: 1800, flags: ['onlySafe'] },
-  { id: 'monophasic', tier: 1, weight: 0.75, cooldown: 4000, flags: ['onlySafe'] },
+  // Day and night (spec 2026-10-30): naps and polyphasic sleep are at most 50 ticks, so their cooldowns scale to 75 (1800 / 24).
+  // Monophasic is a night sleep, so it cools down for 150 ticks and a being can sleep every night (was 4000).
+  { id: 'idle_nap', tier: 0, weight: 0.05, cooldown: 75, flags: ['onlySafe'] },
+  { id: 'polyphasic', tier: 1, weight: 0.8, cooldown: 75, flags: ['onlySafe'] },
+  { id: 'monophasic', tier: 1, weight: 0.75, cooldown: 150, flags: ['onlySafe'] },
   { id: 'herd_follow', tier: 2, weight: 0.7, cooldown: 0, flags: [] },
   { id: 'chat', tier: 2, weight: 0.5, cooldown: 600, flags: [] },
   { id: 'flee', tier: 3, weight: 3.1, cooldown: 0, flags: [] },

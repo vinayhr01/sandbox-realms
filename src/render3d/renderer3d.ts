@@ -11,7 +11,7 @@ import type { Atlas } from '../render/atlas.ts';
 import type { CameraControl, FrameInput, ScreenPoint, TilePoint, WorldRenderer } from '../render/world-renderer.ts';
 import { HeightField } from './heights.ts';
 import { pickTile } from './pick.ts';
-import { EYE_HEIGHT, overviewHeight, panRig, rigPose, rotateRig, zoomRig, type RigState } from './rig.ts';
+import { EYE_HEIGHT, isAtGround, overviewHeight, panRig, rigPose, rotateRig, walkRig, zoomRig, type RigState } from './rig.ts';
 import { layerFactories, type Layer3D, type Layer3DContext } from './layer.ts';
 
 // Layer modules register on import (layer.ts). Tasks 4-8 each add one import line here, for example:
@@ -23,6 +23,11 @@ const FOV_DEG = 50;
 const NEAR = 0.1;
 const FAR_MIN = 512;
 const BACKGROUND = 0x17202b;
+/** Ground walking speed, in tiles per second (1 tile = 2 m, so 2.5 tiles/s is 5 m/s). */
+const WALK_TILES_PER_S = 2.5;
+/** Look tilt limits, radians added to the ground pitch (-5 degrees). Negative looks down, positive up. */
+const LOOK_PITCH_MIN = -0.9;
+const LOOK_PITCH_MAX = 0.7;
 
 /** What the camera control needs from the renderer. */
 interface RigHost {
@@ -32,6 +37,9 @@ interface RigHost {
   groundAt(x: number, y: number): number;
   viewport(): { w: number; h: number };
   screenToTile(sx: number, sy: number): TilePoint | null;
+  walk(forward: number, strafe: number, dtMs: number): void;
+  look(dyaw: number, dpitch: number): void;
+  atGround(): boolean;
 }
 
 /** The one camera for both views, over the rig. 2D-only calls are the same shape; rotation is real here. */
@@ -90,6 +98,23 @@ class Rig3DCamera implements CameraControl {
     const f = this.host.rig().focus;
     return { x: f.x, y: f.y };
   }
+
+  walk(forward: number, strafe: number, dtMs: number): void {
+    this.host.walk(forward, strafe, dtMs);
+  }
+
+  look(dyaw: number, dpitch: number): void {
+    this.host.look(dyaw, dpitch);
+  }
+
+  atGround(): boolean {
+    return this.host.atGround();
+  }
+
+  rig(): { height: number; focus: TilePoint; yaw: number } {
+    const r = this.host.rig();
+    return { height: r.height, focus: { x: r.focus.x, y: r.focus.y }, yaw: r.yaw };
+  }
 }
 
 /** The 3D view: one camera, the rig, and the registered Layer3D modules. */
@@ -106,6 +131,8 @@ export class Renderer3D implements WorldRenderer {
   private readonly ctx: Layer3DContext;
   private side = 0;
   private rigState: RigState = { focus: { x: 0, y: 0 }, height: EYE_HEIGHT, yaw: 0 };
+  /** Tilt added at ground level by look(), radians. Not applied above ground. */
+  private lookPitch = 0;
   private lost = false;
   private renderScale = 1;
   private minFrameMs = 0;
@@ -146,6 +173,9 @@ export class Renderer3D implements WorldRenderer {
       groundAt: (x, y) => this.field.heightAt(x, y),
       viewport: () => ({ w: this.canvas.clientWidth, h: this.canvas.clientHeight }),
       screenToTile: (sx, sy) => this.screenToTile(sx, sy),
+      walk: (forward, strafe, dtMs) => this.walk(forward, strafe, dtMs),
+      look: (dyaw, dpitch) => this.look(dyaw, dpitch),
+      atGround: () => this.atGround(),
     });
 
     this.ctx = {
@@ -261,6 +291,29 @@ export class Renderer3D implements WorldRenderer {
     return { drawn: this.gl.info.render.calls, dots: 0, atlas: null };
   }
 
+  /** Walks the focus at ground level: forward and strafe are -1..1 and dtMs the frame time. Keys and joystick call it. */
+  walk(forward: number, strafe: number, dtMs: number): void {
+    this.rigState = walkRig(this.rigState, forward, strafe, dtMs, WALK_TILES_PER_S, this.side);
+    this.updateCamera();
+  }
+
+  /** Turns the view: dyaw turns it (positive is right), dpitch tilts it (positive looks up), both in radians. */
+  look(dyaw: number, dpitch: number): void {
+    this.rigState = rotateRig(this.rigState, dyaw);
+    this.lookPitch = Math.min(Math.max(this.lookPitch + dpitch, LOOK_PITCH_MIN), LOOK_PITCH_MAX);
+    this.updateCamera();
+  }
+
+  /** True at ground level (see isAtGround in rig.ts). */
+  atGround(): boolean {
+    return isAtGround(this.rigState.height, this.side);
+  }
+
+  /** A copy of the camera rig: height above the ground under the focus, focus tile, and yaw. */
+  rig(): RigState {
+    return { focus: { ...this.rigState.focus }, height: this.rigState.height, yaw: this.rigState.yaw };
+  }
+
   destroy(): void {
     cancelAnimationFrame(this.raf);
     this.canvas.removeEventListener('webglcontextlost', this.onContextLost);
@@ -274,7 +327,8 @@ export class Renderer3D implements WorldRenderer {
   private updateCamera(): void {
     const pose = rigPose(this.rigState, this.side, (x, y) => this.field.heightAt(x, y));
     this.cam.position.set(pose.eye[0], pose.eye[1], pose.eye[2]);
-    this.cam.rotation.set(pose.pitch, -this.rigState.yaw, 0, 'YXZ');
+    const tilt = this.atGround() ? this.lookPitch : 0;
+    this.cam.rotation.set(pose.pitch + tilt, -this.rigState.yaw, 0, 'YXZ');
     this.cam.updateMatrixWorld(true);
   }
 

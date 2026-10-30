@@ -79,6 +79,14 @@ export interface CameraControl {
   zoom01(): number;
   /** Tile at the screen centre (audio pan). */
   centreTile(): TilePoint;
+  /** 3D only: walk at ground level. forward and strafe are -1..1, dtMs the frame time. */
+  walk?(forward: number, strafe: number, dtMs: number): void;
+  /** 3D only: turn the view at ground level (yaw) and tilt it (pitch), in radians. */
+  look?(dyaw: number, dpitch: number): void;
+  /** 3D only: true at ground level. */
+  atGround?(): boolean;
+  /** 3D only: the camera rig, for the test hook. */
+  rig?(): { height: number; focus: TilePoint; yaw: number };
 }
 
 export interface WorldRenderer {

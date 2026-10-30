@@ -34,6 +34,8 @@ export interface MapInputHandlers {
    * absent the stroke ends as before, without undo.
    */
   onStrokeUndo?(): void;
+  /** A two-finger twist, in radians since the last call (3D rotates with it). Optional: absent in 2D. */
+  onTwist?(radians: number): void;
   /**
    * Settings: sticky hold (13 section 15). When on, releasing a stroke keeps it running; the pointer
    * then paints by hovering, and the next press ends it. Optional, so off when not given.
@@ -71,6 +73,7 @@ export class MapInput {
   private pinchDist = 0;
   private pinchMidX = 0;
   private pinchMidY = 0;
+  private pinchAngle = 0;
   /** A stroke kept running after release (sticky hold). */
   private latched = false;
   /** Timer for hold-to-raise or long-press on the first pointer; null when none runs. */
@@ -276,6 +279,7 @@ export class MapInput {
     this.pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
     this.pinchMidX = (a.x + b.x) / 2;
     this.pinchMidY = (a.y + b.y) / 2;
+    this.pinchAngle = Math.atan2(b.y - a.y, b.x - a.x);
   }
 
   private updatePinch(): void {
@@ -284,10 +288,19 @@ export class MapInput {
     const dist = Math.hypot(a.x - b.x, a.y - b.y);
     const midX = (a.x + b.x) / 2;
     const midY = (a.y + b.y) / 2;
+    const angle = Math.atan2(b.y - a.y, b.x - a.x);
     // Pinches closer than 12 px are noise (13 section 9).
     if (dist >= 12 && this.pinchDist >= 12) {
       this.handlers.onZoom(dist / this.pinchDist, midX, midY);
+      if (this.handlers.onTwist) {
+        let turn = angle - this.pinchAngle;
+        // Wrap to (-pi, pi] so a turn across the atan2 seam is small.
+        if (turn > Math.PI) turn -= 2 * Math.PI;
+        if (turn <= -Math.PI) turn += 2 * Math.PI;
+        this.handlers.onTwist(turn);
+      }
     }
+    this.pinchAngle = angle;
     this.handlers.onPan(midX - this.pinchMidX, midY - this.pinchMidY);
     this.pinchDist = dist;
     this.pinchMidX = midX;
